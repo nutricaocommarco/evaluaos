@@ -7,14 +7,22 @@ export default function ExportadorDadosCSV() {
   const exportarBackupCompletoCSV = async () => {
     setExportando(true)
     try {
-      // Consulta unificada trazendo Avaliações, Pacientes e Dados Calculados
+      // 1. Pega o usuário logado atual
+      const { data: authData, error: authError } = await supabase.auth.getUser()
+      if (authError || !authData?.user) {
+        throw new Error('Usuário não autenticado.')
+      }
+      const userId = authData.user.id
+
+      // 2. Consulta unificada filtrando apenas os pacientes do avaliador logado
       const { data, error } = await supabase
         .from('avaliacoes')
         .select(`
           *,
-          pacientes (*),
+          pacientes!inner (*),
           dados_calculados (*)
         `)
+        .eq('pacientes.id_avaliador', userId)
         .order('data_avaliacao', { ascending: false })
 
       if (error) throw error
@@ -87,7 +95,7 @@ export default function ExportadorDadosCSV() {
       <div>
         <h3 className="text-sm font-bold text-gray-800 uppercase tracking-wider">Backup & Exportação de Dados</h3>
         <p className="text-xs text-gray-500 mt-0.5">
-          Baixe uma planilha contendo o cruzamento completo de pacientes, avaliações brutas e todos os dados calculados.
+          Baixe uma planilha contendo o cruzamento completo dos seus pacientes, avaliações brutas e dados calculados.
         </p>
       </div>
 
@@ -97,7 +105,7 @@ export default function ExportadorDadosCSV() {
             💾
           </div>
           <div>
-            <span className="text-xs font-bold text-gray-800 block">Exportar Backup Completo (Pacientes + Avaliações + Cálculos)</span>
+            <span className="text-xs font-bold text-gray-800 block">Exportar Backup Completo (Meus Dados)</span>
             <span className="text-[11px] text-gray-400 block">Arquivo CSV estruturado para Excel, Google Planilhas e análise estatística</span>
           </div>
         </div>
