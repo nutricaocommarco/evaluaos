@@ -4,11 +4,17 @@ import { supabase } from '../supabaseClient'
 import {
   ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend
 } from 'recharts'
+import BotaoExportarEvolucaoPDF from '../components/BotaoExportarEvolucaoPDF';
 
 export default function EvolucaoPaciente() {
   const location = useLocation()
   const navigate = useNavigate()
+  const { tokenUrl } = useParams() // Pega o token se for link público
   const paciente = location.state?.paciente || null
+
+  const isPublicView = !!tokenUrl;
+// Usa o paciente do state (se logado) ou null para buscar depois (se for link público)
+  const [pacienteLocal, setPacienteLocal] = useState(location.state?.paciente || null)
 
   const [loading, setLoading] = useState(true)
   const [historico, setHistorico] = useState([])
@@ -17,32 +23,58 @@ export default function EvolucaoPaciente() {
   // Cores padronizadas para as bolinhas da Somatocarta e Legendas
   const coresAvaliacoes = ['#10b981', '#3b82f6', '#f59e0b', '#ec4899', '#8b5cf6', '#ef4444', '#14b8a6', '#64748b']
 
-  useEffect(() => {
+useEffect(() => {
     async function carregarDados() {
-      if (!paciente) return
+      let pacienteAtual = pacienteLocal;
 
-      // 1. Busca os dados do Avaliador (Header) - 100% DINÂMICO PELO E-MAIL LOGADO
-      const { data: authData } = await supabase.auth.getUser();
-      
-      if (authData?.user?.email) {
-        const { data: avaliadorData, error: errAval } = await supabase
-          .from('avaliadores')
-          .select('nome_completo, instagram, empresa, logomarca_url')
-          .eq('email', authData.user.email)
-          .maybeSingle();
-          
-        if (avaliadorData) {
-          setAvaliador(avaliadorData);
-        } else if (errAval) {
-          console.error("Erro ao buscar avaliador dinâmico:", errAval);
+      // 1. Se for link público, busca o Paciente pelo token na tabela 'pacientes'
+      if (tokenUrl) {
+        const { data: pacData } = await supabase
+          .from('pacientes')
+          .select('*')
+          .eq('token_publico', tokenUrl)
+          .single();
+
+        if (pacData) {
+          pacienteAtual = pacData;
+          setPacienteLocal(pacData);
+        } else {
+          setLoading(false);
+          return;
         }
       }
 
-      // 2. Busca o Histórico de Avaliações do Paciente
+      if (!pacienteAtual) return;
+
+      // 2. Busca do Avaliador (Dinâmico)
+      let avaliadorIdBuscado = pacienteAtual.id_avaliador;
+
+      if (!avaliadorIdBuscado && !isPublicView) {
+        const { data: authData } = await supabase.auth.getUser();
+        if (authData?.user?.email) {
+          const { data: avaliadorEmail } = await supabase
+            .from('avaliadores')
+            .select('id')
+            .eq('email', authData.user.email)
+            .maybeSingle();
+          if (avaliadorEmail) avaliadorIdBuscado = avaliadorEmail.id;
+        }
+      }
+
+      if (avaliadorIdBuscado) {
+        const { data: avaliadorData } = await supabase
+          .from('avaliadores')
+          .select('nome_completo, instagram, empresa, logomarca_url')
+          .eq('id', avaliadorIdBuscado)
+          .maybeSingle();
+        if (avaliadorData) setAvaliador(avaliadorData);
+      }
+
+      // 3. Busca Avaliações (Usando o ID do pacienteAtual)
       const { data: avaliacoes, error: errAvaliacoes } = await supabase
         .from('avaliacoes')
         .select('*')
-        .eq('id_paciente', paciente.id)
+        .eq('id_paciente', pacienteAtual.id)
         .order('data_avaliacao', { ascending: true })
 
       if (errAvaliacoes) {
@@ -51,15 +83,15 @@ export default function EvolucaoPaciente() {
         return
       }
 
-      // 3. Busca os Dados Calculados
+      // 4. Busca Cálculos
       const { data: calculos, error: errCalc } = await supabase
         .from('dados_calculados')
         .select('*')
-        .eq('id_paciente', paciente.id)
+        .eq('id_paciente', pacienteAtual.id)
 
       if (errCalc) console.error(errCalc)
 
-      // 4. Mescla e Formata os Dados
+      // 5. Mescla e Formata os Dados
       const dadosMesclados = avaliacoes.map((aval, index) => {
         const calc = calculos?.find(c => c.id_avaliacao === aval.id) || {}
         
@@ -135,36 +167,11 @@ export default function EvolucaoPaciente() {
     carregarDados()
   }, [paciente])
 
-  // Funções de Ação (PDF Nativo e WhatsApp)
-  const handlePrintPDF = () => {
-    window.print();
-  }
-
-  const handleWhatsApp = () => {
-    const telefoneLimpo = paciente.telefone ? paciente.telefone.replace(/\D/g, '') : '';
-    if (!telefoneLimpo) {
-      alert('Este paciente não possui telefone cadastrado.');
-      return;
-    }
-    const primeiroNome = paciente.nome_completo ? paciente.nome_completo.split(' ')[0] : 'Paciente';
-    const saudacao = avaliador?.nome_completo ? avaliador.nome_completo : 'seu Avaliador';
-    
-    // Pega o token_publico da última avaliação para o paciente ver o laudo mais recente
-    const ultimaAvaliacao = historico[historico.length - 1];
-    const linkDoLaudo = ultimaAvaliacao && ultimaAvaliacao.token_publico 
-        ? `${window.location.origin}/laudo/${ultimaAvaliacao.token_publico}`
-        : `${window.location.origin}`;
-
-    const msg = `Olá *${primeiroNome}*, tudo bem?\n\nAqui é ${saudacao}! Acabei de atualizar a sua *Evolução Antropométrica* com os dados da nossa última consulta.\n\nAcesse o link abaixo para visualizar seus resultados interativos e acompanhar sua evolução:\n\n${linkDoLaudo}\n\nQualquer dúvida, estou à disposição!`;
-    const link = `https://wa.me/${telefoneLimpo.startsWith('55') ? telefoneLimpo : '55' + telefoneLimpo}?text=${encodeURIComponent(msg)}`;
-    window.open(link, '_blank');
-  }
-
-  if (!paciente) {
+if (!pacienteLocal) {
     return (
       <div className="flex flex-col items-center justify-center h-full space-y-4 p-8">
-        <h2 className="text-xl font-bold text-gray-800">Nenhum paciente selecionado</h2>
-        <button onClick={() => navigate('/pacientes')} className="px-6 py-2 bg-emerald-600 text-white rounded-lg">Ir para Pacientes</button>
+        <h2 className="text-xl font-bold text-gray-800">Nenhum paciente selecionado ou Link Inválido</h2>
+        {!isPublicView && <button onClick={() => navigate('/pacientes')} className="px-6 py-2 bg-emerald-600 text-white rounded-lg">Ir para Pacientes</button>}
       </div>
     )
   }
@@ -176,8 +183,8 @@ export default function EvolucaoPaciente() {
       <div className="p-8 max-w-3xl mx-auto text-center space-y-6">
         <div className="bg-white p-8 rounded-xl shadow border border-gray-100">
           <h2 className="text-2xl font-bold text-gray-800 mb-2">Evolução Incompleta</h2>
-          <p className="text-gray-500">O paciente <strong>{paciente.nome_completo}</strong> possui apenas {historico.length} avaliação registrada. São necessárias pelo menos 2 avaliações no sistema para gerar o comparativo temporal.</p>
-          <button onClick={() => navigate('/pacientes')} className="mt-6 px-6 py-2 bg-emerald-600 text-white rounded-lg font-semibold hover:bg-emerald-700">Voltar</button>
+          <p className="text-gray-500">O paciente possui apenas {historico.length} avaliação registrada. São necessárias pelo menos 2 avaliações no sistema para gerar o comparativo temporal.</p>
+          {!isPublicView && <button onClick={() => navigate('/pacientes')} className="mt-6 px-6 py-2 bg-emerald-600 text-white rounded-lg font-semibold hover:bg-emerald-700">Voltar</button>}
         </div>
       </div>
     )
@@ -185,8 +192,8 @@ export default function EvolucaoPaciente() {
 
   // Cálculos Demográficos
   let idade = '-'
-  if (paciente.data_nascimento) {
-    const birthDate = new Date(paciente.data_nascimento + 'T12:00:00')
+  if (pacienteLocal.data_nascimento) {
+    const birthDate = new Date(pacienteLocal.data_nascimento + 'T12:00:00')
     const evalDate = new Date()
     idade = evalDate.getFullYear() - birthDate.getFullYear()
     const m = evalDate.getMonth() - birthDate.getMonth()
@@ -584,6 +591,30 @@ export default function EvolucaoPaciente() {
         </div>
       </div>
 
+      {/* SÓ MOSTRA O BOTÃO DO WHATSAPP SE NÃO FOR A VISÃO PÚBLICA */}
+      {!isPublicView && telefoneLimpo && tokenPublico ? (
+        <a 
+          href={linkWhatsApp} 
+          target="_blank" 
+          rel="noopener noreferrer"
+          className="flex items-center justify-center px-4 py-2.5 bg-green-500 text-white text-xs font-semibold rounded-lg shadow hover:bg-green-600 transition-colors flex-1 md:flex-none"
+        >
+          <svg className="w-4 h-4 mr-1.5" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
+          </svg>
+          ZAP
+        </a>
+      ) : null}
+
+      {/* BOTÃO DO PDF LIBERADO PARA TODOS (Avaliador e Paciente) */}
+      <PDFDownloadLink
+        document={<RelatorioEvolucaoPDF historico={historico} paciente={paciente} avaliador={avaliador} idade={idade} />}
+        fileName={`Evolucao_${paciente?.nome_completo ? paciente.nome_completo.replace(/\s+/g, '_') : 'Paciente'}.pdf`}
+        className="flex items-center justify-center px-4 py-2.5 bg-gray-800 text-white text-xs font-semibold rounded-lg shadow hover:bg-gray-900 transition-colors flex-1 md:flex-none"
+      >
+        {({ loading }) => (loading ? 'Gerando PDF...' : 'Baixar PDF')}
+      </PDFDownloadLink>
+      
     </div>
   )
 }
