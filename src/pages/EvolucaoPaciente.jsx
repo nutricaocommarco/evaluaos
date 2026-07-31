@@ -10,7 +10,6 @@ export default function EvolucaoPaciente() {
   const location = useLocation()
   const navigate = useNavigate()
   const { tokenUrl } = useParams() // Pega o token se for link público
-  const paciente = location.state?.paciente || null
 
   const isPublicView = !!tokenUrl;
 // Usa o paciente do state (se logado) ou null para buscar depois (se for link público)
@@ -177,9 +176,11 @@ useEffect(() => {
     }
 
     carregarDados()
-  }, [paciente])
+  }, [tokenUrl])
 
-if (!pacienteLocal) {
+    if (loading) return <div className="p-8 text-center text-emerald-600 font-bold">Processando evolução...</div>
+
+    if (!pacienteLocal) {
     return (
       <div className="flex flex-col items-center justify-center h-full space-y-4 p-8">
         <h2 className="text-xl font-bold text-gray-800">Nenhum paciente selecionado ou Link Inválido</h2>
@@ -187,8 +188,6 @@ if (!pacienteLocal) {
       </div>
     )
   }
-
-  if (loading) return <div className="p-8 text-center text-emerald-600 font-bold">Processando evolução...</div>
 
   if (historico.length < 2) {
     return (
@@ -386,7 +385,7 @@ if (!pacienteLocal) {
         {/* Dados Demográficos do Paciente */}
         <div>
           <h2 className="text-sm font-bold text-gray-500 uppercase tracking-wider mb-1">Evolução Antropométrica de</h2>
-          <h2 className="text-3xl font-black text-gray-900 uppercase tracking-tight">{paciente.nome_completo}</h2>
+          <h2 className="text-3xl font-black text-gray-900 uppercase tracking-tight">{pacienteLocal?.nome_completo}</h2>
           
           <div className="flex flex-wrap gap-x-8 gap-y-4 mt-5 bg-gray-50 p-4 rounded-xl border border-gray-100">
             <div className="flex flex-col gap-0.5">
@@ -395,28 +394,28 @@ if (!pacienteLocal) {
             </div>
             <div className="flex flex-col gap-0.5">
               <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Sexo</span>
-              <span className="text-sm font-black text-gray-700">{paciente.sexo === 'M' ? 'Masculino' : 'Feminino'}</span>
+              <span className="text-sm font-black text-gray-700">{pacienteLocal?.sexo === 'M' ? 'Masculino' : 'Feminino'}</span>
             </div>
             <div className="flex flex-col gap-0.5">
               <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Estatura</span>
               <span className="text-sm font-black text-gray-700">{ultimaEstatura > 0 ? `${ultimaEstatura} cm` : '-'}</span>
             </div>
-            {paciente.ocupacao && (
+            {pacienteLocal?.ocupacao && (
               <div className="flex flex-col gap-0.5">
                 <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Ocupação</span>
-                <span className="text-sm font-black text-gray-700">{paciente.ocupacao}</span>
+                <span className="text-sm font-black text-gray-700">{pacienteLocal?.ocupacao}</span>
               </div>
             )}
-            {paciente.etnia && (
+            {pacienteLocal?.etnia && (
               <div className="flex flex-col gap-0.5">
                 <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Etnia</span>
-                <span className="text-sm font-black text-gray-700">{paciente.etnia}</span>
+                <span className="text-sm font-black text-gray-700">{pacienteLocal?.etnia}</span>
               </div>
             )}
-            {paciente.nacionalidade && (
+            {pacienteLocal?.nacionalidade && (
               <div className="flex flex-col gap-0.5">
                 <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Nacionalidade</span>
-                <span className="text-sm font-black text-gray-700">{paciente.nacionalidade}</span>
+                <span className="text-sm font-black text-gray-700">{pacienteLocal?.nacionalidade}</span>
               </div>
             )}
           </div>
