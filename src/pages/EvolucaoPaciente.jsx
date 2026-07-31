@@ -21,15 +21,16 @@ export default function EvolucaoPaciente() {
     async function carregarDados() {
       if (!paciente) return
 
-      // 1. Busca os dados do Avaliador (Header)
-      if (paciente.id_avaliador) {
-        const { data: avaliadorData } = await supabase
-          .from('avaliadores')
-          .select('nome_completo, instagram, empresa, logomarca_url')
-          .eq('id', paciente.id_avaliador)
-          .single()
-        
-        if (avaliadorData) setAvaliador(avaliadorData)
+      // 1. Busca os dados do Avaliador (Header) - USANDO SUA LÓGICA DO LAUDO
+      const avaliadorIdBuscado = paciente.id_avaliador || 3; // Usa o ID do paciente ou força o 3 como segurança
+      const { data: avaliadorData } = await supabase
+        .from('avaliadores')
+        .select('nome_completo, instagram, empresa, logomarca_url')
+        .eq('id', avaliadorIdBuscado)
+        .maybeSingle(); // maybeSingle evita que o app quebre se não achar
+      
+      if (avaliadorData) {
+        setAvaliador(avaliadorData)
       }
 
       // 2. Busca o Histórico de Avaliações do Paciente
@@ -374,7 +375,7 @@ export default function EvolucaoPaciente() {
         </div>
       </div>
 
-      {/* BLOCO 3: Circunferências / Perímetros */}
+      {/* BLOCO 3: Circunferências / Perímetros (Ordenado de acordo com o Laudo) */}
       <div>
         <div className="flex items-center gap-2 mb-4 px-2">
           <div className="w-8 h-8 rounded-full bg-rose-50 text-rose-600 flex items-center justify-center">
@@ -383,19 +384,19 @@ export default function EvolucaoPaciente() {
           <h3 className="text-lg font-black text-gray-800">Circunferências (Perímetros)</h3>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          <CardEvolucao titulo="Cintura" chaveDado="cintura" unidade="cm" isInverso={true} />
-          <CardEvolucao titulo="Abdominal" chaveDado="perim_abdominal" unidade="cm" isInverso={true} />
-          <CardEvolucao titulo="Quadril" chaveDado="quadril" unidade="cm" isInverso={true} />
           <CardEvolucao titulo="Braço Relaxado" chaveDado="braco_rel" unidade="cm" isInverso={false} />
           <CardEvolucao titulo="Braço Contraído" chaveDado="braco_cont" unidade="cm" isInverso={false} />
           <CardEvolucao titulo="Antebraço" chaveDado="antibraco" unidade="cm" isInverso={false} />
+          <CardEvolucao titulo="Cintura" chaveDado="cintura" unidade="cm" isInverso={true} />
+          <CardEvolucao titulo="Abdominal" chaveDado="perim_abdominal" unidade="cm" isInverso={true} />
+          <CardEvolucao titulo="Quadril" chaveDado="quadril" unidade="cm" isInverso={true} />
           <CardEvolucao titulo="Coxa Máxima" chaveDado="coxa_max" unidade="cm" isInverso={false} />
           <CardEvolucao titulo="Coxa Média" chaveDado="coxa_med" unidade="cm" isInverso={false} />
           <CardEvolucao titulo="Panturrilha" chaveDado="perim_panturrilha" unidade="cm" isInverso={false} />
         </div>
       </div>
 
-      {/* BLOCO 4: Dobras Cutâneas e Somatórios */}
+      {/* BLOCO 4: Dobras Cutâneas e Somatórios (Ordenado de acordo com o Laudo) */}
       <div>
         <div className="flex items-center gap-2 mb-4 px-2">
           <div className="w-8 h-8 rounded-full bg-orange-50 text-orange-600 flex items-center justify-center">
