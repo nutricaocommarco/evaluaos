@@ -78,7 +78,7 @@ export default function Configuracoes() {
   const abas = [
     { id: 'coleta', label: 'Formulário & Coleta', icon: '📝' },
     { id: 'preferencias', label: 'Protocolos & Margens', icon: '⚡' },
-    { id: 'privacidade', label: 'Link Público (WhatsApp)', icon: '👁️' },
+    { id: 'privacidade', label: 'Visibilidade', icon: '👁️' },
     { id: 'backup', label: 'Backup & Dados', icon: '💾' }
   ]
 
@@ -121,18 +121,7 @@ export default function Configuracoes() {
         )}
 
         {abaAtiva === 'privacidade' && (
-          <div className="bg-white p-8 rounded-xl border border-gray-100 shadow-sm text-center space-y-3">
-            <div className="w-12 h-12 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center mx-auto text-xl font-bold">
-              🛠️
-            </div>
-            <h3 className="text-base font-bold text-gray-800">Configurações do Link Público (Em Breve)</h3>
-            <p className="text-xs text-gray-500 max-w-md mx-auto leading-relaxed">
-              Em breve você poderá personalizar exatamente quais seções e gráficos seu paciente poderá visualizar ao acessar o laudo e a evolução pelo link interativo do WhatsApp.
-            </p>
-            <span className="inline-block px-3 py-1 bg-emerald-100 text-emerald-800 text-[10px] font-bold uppercase tracking-wider rounded-full mt-2">
-              Em Desenvolvimento
-            </span>
-          </div>
+          <VisibilidadePublicaForm config={config} setConfig={setConfig} onSave={handleSalvarTudo} saving={saving} />
         )}
 
         {abaAtiva === 'backup' && (

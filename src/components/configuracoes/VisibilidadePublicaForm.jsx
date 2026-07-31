@@ -1,76 +1,272 @@
 import React from 'react'
 
 export default function VisibilidadePublicaForm({ config, setConfig, onSave, saving }) {
-  const visibilidade = config.visibilidade_publica || {
-    exibir_somatocarta: true,
-    exibir_dobras_brutas: true,
-    exibir_perimetros: true,
-    exibir_indices_risco: true,
-    exibir_composicao_kg: true
-  }
+  // Estado padrão: se for null/undefined, inicia tudo como true
+  const vis = config.visibilidade_publica || {}
 
   const handleToggle = (chave) => {
     setConfig(prev => ({
       ...prev,
       visibilidade_publica: {
-        ...visibilidade,
-        [chave]: !visibilidade[chave]
+        ...(prev.visibilidade_publica || {}),
+        [chave]: prev.visibilidade_publica?.[chave] === undefined ? false : !prev.visibilidade_publica[chave]
       }
     }))
   }
 
-  const opcoes = [
-    { key: 'exibir_somatocarta', label: 'Somatocarta (Trajetória Somatotípica)', desc: 'Mostra a rosa-dos-ventos somatotípica (Endo, Meso, Ecto)' },
-    { key: 'exibir_composicao_kg', label: 'Cards de Composição Corporal (KG e %)', desc: 'Exibe peso, massa muscular e gordura corporal' },
-    { key: 'exibir_perimetros', label: 'Lista de Perímetros / Circunferências', desc: 'Permite ao paciente acompanhar evolução de braço, cintura, quadril' },
-    { key: 'exibir_dobras_brutas', label: 'Valores de Dobras Cutâneas (mm)', desc: 'Mostra os milímetros brutos das dobras' },
-    { key: 'exibir_indices_risco', label: 'Índices Cardiometabólicos (RCQ, RCE, APVAT)', desc: 'Apresenta indicadores de risco para a saúde' }
+  const handleToggleGrupo = (chaves, ativar) => {
+    setConfig(prev => {
+      const novavis = { ...(prev.visibilidade_publica || {}) }
+      chaves.forEach(k => {
+        novavis[k] = ativar
+      })
+      return {
+        ...prev,
+        visibilidade_publica: novavis
+      }
+    })
+  }
+
+  // --- ESTRUTURA COMPLETA INDIVIDUALIZADA DA EVOLUÇÃO ---
+  const gruposEvolucao = [
+    {
+      titulo: 'Composição Corporal & Indicadores',
+      chaves: [
+        { key: 'evo_peso', label: 'Peso / Massa Corporal' },
+        { key: 'evo_gordura_perc', label: '% de Gordura' },
+        { key: 'evo_massa_gorda', label: 'Massa de Gordura (kg)' },
+        { key: 'evo_massa_muscular', label: 'Massa Muscular (kg)' },
+        { key: 'evo_massa_magra', label: 'Massa Magra (kg)' },
+        { key: 'evo_imc', label: 'IMC' }
+      ]
+    },
+    {
+      titulo: 'Gráficos Visuais',
+      chaves: [
+        { key: 'evo_grafico_massa', label: 'Gráfico: Composição (kg)' },
+        { key: 'evo_grafico_gordura', label: 'Gráfico: % de Gordura' },
+        { key: 'evo_grafico_somatocarta', label: 'Gráfico: Trajetória da Somatocarta' },
+        { key: 'evo_grafico_barras_somatotipo', label: 'Gráfico: Barras do Somatotipo' }
+      ]
+    },
+    {
+      titulo: 'Circunferências (Perímetros)',
+      chaves: [
+        { key: 'evo_perim_braco_rel', label: 'Braço Relaxado' },
+        { key: 'evo_perim_braco_cont', label: 'Braço Contraído' },
+        { key: 'evo_perim_antibraco', label: 'Antebraço' },
+        { key: 'evo_perim_cintura', label: 'Cintura' },
+        { key: 'evo_perim_abdominal', label: 'Abdominal' },
+        { key: 'evo_perim_quadril', label: 'Quadril' },
+        { key: 'evo_perim_coxa_max', label: 'Coxa Máxima' },
+        { key: 'evo_perim_coxa_med', label: 'Coxa Média' },
+        { key: 'evo_perim_panturrilha', label: 'Panturrilha' }
+      ]
+    },
+    {
+      titulo: 'Dobras Cutâneas & Somatórios',
+      chaves: [
+        { key: 'evo_dobra_triceps', label: 'Dobra Tríceps' },
+        { key: 'evo_dobra_subescapular', label: 'Dobra Subescapular' },
+        { key: 'evo_dobra_biceps', label: 'Dobra Bíceps' },
+        { key: 'evo_dobra_crista_iliaca', label: 'Dobra Crista Ilíaca' },
+        { key: 'evo_dobra_supraespinhal', label: 'Dobra Supraespinhal' },
+        { key: 'evo_dobra_abdominal', label: 'Dobra Abdominal' },
+        { key: 'evo_dobra_coxa', label: 'Dobra Coxa Média' },
+        { key: 'evo_dobra_panturrilha', label: 'Dobra Panturrilha' },
+        { key: 'evo_soma_6', label: 'Somatório 6 Dobras' },
+        { key: 'evo_soma_8', label: 'Somatório 8 Dobras' }
+      ]
+    },
+    {
+      titulo: 'Risco Cardiometabólico e Índices',
+      chaves: [
+        { key: 'evo_idx_cintura_estatura', label: 'Cintura / Estatura' },
+        { key: 'evo_idx_rcq', label: 'Cintura / Quadril (RCQ)' },
+        { key: 'evo_idx_apvat', label: 'Área Visceral (apVAT)' },
+        { key: 'evo_idx_iam', label: 'Índice Adiposo Muscular (IAM)' },
+        { key: 'evo_idx_imo', label: 'Índice Massa Óssea (IMO)' }
+      ]
+    }
   ]
 
-  return (
-    <div className="bg-white p-6 rounded-xl border border-gray-100 shadow-sm space-y-4">
-      <div>
-        <h3 className="text-sm font-bold text-gray-800 uppercase tracking-wider">Privacidade dos Links Públicos</h3>
-        <p className="text-xs text-gray-500 mt-0.5">
-          Configure o que o seu aluno/paciente conseguirá visualizar quando abrir o link da evolução ou laudo via WhatsApp.
-        </p>
-      </div>
+  // --- ESTRUTURA COMPLETA INDIVIDUALIZADA DO LAUDO (RESULTADO) ---
+  const gruposLaudo = [
+    {
+      titulo: 'Medidas Básicas',
+      chaves: [
+        { key: 'laudo_peso', label: 'Peso' },
+        { key: 'laudo_estatura', label: 'Estatura' },
+        { key: 'laudo_altura_sentado', label: 'Altura Sentado' },
+        { key: 'laudo_envergadura', label: 'Envergadura' }
+      ]
+    },
+    {
+      titulo: 'Composição Corporal',
+      chaves: [
+        { key: 'laudo_imc', label: 'IMC' },
+        { key: 'laudo_percentual_gordura', label: '% de Gordura' },
+        { key: 'laudo_massa_gorda', label: 'Massa Gorda' },
+        { key: 'laudo_massa_magra', label: 'Massa Magra' },
+        { key: 'laudo_massa_muscular', label: 'Massa Muscular' }
+      ]
+    },
+    {
+      titulo: 'Dobras Cutâneas',
+      chaves: [
+        { key: 'laudo_dobra_triceps', label: 'Tríceps' },
+        { key: 'laudo_dobra_subescapular', label: 'Subescapular' },
+        { key: 'laudo_dobra_biceps', label: 'Bíceps' },
+        { key: 'laudo_dobra_crista_iliaca', label: 'Crista Ilíaca' },
+        { key: 'laudo_dobra_supraespinhal', label: 'Supraespinhal' },
+        { key: 'laudo_dobra_abdominal', label: 'Abdominal' },
+        { key: 'laudo_dobra_coxa', label: 'Coxa Média' },
+        { key: 'laudo_dobra_panturrilha', label: 'Panturrilha' }
+      ]
+    },
+    {
+      titulo: 'Indicadores de Saúde & Somatórios',
+      chaves: [
+        { key: 'laudo_rcq', label: 'Relação Cintura-Quadril (RCQ)' },
+        { key: 'laudo_rce', label: 'Relação Cintura-Estatura (RCE)' },
+        { key: 'laudo_status_cintura', label: 'Circunferência da Cintura (Status)' },
+        { key: 'laudo_soma_6', label: 'Somatório 6 Dobras' },
+        { key: 'laudo_soma_8', label: 'Somatório 8 Dobras' }
+      ]
+    },
+    {
+      titulo: 'Perímetros (Circunferências)',
+      chaves: [
+        { key: 'laudo_perim_braco_rel', label: 'Braço Relaxado' },
+        { key: 'laudo_perim_braco_cont', label: 'Braço Contraído' },
+        { key: 'laudo_perim_antibraco', label: 'Antebraço' },
+        { key: 'laudo_perim_cintura', label: 'Cintura' },
+        { key: 'laudo_perim_abdominal', label: 'Abdominal' },
+        { key: 'laudo_perim_quadril', label: 'Quadril' },
+        { key: 'laudo_perim_coxa_max', label: 'Coxa Máxima' },
+        { key: 'laudo_perim_coxa_med', label: 'Coxa Média' },
+        { key: 'laudo_perim_panturrilha', label: 'Panturrilha' }
+      ]
+    },
+    {
+      titulo: 'Perímetros Corrigidos (Massa Regional)',
+      chaves: [
+        { key: 'laudo_perim_corrigido_braco', label: 'Braço Corrigido' },
+        { key: 'laudo_perim_corrigido_coxa', label: 'Coxa Corrigida' },
+        { key: 'laudo_perim_corrigido_panturrilha', label: 'Panturrilha Corrigida' }
+      ]
+    },
+    {
+      titulo: 'Diâmetros Ósseos',
+      chaves: [
+        { key: 'laudo_diam_umero', label: 'Úmero' },
+        { key: 'laudo_diam_femur', label: 'Fêmur' },
+        { key: 'laudo_diam_punho', label: 'Punho' },
+        { key: 'laudo_diam_maleolar', label: 'Tornozelo (Maleolar)' }
+      ]
+    },
+    {
+      titulo: 'Somatotipo & Somatocarta',
+      chaves: [
+        { key: 'laudo_somatotipo_barras', label: 'Barras do Somatotipo (Endo/Meso/Ecto)' },
+        { key: 'laudo_somatocarta_grafico', label: 'Gráfico da Somatocarta' }
+      ]
+    },
+    {
+      titulo: 'Outros Indicadores',
+      chaves: [
+        { key: 'laudo_iam', label: 'Índice Adiposo Muscular (IAM)' },
+        { key: 'laudo_imo', label: 'Índice Músculo Ósseo (IMO)' }
+      ]
+    }
+  ]
 
-      <div className="space-y-3 pt-2">
-        {opcoes.map(opt => {
-          const isChecked = visibilidade[opt.key] !== false
-          return (
-            <div key={opt.key} className="flex items-start justify-between p-3 rounded-lg border border-gray-100 hover:bg-gray-50 transition-colors">
-              <div className="pr-4">
-                <span className="text-xs font-bold text-gray-800 block">{opt.label}</span>
-                <span className="text-[11px] text-gray-400 block">{opt.desc}</span>
-              </div>
+  const renderBlocoGrupo = (grupo) => {
+    const listaChaves = grupo.chaves.map(item => item.key)
+    const todosAtivos = listaChaves.every(k => vis[k] !== false)
 
-              <button
-                type="button"
+    return (
+      <div key={grupo.titulo} className="bg-gray-50/50 p-4 rounded-xl border border-gray-100 space-y-3">
+        <div className="flex justify-between items-center border-b border-gray-100 pb-2">
+          <span className="text-xs font-black text-gray-700 uppercase tracking-wider">{grupo.titulo}</span>
+          <button
+            type="button"
+            onClick={() => handleToggleGrupo(listaChaves, !todosAtivos)}
+            className="text-[10px] font-bold text-emerald-700 hover:text-emerald-900 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-100 transition-colors"
+          >
+            {todosAtivos ? 'Desmarcar Todos' : 'Marcar Todos'}
+          </button>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+          {grupo.chaves.map(opt => {
+            const isChecked = vis[opt.key] !== false
+            return (
+              <label
+                key={opt.key}
                 onClick={() => handleToggle(opt.key)}
-                className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
-                  isChecked ? 'bg-emerald-600' : 'bg-gray-200'
+                className={`flex items-center justify-between p-2.5 rounded-lg border cursor-pointer select-none transition-all ${
+                  isChecked
+                    ? 'bg-white border-emerald-200 text-gray-800 shadow-2xs'
+                    : 'bg-gray-100/50 border-gray-200 text-gray-400 opacity-60'
                 }`}
               >
-                <span
-                  className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
-                    isChecked ? 'translate-x-5' : 'translate-x-0'
-                  }`}
+                <span className="text-xs font-semibold truncate pr-2">{opt.label}</span>
+                <input
+                  type="checkbox"
+                  checked={isChecked}
+                  onChange={() => {}} // Tratado no onClick da label
+                  className="w-4 h-4 text-emerald-600 rounded border-gray-300 focus:ring-emerald-500 shrink-0"
                 />
-              </button>
-            </div>
-          )
-        })}
+              </label>
+            )
+          })}
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="bg-white p-6 rounded-xl border border-gray-100 shadow-sm space-y-8">
+      <div>
+        <h3 className="text-sm font-bold text-gray-800 uppercase tracking-wider">Visibilidade e Exibição de Campos no Sistema & Laudos</h3>
+        <p className="text-xs text-gray-500 mt-0.5">
+          Desmarque os itens que você deseja ocultar das telas do sistema (Evolução e Laudo Antropométrico), tanto no seu painel interno quanto nos links compartilhados via WhatsApp.        </p>
       </div>
 
-      <div className="flex justify-end pt-2">
+      {/* SEÇÃO 1: EVOLUÇÃO PACIENTE */}
+      <div className="space-y-4">
+        <div className="flex items-center gap-2 border-b border-gray-200 pb-2">
+          <span className="text-lg">📈</span>
+          <h4 className="text-xs font-black text-emerald-800 uppercase tracking-wider">
+            1. PÁGINA DE EVOLUÇÃO 
+          </h4>
+        </div>
+        <div className="space-y-4">
+          {gruposEvolucao.map(grupo => renderBlocoGrupo(grupo))}
+        </div>
+      </div>
+
+      {/* SEÇÃO 2: RESULTADO DA AVALIAÇÃO / LAUDO */}
+      <div className="space-y-4 pt-4 border-t border-gray-200">
+        <div className="flex items-center gap-2 border-b border-gray-200 pb-2">
+          <span className="text-lg">📋</span>
+          <h4 className="text-xs font-black text-emerald-800 uppercase tracking-wider">
+            2. LAUDO ANTROPOMÉTRICO 
+          </h4>
+        </div>
+        <div className="space-y-4">
+          {gruposLaudo.map(grupo => renderBlocoGrupo(grupo))}
+        </div>
+      </div>
+
+      <div className="flex justify-end pt-4 border-t border-gray-100">
         <button
           onClick={onSave}
           disabled={saving}
-          className="px-4 py-2 bg-emerald-600 text-white rounded-lg text-xs font-semibold hover:bg-emerald-700 disabled:opacity-50 transition-colors shadow-sm"
+          className="px-6 py-2.5 bg-emerald-600 text-white rounded-lg text-xs font-bold hover:bg-emerald-700 disabled:opacity-50 transition-colors shadow-sm"
         >
-          {saving ? 'Salvando...' : 'Salvar Preferências Públicas'}
+          {saving ? 'Salvando...' : 'Salvar Preferências Individuais'}
         </button>
       </div>
     </div>
