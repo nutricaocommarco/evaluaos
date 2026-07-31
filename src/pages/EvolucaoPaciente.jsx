@@ -13,18 +13,22 @@ export default function EvolucaoPaciente() {
 
   const isPublicView = !!tokenUrl;
   
+  // Usa o paciente do state (se logado) ou null para buscar depois (se for link público)
   const [pacienteLocal, setPacienteLocal] = useState(location.state?.paciente || null)
+
   const [loading, setLoading] = useState(true)
   const [historico, setHistorico] = useState([])
   const [avaliador, setAvaliador] = useState(null)
   const [configVisibilidade, setConfigVisibilidade] = useState({})
   
+  // Cores padronizadas para as bolinhas da Somatocarta e Legendas
   const coresAvaliacoes = ['#10b981', '#3b82f6', '#f59e0b', '#ec4899', '#8b5cf6', '#ef4444', '#14b8a6', '#64748b']
 
   useEffect(() => {
     async function carregarDados() {
       let pacienteAtual = pacienteLocal;
 
+      // 1. Se for link público, busca o Paciente pelo token na tabela 'pacientes'
       if (tokenUrl) {
         const { data: pacData } = await supabase
           .from('pacientes')
@@ -46,7 +50,10 @@ export default function EvolucaoPaciente() {
         return;
       }
 
+      // 2. Busca do Avaliador e de Suas Configurações de Visibilidade
       let avalData = null;
+
+      // A) Tenta pegar pelo usuário logado (Avaliador usando o sistema internamente)
       const { data: authData } = await supabase.auth.getUser();
       if (authData?.user?.email) {
         const { data } = await supabase
@@ -57,6 +64,7 @@ export default function EvolucaoPaciente() {
         avalData = data;
       }
 
+      // B) Se não achar (Paciente acessando publicamente pelo Link do WhatsApp)
       if (!avalData && pacienteAtual.id_avaliador) {
         const { data } = await supabase
           .from('avaliadores')
@@ -69,6 +77,7 @@ export default function EvolucaoPaciente() {
       if (avalData) {
         setAvaliador(avalData);
 
+        // Busca as configurações de visibilidade salvas pelo avaliador
         if (avalData.auth_id) {
           const { data: configData } = await supabase
             .from('configuracoes_avaliador')
@@ -82,6 +91,7 @@ export default function EvolucaoPaciente() {
         }
       }
 
+      // 3. Busca Avaliações
       const { data: avaliacoes, error: errAvaliacoes } = await supabase
         .from('avaliacoes')
         .select('*')
@@ -94,6 +104,7 @@ export default function EvolucaoPaciente() {
         return
       }
 
+      // 4. Busca Cálculos
       const { data: calculos, error: errCalc } = await supabase
         .from('dados_calculados')
         .select('*')
@@ -101,6 +112,7 @@ export default function EvolucaoPaciente() {
 
       if (errCalc) console.error(errCalc)
 
+      // 5. Mescla e Formata os Dados
       const dadosMesclados = (avaliacoes || []).map((aval, index) => {
         const calc = calculos?.find(c => c.id_avaliacao === aval.id) || {}
         
@@ -197,6 +209,7 @@ export default function EvolucaoPaciente() {
     return configVisibilidade[chave] !== false;
   }
 
+  // Cálculos Demográficos
   let idade = '-'
   if (pacienteLocal?.data_nascimento) {
     const birthDate = new Date(pacienteLocal.data_nascimento + 'T12:00:00')
@@ -226,6 +239,7 @@ export default function EvolucaoPaciente() {
     window.open(link, '_blank');
   }
 
+  // COMPONENTE: Cartão de Evolução (Híbrido - Horizontal para 2 / Vertical para 3+ / Com Trava Individual)
   const CardEvolucao = ({ titulo, chaveDado, unidade = "", isInverso = false, chaveVisibilidade }) => {
     if (!podeExibir(chaveVisibilidade)) return null;
 
@@ -319,7 +333,7 @@ export default function EvolucaoPaciente() {
 
   // COMPONENTE: Barras de Somatotipo Individuais
   const BarChartSomatotipo = () => {
-    const maxVal = 12; // Valor base máximo para a proporção das barras
+    const maxVal = 12;
     
     const renderBlocoBarras = (titulo, chaveDado, corBarra) => (
       <div className="flex flex-col gap-3 mb-6 last:mb-0">
@@ -360,6 +374,7 @@ export default function EvolucaoPaciente() {
   return (
     <div className="w-full max-w-6xl mx-auto space-y-10 pb-12 px-4 sm:px-6 overflow-x-hidden animate-fade-in-up print:m-0 print:p-0 print:overflow-visible">
       
+      {/* CSS para Imprimir em PDF */}
       <style>{`
         @media print {
           .no-print { display: none !important; }
@@ -369,8 +384,10 @@ export default function EvolucaoPaciente() {
         }
       `}</style>
 
-      {/* CABEÇALHO */}
+      {/* --- CABEÇALHO PROFISSIONAL --- */}
       <div className="bg-white p-5 sm:p-6 rounded-xl border border-gray-100 shadow-sm flex flex-col gap-6 w-full min-w-0 overflow-hidden">
+        
+        {/* Topo: Avaliador, Logo e Botões */}
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center border-b border-gray-100 pb-4 gap-4 w-full">
           <div className="flex items-center gap-4">
             {avaliador?.logomarca_url ? (
@@ -399,6 +416,7 @@ export default function EvolucaoPaciente() {
           </div>
         </div>
 
+        {/* Dados Demográficos do Paciente */}
         <div className="w-full min-w-0">
           <h2 className="text-sm font-bold text-gray-500 uppercase tracking-wider mb-1">Evolução Antropométrica de</h2>
           <h2 className="text-2xl sm:text-3xl font-black text-gray-900 uppercase tracking-tight break-words break-all sm:break-normal">
@@ -463,6 +481,7 @@ export default function EvolucaoPaciente() {
       {/* BLOCO 2: Gráficos Visuais de Composição e Somatotipo */}
       {(podeExibir('evo_grafico_massa') || podeExibir('evo_grafico_gordura') || podeExibir('evo_grafico_somatocarta')) && (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 break-inside-avoid w-full min-w-0">
+          {/* Gráfico 1: Peso, Músculo e Gordura em KG */}
           {podeExibir('evo_grafico_massa') && (
             <div className="bg-white p-4 sm:p-6 rounded-xl border border-gray-100 shadow-sm flex flex-col min-w-0 w-full overflow-hidden">
               <h3 className="text-sm font-black text-gray-800 uppercase tracking-wider mb-6">Composição (kg)</h3>
@@ -485,6 +504,7 @@ export default function EvolucaoPaciente() {
             </div>
           )}
 
+          {/* Gráfico 2: Exclusivo % de Gordura */}
           {podeExibir('evo_grafico_gordura') && (
             <div className="bg-white p-4 sm:p-6 rounded-xl border border-gray-100 shadow-sm flex flex-col min-w-0 w-full overflow-hidden">
               <h3 className="text-sm font-black text-gray-800 uppercase tracking-wider mb-6">Evolução % de Gordura</h3>
@@ -505,6 +525,7 @@ export default function EvolucaoPaciente() {
             </div>
           )}
 
+          {/* Gráfico 3: Somatocarta */}
           {podeExibir('evo_grafico_somatocarta') && (
             <div className="bg-white p-4 sm:p-6 rounded-xl border border-gray-100 shadow-sm flex flex-col items-center justify-between min-w-0 w-full overflow-hidden">
               <h3 className="text-sm font-black text-gray-800 uppercase tracking-wider w-full text-left mb-4">Trajetória do Somatotipo</h3>
@@ -549,44 +570,13 @@ export default function EvolucaoPaciente() {
         </div>
       )}
       
-      {/* 🚀 COMPONENTE 'BarChartSomatotipo' CHAMADO AQUI DENTRO DA TRAVA! */}
+      {/* BARRAS DO SOMATOTIPO INDIVIDUAL */}
       {podeExibir('evo_grafico_barras_somatotipo') && (
         <div className="bg-white p-4 sm:p-6 rounded-xl border border-gray-100 shadow-sm flex flex-col break-inside-avoid min-w-0 w-full overflow-hidden">
           <h3 className="text-sm font-black text-gray-800 uppercase tracking-wider w-full text-left mb-6">Evolução dos Componentes do Somatotipo</h3>
           <BarChartSomatotipo />
         </div>
       )}
-
-              <div className="flex flex-col w-full mt-2">
-          {['Endomorfia (Adiposidade)', 'Mesomorfia (Musculosidade)', 'Ectomorfia (Magreza / Linearidade)'].map((titulo, idx) => {
-            const chaves = ['endo', 'meso', 'ecto'];
-            const cores = ['#f97316', '#3b82f6', '#10b981'];
-            const chaveDado = chaves[idx];
-            const corBarra = cores[idx];
-            const maxVal = 12;
-
-            return (
-              <div key={idx} className="flex flex-col gap-3 mb-6 last:mb-0">
-                <h5 className="text-xs font-bold truncate" style={{ color: corBarra }}>{titulo}</h5>
-                <div className="space-y-2">
-                  {historico.map((av, index) => {
-                    const val = Number(av[chaveDado]);
-                    const pct = Math.min((val / maxVal) * 100, 100);
-                    return (
-                      <div key={index} className="flex items-center gap-3">
-                        <span className="w-8 text-[10px] font-bold text-right truncate" style={{ color: av.cor }}>{av.nome_avaliacao}</span>
-                        <div className="flex-1 bg-gray-100 h-3 rounded-full overflow-hidden flex items-center">
-                          <div className="h-full rounded-full transition-all duration-1000" style={{ width: `${pct}%`, backgroundColor: corBarra }}></div>
-                        </div>
-                        <span className="w-6 text-right text-xs font-black text-gray-800">{val.toFixed(1)}</span>
-                      </div>
-                    )
-                  })}
-                </div>
-              </div>
-            )
-          })}
-        </div>
 
       {/* BLOCO 3: Circunferências / Perímetros */}
       {exibeBlocoPerimetros && (
