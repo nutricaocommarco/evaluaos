@@ -283,7 +283,7 @@ if (!pacienteLocal) {
                       <span className="text-[9px] font-bold uppercase" style={{ color: av.cor }}>{av.nome_avaliacao}</span>
                       <span className="text-[8px] text-gray-400 font-medium">{av.dataStr_curta}</span>
                   </div>
-                  <span className="text-sm font-black text-gray-800">{valorAtual.toFixed(1)}</span>
+                  <span className="text-lg font-black text-gray-800">{valorAtual.toFixed(1)}</span>
                 </div>
                 {deltaUI}
                 {idx < historico.length - 1 && <div className="w-4 h-[1px] bg-gray-200 mx-1"></div>}
@@ -363,6 +363,13 @@ if (!pacienteLocal) {
               <span className="text-sm font-bold text-gray-800 uppercase tracking-wide">{avaliador?.empresa || 'Consultório'}</span>
               <span className="text-xs text-gray-500">Avaliador(a): <span className="font-bold text-gray-700">{avaliador?.nome_completo || '-'}</span></span>
             </div>
+          </div>
+
+          {/* Selo EvaluaOS no canto superior */}
+          <div className="flex flex-col items-end">
+            <span className="text-[10px] text-gray-400 font-medium tracking-wide">
+              Gerado via <span className="font-bold text-emerald-600">EvaluaOS</span>
+            </span>
           </div>
 
           <div className="flex flex-wrap gap-2 w-full md:w-auto">
