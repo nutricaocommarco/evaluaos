@@ -150,6 +150,9 @@ export default function AvaliacaoForm() {
   const [loading, setLoading] = useState(false)
   const [isSingleMode, setIsSingleMode] = useState(false)
 
+  // Estado para armazenar os cálculos antigos e não apagá-los na edição
+  const [dadosCalculadosAntigos, setDadosCalculadosAntigos] = useState({})
+
   const [dataAvaliacao, setDataAvaliacao] = useState(new Date().toISOString().split('T')[0])
   const [horaAvaliacao, setHoraAvaliacao] = useState(new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }))
 
@@ -162,25 +165,38 @@ export default function AvaliacaoForm() {
     async function carregarAvaliacaoParaEdicao() {
       if (!avaliacaoIdParaEditar) return
       setLoading(true)
-      const { data, error } = await supabase
+
+      // 1. Busca os dados BRUTOS da avaliação
+      const { data: avaliacaoData, error: avaliacaoError } = await supabase
         .from('avaliacoes')
         .select('*')
         .eq('id', avaliacaoIdParaEditar)
         .single()
 
-      if (error) {
-        alert('Erro ao carregar dados para edição: ' + error.message)
+      if (avaliacaoError) {
+        alert('Erro ao carregar avaliação para edição: ' + avaliacaoError.message)
         setLoading(false)
         return
       }
 
-      if (data) {
-        setDataAvaliacao(data.data_avaliacao || new Date().toISOString().split('T')[0])
-        setHoraAvaliacao(data.hora_avaliacao || '')
+      // 2. Busca os CÁLCULOS SALVOS anteriormente (para não zerar Massa Gorda/IAM)
+      const { data: calcData } = await supabase
+        .from('dados_calculados')
+        .select('*')
+        .eq('id_avaliacao', avaliacaoIdParaEditar)
+        .maybeSingle()
+
+      if (calcData) {
+        setDadosCalculadosAntigos(calcData)
+      }
+
+      if (avaliacaoData) {
+        setDataAvaliacao(avaliacaoData.data_avaliacao || new Date().toISOString().split('T')[0])
+        setHoraAvaliacao(avaliacaoData.hora_avaliacao || '')
 
         const preencherEstado = (keys) => {
           return keys.reduce((acc, key) => {
-            acc[key] = { m1: data[key] != null ? String(data[key]) : '', m2: '', m3: '' }
+            acc[key] = { m1: avaliacaoData[key] != null ? String(avaliacaoData[key]) : '', m2: '', m3: '' }
             return acc
           }, {})
         }
@@ -189,7 +205,7 @@ export default function AvaliacaoForm() {
         setDobras(preencherEstado(dobraKeys))
         setPerimetros(preencherEstado(perimetroKeys))
         setDiametros(preencherEstado(diametroKeys))
-        setIsSingleMode(true)
+        setIsSingleMode(true) // Quando edita, o mais seguro é abrir já no modo de edição (m1)
       }
       setLoading(false)
     }
@@ -270,6 +286,7 @@ export default function AvaliacaoForm() {
     let avaliacaoSalvaId = avaliacaoIdParaEditar
 
     if (avaliacaoIdParaEditar) {
+      // MODO ATUALIZAÇÃO
       const { error: updateError } = await supabase
         .from('avaliacoes')
         .update(payloadBruto)
@@ -281,6 +298,7 @@ export default function AvaliacaoForm() {
         return
       }
     } else {
+      // MODO NOVO
       const { data: novaAval, error: insertError } = await supabase
         .from('avaliacoes')
         .insert([payloadBruto])
@@ -300,8 +318,10 @@ export default function AvaliacaoForm() {
     const alturaM = alturaCm / 100
 
     const calcImc = alturaM > 0 ? pesoFinal / (alturaM * alturaM) : 0
-    const massaGordaCalc = 0
-    const massaMagraCalc = 0
+    
+    // Puxa a Massa Gorda e Magra antigas (se não existirem, usa 0) para não apagar a gordura na edição
+    const massaGordaAntiga = dadosCalculadosAntigos.massa_gorda || 0
+    const massaMagraAntiga = dadosCalculadosAntigos.massa_magra || 0
 
     const pBraco = resolvedPerimetros.perimetro_braco_relaxado || 0
     const pCoxa = resolvedPerimetros.perimetro_coxa_media || 0
@@ -351,12 +371,32 @@ export default function AvaliacaoForm() {
     const calcSoma6 = dTri + dSub + dSup + dAbd + dCoxa + dPant
     const calcSoma8 = calcSoma6 + dBic + dIli
 
+    // === CÁLCULOS ADICIONAIS: IMO e IAM ===
+    
+    // 1. Índice de Massa Óssea (IMO)
+    const dPunho = resolvedDiametros.diametro_punho || 0
+    const dFemur = resolvedDiametros.diametro_femur || 0
+    let calcImo = 0
+    if (alturaM > 0 && dPunho > 0 && dFemur > 0 && pesoFinal > 0) {
+      const dPunhoM = dPunho / 100 // cm para metros
+      const dFemurM = dFemur / 100 // cm para metros
+      const massaOssea = 3.02 * Math.pow((alturaM * alturaM) * dPunhoM * dFemurM * 400, 0.712)
+      calcImo = (massaOssea / pesoFinal) * 100 // Resultado %
+    }
+
+    // 2. Índice Adiposo Muscular (IAM)
+    let calcIam = 0
+    if (calcMuscular > 0 && massaGordaAntiga > 0) {
+      // IAM é re-calculado se a massa gorda já existe no banco
+      calcIam = massaGordaAntiga / calcMuscular
+    }
+
     const payloadCalculado = {
       id_paciente: paciente.id,
       id_avaliacao: avaliacaoSalvaId,
       imc: Number(calcImc.toFixed(2)),
-      massa_gorda: Number(massaGordaCalc.toFixed(2)),
-      massa_magra: Number(massaMagraCalc.toFixed(2)),
+      massa_gorda: Number(massaGordaAntiga.toFixed(2)), // Preserva a antiga
+      massa_magra: Number(massaMagraAntiga.toFixed(2)), // Preserva a antiga
       massa_muscular: Number(calcMuscular.toFixed(2)),
       relacao_cintura_quadril: Number(calcRcq.toFixed(2)),
       relacao_cintura_estatura: Number(calcRce.toFixed(2)),
@@ -365,6 +405,8 @@ export default function AvaliacaoForm() {
       perimetro_corrigido_braco: Number(calcPerimCorrigidoBraco.toFixed(2)),
       perimetro_corrigido_coxa: Number(calcPerimCorrigidoCoxa.toFixed(2)),
       perimetro_corrigido_panturrilha: Number(calcPerimCorrigidoPanturrilha.toFixed(2)),
+      indice_massa_ossea_imo: Number(calcImo.toFixed(2)), // Salva o IMO Calculado aqui
+      indice_adiposo_muscular: Number(calcIam.toFixed(2)), // Salva o IAM recalculado aqui
       ...somatotipo
     }
 

@@ -98,6 +98,9 @@ export default function EscolhaPercGordura() {
   const [avaliacaoAtual, setAvaliacaoAtual] = useState(null)
   const [medidasBrutas, setMedidasBrutas] = useState({})
   
+  // Estado para guardar os cálculos antigos (especialmente a Massa Muscular, necessária pro IAM)
+  const [dadosCalculados, setDadosCalculados] = useState({})
+  
   const [equacaoSelecionada, setEquacaoSelecionada] = useState('')
   
   const [resultadoGordura, setResultadoGordura] = useState(0)
@@ -174,6 +177,15 @@ export default function EscolhaPercGordura() {
           setEquacaoSelecionada(aval.equacao_de_regressao_escolhida)
         }
       }
+      
+      // Busca OS CÁLCULOS para garantir que temos a Massa Muscular para o IAM
+      const { data: calc } = await supabase
+        .from('dados_calculados')
+        .select('*')
+        .eq('id_avaliacao', avaliacaoIdReq)
+        .maybeSingle()
+        
+      if (calc) setDadosCalculados(calc)
     }
   }
 
@@ -185,6 +197,7 @@ export default function EscolhaPercGordura() {
     setEquacaoSelecionada('')
     setResultadoGordura(0)
     setMetadados(null)
+    setDadosCalculados({})
 
     const { data: historico } = await supabase
       .from('avaliacoes')
@@ -216,6 +229,14 @@ export default function EscolhaPercGordura() {
       setMedidasBrutas(aval)
       setEquacaoSelecionada(aval.equacao_de_regressao_escolhida || '')
     }
+    
+    const { data: calc } = await supabase
+      .from('dados_calculados')
+      .select('*')
+      .eq('id_avaliacao', idAvaliacao)
+      .maybeSingle()
+      
+    if (calc) setDadosCalculados(calc)
   }
 
   // MÁQUINA DE CÁLCULO
@@ -250,6 +271,7 @@ export default function EscolhaPercGordura() {
 
     setSalvando(true)
 
+    // Salva a Equação na avaliação bruta
     const { error: avalError } = await supabase
       .from('avaliacoes')
       .update({
@@ -258,15 +280,25 @@ export default function EscolhaPercGordura() {
       })
       .eq('id', avaliacaoAtual.id)
 
+    // Calcula os novos pesos e IAM
     const peso = Number(medidasBrutas.peso_paciente || 0)
     const massaGorda = peso > 0 ? (resultadoGordura * peso) / 100 : 0
     const massaMagra = peso > 0 ? peso - massaGorda : 0
+    
+    // Calcula o Índice Adiposo Muscular (IAM) => Massa Gorda / Massa Muscular
+    const massaMuscular = Number(dadosCalculados.massa_muscular || 0)
+    let iam = 0
+    if (massaMuscular > 0) {
+        iam = massaGorda / massaMuscular
+    }
 
+    // Atualiza os dados calculados com a nova massa gorda, massa magra e o IAM exato!
     const { error: calcError } = await supabase
       .from('dados_calculados')
       .update({
         massa_gorda: Number(massaGorda.toFixed(2)),
-        massa_magra: Number(massaMagra.toFixed(2))
+        massa_magra: Number(massaMagra.toFixed(2)),
+        indice_adiposo_muscular: Number(iam.toFixed(2))
       })
       .eq('id_avaliacao', avaliacaoAtual.id)
 
@@ -275,7 +307,10 @@ export default function EscolhaPercGordura() {
     if (avalError || calcError) {
       alert('Erro ao salvar: ' + (avalError?.message || calcError?.message))
     } else {
-      alert('Equação, % Gordura e Massas salvos com sucesso!')
+      alert('Equação, % Gordura, Massas e Índices salvos com sucesso!')
+      
+      // Opcional: navega direto pro laudo ou pra lista de pacientes pra ver tudo pronto
+      navigate('/laudo-antropometrico', { state: { avaliacaoId: avaliacaoAtual.id } })
     }
   }
 

@@ -432,7 +432,7 @@ export default function ResultadoAvaliacao() {
             <span className="text-xs font-bold text-gray-600">Relação Cintura-Estatura</span>
             <span className="text-lg font-black text-indigo-600">{rce > 0 ? rce.toFixed(2) : '-'}</span>
           </div>
-          <div className="flex justify-between items-center p-3 border border-gray-100 rounded-lg bg-gray-50">
+          <div className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm flex justify-between items-center">
             <span className="text-xs font-semibold text-gray-700">Circunferência da Cintura (Status)</span>
             <span className="text-xs font-bold bg-emerald-100 text-emerald-800 px-2 py-1 rounded-md uppercase tracking-wide">
               {statusCintura}
