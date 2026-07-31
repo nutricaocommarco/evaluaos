@@ -221,43 +221,47 @@ export default function EvolucaoPaciente() {
     window.open(link, '_blank');
   }
 
-  // COMPONENTE: Cartão de Evolução Step-by-Step (Com container de rolagem isolado e limpo)
+  // COMPONENTE: Cartão de Evolução (Híbrido - Horizontal para 2 / Vertical para 3+)
   const CardEvolucao = ({ titulo, chaveDado, unidade = "", isInverso = false }) => {
     const totalAvaliacoes = historico.length;
     const primeiraAv = Number(historico[0][chaveDado]);
     const ultimaAv = Number(historico[totalAvaliacoes - 1][chaveDado]);
     const deltaTotal = (ultimaAv - primeiraAv).toFixed(1);
 
+    // REGRA DE OURO: 3 ou mais avaliações? Fica vertical!
+    const isVertical = totalAvaliacoes >= 3;
+
     const renderBadge = (diferenca, extraClasses = "") => {
-      if (Number(diferenca) === 0) return <div className={`text-[9px] text-gray-400 font-bold ml-1 bg-gray-50 px-1.5 py-0.5 rounded-md border border-gray-100 ${extraClasses}`}>(0)</div>;
+      if (Number(diferenca) === 0) return <div className={`text-[9px] text-gray-400 font-bold bg-gray-50 px-1.5 py-0.5 rounded-md border border-gray-100 ${extraClasses}`}>(0)</div>;
       const isPositivo = diferenca > 0;
       const isBom = isInverso ? !isPositivo : isPositivo;
       const corBadge = isBom ? 'text-emerald-700 bg-emerald-50 border-emerald-100' : 'text-red-700 bg-red-50 border-red-100';
       return (
-        <div className={`flex items-center justify-center px-1.5 py-0.5 rounded-md border text-[9px] font-bold ${corBadge} ml-1 ${extraClasses}`}>
+        <div className={`flex items-center justify-center px-1.5 py-0.5 rounded-md border text-[9px] font-bold ${corBadge} ${extraClasses}`}>
           {isPositivo ? '↑' : '↓'} {Math.abs(diferenca).toFixed(1)}
         </div>
       );
     }
 
     return (
-      <div className="bg-white rounded-xl border border-gray-100 p-4 shadow-sm flex flex-col hover:border-emerald-200 transition-colors break-inside-avoid">
-        <div className="flex justify-between items-start mb-4">
-          <div>
-            <h4 className="text-gray-600 font-black text-xs uppercase tracking-wider">{titulo}</h4>
+      <div className="bg-white rounded-xl border border-gray-100 p-4 shadow-sm flex flex-col min-w-0 w-full overflow-hidden break-inside-avoid">
+        
+        <div className="flex justify-between items-start mb-4 gap-2">
+          <div className="flex-1 min-w-0">
+            <h4 className="text-gray-600 font-black text-xs uppercase tracking-wider truncate">{titulo}</h4>
             {unidade && <span className="text-[10px] bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full font-bold mt-1 inline-block">{unidade}</span>}
           </div>
-          {totalAvaliacoes >= 3 && (
-            <div className="flex flex-col items-end">
+          {totalAvaliacoes >= 2 && (
+            <div className="flex flex-col items-end shrink-0">
               <span className="text-[8px] uppercase text-gray-400 font-bold mb-0.5">Delta Total</span>
               {renderBadge(deltaTotal)}
             </div>
           )}
         </div>
         
-        {/* Contained scroll wrapper so the scrollbar doesn't spill over to the main layout */}
-        <div className="w-full overflow-x-auto pb-2 scrollbar-thin scrollbar-thumb-gray-200">
-          <div className="flex items-center gap-2 min-w-max">
+        {isVertical ? (
+          // --- LAYOUT VERTICAL EMPILHADO (A partir de 3 avaliações) ---
+          <div className="flex flex-col gap-2 w-full mt-2">
             {historico.map((av, idx) => {
               const valorAtual = Number(av[chaveDado]);
               let deltaUI = null;
@@ -267,8 +271,33 @@ export default function EvolucaoPaciente() {
                 deltaUI = renderBadge(diferenca);
               }
               return (
-                <div key={idx} className="flex items-center shrink-0">
-                  <div className="flex flex-col items-center justify-center p-2 rounded-lg bg-gray-50/50 border border-gray-50 min-w-[70px]">
+                <div key={idx} className="flex justify-between items-center bg-gray-50/50 border border-gray-100 p-2.5 rounded-lg w-full">
+                  <div className="flex items-center gap-3">
+                    <div className="flex flex-col min-w-[50px]">
+                      <span className="text-[9px] font-bold uppercase" style={{ color: av.cor }}>{av.nome_avaliacao}</span>
+                      <span className="text-[8px] text-gray-400 font-medium">{av.dataStr_curta}</span>
+                    </div>
+                    <span className="text-base font-black text-gray-800">{valorAtual.toFixed(1)}</span>
+                  </div>
+                  {deltaUI && <div>{deltaUI}</div>}
+                </div>
+              )
+            })}
+          </div>
+        ) : (
+          // --- LAYOUT HORIZONTAL LADO-A-LADO (Até 2 avaliações) ---
+          <div className="flex items-center gap-2 w-full">
+            {historico.map((av, idx) => {
+              const valorAtual = Number(av[chaveDado]);
+              let deltaUI = null;
+              if (idx > 0) {
+                const valorAnterior = Number(historico[idx - 1][chaveDado]);
+                const diferenca = (valorAtual - valorAnterior);
+                deltaUI = renderBadge(diferenca, "ml-1");
+              }
+              return (
+                <div key={idx} className="flex items-center flex-1">
+                  <div className="flex flex-col items-center justify-center p-2 rounded-lg bg-gray-50/50 border border-gray-50 w-full min-w-[70px]">
                     <div className="flex flex-col items-center mb-1">
                         <span className="text-[9px] font-bold uppercase" style={{ color: av.cor }}>{av.nome_avaliacao}</span>
                         <span className="text-[8px] text-gray-400 font-medium">{av.dataStr_curta}</span>
@@ -276,12 +305,13 @@ export default function EvolucaoPaciente() {
                     <span className="text-lg font-black text-gray-800">{valorAtual.toFixed(1)}</span>
                   </div>
                   {deltaUI}
-                  {idx < historico.length - 1 && <div className="w-4 h-[1px] bg-gray-200 mx-1"></div>}
+                  {idx < historico.length - 1 && <div className="w-4 h-[1px] bg-gray-200 mx-1 shrink-0"></div>}
                 </div>
               )
             })}
           </div>
-        </div>
+        )}
+
       </div>
     )
   }
@@ -321,8 +351,8 @@ export default function EvolucaoPaciente() {
     )
   }
 
-return (
-    <div className="max-w-6xl mx-auto space-y-10 pb-12 animate-fade-in-up print:m-0 print:p-0">
+  return (
+    <div className="w-full max-w-6xl mx-auto space-y-10 pb-12 px-4 sm:px-6 overflow-x-hidden animate-fade-in-up print:m-0 print:p-0 print:overflow-visible">
       
       {/* CSS para Imprimir em PDF */}
       <style>{`
@@ -335,25 +365,25 @@ return (
       `}</style>
 
       {/* --- CABEÇALHO PROFISSIONAL --- */}
-      <div className="bg-white p-6 rounded-xl border border-gray-100 shadow-sm flex flex-col gap-6">
+      <div className="bg-white p-5 sm:p-6 rounded-xl border border-gray-100 shadow-sm flex flex-col gap-6 w-full min-w-0 overflow-hidden">
         
         {/* Topo: Avaliador, Logo e Botões */}
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center border-b border-gray-100 pb-4 gap-4">
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center border-b border-gray-100 pb-4 gap-4 w-full">
           <div className="flex items-center gap-4">
             {avaliador?.logomarca_url ? (
-              <img src={avaliador.logomarca_url} alt="Logo" className="w-14 h-14 rounded-full object-cover border border-gray-200 bg-white" />
+              <img src={avaliador.logomarca_url} alt="Logo" className="w-14 h-14 rounded-full object-cover border border-gray-200 bg-white shrink-0" />
             ) : (
-              <div className="w-14 h-14 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-600 font-black text-xl">
+              <div className="w-14 h-14 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-600 font-black text-xl shrink-0">
                 {avaliador?.nome_completo ? avaliador.nome_completo.charAt(0) : 'A'}
               </div>
             )}
-            <div className="flex flex-col">
-              <span className="text-sm font-bold text-gray-800 uppercase tracking-wide">{avaliador?.empresa || 'Consultório'}</span>
-              <span className="text-xs text-gray-500">Avaliador(a): <span className="font-bold text-gray-700">{avaliador?.nome_completo || '-'}</span></span>
+            <div className="flex flex-col min-w-0 overflow-hidden">
+              <span className="text-sm font-bold text-gray-800 uppercase tracking-wide truncate">{avaliador?.empresa || 'Consultório'}</span>
+              <span className="text-xs text-gray-500 truncate">Avaliador(a): <span className="font-bold text-gray-700">{avaliador?.nome_completo || '-'}</span></span>
             </div>
           </div>
 
-          <div className="flex items-center gap-4 w-full md:w-auto justify-between md:justify-end">
+          <div className="flex items-center gap-4 w-full md:w-auto justify-between md:justify-end shrink-0">
             <span className="text-[10px] text-gray-400 font-medium tracking-wide">
               Gerado via <span className="font-bold text-emerald-600">EvaluaOS</span>
             </span>
@@ -367,11 +397,13 @@ return (
         </div>
 
         {/* Dados Demográficos do Paciente */}
-        <div>
+        <div className="w-full min-w-0">
           <h2 className="text-sm font-bold text-gray-500 uppercase tracking-wider mb-1">Evolução Antropométrica de</h2>
-          <h2 className="text-3xl font-black text-gray-900 uppercase tracking-tight">{pacienteLocal?.nome_completo}</h2>
+          <h2 className="text-2xl sm:text-3xl font-black text-gray-900 uppercase tracking-tight break-words break-all sm:break-normal">
+            {pacienteLocal?.nome_completo}
+          </h2>
           
-          <div className="flex flex-wrap gap-x-8 gap-y-4 mt-5 bg-gray-50 p-4 rounded-xl border border-gray-100">
+          <div className="flex flex-wrap gap-x-6 gap-y-4 mt-5 bg-gray-50 p-4 rounded-xl border border-gray-100 w-full">
             <div className="flex flex-col gap-0.5">
               <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Idade</span>
               <span className="text-sm font-black text-gray-700">{idade} anos</span>
@@ -398,8 +430,8 @@ return (
             )}
             {pacienteLocal?.nacionalidade && (
               <div className="flex flex-col gap-0.5">
-                <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Nacionalidade</span>
-                <span className="text-sm font-black text-gray-700">{pacienteLocal.nacionalidade}</span>
+                <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Nação</span>
+                <span className="text-sm font-black text-gray-700 truncate max-w-[120px]">{pacienteLocal.nacionalidade}</span>
               </div>
             )}
           </div>
@@ -407,14 +439,14 @@ return (
       </div>
 
       {/* BLOCO 1: Composição Corporal Cards */}
-      <div className="break-inside-avoid">
-        <div className="flex items-center gap-2 mb-4 px-2">
-          <div className="w-8 h-8 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center">
+      <div className="break-inside-avoid w-full">
+        <div className="flex items-center gap-2 mb-4 px-1">
+          <div className="w-8 h-8 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center shrink-0">
             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"></path><line x1="7" y1="7" x2="7.01" y2="7"></line></svg>
           </div>
           <h3 className="text-lg font-black text-gray-800">Composição Corporal</h3>
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 w-full min-w-0">
           <CardEvolucao titulo="Massa Corporal (Peso)" chaveDado="peso" unidade="kg" isInverso={true} />
           <CardEvolucao titulo="Gordura Corporal" chaveDado="gordura_perc" unidade="%" isInverso={true} />
           <CardEvolucao titulo="Massa de Gordura" chaveDado="massa_gorda" unidade="kg" isInverso={true} />
@@ -425,49 +457,53 @@ return (
       </div>
 
       {/* BLOCO 2: Gráficos Visuais de Composição e Somatotipo */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 break-inside-avoid">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 break-inside-avoid w-full min-w-0">
         
         {/* Gráfico 1: Peso, Músculo e Gordura em KG */}
-        <div className="bg-white p-6 rounded-xl border border-gray-100 shadow-sm flex flex-col">
+        <div className="bg-white p-4 sm:p-6 rounded-xl border border-gray-100 shadow-sm flex flex-col min-w-0 w-full overflow-hidden">
           <h3 className="text-sm font-black text-gray-800 uppercase tracking-wider mb-6">Composição (kg)</h3>
-          <div className="flex-1 w-full min-h-[280px]">
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={historico} margin={{ top: 5, right: 10, bottom: 5, left: -20 }}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f3f4f6" />
-                <XAxis dataKey="nome_avaliacao" tick={{fontSize: 12, fill: '#9ca3af'}} axisLine={false} tickLine={false} />
-                <YAxis tick={{fontSize: 12, fill: '#9ca3af'}} axisLine={false} tickLine={false} />
-                <Tooltip contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} />
-                <Legend iconType="circle" wrapperStyle={{ fontSize: '11px', paddingTop: '10px' }} />
-                <Line type="monotone" name="Peso Total" dataKey="grafico_peso" stroke="#0ea5e9" strokeWidth={3} dot={{ r: 4 }} />
-                <Line type="monotone" name="M. Muscular" dataKey="grafico_massa_muscular" stroke="#10b981" strokeWidth={3} dot={{ r: 4 }} />
-                <Line type="monotone" name="M. Gorda" dataKey="grafico_massa_gorda" stroke="#f59e0b" strokeWidth={3} dot={{ r: 4 }} />
-              </LineChart>
-            </ResponsiveContainer>
+          <div className="w-full h-[280px] relative">
+            <div className="absolute inset-0">
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={historico} margin={{ top: 5, right: 10, bottom: 5, left: -20 }}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f3f4f6" />
+                  <XAxis dataKey="nome_avaliacao" tick={{fontSize: 12, fill: '#9ca3af'}} axisLine={false} tickLine={false} />
+                  <YAxis tick={{fontSize: 12, fill: '#9ca3af'}} axisLine={false} tickLine={false} />
+                  <Tooltip contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} />
+                  <Legend iconType="circle" wrapperStyle={{ fontSize: '11px', paddingTop: '10px' }} />
+                  <Line type="monotone" name="Peso Total" dataKey="grafico_peso" stroke="#0ea5e9" strokeWidth={3} dot={{ r: 4 }} />
+                  <Line type="monotone" name="M. Muscular" dataKey="grafico_massa_muscular" stroke="#10b981" strokeWidth={3} dot={{ r: 4 }} />
+                  <Line type="monotone" name="M. Gorda" dataKey="grafico_massa_gorda" stroke="#f59e0b" strokeWidth={3} dot={{ r: 4 }} />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
           </div>
         </div>
 
         {/* Gráfico 2: Exclusivo % de Gordura */}
-        <div className="bg-white p-6 rounded-xl border border-gray-100 shadow-sm flex flex-col">
+        <div className="bg-white p-4 sm:p-6 rounded-xl border border-gray-100 shadow-sm flex flex-col min-w-0 w-full overflow-hidden">
           <h3 className="text-sm font-black text-gray-800 uppercase tracking-wider mb-6">Evolução % de Gordura</h3>
-          <div className="flex-1 w-full min-h-[280px]">
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={historico} margin={{ top: 5, right: 10, bottom: 5, left: -20 }}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f3f4f6" />
-                <XAxis dataKey="nome_avaliacao" tick={{fontSize: 12, fill: '#9ca3af'}} axisLine={false} tickLine={false} />
-                <YAxis tick={{fontSize: 12, fill: '#9ca3af'}} axisLine={false} tickLine={false} domain={['auto', 'auto']} />
-                <Tooltip contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} formatter={(value) => [`${value}%`, '% Gordura']} />
-                <Legend iconType="circle" wrapperStyle={{ fontSize: '11px', paddingTop: '10px' }} />
-                <Line type="monotone" name="% Gordura" dataKey="grafico_gordura" stroke="#ef4444" strokeWidth={4} dot={{ r: 5, strokeWidth: 2 }} activeDot={{ r: 7 }} />
-              </LineChart>
-            </ResponsiveContainer>
+          <div className="w-full h-[280px] relative">
+            <div className="absolute inset-0">
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={historico} margin={{ top: 5, right: 10, bottom: 5, left: -20 }}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f3f4f6" />
+                  <XAxis dataKey="nome_avaliacao" tick={{fontSize: 12, fill: '#9ca3af'}} axisLine={false} tickLine={false} />
+                  <YAxis tick={{fontSize: 12, fill: '#9ca3af'}} axisLine={false} tickLine={false} domain={['auto', 'auto']} />
+                  <Tooltip contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} formatter={(value) => [`${value}%`, '% Gordura']} />
+                  <Legend iconType="circle" wrapperStyle={{ fontSize: '11px', paddingTop: '10px' }} />
+                  <Line type="monotone" name="% Gordura" dataKey="grafico_gordura" stroke="#ef4444" strokeWidth={4} dot={{ r: 5, strokeWidth: 2 }} activeDot={{ r: 7 }} />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
           </div>
         </div>
 
         {/* Gráfico 3: Somatocarta */}
-        <div className="bg-white p-6 rounded-xl border border-gray-100 shadow-sm flex flex-col items-center justify-between">
+        <div className="bg-white p-4 sm:p-6 rounded-xl border border-gray-100 shadow-sm flex flex-col items-center justify-between min-w-0 w-full overflow-hidden">
           <h3 className="text-sm font-black text-gray-800 uppercase tracking-wider w-full text-left mb-4">Trajetória do Somatotipo</h3>
           
-          <div className="relative w-full max-w-[320px] aspect-square bg-[#f8fafc] rounded-lg border border-gray-200 overflow-hidden mt-2">
+          <div className="relative w-full max-w-[280px] sm:max-w-[320px] aspect-square bg-[#f8fafc] rounded-lg border border-gray-200 overflow-hidden mt-2">
             <div className="absolute inset-y-0 left-1/2 w-px border-l border-dashed border-gray-300"></div>
             <div className="absolute inset-x-0 top-1/2 h-px border-t border-dashed border-gray-300"></div>
             <svg className="absolute inset-0 w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none">
@@ -497,8 +533,8 @@ return (
           <div className="mt-4 w-full flex flex-wrap justify-center gap-2">
             {historico.map((av, idx) => (
               <div key={idx} className="flex items-center gap-1 text-[10px] text-gray-600 font-medium bg-gray-50 px-2 py-1 rounded border border-gray-100">
-                <div className="w-3 h-3 rounded-full" style={{ backgroundColor: av.cor }}></div>
-                {av.nome_avaliacao}
+                <div className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: av.cor }}></div>
+                <span className="truncate max-w-[60px]">{av.nome_avaliacao}</span>
               </div>
             ))}
           </div>
@@ -506,7 +542,7 @@ return (
       </div>
       
       {/* Gráfico de Barras do Somatotipo Individual */}
-      <div className="bg-white p-6 rounded-xl border border-gray-100 shadow-sm flex flex-col break-inside-avoid">
+      <div className="bg-white p-4 sm:p-6 rounded-xl border border-gray-100 shadow-sm flex flex-col break-inside-avoid min-w-0 w-full overflow-hidden">
         <h3 className="text-sm font-black text-gray-800 uppercase tracking-wider w-full text-left mb-6">Evolução dos Componentes do Somatotipo</h3>
         <div className="flex flex-col w-full mt-2">
           {['Endomorfia (Adiposidade)', 'Mesomorfia (Musculosidade)', 'Ectomorfia (Magreza / Linearidade)'].map((titulo, idx) => {
@@ -518,14 +554,14 @@ return (
 
             return (
               <div key={idx} className="flex flex-col gap-3 mb-6 last:mb-0">
-                <h5 className="text-xs font-bold" style={{ color: corBarra }}>{titulo}</h5>
+                <h5 className="text-xs font-bold truncate" style={{ color: corBarra }}>{titulo}</h5>
                 <div className="space-y-2">
                   {historico.map((av, index) => {
                     const val = Number(av[chaveDado]);
                     const pct = Math.min((val / maxVal) * 100, 100);
                     return (
                       <div key={index} className="flex items-center gap-3">
-                        <span className="w-8 text-[10px] font-bold text-right" style={{ color: av.cor }}>{av.nome_avaliacao}</span>
+                        <span className="w-8 text-[10px] font-bold text-right truncate" style={{ color: av.cor }}>{av.nome_avaliacao}</span>
                         <div className="flex-1 bg-gray-100 h-3 rounded-full overflow-hidden flex items-center">
                           <div className="h-full rounded-full transition-all duration-1000" style={{ width: `${pct}%`, backgroundColor: corBarra }}></div>
                         </div>
@@ -541,14 +577,14 @@ return (
       </div>
 
       {/* BLOCO 3: Circunferências / Perímetros */}
-      <div className="break-inside-avoid">
-        <div className="flex items-center gap-2 mb-4 px-2">
-          <div className="w-8 h-8 rounded-full bg-rose-50 text-rose-600 flex items-center justify-center">
+      <div className="break-inside-avoid w-full">
+        <div className="flex items-center gap-2 mb-4 px-1">
+          <div className="w-8 h-8 rounded-full bg-rose-50 text-rose-600 flex items-center justify-center shrink-0">
             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10z"></path><path d="M2 12h20"></path></svg>
           </div>
           <h3 className="text-lg font-black text-gray-800">Circunferências (Perímetros)</h3>
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 w-full min-w-0">
           <CardEvolucao titulo="Braço Relaxado" chaveDado="braco_rel" unidade="cm" isInverso={false} />
           <CardEvolucao titulo="Braço Contraído" chaveDado="braco_cont" unidade="cm" isInverso={false} />
           <CardEvolucao titulo="Antebraço" chaveDado="antibraco" unidade="cm" isInverso={false} />
@@ -562,15 +598,15 @@ return (
       </div>
 
       {/* BLOCO 4: Dobras Cutâneas e Somatórios */}
-      <div className="break-inside-avoid">
-        <div className="flex items-center gap-2 mb-4 px-2">
-          <div className="w-8 h-8 rounded-full bg-orange-50 text-orange-600 flex items-center justify-center">
+      <div className="break-inside-avoid w-full">
+        <div className="flex items-center gap-2 mb-4 px-1">
+          <div className="w-8 h-8 rounded-full bg-orange-50 text-orange-600 flex items-center justify-center shrink-0">
             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
           </div>
           <h3 className="text-lg font-black text-gray-800">Dobras Cutâneas e Somatórios</h3>
         </div>
         
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6 w-full min-w-0">
           <CardEvolucao titulo="Tríceps" chaveDado="triceps" unidade="mm" isInverso={true} />
           <CardEvolucao titulo="Subescapular" chaveDado="subescapular" unidade="mm" isInverso={true} />
           <CardEvolucao titulo="Bíceps" chaveDado="biceps" unidade="mm" isInverso={true} />
@@ -583,25 +619,25 @@ return (
 
         <div className="flex items-center gap-4 my-8">
           <div className="h-px bg-gray-200 flex-1"></div>
-          <span className="text-xs font-bold text-gray-400 uppercase tracking-wider">Somatórios Gerais</span>
+          <span className="text-xs font-bold text-gray-400 uppercase tracking-wider text-center px-2">Somatórios Gerais</span>
           <div className="h-px bg-gray-200 flex-1"></div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 w-full min-w-0">
           <CardEvolucao titulo="Somatório 6 Dobras" chaveDado="soma_6" unidade="mm" isInverso={true} />
           <CardEvolucao titulo="Somatório 8 Dobras" chaveDado="soma_8" unidade="mm" isInverso={true} />
         </div>
       </div>
 
       {/* BLOCO 5: Relações e Índices de Risco */}
-      <div className="break-inside-avoid">
-        <div className="flex items-center gap-2 mb-4 px-2">
-          <div className="w-8 h-8 rounded-full bg-purple-50 text-purple-600 flex items-center justify-center">
+      <div className="break-inside-avoid w-full">
+        <div className="flex items-center gap-2 mb-4 px-1">
+          <div className="w-8 h-8 rounded-full bg-purple-50 text-purple-600 flex items-center justify-center shrink-0">
             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"></path></svg>
           </div>
           <h3 className="text-lg font-black text-gray-800">Risco Cardiometabólico e Índices</h3>
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 w-full min-w-0">
           <CardEvolucao titulo="Cintura / Estatura" chaveDado="cintura_estatura" isInverso={true} />
           <CardEvolucao titulo="Cintura / Quadril (RCQ)" chaveDado="cintura_quadril" isInverso={true} />
           <CardEvolucao titulo="Área Visceral (apVAT)" chaveDado="apvat" isInverso={true} />
