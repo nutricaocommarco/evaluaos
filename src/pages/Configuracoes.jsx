@@ -12,7 +12,7 @@ export default function Configuracoes() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [abaAtiva, setAbaAtiva] = useState('coleta') // 'coleta', 'preferencias', 'privacidade', 'backup'
-
+  
   const [config, setConfig] = useState({
     tolerancia_dobras: 5.0,
     tolerancia_perimetros: 1.0,
@@ -83,32 +83,32 @@ export default function Configuracoes() {
   ]
 
   return (
-    <div className="max-w-5xl mx-auto space-y-6 pb-12 w-full overflow-x-hidden px-1">
+    <div className="max-w-5xl mx-auto space-y-6 pb-12">
       <div>
         <h2 className="text-2xl font-black text-gray-800">Preferências do Sistema</h2>
         <p className="text-sm text-gray-500">Personalize regras de medição, campos de formulário e a experiência do aluno.</p>
       </div>
 
-      {/* MENU DE ABAS - GRADE 2x2 NO MOBILE E LINHA NO DESKTOP (SEM SCROLL) */}
-      <div className="grid grid-cols-2 sm:flex sm:flex-wrap gap-2 border-b border-gray-200 pb-3 w-full">
+      {/* MENU DE ABAS */}
+      <div className="flex gap-2 border-b border-gray-200 overflow-x-auto pb-1 hide-scrollbar">
         {abas.map(aba => (
           <button
             key={aba.id}
             onClick={() => setAbaAtiva(aba.id)}
-            className={`flex items-center justify-center sm:justify-start gap-2 px-3 sm:px-4 py-2.5 font-bold text-[11px] sm:text-xs rounded-lg transition-colors w-full sm:w-auto text-center ${
+            className={`flex items-center gap-2 px-4 py-2.5 font-bold text-xs rounded-lg transition-colors whitespace-nowrap ${
               abaAtiva === aba.id
                 ? 'bg-emerald-600 text-white shadow-sm'
                 : 'bg-white border border-gray-100 text-gray-600 hover:bg-gray-50'
             }`}
           >
             <span>{aba.icon}</span>
-            <span className="truncate">{aba.label}</span>
+            <span>{aba.label}</span>
           </button>
         ))}
       </div>
 
       {/* RENDERIZAÇÃO MODULAR DO CONTEÚDO */}
-      <div className="space-y-6 min-w-0 w-full">
+      <div className="space-y-6">
         {abaAtiva === 'coleta' && (
           <VisibilidadeCamposForm config={config} setConfig={setConfig} onSave={handleSalvarTudo} saving={saving} />
         )}
@@ -121,18 +121,7 @@ export default function Configuracoes() {
         )}
 
         {abaAtiva === 'privacidade' && (
-          <div className="bg-white p-8 rounded-xl border border-gray-100 shadow-sm text-center space-y-3">
-            <div className="w-12 h-12 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center mx-auto text-xl font-bold">
-              🛠️
-            </div>
-            <h3 className="text-base font-bold text-gray-800">Configurações do Link Público (Em Breve)</h3>
-            <p className="text-xs text-gray-500 max-w-md mx-auto leading-relaxed">
-              Em breve você poderá personalizar exatamente quais seções e gráficos seu paciente poderá visualizar ao acessar o laudo e a evolução pelo link interativo do WhatsApp.
-            </p>
-            <span className="inline-block px-3 py-1 bg-emerald-100 text-emerald-800 text-[10px] font-bold uppercase tracking-wider rounded-full mt-2">
-              Em Desenvolvimento
-            </span>
-          </div>
+          <VisibilidadePublicaForm config={config} setConfig={setConfig} onSave={handleSalvarTudo} saving={saving} />
         )}
 
         {abaAtiva === 'backup' && (
