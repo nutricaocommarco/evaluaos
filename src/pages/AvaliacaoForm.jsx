@@ -99,7 +99,7 @@ const MeasureRow = ({ label, field, categoryType, state, setter, isSingleMode, h
   let finalValue = '-'
 
   if (!isSingleMode && !isNaN(v1) && !isNaN(v2) && v1 > 0 && v2 > 0) {
-    diffPercent = (Math.abs(v1 - v2) / ((v1 + v2) / 2)) * 100
+    diffPercent = (Math.abs(v1 - v2) / v1) * 100
     
     // Tolerância dinâmica configurada pelo avaliador
     let threshold = 1.0
