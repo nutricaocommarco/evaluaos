@@ -10,10 +10,10 @@ export default function EvolucaoPaciente() {
   const location = useLocation()
   const navigate = useNavigate()
   const { tokenUrl } = useParams() // Pega o token se for link público
-  const paciente = location.state?.paciente || null
 
   const isPublicView = !!tokenUrl;
-// Usa o paciente do state (se logado) ou null para buscar depois (se for link público)
+  
+  // Usa o paciente do state (se logado) ou null para buscar depois (se for link público)
   const [pacienteLocal, setPacienteLocal] = useState(location.state?.paciente || null)
 
   const [loading, setLoading] = useState(true)
@@ -23,7 +23,7 @@ export default function EvolucaoPaciente() {
   // Cores padronizadas para as bolinhas da Somatocarta e Legendas
   const coresAvaliacoes = ['#10b981', '#3b82f6', '#f59e0b', '#ec4899', '#8b5cf6', '#ef4444', '#14b8a6', '#64748b']
 
-useEffect(() => {
+  useEffect(() => {
     async function carregarDados() {
       let pacienteAtual = pacienteLocal;
 
@@ -33,7 +33,7 @@ useEffect(() => {
           .from('pacientes')
           .select('*')
           .eq('token_publico', tokenUrl)
-          .single();
+          .maybeSingle();
 
         if (pacData) {
           pacienteAtual = pacData;
@@ -44,12 +44,15 @@ useEffect(() => {
         }
       }
 
-      if (!pacienteAtual) return;
+      if (!pacienteAtual) {
+        setLoading(false);
+        return;
+      }
 
-// 2. Busca do Avaliador (Dinâmico e à prova de falhas)
+      // 2. Busca do Avaliador (Dinâmico e à prova de falhas)
       let avalData = null;
 
-      // A) Tenta pegar pelo usuário logado (Avaliador usando o sistema)
+      // A) Tenta pegar pelo usuário logado (Avaliador usando o sistema internamente)
       const { data: authData } = await supabase.auth.getUser();
       if (authData?.user?.email) {
         const { data } = await supabase
@@ -60,21 +63,15 @@ useEffect(() => {
         avalData = data;
       }
 
-      // B) Se não achar (Paciente acessando pelo Link Público), puxa pela avaliação dele
+      // B) Se não achar (Paciente acessando publicamente pelo Link do WhatsApp)
       if (!avalData) {
         let idAvaliadorPublico = pacienteAtual.id_avaliador;
-        
-        // Se o paciente não tiver o ID salvo nele, busca direto na avaliação dele
-        if (!idAvaliadorPublico) {
-            const { data: avalBackup } = await supabase.from('avaliacoes').select('id_avaliador').eq('id_paciente', pacienteAtual.id).limit(1).maybeSingle();
-            if (avalBackup) idAvaliadorPublico = avalBackup.id_avaliador;
-        }
 
         if (idAvaliadorPublico) {
             const { data } = await supabase
               .from('avaliadores')
               .select('nome_completo, instagram, empresa, logomarca_url')
-              .eq('id', idAvaliadorPublico)
+              .eq('auth_id', idAvaliadorPublico) // <-- A MÁGICA ACONTECE AQUI! Mudei de 'id' para 'auth_id'
               .maybeSingle();
             avalData = data;
         }
@@ -82,7 +79,7 @@ useEffect(() => {
 
       if (avalData) setAvaliador(avalData);
 
-      // 3. Busca Avaliações (Usando o ID do pacienteAtual)
+      // 3. Busca Avaliações
       const { data: avaliacoes, error: errAvaliacoes } = await supabase
         .from('avaliacoes')
         .select('*')
@@ -104,19 +101,17 @@ useEffect(() => {
       if (errCalc) console.error(errCalc)
 
       // 5. Mescla e Formata os Dados
-      const dadosMesclados = avaliacoes.map((aval, index) => {
+      const dadosMesclados = (avaliacoes || []).map((aval, index) => {
         const calc = calculos?.find(c => c.id_avaliacao === aval.id) || {}
         
         return {
           id: aval.id,
           nome_avaliacao: `Av. ${index + 1}`,
-          // ADICIONADO: Data formatada reduzida (ex: 20/07/2026) para mostrar no Step-by-Step
           dataStr_curta: new Date(aval.data_avaliacao).toLocaleDateString('pt-BR', { timeZone: 'UTC', day: '2-digit', month: '2-digit', year: 'numeric' }),
           dataStr: new Date(aval.data_avaliacao).toLocaleDateString('pt-BR', { timeZone: 'UTC' }),
           cor: coresAvaliacoes[index % coresAvaliacoes.length],
-          token_publico: aval.token_publico, // Necessário para o Link do ZAP
+          token_publico: aval.token_publico,
           
-          // Métricas Principais
           estatura: Number(aval.altura_paciente || 0),
           peso: Number(aval.peso_paciente || 0).toFixed(1),
           imc: Number(calc.imc || 0).toFixed(2),
@@ -125,7 +120,6 @@ useEffect(() => {
           massa_magra: Number(calc.massa_magra || 0).toFixed(2),
           massa_muscular: Number(calc.massa_muscular || 0).toFixed(2),
           
-          // Perímetros / Circunferências
           braco_rel: Number(aval.perimetro_braco_relaxado || 0).toFixed(1),
           braco_cont: Number(aval.perimetro_braco_contraido || 0).toFixed(1),
           antibraco: Number(aval.perimetro_antibraco || 0).toFixed(1),
@@ -136,14 +130,12 @@ useEffect(() => {
           coxa_med: Number(aval.perimetro_coxa_media || 0).toFixed(1),
           perim_panturrilha: Number(aval.perimetro_panturrilha || 0).toFixed(1),
 
-          // Índices de Risco
           cintura_estatura: Number(calc.relacao_cintura_estatura || 0).toFixed(2),
           cintura_quadril: Number(calc.relacao_cintura_quadril || 0).toFixed(2),
           imo: Number(calc.indice_massa_ossea_imo || 0).toFixed(2),
           apvat: Number(calc.area_previsao_visceral_apvat || 0).toFixed(2),
           iam: Number(calc.indice_adiposo_muscular || 0).toFixed(2),
           
-          // Dobras Cutâneas
           triceps: Number(aval.dobra_cutanea_triceps || 0).toFixed(1),
           subescapular: Number(aval.dobra_cutanea_subescapular || 0).toFixed(1),
           biceps: Number(aval.dobra_cutanea_biceps || 0).toFixed(1),
@@ -153,16 +145,13 @@ useEffect(() => {
           coxa: Number(aval.dobra_cutanea_coxa_media || 0).toFixed(1),
           panturrilha: Number(aval.dobra_cutanea_panturrilha || 0).toFixed(1),
           
-          // Somatórios
           soma_6: Number(calc.somatorio_6_dobras || 0).toFixed(1),
           soma_8: Number(calc.somatorio_8_dobras || 0).toFixed(1),
           
-          // Somatotipo Individual
           endo: Number(calc.somatotipo_endomorfia || 0).toFixed(1),
           meso: Number(calc.somatotipo_mesomorfia || 0).toFixed(1),
           ecto: Number(calc.somatotipo_ectomorfia || 0).toFixed(1),
 
-          // Gráficos Recharts
           grafico_peso: Number(aval.peso_paciente || 0),
           grafico_gordura: Number(aval.percentual_de_gordura || 0),
           grafico_massa_muscular: Number(calc.massa_muscular || 0),
@@ -177,9 +166,11 @@ useEffect(() => {
     }
 
     carregarDados()
-  }, [paciente])
+  }, [tokenUrl])
 
-if (!pacienteLocal) {
+  if (loading) return <div className="p-8 text-center text-emerald-600 font-bold">Processando evolução...</div>
+
+  if (!pacienteLocal) {
     return (
       <div className="flex flex-col items-center justify-center h-full space-y-4 p-8">
         <h2 className="text-xl font-bold text-gray-800">Nenhum paciente selecionado ou Link Inválido</h2>
@@ -187,8 +178,6 @@ if (!pacienteLocal) {
       </div>
     )
   }
-
-  if (loading) return <div className="p-8 text-center text-emerald-600 font-bold">Processando evolução...</div>
 
   if (historico.length < 2) {
     return (
@@ -204,16 +193,16 @@ if (!pacienteLocal) {
 
   // Cálculos Demográficos
   let idade = '-'
-  if (pacienteLocal.data_nascimento) {
+  if (pacienteLocal?.data_nascimento) {
     const birthDate = new Date(pacienteLocal.data_nascimento + 'T12:00:00')
     const evalDate = new Date()
     idade = evalDate.getFullYear() - birthDate.getFullYear()
     const m = evalDate.getMonth() - birthDate.getMonth()
     if (m < 0 || (m === 0 && evalDate.getDate() < birthDate.getDate())) idade--
   }
-  const ultimaEstatura = historico[historico.length - 1].estatura
+  const ultimaEstatura = historico[historico.length - 1]?.estatura || 0
 
-        const handleWhatsApp = () => {
+  const handleWhatsApp = () => {
     const telefoneLimpo = pacienteLocal?.telefone ? pacienteLocal.telefone.replace(/\D/g, '') : '';
     if (!telefoneLimpo) {
       alert('Este paciente não possui telefone cadastrado.');
@@ -222,7 +211,6 @@ if (!pacienteLocal) {
     const primeiroNome = pacienteLocal?.nome_completo ? pacienteLocal.nome_completo.split(' ')[0] : 'Paciente';
     const saudacao = avaliador?.nome_completo ? avaliador.nome_completo : 'seu Avaliador';
     
-    // Pega o token_publico diretamente do paciente (para abrir a página com o menu e logo do EvaluaOS)
     const tokenPublico = pacienteLocal?.token_publico;
     const linkDaEvolucao = tokenPublico 
         ? `${window.location.origin}/evolucao/${tokenPublico}`
@@ -295,11 +283,10 @@ if (!pacienteLocal) {
     )
   }
 
-  // COMPONENTE: Barras de Somatotipo Individuais (Evolução Completa)
+  // COMPONENTE: Barras de Somatotipo Individuais
   const BarChartSomatotipo = () => {
     const maxVal = 12; // Valor base máximo para a proporção das barras
     
-    // Função para renderizar o bloco de cada componente
     const renderBlocoBarras = (titulo, chaveDado, corBarra) => (
       <div className="flex flex-col gap-3 mb-6 last:mb-0">
         <h5 className="text-xs font-bold" style={{ color: corBarra }}>{titulo}</h5>
@@ -311,11 +298,9 @@ if (!pacienteLocal) {
             return (
               <div key={idx} className="flex items-center gap-3">
                 <span className="w-8 text-[10px] font-bold text-right" style={{ color: av.cor }}>{av.nome_avaliacao}</span>
-                
                 <div className="flex-1 bg-gray-100 h-2.5 rounded-full overflow-hidden flex items-center">
                   <div className="h-full rounded-full transition-all duration-1000" style={{ width: `${pct}%`, backgroundColor: corBarra }}></div>
                 </div>
-                
                 <span className="w-6 text-right text-xs font-black text-gray-800">{val.toFixed(1)}</span>
               </div>
             )
@@ -346,7 +331,7 @@ if (!pacienteLocal) {
         }
       `}</style>
 
-{/* --- CABEÇALHO PROFISSIONAL COM BOTÃO NOVO --- */}
+      {/* --- CABEÇALHO PROFISSIONAL --- */}
       <div className="bg-white p-6 rounded-xl border border-gray-100 shadow-sm flex flex-col gap-6">
         
         {/* Topo: Avaliador, Logo e Botões */}
@@ -365,28 +350,23 @@ if (!pacienteLocal) {
             </div>
           </div>
 
-          {/* Selo EvaluaOS no canto superior */}
-          <div className="flex flex-col items-end">
+          <div className="flex items-center gap-4 w-full md:w-auto justify-between md:justify-end">
             <span className="text-[10px] text-gray-400 font-medium tracking-wide">
               Gerado via <span className="font-bold text-emerald-600">EvaluaOS</span>
             </span>
-          </div>
 
-          <div className="flex flex-wrap gap-2 w-full md:w-auto">
-            {/* Esconde botão de voltar se for link público */}
             {!isPublicView && (
               <button onClick={() => navigate('/pacientes')} className="px-4 py-2 border border-gray-200 text-gray-600 text-xs font-semibold rounded-lg hover:bg-gray-50">
                 Voltar
               </button>
             )}
-
-          </div> {/* <--- ADICIONE ESTA DIV AQUI */}
-        </div> {/* <--- E ADICIONE MAIS ESTA DIV AQUI */}
+          </div>
+        </div>
 
         {/* Dados Demográficos do Paciente */}
         <div>
           <h2 className="text-sm font-bold text-gray-500 uppercase tracking-wider mb-1">Evolução Antropométrica de</h2>
-          <h2 className="text-3xl font-black text-gray-900 uppercase tracking-tight">{paciente.nome_completo}</h2>
+          <h2 className="text-3xl font-black text-gray-900 uppercase tracking-tight">{pacienteLocal?.nome_completo}</h2>
           
           <div className="flex flex-wrap gap-x-8 gap-y-4 mt-5 bg-gray-50 p-4 rounded-xl border border-gray-100">
             <div className="flex flex-col gap-0.5">
@@ -395,28 +375,28 @@ if (!pacienteLocal) {
             </div>
             <div className="flex flex-col gap-0.5">
               <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Sexo</span>
-              <span className="text-sm font-black text-gray-700">{paciente.sexo === 'M' ? 'Masculino' : 'Feminino'}</span>
+              <span className="text-sm font-black text-gray-700">{pacienteLocal?.sexo === 'M' ? 'Masculino' : 'Feminino'}</span>
             </div>
             <div className="flex flex-col gap-0.5">
               <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Estatura</span>
               <span className="text-sm font-black text-gray-700">{ultimaEstatura > 0 ? `${ultimaEstatura} cm` : '-'}</span>
             </div>
-            {paciente.ocupacao && (
+            {pacienteLocal?.ocupacao && (
               <div className="flex flex-col gap-0.5">
                 <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Ocupação</span>
-                <span className="text-sm font-black text-gray-700">{paciente.ocupacao}</span>
+                <span className="text-sm font-black text-gray-700">{pacienteLocal.ocupacao}</span>
               </div>
             )}
-            {paciente.etnia && (
+            {pacienteLocal?.etnia && (
               <div className="flex flex-col gap-0.5">
                 <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Etnia</span>
-                <span className="text-sm font-black text-gray-700">{paciente.etnia}</span>
+                <span className="text-sm font-black text-gray-700">{pacienteLocal.etnia}</span>
               </div>
             )}
-            {paciente.nacionalidade && (
+            {pacienteLocal?.nacionalidade && (
               <div className="flex flex-col gap-0.5">
                 <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Nacionalidade</span>
-                <span className="text-sm font-black text-gray-700">{paciente.nacionalidade}</span>
+                <span className="text-sm font-black text-gray-700">{pacienteLocal.nacionalidade}</span>
               </div>
             )}
           </div>
@@ -480,7 +460,7 @@ if (!pacienteLocal) {
           </div>
         </div>
 
-        {/* Gráfico 3: Somatocarta (MAIOR) */}
+        {/* Gráfico 3: Somatocarta */}
         <div className="bg-white p-6 rounded-xl border border-gray-100 shadow-sm flex flex-col items-center justify-between">
           <h3 className="text-sm font-black text-gray-800 uppercase tracking-wider w-full text-left mb-4">Trajetória do Somatotipo</h3>
           
@@ -561,7 +541,7 @@ if (!pacienteLocal) {
       <div className="break-inside-avoid">
         <div className="flex items-center gap-2 mb-4 px-2">
           <div className="w-8 h-8 rounded-full bg-rose-50 text-rose-600 flex items-center justify-center">
-            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path><path d="M2 12h20"></path></svg>
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10z"></path><path d="M2 12h20"></path></svg>
           </div>
           <h3 className="text-lg font-black text-gray-800">Circunferências (Perímetros)</h3>
         </div>
@@ -626,17 +606,16 @@ if (!pacienteLocal) {
           <CardEvolucao titulo="Índice Massa Óssea (IMO)" chaveDado="imo" isInverso={false} />
         </div>
       </div>
-           
-          <div className="flex justify-end gap-2 w-full mt-6 no-print">
-            {/* O PDF fica visível para todos através do seu componente */}
-            <BotaoExportarEvolucaoPDF 
-                historico={historico} 
-                paciente={pacienteLocal} 
-                avaliador={avaliador} 
-                idade={idade}
-                isPublicView={isPublicView}
-            />
-          </div>
-        </div>
+          
+      <div className="flex justify-end gap-2 w-full mt-6 no-print">
+        <BotaoExportarEvolucaoPDF 
+            historico={historico} 
+            paciente={pacienteLocal} 
+            avaliador={avaliador} 
+            idade={idade}
+            isPublicView={isPublicView}
+        />
+      </div>
+    </div>
   )
 }

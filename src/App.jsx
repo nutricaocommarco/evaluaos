@@ -90,6 +90,7 @@ function MainApp() {
         
         {/* ROTA PÚBLICA: Liberada para o paciente acessar sem senha */}
         <Route path="/laudo/:tokenUrl" element={<ResultadoAvaliacao />} />
+        <Route path="/evolucao/:tokenUrl" element={<EvolucaoPaciente />} />
         
         <Route path="*" element={<Navigate to="/login" replace />} />
       </Routes>
