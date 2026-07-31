@@ -170,7 +170,7 @@ function MainApp() {
             </button>
 
             <div className="flex items-center gap-2">
-              <img src="/Imagens/Logo_png.png" alt="EvaluaOS" className="h-[80px] w-auto object-contain" />
+              <img src="/Imagens/Logo_png.png" alt="EvaluaOS" className="h-[70px] w-auto object-contain" />
               <div className="hidden sm:flex flex-col">
                 <span className="text-sm font-black text-gray-800 tracking-tight">EvaluaOS</span>
                 <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Antropometria</span>
