@@ -265,8 +265,8 @@ export default function ResultadoAvaliacao() {
 
   // Helper de Trava de Visibilidade
   const podeExibir = (chave) => {
-    if (!isPublicView) return true; // Avaliador logado sempre vê tudo
-    return configVisibilidade[chave] !== false; // Se público, respeita a flag individual
+    if (!configVisibilidade) return true;
+    return configVisibilidade[chave] !== false;
   }
 
   const aval = dados.avaliacoes || {}

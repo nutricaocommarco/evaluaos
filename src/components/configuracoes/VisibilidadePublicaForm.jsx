@@ -229,10 +229,9 @@ export default function VisibilidadePublicaForm({ config, setConfig, onSave, sav
   return (
     <div className="bg-white p-6 rounded-xl border border-gray-100 shadow-sm space-y-8">
       <div>
-        <h3 className="text-sm font-bold text-gray-800 uppercase tracking-wider">Privacidade dos Links Públicos (WhatsApp)</h3>
+        <h3 className="text-sm font-bold text-gray-800 uppercase tracking-wider">Visibilidade e Exibição de Campos no Sistema & Laudos</h3>
         <p className="text-xs text-gray-500 mt-0.5">
-          Marque individualmente os itens que seu aluno/paciente poderá visualizar quando acessar o link público.
-        </p>
+          Desmarque os itens que você deseja ocultar das telas do sistema (Evolução e Laudo Antropométrico), tanto no seu painel interno quanto nos links compartilhados via WhatsApp.        </p>
       </div>
 
       {/* SEÇÃO 1: EVOLUÇÃO PACIENTE */}

@@ -50,10 +50,10 @@ export default function EvolucaoPaciente() {
         return;
       }
 
-      // 2. Busca do Avaliador e de Suas Configurações de Visibilidade
+    // 2. Busca do Avaliador e de Suas Configurações
       let avalData = null;
 
-      // A) Tenta pegar pelo usuário logado (Avaliador usando o sistema internamente)
+      // A) Se usuário está logado no sistema
       const { data: authData } = await supabase.auth.getUser();
       if (authData?.user?.email) {
         const { data } = await supabase
@@ -64,7 +64,7 @@ export default function EvolucaoPaciente() {
         avalData = data;
       }
 
-      // B) Se não achar (Paciente acessando publicamente pelo Link do WhatsApp)
+      // B) Se for Link Público do Paciente (sem login ativo)
       if (!avalData && pacienteAtual.id_avaliador) {
         const { data } = await supabase
           .from('avaliadores')
@@ -77,7 +77,7 @@ export default function EvolucaoPaciente() {
       if (avalData) {
         setAvaliador(avalData);
 
-        // Busca as configurações de visibilidade salvas pelo avaliador
+        // 3. BUSCA AS CONFIGURAÇÕES DE VISIBILIDADE DO AVALIADOR
         if (avalData.auth_id) {
           const { data: configData } = await supabase
             .from('configuracoes_avaliador')
@@ -87,6 +87,8 @@ export default function EvolucaoPaciente() {
           
           if (configData?.visibilidade_publica) {
             setConfigVisibilidade(configData.visibilidade_publica);
+          } else {
+            setConfigVisibilidade({});
           }
         }
       }
@@ -205,7 +207,7 @@ export default function EvolucaoPaciente() {
 
   // Helper de Trava de Visibilidade
   const podeExibir = (chave) => {
-    if (!isPublicView) return true;
+    if (!configVisibilidade) return true;
     return configVisibilidade[chave] !== false;
   }
 
