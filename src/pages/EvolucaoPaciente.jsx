@@ -21,16 +21,17 @@ export default function EvolucaoPaciente() {
     async function carregarDados() {
       if (!paciente) return
 
-      // 1. Busca os dados do Avaliador (Header) - USANDO SUA LÓGICA DO LAUDO
-      const avaliadorIdBuscado = paciente.id_avaliador || 3; // Usa o ID do paciente ou força o 3 como segurança
-      const { data: avaliadorData } = await supabase
+      // 1. Busca os dados do Avaliador (Header) - BUSCA DIRETA NO ID 3 COMO NO LAUDO
+      const { data: avaliadorData, error: avalError } = await supabase
         .from('avaliadores')
         .select('nome_completo, instagram, empresa, logomarca_url')
-        .eq('id', avaliadorIdBuscado)
-        .maybeSingle(); // maybeSingle evita que o app quebre se não achar
+        .eq('id', 3)
+        .maybeSingle();
       
       if (avaliadorData) {
         setAvaliador(avaliadorData)
+      } else if (avalError) {
+        console.error("Erro ao buscar avaliador:", avalError);
       }
 
       // 2. Busca o Histórico de Avaliações do Paciente
