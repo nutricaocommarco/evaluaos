@@ -587,7 +587,6 @@ export default function EvolucaoPaciente() {
             )
           })}
         </div>
-      </div>
 
       {/* BLOCO 3: Circunferências / Perímetros */}
       {exibeBlocoPerimetros && (
