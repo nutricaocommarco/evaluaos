@@ -12,11 +12,7 @@ export default function EvolucaoPaciente() {
 
   const [loading, setLoading] = useState(true)
   const [historico, setHistorico] = useState([])
-  
-  // Estados do Avaliador
-  const [nomeEmpresa, setNomeEmpresa] = useState('')
-  const [nomeAvaliador, setNomeAvaliador] = useState('')
-  const [logomarcaUrl, setLogomarcaUrl] = useState('')
+  const [avaliador, setAvaliador] = useState(null)
   
   // Cores padronizadas para as bolinhas da Somatocarta e Legendas
   const coresAvaliacoes = ['#10b981', '#3b82f6', '#f59e0b', '#ec4899', '#8b5cf6', '#ef4444', '#14b8a6', '#64748b']
@@ -25,51 +21,32 @@ export default function EvolucaoPaciente() {
     async function carregarDados() {
       if (!paciente) return
 
-      // --- BUSCA DINÂMICA DO AVALIADOR ---
-      let avaliadorIdBuscado = paciente.id_avaliador;
-
-      // Se o paciente não tiver um avaliador vinculado, tentamos pegar o usuário logado
-      if (!avaliadorIdBuscado) {
-        const { data: { user } } = await supabase.auth.getUser();
-        
-        // Se achou o usuário logado, vamos buscar o ID numérico dele na tabela de avaliadores através do email
-        if (user && user.email) {
-            const { data: avaliadorPorEmail } = await supabase
-                .from('avaliadores')
-                .select('id')
-                .eq('email', user.email)
-                .maybeSingle();
-            
-            if (avaliadorPorEmail) {
-                avaliadorIdBuscado = avaliadorPorEmail.id;
-            }
-        }
-      }
-
-      // Agora fazemos a busca com o ID dinâmico encontrado
-      if (avaliadorIdBuscado) {
-        const { data: avaliadorData } = await supabase
-            .from('avaliadores')
-            .select('empresa, nome_completo, logomarca_url')
-            .eq('id', avaliadorIdBuscado)
-            .maybeSingle();
-        
+      // 1. Busca os dados do Avaliador (Header) - 100% DINÂMICO PELO E-MAIL LOGADO
+      const { data: authData } = await supabase.auth.getUser();
+      
+      if (authData?.user?.email) {
+        const { data: avaliadorData, error: errAval } = await supabase
+          .from('avaliadores')
+          .select('nome_completo, instagram, empresa, logomarca_url')
+          .eq('email', authData.user.email)
+          .maybeSingle();
+          
         if (avaliadorData) {
-            setNomeEmpresa(avaliadorData.empresa || '');
-            setNomeAvaliador(avaliadorData.nome_completo || '');
-            setLogomarcaUrl(avaliadorData.logomarca_url || '');
+          setAvaliador(avaliadorData);
+        } else if (errAval) {
+          console.error("Erro ao buscar avaliador dinâmico:", errAval);
         }
       }
 
       // 2. Busca o Histórico de Avaliações do Paciente
-      const { data: avaliacoes, error: errAval } = await supabase
+      const { data: avaliacoes, error: errAvaliacoes } = await supabase
         .from('avaliacoes')
         .select('*')
         .eq('id_paciente', paciente.id)
         .order('data_avaliacao', { ascending: true })
 
-      if (errAval) {
-        console.error(errAval)
+      if (errAvaliacoes) {
+        console.error(errAvaliacoes)
         setLoading(false)
         return
       }
@@ -167,7 +144,7 @@ export default function EvolucaoPaciente() {
       return;
     }
     const primeiroNome = paciente.nome_completo ? paciente.nome_completo.split(' ')[0] : 'Paciente';
-    const saudacao = nomeAvaliador ? nomeAvaliador : 'seu Avaliador';
+    const saudacao = avaliador?.nome_completo ? avaliador.nome_completo : 'seu Avaliador';
     const msg = `Olá *${primeiroNome}*, tudo bem?\n\nAqui é ${saudacao}! Acabei de atualizar a sua *Evolução Antropométrica* com os dados da nossa última consulta.\n\nQualquer dúvida, estou à disposição!`;
     const link = `https://wa.me/${telefoneLimpo.startsWith('55') ? telefoneLimpo : '55' + telefoneLimpo}?text=${encodeURIComponent(msg)}`;
     window.open(link, '_blank');
@@ -285,16 +262,16 @@ export default function EvolucaoPaciente() {
         {/* Topo: Avaliador, Logo e Botões */}
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center border-b border-gray-100 pb-4 gap-4">
           <div className="flex items-center gap-4">
-            {logomarcaUrl ? (
-              <img src={logomarcaUrl} alt="Logo" className="w-14 h-14 rounded-full object-cover border border-gray-200 bg-white" />
+            {avaliador?.logomarca_url ? (
+              <img src={avaliador.logomarca_url} alt="Logo" className="w-14 h-14 rounded-full object-cover border border-gray-200 bg-white" />
             ) : (
               <div className="w-14 h-14 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-600 font-black text-xl">
-                {nomeAvaliador?.charAt(0) || 'A'}
+                {avaliador?.nome_completo ? avaliador.nome_completo.charAt(0) : 'A'}
               </div>
             )}
             <div className="flex flex-col">
-              <span className="text-sm font-bold text-gray-800 uppercase tracking-wide">{nomeEmpresa || 'Consultório'}</span>
-              <span className="text-xs text-gray-500">Avaliador(a): <span className="font-bold text-gray-700">{nomeAvaliador || '-'}</span></span>
+              <span className="text-sm font-bold text-gray-800 uppercase tracking-wide">{avaliador?.empresa || 'Consultório'}</span>
+              <span className="text-xs text-gray-500">Avaliador(a): <span className="font-bold text-gray-700">{avaliador?.nome_completo || '-'}</span></span>
             </div>
           </div>
 
