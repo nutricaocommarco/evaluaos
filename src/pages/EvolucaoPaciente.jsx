@@ -627,7 +627,5 @@ if (!pacienteLocal) {
             />
           </div>
         </div>
-      </div>
-    </div>
   )
 }
