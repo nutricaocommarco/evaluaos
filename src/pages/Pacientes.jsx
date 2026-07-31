@@ -296,24 +296,37 @@ export default function Pacientes({ userId }) {
                       )}
                     </div>
                     
-                    <div className="flex gap-2 mt-4">
+                    <div className="flex gap-2 mt-4 overflow-x-auto pb-1">
                       <button 
                         onClick={() => handleVerHistorico(p)}
-                        className="flex-1 text-center py-2 border border-gray-200 text-gray-600 hover:bg-gray-50 font-semibold text-xs rounded"
+                        className="flex-shrink-0 px-3 text-center py-2 border border-gray-200 text-gray-600 hover:bg-gray-50 font-semibold text-xs rounded"
                       >
                         Histórico
                       </button>
 
+                      {/* --- BOTÃO DE EVOLUÇÃO MOBILE ADICIONADO AQUI --- */}
+                      <button 
+                        onClick={() => navigate('/evolucao', { state: { paciente: p } })}
+                        className="flex-shrink-0 px-3 py-2 text-emerald-600 border border-emerald-100 hover:bg-emerald-50 rounded transition-colors flex items-center justify-center gap-1 font-semibold text-xs"
+                        title="Ver Evolução"
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <polyline points="23 6 13.5 15.5 8.5 10.5 1 18"></polyline>
+                          <polyline points="17 6 23 6 23 12"></polyline>
+                        </svg>
+                        Evolução
+                      </button>
+
                       <button 
                         onClick={() => navigate('/nova-avaliacao', { state: { paciente: p } })}
-                        className="flex-1 text-center py-2 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 font-semibold text-xs rounded"
+                        className="flex-shrink-0 px-3 text-center py-2 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 font-semibold text-xs rounded"
                       >
                         + Avaliação
                       </button>
 
                       <button 
                         onClick={() => handleEditPaciente(p)}
-                        className="px-3 py-2 text-blue-500 border border-blue-100 hover:bg-blue-50 rounded transition-colors flex items-center justify-center"
+                        className="flex-shrink-0 px-3 py-2 text-blue-500 border border-blue-100 hover:bg-blue-50 rounded transition-colors flex items-center justify-center"
                         title="Editar Paciente"
                       >
                         <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -323,7 +336,7 @@ export default function Pacientes({ userId }) {
 
                       <button 
                         onClick={() => handleDeletePaciente(p.id)}
-                        className="px-3 py-2 text-red-500 border border-red-100 hover:bg-red-50 rounded transition-colors flex items-center justify-center"
+                        className="flex-shrink-0 px-3 py-2 text-red-500 border border-red-100 hover:bg-red-50 rounded transition-colors flex items-center justify-center"
                         title="Excluir Paciente"
                       >
                         <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -373,9 +386,22 @@ export default function Pacientes({ userId }) {
                             Histórico
                           </button>
                           
+                          {/* --- BOTÃO DE EVOLUÇÃO DESKTOP ADICIONADO AQUI --- */}
+                          <button 
+                            onClick={() => navigate('/evolucao', { state: { paciente: p } })} 
+                            className="text-emerald-700 font-medium text-xs border border-emerald-100 bg-emerald-50 hover:bg-emerald-100 px-3 py-1.5 rounded transition-colors flex items-center gap-1"
+                            title="Ver Gráficos de Evolução"
+                          >
+                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                              <polyline points="23 6 13.5 15.5 8.5 10.5 1 18"></polyline>
+                              <polyline points="17 6 23 6 23 12"></polyline>
+                            </svg>
+                            Evolução
+                          </button>
+                          
                           <button 
                             onClick={() => navigate('/nova-avaliacao', { state: { paciente: p } })} 
-                            className="text-emerald-600 hover:text-emerald-800 font-medium text-xs bg-emerald-50 px-3 py-1.5 rounded transition-colors"
+                            className="text-white font-medium text-xs bg-emerald-600 hover:bg-emerald-700 px-3 py-1.5 rounded transition-colors"
                           >
                             + Avaliação
                           </button>

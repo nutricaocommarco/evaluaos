@@ -9,6 +9,7 @@ import EscolhaPercGordura from './pages/EscolhaPercGordura'
 import AvaliacaoForm from './pages/AvaliacaoForm'
 import ResultadoAvaliacao from './pages/ResultadoAvaliacao'
 import Avaliador from './pages/Avaliador'
+import EvolucaoPaciente from './pages/EvolucaoPaciente' // <-- IMPORTAÇÃO ADICIONADA AQUI
 
 function MainApp() {
   const [session, setSession] = useState(null)
@@ -47,12 +48,17 @@ function MainApp() {
       icon: <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="12" y1="18" x2="12" y2="12"></line><line x1="9" y1="15" x2="15" y2="15"></line></svg> 
     },
     { 
+      name: 'Equações', path: '/equacoes-de-regressao',
+      icon: <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="4" y="4" width="16" height="16" rx="2" ry="2"></rect><path d="M9 17c2 0 2.8-1 2.8-2.8V10c0-2 1-3.3 3.2-3"></path><path d="M9 11.2h5.7"></path></svg> 
+    },
+    { 
       name: 'Laudo', path: '/laudo-antropometrico',
       icon: <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="20" x2="18" y2="10"></line><line x1="12" y1="20" x2="12" y2="4"></line><line x1="6" y1="20" x2="6" y2="14"></line></svg> 
     },
     { 
-      name: 'Equações', path: '/equacoes-de-regressao',
-      icon: <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="4" y="4" width="16" height="16" rx="2" ry="2"></rect><path d="M9 17c2 0 2.8-1 2.8-2.8V10c0-2 1-3.3 3.2-3"></path><path d="M9 11.2h5.7"></path></svg> 
+      // ITEM ADICIONADO AQUI
+      name: 'Evolução', path: '/evolucao',
+      icon: <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"></polyline><polyline points="17 6 23 6 23 12"></polyline></svg> 
     },
     { 
       name: 'Avaliador', path: '/avaliador',
@@ -76,7 +82,7 @@ function MainApp() {
     )
   }
 
-if (!session) {
+  if (!session) {
     return (
       <Routes>
         <Route path="/login" element={<Login />} />
@@ -164,7 +170,7 @@ if (!session) {
             </button>
 
             <div className="flex items-center gap-2">
-              <img src="/Imagens/Logo_png.png" alt="EvaluaOS" className="h-10 w-auto object-contain" />
+              <img src="/Imagens/Logo_png.png" alt="EvaluaOS" className="h-[70px] w-auto object-contain" />
               <div className="hidden sm:flex flex-col">
                 <span className="text-sm font-black text-gray-800 tracking-tight">EvaluaOS</span>
                 <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Antropometria</span>
@@ -194,6 +200,7 @@ if (!session) {
             <Route path="/nova-avaliacao" element={<AvaliacaoForm />} />
             <Route path="/equacoes-de-regressao" element={<EscolhaPercGordura />} />
             <Route path="/laudo-antropometrico" element={<ResultadoAvaliacao />} />
+            <Route path="/evolucao" element={<EvolucaoPaciente />} /> {/* ROTA DA EVOLUÇÃO ADICIONADA AQUI */}
             <Route path="/avaliador" element={<Avaliador userId={session.user.id} />} />
             <Route path="/laudo/:tokenUrl" element={<ResultadoAvaliacao />} />
 
