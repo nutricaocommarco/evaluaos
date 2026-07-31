@@ -153,8 +153,8 @@ export default function BotaoExportarEvolucaoPDF({ historico, paciente, avaliado
   
   // Pegando a última avaliação para enviar o link correto
   const ultimaAvaliacao = historico[historico.length - 1];
-  const tokenPublico = ultimaAvaliacao?.token_publico;
-  const linkDoLaudo = tokenPublico ? `${window.location.origin}/laudo/${tokenPublico}` : window.location.origin;
+  const tokenPublico = paciente?.token_publico;
+  const linkDoLaudo = tokenPublico ? `${window.location.origin}/evolucao/${tokenPublico}` : window.location.origin;
 
   const mensagemWhatsApp = `Olá *${primeiroNome}*, tudo bem? \n\nAqui é ${saudacao}! Acabei de gerar o relatório da sua *Evolução Antropométrica*.\n\nEstou te enviando em anexo o arquivo PDF com todos os seus comparativos.\n\nVocê também pode acessar seus dados de forma interativa através do link abaixo:\n${linkDoLaudo}\n\nQualquer dúvida, estou à disposição!`;
 
