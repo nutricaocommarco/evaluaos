@@ -13,21 +13,18 @@ export default function EvolucaoPaciente() {
 
   const isPublicView = !!tokenUrl;
   
-  // Usa o paciente do state (se logado) ou null para buscar depois (se for link público)
   const [pacienteLocal, setPacienteLocal] = useState(location.state?.paciente || null)
-
   const [loading, setLoading] = useState(true)
   const [historico, setHistorico] = useState([])
   const [avaliador, setAvaliador] = useState(null)
+  const [configVisibilidade, setConfigVisibilidade] = useState({})
   
-  // Cores padronizadas para as bolinhas da Somatocarta e Legendas
   const coresAvaliacoes = ['#10b981', '#3b82f6', '#f59e0b', '#ec4899', '#8b5cf6', '#ef4444', '#14b8a6', '#64748b']
 
   useEffect(() => {
     async function carregarDados() {
       let pacienteAtual = pacienteLocal;
 
-      // 1. Se for link público, busca o Paciente pelo token na tabela 'pacientes'
       if (tokenUrl) {
         const { data: pacData } = await supabase
           .from('pacientes')
@@ -49,37 +46,42 @@ export default function EvolucaoPaciente() {
         return;
       }
 
-      // 2. Busca do Avaliador (Dinâmico e à prova de falhas)
       let avalData = null;
-
-      // A) Tenta pegar pelo usuário logado (Avaliador usando o sistema internamente)
       const { data: authData } = await supabase.auth.getUser();
       if (authData?.user?.email) {
         const { data } = await supabase
           .from('avaliadores')
-          .select('nome_completo, instagram, empresa, logomarca_url')
+          .select('auth_id, nome_completo, instagram, empresa, logomarca_url')
           .eq('email', authData.user.email)
           .maybeSingle();
         avalData = data;
       }
 
-      // B) Se não achar (Paciente acessando publicamente pelo Link do WhatsApp)
-      if (!avalData) {
-        let idAvaliadorPublico = pacienteAtual.id_avaliador;
+      if (!avalData && pacienteAtual.id_avaliador) {
+        const { data } = await supabase
+          .from('avaliadores')
+          .select('auth_id, nome_completo, instagram, empresa, logomarca_url')
+          .eq('auth_id', pacienteAtual.id_avaliador)
+          .maybeSingle();
+        avalData = data;
+      }
 
-        if (idAvaliadorPublico) {
-            const { data } = await supabase
-              .from('avaliadores')
-              .select('nome_completo, instagram, empresa, logomarca_url')
-              .eq('auth_id', idAvaliadorPublico)
-              .maybeSingle();
-            avalData = data;
+      if (avalData) {
+        setAvaliador(avalData);
+
+        if (avalData.auth_id) {
+          const { data: configData } = await supabase
+            .from('configuracoes_avaliador')
+            .select('visibilidade_publica')
+            .eq('auth_id', avalData.auth_id)
+            .maybeSingle();
+          
+          if (configData?.visibilidade_publica) {
+            setConfigVisibilidade(configData.visibilidade_publica);
+          }
         }
       }
 
-      if (avalData) setAvaliador(avalData);
-
-      // 3. Busca Avaliações
       const { data: avaliacoes, error: errAvaliacoes } = await supabase
         .from('avaliacoes')
         .select('*')
@@ -92,7 +94,6 @@ export default function EvolucaoPaciente() {
         return
       }
 
-      // 4. Busca Cálculos
       const { data: calculos, error: errCalc } = await supabase
         .from('dados_calculados')
         .select('*')
@@ -100,7 +101,6 @@ export default function EvolucaoPaciente() {
 
       if (errCalc) console.error(errCalc)
 
-      // 5. Mescla e Formata os Dados
       const dadosMesclados = (avaliacoes || []).map((aval, index) => {
         const calc = calculos?.find(c => c.id_avaliacao === aval.id) || {}
         
@@ -191,7 +191,12 @@ export default function EvolucaoPaciente() {
     )
   }
 
-  // Cálculos Demográficos
+  // Helper de Trava de Visibilidade
+  const podeExibir = (chave) => {
+    if (!isPublicView) return true;
+    return configVisibilidade[chave] !== false;
+  }
+
   let idade = '-'
   if (pacienteLocal?.data_nascimento) {
     const birthDate = new Date(pacienteLocal.data_nascimento + 'T12:00:00')
@@ -221,14 +226,14 @@ export default function EvolucaoPaciente() {
     window.open(link, '_blank');
   }
 
-  // COMPONENTE: Cartão de Evolução (Híbrido - Horizontal para 2 / Vertical para 3+)
-  const CardEvolucao = ({ titulo, chaveDado, unidade = "", isInverso = false }) => {
+  const CardEvolucao = ({ titulo, chaveDado, unidade = "", isInverso = false, chaveVisibilidade }) => {
+    if (!podeExibir(chaveVisibilidade)) return null;
+
     const totalAvaliacoes = historico.length;
     const primeiraAv = Number(historico[0][chaveDado]);
     const ultimaAv = Number(historico[totalAvaliacoes - 1][chaveDado]);
     const deltaTotal = (ultimaAv - primeiraAv).toFixed(1);
 
-    // REGRA DE OURO: 3 ou mais avaliações? Fica vertical!
     const isVertical = totalAvaliacoes >= 3;
 
     const renderBadge = (diferenca, extraClasses = "") => {
@@ -245,7 +250,6 @@ export default function EvolucaoPaciente() {
 
     return (
       <div className="bg-white rounded-xl border border-gray-100 p-4 shadow-sm flex flex-col min-w-0 w-full overflow-hidden break-inside-avoid">
-        
         <div className="flex justify-between items-start mb-4 gap-2">
           <div className="flex-1 min-w-0">
             <h4 className="text-gray-600 font-black text-xs uppercase tracking-wider truncate">{titulo}</h4>
@@ -260,7 +264,6 @@ export default function EvolucaoPaciente() {
         </div>
         
         {isVertical ? (
-          // --- LAYOUT VERTICAL EMPILHADO (A partir de 3 avaliações) ---
           <div className="flex flex-col gap-2 w-full mt-2">
             {historico.map((av, idx) => {
               const valorAtual = Number(av[chaveDado]);
@@ -285,7 +288,6 @@ export default function EvolucaoPaciente() {
             })}
           </div>
         ) : (
-          // --- LAYOUT HORIZONTAL LADO-A-LADO (Até 2 avaliações) ---
           <div className="flex items-center gap-2 w-full">
             {historico.map((av, idx) => {
               const valorAtual = Number(av[chaveDado]);
@@ -311,7 +313,6 @@ export default function EvolucaoPaciente() {
             })}
           </div>
         )}
-
       </div>
     )
   }
@@ -351,10 +352,14 @@ export default function EvolucaoPaciente() {
     )
   }
 
+  const exibeBlocoComposicao = podeExibir('evo_peso') || podeExibir('evo_gordura_perc') || podeExibir('evo_massa_gorda') || podeExibir('evo_massa_muscular') || podeExibir('evo_massa_magra') || podeExibir('evo_imc');
+  const exibeBlocoDobras = podeExibir('evo_dobra_triceps') || podeExibir('evo_dobra_subescapular') || podeExibir('evo_dobra_biceps') || podeExibir('evo_dobra_crista_iliaca') || podeExibir('evo_dobra_supraespinhal') || podeExibir('evo_dobra_abdominal') || podeExibir('evo_dobra_coxa') || podeExibir('evo_dobra_panturrilha');
+  const exibeBlocoPerimetros = podeExibir('evo_perim_braco_rel') || podeExibir('evo_perim_braco_cont') || podeExibir('evo_perim_antibraco') || podeExibir('evo_perim_cintura') || podeExibir('evo_perim_abdominal') || podeExibir('evo_perim_quadril') || podeExibir('evo_perim_coxa_max') || podeExibir('evo_perim_coxa_med') || podeExibir('evo_perim_panturrilha');
+  const exibeBlocoIndices = podeExibir('evo_idx_cintura_estatura') || podeExibir('evo_idx_rcq') || podeExibir('evo_idx_apvat') || podeExibir('evo_idx_iam') || podeExibir('evo_idx_imo');
+
   return (
     <div className="w-full max-w-6xl mx-auto space-y-10 pb-12 px-4 sm:px-6 overflow-x-hidden animate-fade-in-up print:m-0 print:p-0 print:overflow-visible">
       
-      {/* CSS para Imprimir em PDF */}
       <style>{`
         @media print {
           .no-print { display: none !important; }
@@ -364,10 +369,8 @@ export default function EvolucaoPaciente() {
         }
       `}</style>
 
-      {/* --- CABEÇALHO PROFISSIONAL --- */}
+      {/* CABEÇALHO */}
       <div className="bg-white p-5 sm:p-6 rounded-xl border border-gray-100 shadow-sm flex flex-col gap-6 w-full min-w-0 overflow-hidden">
-        
-        {/* Topo: Avaliador, Logo e Botões */}
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center border-b border-gray-100 pb-4 gap-4 w-full">
           <div className="flex items-center gap-4">
             {avaliador?.logomarca_url ? (
@@ -396,7 +399,6 @@ export default function EvolucaoPaciente() {
           </div>
         </div>
 
-        {/* Dados Demográficos do Paciente */}
         <div className="w-full min-w-0">
           <h2 className="text-sm font-bold text-gray-500 uppercase tracking-wider mb-1">Evolução Antropométrica de</h2>
           <h2 className="text-2xl sm:text-3xl font-black text-gray-900 uppercase tracking-tight break-words break-all sm:break-normal">
@@ -439,112 +441,123 @@ export default function EvolucaoPaciente() {
       </div>
 
       {/* BLOCO 1: Composição Corporal Cards */}
-      <div className="break-inside-avoid w-full">
-        <div className="flex items-center gap-2 mb-4 px-1">
-          <div className="w-8 h-8 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center shrink-0">
-            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"></path><line x1="7" y1="7" x2="7.01" y2="7"></line></svg>
+      {exibeBlocoComposicao && (
+        <div className="break-inside-avoid w-full">
+          <div className="flex items-center gap-2 mb-4 px-1">
+            <div className="w-8 h-8 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center shrink-0">
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"></path><line x1="7" y1="7" x2="7.01" y2="7"></line></svg>
+            </div>
+            <h3 className="text-lg font-black text-gray-800">Composição Corporal</h3>
           </div>
-          <h3 className="text-lg font-black text-gray-800">Composição Corporal</h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 w-full min-w-0">
+            <CardEvolucao titulo="Massa Corporal (Peso)" chaveDado="peso" unidade="kg" isInverso={true} chaveVisibilidade="evo_peso" />
+            <CardEvolucao titulo="Gordura Corporal" chaveDado="gordura_perc" unidade="%" isInverso={true} chaveVisibilidade="evo_gordura_perc" />
+            <CardEvolucao titulo="Massa de Gordura" chaveDado="massa_gorda" unidade="kg" isInverso={true} chaveVisibilidade="evo_massa_gorda" />
+            <CardEvolucao titulo="Massa Muscular" chaveDado="massa_muscular" unidade="kg" isInverso={false} chaveVisibilidade="evo_massa_muscular" />
+            <CardEvolucao titulo="Massa Magra" chaveDado="massa_magra" unidade="kg" isInverso={false} chaveVisibilidade="evo_massa_magra" />
+            <CardEvolucao titulo="IMC" chaveDado="imc" unidade="kg/m²" isInverso={true} chaveVisibilidade="evo_imc" />
+          </div>
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 w-full min-w-0">
-          <CardEvolucao titulo="Massa Corporal (Peso)" chaveDado="peso" unidade="kg" isInverso={true} />
-          <CardEvolucao titulo="Gordura Corporal" chaveDado="gordura_perc" unidade="%" isInverso={true} />
-          <CardEvolucao titulo="Massa de Gordura" chaveDado="massa_gorda" unidade="kg" isInverso={true} />
-          <CardEvolucao titulo="Massa Muscular" chaveDado="massa_muscular" unidade="kg" isInverso={false} />
-          <CardEvolucao titulo="Massa Magra" chaveDado="massa_magra" unidade="kg" isInverso={false} />
-          <CardEvolucao titulo="IMC" chaveDado="imc" unidade="kg/m²" isInverso={true} />
-        </div>
-      </div>
+      )}
 
       {/* BLOCO 2: Gráficos Visuais de Composição e Somatotipo */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 break-inside-avoid w-full min-w-0">
-        
-        {/* Gráfico 1: Peso, Músculo e Gordura em KG */}
-        <div className="bg-white p-4 sm:p-6 rounded-xl border border-gray-100 shadow-sm flex flex-col min-w-0 w-full overflow-hidden">
-          <h3 className="text-sm font-black text-gray-800 uppercase tracking-wider mb-6">Composição (kg)</h3>
-          <div className="w-full h-[280px] relative">
-            <div className="absolute inset-0">
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={historico} margin={{ top: 5, right: 10, bottom: 5, left: -20 }}>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f3f4f6" />
-                  <XAxis dataKey="nome_avaliacao" tick={{fontSize: 12, fill: '#9ca3af'}} axisLine={false} tickLine={false} />
-                  <YAxis tick={{fontSize: 12, fill: '#9ca3af'}} axisLine={false} tickLine={false} />
-                  <Tooltip contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} />
-                  <Legend iconType="circle" wrapperStyle={{ fontSize: '11px', paddingTop: '10px' }} />
-                  <Line type="monotone" name="Peso Total" dataKey="grafico_peso" stroke="#0ea5e9" strokeWidth={3} dot={{ r: 4 }} />
-                  <Line type="monotone" name="M. Muscular" dataKey="grafico_massa_muscular" stroke="#10b981" strokeWidth={3} dot={{ r: 4 }} />
-                  <Line type="monotone" name="M. Gorda" dataKey="grafico_massa_gorda" stroke="#f59e0b" strokeWidth={3} dot={{ r: 4 }} />
-                </LineChart>
-              </ResponsiveContainer>
-            </div>
-          </div>
-        </div>
-
-        {/* Gráfico 2: Exclusivo % de Gordura */}
-        <div className="bg-white p-4 sm:p-6 rounded-xl border border-gray-100 shadow-sm flex flex-col min-w-0 w-full overflow-hidden">
-          <h3 className="text-sm font-black text-gray-800 uppercase tracking-wider mb-6">Evolução % de Gordura</h3>
-          <div className="w-full h-[280px] relative">
-            <div className="absolute inset-0">
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={historico} margin={{ top: 5, right: 10, bottom: 5, left: -20 }}>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f3f4f6" />
-                  <XAxis dataKey="nome_avaliacao" tick={{fontSize: 12, fill: '#9ca3af'}} axisLine={false} tickLine={false} />
-                  <YAxis tick={{fontSize: 12, fill: '#9ca3af'}} axisLine={false} tickLine={false} domain={['auto', 'auto']} />
-                  <Tooltip contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} formatter={(value) => [`${value}%`, '% Gordura']} />
-                  <Legend iconType="circle" wrapperStyle={{ fontSize: '11px', paddingTop: '10px' }} />
-                  <Line type="monotone" name="% Gordura" dataKey="grafico_gordura" stroke="#ef4444" strokeWidth={4} dot={{ r: 5, strokeWidth: 2 }} activeDot={{ r: 7 }} />
-                </LineChart>
-              </ResponsiveContainer>
-            </div>
-          </div>
-        </div>
-
-        {/* Gráfico 3: Somatocarta */}
-        <div className="bg-white p-4 sm:p-6 rounded-xl border border-gray-100 shadow-sm flex flex-col items-center justify-between min-w-0 w-full overflow-hidden">
-          <h3 className="text-sm font-black text-gray-800 uppercase tracking-wider w-full text-left mb-4">Trajetória do Somatotipo</h3>
-          
-          <div className="relative w-full max-w-[280px] sm:max-w-[320px] aspect-square bg-[#f8fafc] rounded-lg border border-gray-200 overflow-hidden mt-2">
-            <div className="absolute inset-y-0 left-1/2 w-px border-l border-dashed border-gray-300"></div>
-            <div className="absolute inset-x-0 top-1/2 h-px border-t border-dashed border-gray-300"></div>
-            <svg className="absolute inset-0 w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none">
-              <polygon points="50,15 15,85 85,85" fill="none" stroke="#94a3b8" strokeWidth="1" vectorEffect="non-scaling-stroke" />
-            </svg>
-            <span className="absolute top-4 left-1/2 -translate-x-1/2 text-[9px] font-black text-blue-600">MESOMORFIA</span>
-            <span className="absolute bottom-4 left-4 text-[9px] font-black text-orange-600">ENDOMORFIA</span>
-            <span className="absolute bottom-4 right-4 text-[9px] font-black text-emerald-600">ECTOMORFIA</span>
-
-            {historico.map((av, idx) => {
-              const leftPos = ((av.eixo_x + 10) / 20) * 100;
-              const topPos = ((10 - av.eixo_y) / 20) * 100;
-              const safeLeft = Math.max(5, Math.min(95, leftPos));
-              const safeTop = Math.max(5, Math.min(95, topPos));
-
-              return (
-                <div 
-                  key={idx} 
-                  className="absolute w-4 h-4 rounded-full -ml-2 -mt-2 shadow-sm border-2 border-white transition-transform hover:scale-125 z-10" 
-                  style={{ left: `${safeLeft}%`, top: `${safeTop}%`, backgroundColor: av.cor }}
-                  title={`${av.nome_avaliacao} - X(${av.eixo_x}) Y(${av.eixo_y})`}
-                />
-              )
-            })}
-          </div>
-
-          <div className="mt-4 w-full flex flex-wrap justify-center gap-2">
-            {historico.map((av, idx) => (
-              <div key={idx} className="flex items-center gap-1 text-[10px] text-gray-600 font-medium bg-gray-50 px-2 py-1 rounded border border-gray-100">
-                <div className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: av.cor }}></div>
-                <span className="truncate max-w-[60px]">{av.nome_avaliacao}</span>
+      {(podeExibir('evo_grafico_massa') || podeExibir('evo_grafico_gordura') || podeExibir('evo_grafico_somatocarta')) && (
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 break-inside-avoid w-full min-w-0">
+          {podeExibir('evo_grafico_massa') && (
+            <div className="bg-white p-4 sm:p-6 rounded-xl border border-gray-100 shadow-sm flex flex-col min-w-0 w-full overflow-hidden">
+              <h3 className="text-sm font-black text-gray-800 uppercase tracking-wider mb-6">Composição (kg)</h3>
+              <div className="w-full h-[280px] relative">
+                <div className="absolute inset-0">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <LineChart data={historico} margin={{ top: 5, right: 10, bottom: 5, left: -20 }}>
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f3f4f6" />
+                      <XAxis dataKey="nome_avaliacao" tick={{fontSize: 12, fill: '#9ca3af'}} axisLine={false} tickLine={false} />
+                      <YAxis tick={{fontSize: 12, fill: '#9ca3af'}} axisLine={false} tickLine={false} />
+                      <Tooltip contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} />
+                      <Legend iconType="circle" wrapperStyle={{ fontSize: '11px', paddingTop: '10px' }} />
+                      <Line type="monotone" name="Peso Total" dataKey="grafico_peso" stroke="#0ea5e9" strokeWidth={3} dot={{ r: 4 }} />
+                      <Line type="monotone" name="M. Muscular" dataKey="grafico_massa_muscular" stroke="#10b981" strokeWidth={3} dot={{ r: 4 }} />
+                      <Line type="monotone" name="M. Gorda" dataKey="grafico_massa_gorda" stroke="#f59e0b" strokeWidth={3} dot={{ r: 4 }} />
+                    </LineChart>
+                  </ResponsiveContainer>
+                </div>
               </div>
-            ))}
-          </div>
+            </div>
+          )}
+
+          {podeExibir('evo_grafico_gordura') && (
+            <div className="bg-white p-4 sm:p-6 rounded-xl border border-gray-100 shadow-sm flex flex-col min-w-0 w-full overflow-hidden">
+              <h3 className="text-sm font-black text-gray-800 uppercase tracking-wider mb-6">Evolução % de Gordura</h3>
+              <div className="w-full h-[280px] relative">
+                <div className="absolute inset-0">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <LineChart data={historico} margin={{ top: 5, right: 10, bottom: 5, left: -20 }}>
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f3f4f6" />
+                      <XAxis dataKey="nome_avaliacao" tick={{fontSize: 12, fill: '#9ca3af'}} axisLine={false} tickLine={false} />
+                      <YAxis tick={{fontSize: 12, fill: '#9ca3af'}} axisLine={false} tickLine={false} domain={['auto', 'auto']} />
+                      <Tooltip contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} formatter={(value) => [`${value}%`, '% Gordura']} />
+                      <Legend iconType="circle" wrapperStyle={{ fontSize: '11px', paddingTop: '10px' }} />
+                      <Line type="monotone" name="% Gordura" dataKey="grafico_gordura" stroke="#ef4444" strokeWidth={4} dot={{ r: 5, strokeWidth: 2 }} activeDot={{ r: 7 }} />
+                    </LineChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {podeExibir('evo_grafico_somatocarta') && (
+            <div className="bg-white p-4 sm:p-6 rounded-xl border border-gray-100 shadow-sm flex flex-col items-center justify-between min-w-0 w-full overflow-hidden">
+              <h3 className="text-sm font-black text-gray-800 uppercase tracking-wider w-full text-left mb-4">Trajetória do Somatotipo</h3>
+              
+              <div className="relative w-full max-w-[280px] sm:max-w-[320px] aspect-square bg-[#f8fafc] rounded-lg border border-gray-200 overflow-hidden mt-2">
+                <div className="absolute inset-y-0 left-1/2 w-px border-l border-dashed border-gray-300"></div>
+                <div className="absolute inset-x-0 top-1/2 h-px border-t border-dashed border-gray-300"></div>
+                <svg className="absolute inset-0 w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none">
+                  <polygon points="50,15 15,85 85,85" fill="none" stroke="#94a3b8" strokeWidth="1" vectorEffect="non-scaling-stroke" />
+                </svg>
+                <span className="absolute top-4 left-1/2 -translate-x-1/2 text-[9px] font-black text-blue-600">MESOMORFIA</span>
+                <span className="absolute bottom-4 left-4 text-[9px] font-black text-orange-600">ENDOMORFIA</span>
+                <span className="absolute bottom-4 right-4 text-[9px] font-black text-emerald-600">ECTOMORFIA</span>
+
+                {historico.map((av, idx) => {
+                  const leftPos = ((av.eixo_x + 10) / 20) * 100;
+                  const topPos = ((10 - av.eixo_y) / 20) * 100;
+                  const safeLeft = Math.max(5, Math.min(95, leftPos));
+                  const safeTop = Math.max(5, Math.min(95, topPos));
+
+                  return (
+                    <div 
+                      key={idx} 
+                      className="absolute w-4 h-4 rounded-full -ml-2 -mt-2 shadow-sm border-2 border-white transition-transform hover:scale-125 z-10" 
+                      style={{ left: `${safeLeft}%`, top: `${safeTop}%`, backgroundColor: av.cor }}
+                      title={`${av.nome_avaliacao} - X(${av.eixo_x}) Y(${av.eixo_y})`}
+                    />
+                  )
+                })}
+              </div>
+
+              <div className="mt-4 w-full flex flex-wrap justify-center gap-2">
+                {historico.map((av, idx) => (
+                  <div key={idx} className="flex items-center gap-1 text-[10px] text-gray-600 font-medium bg-gray-50 px-2 py-1 rounded border border-gray-100">
+                    <div className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: av.cor }}></div>
+                    <span className="truncate max-w-[60px]">{av.nome_avaliacao}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
-      </div>
+      )}
       
-      {/* Gráfico de Barras do Somatotipo Individual */}
-      <div className="bg-white p-4 sm:p-6 rounded-xl border border-gray-100 shadow-sm flex flex-col break-inside-avoid min-w-0 w-full overflow-hidden">
-        <h3 className="text-sm font-black text-gray-800 uppercase tracking-wider w-full text-left mb-6">Evolução dos Componentes do Somatotipo</h3>
-        <div className="flex flex-col w-full mt-2">
+      {/* 🚀 COMPONENTE 'BarChartSomatotipo' CHAMADO AQUI DENTRO DA TRAVA! */}
+      {podeExibir('evo_grafico_barras_somatotipo') && (
+        <div className="bg-white p-4 sm:p-6 rounded-xl border border-gray-100 shadow-sm flex flex-col break-inside-avoid min-w-0 w-full overflow-hidden">
+          <h3 className="text-sm font-black text-gray-800 uppercase tracking-wider w-full text-left mb-6">Evolução dos Componentes do Somatotipo</h3>
+          <BarChartSomatotipo />
+        </div>
+      )}
+
+              <div className="flex flex-col w-full mt-2">
           {['Endomorfia (Adiposidade)', 'Mesomorfia (Musculosidade)', 'Ectomorfia (Magreza / Linearidade)'].map((titulo, idx) => {
             const chaves = ['endo', 'meso', 'ecto'];
             const cores = ['#f97316', '#3b82f6', '#10b981'];
@@ -577,74 +590,86 @@ export default function EvolucaoPaciente() {
       </div>
 
       {/* BLOCO 3: Circunferências / Perímetros */}
-      <div className="break-inside-avoid w-full">
-        <div className="flex items-center gap-2 mb-4 px-1">
-          <div className="w-8 h-8 rounded-full bg-rose-50 text-rose-600 flex items-center justify-center shrink-0">
-            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10z"></path><path d="M2 12h20"></path></svg>
+      {exibeBlocoPerimetros && (
+        <div className="break-inside-avoid w-full">
+          <div className="flex items-center gap-2 mb-4 px-1">
+            <div className="w-8 h-8 rounded-full bg-rose-50 text-rose-600 flex items-center justify-center shrink-0">
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10z"></path><path d="M2 12h20"></path></svg>
+            </div>
+            <h3 className="text-lg font-black text-gray-800">Circunferências (Perímetros)</h3>
           </div>
-          <h3 className="text-lg font-black text-gray-800">Circunferências (Perímetros)</h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 w-full min-w-0">
+            <CardEvolucao titulo="Braço Relaxado" chaveDado="braco_rel" unidade="cm" isInverso={false} chaveVisibilidade="evo_perim_braco_rel" />
+            <CardEvolucao titulo="Braço Contraído" chaveDado="braco_cont" unidade="cm" isInverso={false} chaveVisibilidade="evo_perim_braco_cont" />
+            <CardEvolucao titulo="Antebraço" chaveDado="antibraco" unidade="cm" isInverso={false} chaveVisibilidade="evo_perim_antibraco" />
+            <CardEvolucao titulo="Cintura" chaveDado="cintura" unidade="cm" isInverso={true} chaveVisibilidade="evo_perim_cintura" />
+            <CardEvolucao titulo="Abdominal" chaveDado="perim_abdominal" unidade="cm" isInverso={true} chaveVisibilidade="evo_perim_abdominal" />
+            <CardEvolucao titulo="Quadril" chaveDado="quadril" unidade="cm" isInverso={true} chaveVisibilidade="evo_perim_quadril" />
+            <CardEvolucao titulo="Coxa Máxima" chaveDado="coxa_max" unidade="cm" isInverso={false} chaveVisibilidade="evo_perim_coxa_max" />
+            <CardEvolucao titulo="Coxa Média" chaveDado="coxa_med" unidade="cm" isInverso={false} chaveVisibilidade="evo_perim_coxa_med" />
+            <CardEvolucao titulo="Panturrilha" chaveDado="perim_panturrilha" unidade="cm" isInverso={false} chaveVisibilidade="evo_perim_panturrilha" />
+          </div>
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 w-full min-w-0">
-          <CardEvolucao titulo="Braço Relaxado" chaveDado="braco_rel" unidade="cm" isInverso={false} />
-          <CardEvolucao titulo="Braço Contraído" chaveDado="braco_cont" unidade="cm" isInverso={false} />
-          <CardEvolucao titulo="Antebraço" chaveDado="antibraco" unidade="cm" isInverso={false} />
-          <CardEvolucao titulo="Cintura" chaveDado="cintura" unidade="cm" isInverso={true} />
-          <CardEvolucao titulo="Abdominal" chaveDado="perim_abdominal" unidade="cm" isInverso={true} />
-          <CardEvolucao titulo="Quadril" chaveDado="quadril" unidade="cm" isInverso={true} />
-          <CardEvolucao titulo="Coxa Máxima" chaveDado="coxa_max" unidade="cm" isInverso={false} />
-          <CardEvolucao titulo="Coxa Média" chaveDado="coxa_med" unidade="cm" isInverso={false} />
-          <CardEvolucao titulo="Panturrilha" chaveDado="perim_panturrilha" unidade="cm" isInverso={false} />
-        </div>
-      </div>
+      )}
 
       {/* BLOCO 4: Dobras Cutâneas e Somatórios */}
-      <div className="break-inside-avoid w-full">
-        <div className="flex items-center gap-2 mb-4 px-1">
-          <div className="w-8 h-8 rounded-full bg-orange-50 text-orange-600 flex items-center justify-center shrink-0">
-            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
+      {(exibeBlocoDobras || podeExibir('evo_soma_6') || podeExibir('evo_soma_8')) && (
+        <div className="break-inside-avoid w-full">
+          <div className="flex items-center gap-2 mb-4 px-1">
+            <div className="w-8 h-8 rounded-full bg-orange-50 text-orange-600 flex items-center justify-center shrink-0">
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
+            </div>
+            <h3 className="text-lg font-black text-gray-800">Dobras Cutâneas e Somatórios</h3>
           </div>
-          <h3 className="text-lg font-black text-gray-800">Dobras Cutâneas e Somatórios</h3>
-        </div>
-        
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6 w-full min-w-0">
-          <CardEvolucao titulo="Tríceps" chaveDado="triceps" unidade="mm" isInverso={true} />
-          <CardEvolucao titulo="Subescapular" chaveDado="subescapular" unidade="mm" isInverso={true} />
-          <CardEvolucao titulo="Bíceps" chaveDado="biceps" unidade="mm" isInverso={true} />
-          <CardEvolucao titulo="Crista Ilíaca" chaveDado="crista_iliaca" unidade="mm" isInverso={true} />
-          <CardEvolucao titulo="Supraespinhal" chaveDado="supraespinhal" unidade="mm" isInverso={true} />
-          <CardEvolucao titulo="Abdominal" chaveDado="abdominal" unidade="mm" isInverso={true} />
-          <CardEvolucao titulo="Coxa Média" chaveDado="coxa" unidade="mm" isInverso={true} />
-          <CardEvolucao titulo="Panturrilha" chaveDado="panturrilha" unidade="mm" isInverso={true} />
-        </div>
+          
+          {exibeBlocoDobras && (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6 w-full min-w-0">
+              <CardEvolucao titulo="Tríceps" chaveDado="triceps" unidade="mm" isInverso={true} chaveVisibilidade="evo_dobra_triceps" />
+              <CardEvolucao titulo="Subescapular" chaveDado="subescapular" unidade="mm" isInverso={true} chaveVisibilidade="evo_dobra_subescapular" />
+              <CardEvolucao titulo="Bíceps" chaveDado="biceps" unidade="mm" isInverso={true} chaveVisibilidade="evo_dobra_biceps" />
+              <CardEvolucao titulo="Crista Ilíaca" chaveDado="crista_iliaca" unidade="mm" isInverso={true} chaveVisibilidade="evo_dobra_crista_iliaca" />
+              <CardEvolucao titulo="Supraespinhal" chaveDado="supraespinhal" unidade="mm" isInverso={true} chaveVisibilidade="evo_dobra_supraespinhal" />
+              <CardEvolucao titulo="Abdominal" chaveDado="abdominal" unidade="mm" isInverso={true} chaveVisibilidade="evo_dobra_abdominal" />
+              <CardEvolucao titulo="Coxa Média" chaveDado="coxa" unidade="mm" isInverso={true} chaveVisibilidade="evo_dobra_coxa" />
+              <CardEvolucao titulo="Panturrilha" chaveDado="panturrilha" unidade="mm" isInverso={true} chaveVisibilidade="evo_dobra_panturrilha" />
+            </div>
+          )}
 
-        <div className="flex items-center gap-4 my-8">
-          <div className="h-px bg-gray-200 flex-1"></div>
-          <span className="text-xs font-bold text-gray-400 uppercase tracking-wider text-center px-2">Somatórios Gerais</span>
-          <div className="h-px bg-gray-200 flex-1"></div>
-        </div>
+          {(podeExibir('evo_soma_6') || podeExibir('evo_soma_8')) && (
+            <>
+              <div className="flex items-center gap-4 my-8">
+                <div className="h-px bg-gray-200 flex-1"></div>
+                <span className="text-xs font-bold text-gray-400 uppercase tracking-wider text-center px-2">Somatórios Gerais</span>
+                <div className="h-px bg-gray-200 flex-1"></div>
+              </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 w-full min-w-0">
-          <CardEvolucao titulo="Somatório 6 Dobras" chaveDado="soma_6" unidade="mm" isInverso={true} />
-          <CardEvolucao titulo="Somatório 8 Dobras" chaveDado="soma_8" unidade="mm" isInverso={true} />
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 w-full min-w-0">
+                <CardEvolucao titulo="Somatório 6 Dobras" chaveDado="soma_6" unidade="mm" isInverso={true} chaveVisibilidade="evo_soma_6" />
+                <CardEvolucao titulo="Somatório 8 Dobras" chaveDado="soma_8" unidade="mm" isInverso={true} chaveVisibilidade="evo_soma_8" />
+              </div>
+            </>
+          )}
         </div>
-      </div>
+      )}
 
       {/* BLOCO 5: Relações e Índices de Risco */}
-      <div className="break-inside-avoid w-full">
-        <div className="flex items-center gap-2 mb-4 px-1">
-          <div className="w-8 h-8 rounded-full bg-purple-50 text-purple-600 flex items-center justify-center shrink-0">
-            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"></path></svg>
+      {exibeBlocoIndices && (
+        <div className="break-inside-avoid w-full">
+          <div className="flex items-center gap-2 mb-4 px-1">
+            <div className="w-8 h-8 rounded-full bg-purple-50 text-purple-600 flex items-center justify-center shrink-0">
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"></path></svg>
+            </div>
+            <h3 className="text-lg font-black text-gray-800">Risco Cardiometabólico e Índices</h3>
           </div>
-          <h3 className="text-lg font-black text-gray-800">Risco Cardiometabólico e Índices</h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 w-full min-w-0">
+            <CardEvolucao titulo="Cintura / Estatura" chaveDado="cintura_estatura" isInverso={true} chaveVisibilidade="evo_idx_cintura_estatura" />
+            <CardEvolucao titulo="Cintura / Quadril (RCQ)" chaveDado="cintura_quadril" isInverso={true} chaveVisibilidade="evo_idx_rcq" />
+            <CardEvolucao titulo="Área Visceral (apVAT)" chaveDado="apvat" isInverso={true} chaveVisibilidade="evo_idx_apvat" />
+            <CardEvolucao titulo="Índice Adiposo Muscular" chaveDado="iam" isInverso={true} chaveVisibilidade="evo_idx_iam" />
+            <CardEvolucao titulo="Índice Massa Óssea (IMO)" chaveDado="imo" isInverso={false} chaveVisibilidade="evo_idx_imo" />
+          </div>
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 w-full min-w-0">
-          <CardEvolucao titulo="Cintura / Estatura" chaveDado="cintura_estatura" isInverso={true} />
-          <CardEvolucao titulo="Cintura / Quadril (RCQ)" chaveDado="cintura_quadril" isInverso={true} />
-          <CardEvolucao titulo="Área Visceral (apVAT)" chaveDado="apvat" isInverso={true} />
-          <CardEvolucao titulo="Índice Adiposo Muscular" chaveDado="iam" isInverso={true} />
-          <CardEvolucao titulo="Índice Massa Óssea (IMO)" chaveDado="imo" isInverso={false} />
-        </div>
-      </div>
+      )}
           
       <div className="flex justify-end gap-2 w-full mt-6 no-print">
         <BotaoExportarEvolucaoPDF 

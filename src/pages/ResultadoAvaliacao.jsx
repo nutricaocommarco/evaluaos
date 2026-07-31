@@ -69,6 +69,7 @@ export default function ResultadoAvaliacao() {
   const [nomeAvaliador, setNomeAvaliador] = useState('')
   const [logomarcaUrl, setLogomarcaUrl] = useState('')
   const [tokenPublico, setTokenPublico] = useState('')
+  const [configVisibilidade, setConfigVisibilidade] = useState({})
 
   if (!tokenUrl && !avaliacaoId) {
     return (
@@ -105,12 +106,12 @@ export default function ResultadoAvaliacao() {
       setTokenPublico(avalDados.token_publico || '')
       const pac = avalDados.pacientes || {}
 
-      // BUSCA DINÂMICA DO AVALIADOR
+      // BUSCA DINÂMICA DO AVALIADOR E SUAS CONFIGURAÇÕES DE PRIVACIDADE
       let avalData = null;
       if (pac.id_avaliador) {
         const { data } = await supabase
           .from('avaliadores')
-          .select('empresa, nome_completo, logomarca_url')
+          .select('auth_id, empresa, nome_completo, logomarca_url')
           .eq('auth_id', pac.id_avaliador)
           .maybeSingle();
         avalData = data;
@@ -121,7 +122,7 @@ export default function ResultadoAvaliacao() {
         if (authData?.user?.email) {
           const { data } = await supabase
             .from('avaliadores')
-            .select('empresa, nome_completo, logomarca_url')
+            .select('auth_id, empresa, nome_completo, logomarca_url')
             .eq('email', authData.user.email)
             .maybeSingle();
           avalData = data;
@@ -132,6 +133,18 @@ export default function ResultadoAvaliacao() {
         setNomeEmpresa(avalData.empresa || '');
         setNomeAvaliador(avalData.nome_completo || '');
         setLogomarcaUrl(avalData.logomarca_url || '');
+
+        if (avalData.auth_id) {
+          const { data: configData } = await supabase
+            .from('configuracoes_avaliador')
+            .select('visibilidade_publica')
+            .eq('auth_id', avalData.auth_id)
+            .maybeSingle();
+          
+          if (configData?.visibilidade_publica) {
+            setConfigVisibilidade(configData.visibilidade_publica);
+          }
+        }
       }
 
       const pesoFinal = avalDados.peso_paciente || 0
@@ -191,7 +204,6 @@ export default function ResultadoAvaliacao() {
 
       const somatotipo = calcularSomatotipo(avalDados)
 
-      // === CÁLCULOS DO IAM E IMO PARA O BANCO DE DADOS ===
       const iamVal = (calcMuscular > 0 && massaGordaCalc > 0) ? (massaGordaCalc / calcMuscular) : 0
 
       const dUmero = Number(avalDados.diametro_umero) || 0;
@@ -251,6 +263,12 @@ export default function ResultadoAvaliacao() {
   if (loading) return <div className="p-8 text-center text-gray-500">Carregando e atualizando relatório...</div>
   if (!dados) return <div className="p-8 text-center text-red-500">Não foi possível carregar os resultados desta avaliação.</div>
 
+  // Helper de Trava de Visibilidade
+  const podeExibir = (chave) => {
+    if (!isPublicView) return true; // Avaliador logado sempre vê tudo
+    return configVisibilidade[chave] !== false; // Se público, respeita a flag individual
+  }
+
   const aval = dados.avaliacoes || {}
   const pac = dados.pacientes || {}
 
@@ -298,21 +316,23 @@ export default function ResultadoAvaliacao() {
   const soma6 = dados.somatorio_6_dobras || 0;
   const soma8 = dados.somatorio_8_dobras || 0;
 
-  const renderMedidaItem = (label, valor, unidade) => (
-    <div className="flex justify-between items-center py-2 border-b border-gray-100 last:border-0" key={label}>
-      <span className="text-xs font-medium text-gray-600">{label}</span>
-      <span className="text-sm font-bold text-gray-800">
-        {valor != null ? Number(valor).toFixed(1) : '-'} <span className="text-xs text-gray-400 font-normal">{unidade}</span>
-      </span>
-    </div>
-  )
+  const renderMedidaItem = (label, valor, unidade, chaveVisibilidade) => {
+    if (!podeExibir(chaveVisibilidade)) return null;
+    return (
+      <div className="flex justify-between items-center py-2 border-b border-gray-100 last:border-0" key={label}>
+        <span className="text-xs font-medium text-gray-600">{label}</span>
+        <span className="text-sm font-bold text-gray-800">
+          {valor != null ? Number(valor).toFixed(1) : '-'} <span className="text-xs text-gray-400 font-normal">{unidade}</span>
+        </span>
+      </div>
+    )
+  }
 
   return (
     <div className={`space-y-6 pb-10 ${isPublicView ? 'max-w-4xl mx-auto p-4 sm:p-6' : ''}`}>
       
+      {/* TOPO E CABEÇALHO */}
       <div className="bg-white p-5 rounded-xl border border-gray-100 shadow-sm relative">
-        
-        {/* TOPO: LOGO, DADOS DO AVALIADOR E BRANDING EVALUAOS */}
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 border-b border-gray-100 pb-4">
           <div className="flex items-center gap-4">
             {logomarcaUrl ? (
@@ -340,7 +360,6 @@ export default function ResultadoAvaliacao() {
           </div>
         </div>
 
-        {/* NOME DO PACIENTE E LAUDO */}
         <div className="mb-6">
           <h2 className="text-2xl font-black text-gray-800">Laudo Antropométrico</h2>
           <p className="text-lg font-medium text-gray-500 mt-1">{pac.nome_completo}</p>
@@ -380,240 +399,301 @@ export default function ResultadoAvaliacao() {
         </div>
       </div>
 
-      <div>
-        <h3 className="text-sm font-bold text-gray-800 uppercase tracking-wider mb-3 px-1 mt-6">📐 1. Medidas Básicas</h3>
-        <div className="bg-white p-5 rounded-xl border border-gray-100 shadow-sm">
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-x-8 gap-y-2">
-            {renderMedidaItem('Peso', aval.peso_paciente, 'kg')}
-            {renderMedidaItem('Estatura', aval.altura_paciente, 'cm')}
-            {renderMedidaItem('Altura Sentado', aval.altura_sentado_paciente, 'cm')}
-            {renderMedidaItem('Envergadura', aval.envergadura_paciente, 'cm')}
-          </div>
-        </div>
-      </div>
-
-      <div>
-        <h3 className="text-sm font-bold text-gray-800 uppercase tracking-wider mb-3 px-1 mt-6">📊 2. Composição Corporal</h3>
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-          <div className="bg-white p-5 rounded-xl border border-gray-100 shadow-sm flex flex-col justify-center">
-            <p className="text-xs font-semibold text-gray-500 uppercase">IMC</p>
-            <p className="text-2xl font-black text-gray-800 mt-1">{imc > 0 ? imc.toFixed(1) : '-'} <span className="text-xs font-normal text-gray-500">kg/m²</span></p>
-          </div>
-          <div className="bg-white p-5 rounded-xl border border-gray-100 shadow-sm flex flex-col justify-center">
-            <p className="text-xs font-semibold text-gray-500 uppercase">% Gordura</p>
-            <p className="text-2xl font-black text-amber-500 mt-1">{percentualGordura > 0 ? percentualGordura.toFixed(2) : '-'} <span className="text-xs font-normal text-gray-500">%</span></p>
-          </div>
-          <div className="bg-white p-5 rounded-xl border border-gray-100 shadow-sm flex flex-col justify-center">
-            <p className="text-xs font-semibold text-gray-500 uppercase">Massa Gorda</p>
-            <p className="text-2xl font-black text-amber-600 mt-1">{massaGorda > 0 ? massaGorda.toFixed(2) : '-'} <span className="text-xs font-normal text-gray-500">kg</span></p>
-          </div>
-          <div className="bg-white p-5 rounded-xl border border-gray-100 shadow-sm flex flex-col justify-center">
-            <p className="text-xs font-semibold text-gray-500 uppercase">Massa Magra</p>
-            <p className="text-2xl font-black text-blue-600 mt-1">{massaMagra > 0 ? massaMagra.toFixed(2) : '-'} <span className="text-xs font-normal text-gray-500">kg</span></p>
-          </div>
-          <div className="bg-white p-5 rounded-xl border border-gray-100 shadow-sm flex flex-col justify-center border-l-4 border-l-emerald-500 relative">
-            <p className="text-xs font-semibold text-gray-500 uppercase">Massa Muscular</p>
-            <p className="text-2xl font-black text-emerald-700 mt-1">{massaMuscular > 0 ? massaMuscular.toFixed(2) : '-'} <span className="text-xs font-normal text-gray-500">kg</span></p>
-            <span className="absolute bottom-2 right-3 text-[9px] font-medium text-gray-400">Ref: Lee 2000</span>
-          </div>
-        </div>
-      </div>
-
-      <div>
-        <h3 className="text-sm font-bold text-gray-800 uppercase tracking-wider mb-3 px-1 mt-6">🤏 3. Dobras Cutâneas</h3>
-        <div className="bg-white p-5 rounded-xl border border-gray-100 shadow-sm">
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-x-8 gap-y-2">
-            {renderMedidaItem('Tríceps', aval.dobra_cutanea_triceps, 'mm')}
-            {renderMedidaItem('Subescapular', aval.dobra_cutanea_subescapular, 'mm')}
-            {renderMedidaItem('Bíceps', aval.dobra_cutanea_biceps, 'mm')}
-            {renderMedidaItem('Crista Ilíaca', aval.dobra_cutanea_crista_iliaca, 'mm')}
-            {renderMedidaItem('Supraespinhal', aval.dobra_cutanea_supraespinhal, 'mm')}
-            {renderMedidaItem('Abdominal', aval.dobra_cutanea_abdominal, 'mm')}
-            {renderMedidaItem('Coxa Média', aval.dobra_cutanea_coxa_media, 'mm')}
-            {renderMedidaItem('Panturrilha', aval.dobra_cutanea_panturrilha, 'mm')}
-          </div>
-        </div>
-      </div>
-
-      <div>
-        <h3 className="text-sm font-bold text-gray-800 uppercase tracking-wider mb-3 px-1 mt-6">⚖️ 4. Indicadores de Saúde</h3>
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <div className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm flex justify-between items-center">
-            <span className="text-xs font-bold text-gray-600">Relação Cintura-Quadril</span>
-            <span className="text-lg font-black text-indigo-600">{rcq > 0 ? rcq.toFixed(2) : '-'}</span>
-          </div>
-          <div className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm flex justify-between items-center">
-            <span className="text-xs font-bold text-gray-600">Relação Cintura-Estatura</span>
-            <span className="text-lg font-black text-indigo-600">{rce > 0 ? rce.toFixed(2) : '-'}</span>
-          </div>
-          <div className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm flex justify-between items-center">
-            <span className="text-xs font-semibold text-gray-700">Circunferência da Cintura (Status)</span>
-            <span className="text-xs font-bold bg-emerald-100 text-emerald-800 px-2 py-1 rounded-md uppercase tracking-wide">
-              {statusCintura}
-            </span>
-          </div>
-          <div className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm flex justify-between items-center">
-            <span className="text-xs font-bold text-gray-600">Σ 6 Dobras</span>
-            <span className="text-lg font-black text-amber-600">{soma6 > 0 ? soma6.toFixed(1) : '-'} <span className="text-xs font-normal text-gray-400">mm</span></span>
-          </div>
-          <div className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm flex justify-between items-center">
-            <span className="text-xs font-bold text-gray-600">Σ 8 Dobras</span>
-            <span className="text-lg font-black text-amber-600">{soma8 > 0 ? soma8.toFixed(1) : '-'} <span className="text-xs font-normal text-gray-400">mm</span></span>
-          </div>
-        </div>
-      </div>
-
-      <div>
-        <h3 className="text-sm font-bold text-gray-800 uppercase tracking-wider mb-3 px-1 mt-6">🔄 5. Perímetros</h3>
-        <div className="bg-white p-5 rounded-xl border border-gray-100 shadow-sm">
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-x-8 gap-y-2">
-            {renderMedidaItem('Braço Relaxado', aval.perimetro_braco_relaxado, 'cm')}
-            {renderMedidaItem('Braço Contraído', aval.perimetro_braco_contraido, 'cm')}
-            {renderMedidaItem('Antebraço', aval.perimetro_antibraco, 'cm')}
-            {renderMedidaItem('Cintura', aval.perimetro_cintura, 'cm')}
-            {renderMedidaItem('Abdominal', aval.perimetro_abdominal, 'cm')}
-            {renderMedidaItem('Quadril', aval.perimetro_quadril, 'cm')}
-            {renderMedidaItem('Coxa Máxima', aval.perimetro_coxa_maxima, 'cm')}
-            {renderMedidaItem('Coxa Média', aval.perimetro_coxa_media, 'cm')}
-            {renderMedidaItem('Panturrilha', aval.perimetro_panturrilha, 'cm')}
-          </div>
-        </div>
-      </div>
-
-      <div>
-        <h3 className="text-sm font-bold text-gray-800 uppercase tracking-wider mb-3 px-1 mt-6">💪 6. Perímetros Corrigidos (Massa Muscular Regional)</h3>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm flex justify-between items-center">
-            <span className="text-xs font-bold text-gray-600">Braço</span>
-            <span className="text-lg font-black text-emerald-600">{perimCorrigidoBraco > 0 ? perimCorrigidoBraco.toFixed(2) : '-'} <span className="text-xs font-normal text-gray-400">cm</span></span>
-          </div>
-          <div className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm flex justify-between items-center">
-            <span className="text-xs font-bold text-gray-600">Coxa</span>
-            <span className="text-lg font-black text-emerald-600">{perimCorrigidoCoxa > 0 ? perimCorrigidoCoxa.toFixed(2) : '-'} <span className="text-xs font-normal text-gray-400">cm</span></span>
-          </div>
-          <div className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm flex justify-between items-center">
-            <span className="text-xs font-bold text-gray-600">Panturrilha</span>
-            <span className="text-lg font-black text-emerald-600">{perimCorrigidoPanturrilha > 0 ? perimCorrigidoPanturrilha.toFixed(2) : '-'} <span className="text-xs font-normal text-gray-400">cm</span></span>
-          </div>
-        </div>
-      </div>
-
-      <div>
-        <h3 className="text-sm font-bold text-gray-800 uppercase tracking-wider mb-3 px-1 mt-6">🦴 7. Diâmetros Ósseos</h3>
-        <div className="bg-white p-5 rounded-xl border border-gray-100 shadow-sm">
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-x-8 gap-y-2">
-            {renderMedidaItem('Úmero', aval.diametro_umero, 'cm')}
-            {renderMedidaItem('Fêmur', aval.diametro_femur, 'cm')}
-            {renderMedidaItem('Punho', aval.diametro_punho, 'cm')}
-            {renderMedidaItem('Tornozelo', aval.diametro_maleolar, 'cm')}
-          </div>
-        </div>
-      </div>
-
-      <h3 className="text-sm font-bold text-gray-800 uppercase tracking-wider mb-3 px-1 mt-6">🧬 8. Somatotipo (Heath-Carter)</h3>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div className="bg-white p-6 rounded-xl border border-gray-100 shadow-sm space-y-4">
-          <div className="space-y-5 mt-2">
-            <div>
-              <div className="flex justify-between text-sm font-semibold mb-1">
-                <span className="text-amber-700">Endomorfia (Adiposidade)</span>
-                <span>{dados.somatotipo_endomorfia || '-'}</span>
-              </div>
-              <div className="w-full bg-gray-100 h-2.5 rounded-full">
-                <div className="bg-amber-500 h-2.5 rounded-full" style={{ width: `${Math.min(100, (dados.somatotipo_endomorfia || 0) * 10)}%` }}></div>
-              </div>
-            </div>
-
-            <div>
-              <div className="flex justify-between text-sm font-semibold mb-1">
-                <span className="text-blue-700">Mesomorfia (Musculosidade)</span>
-                <span>{dados.somatotipo_mesomorfia || '-'}</span>
-              </div>
-              <div className="w-full bg-gray-100 h-2.5 rounded-full">
-                <div className="bg-blue-500 h-2.5 rounded-full" style={{ width: `${Math.min(100, (dados.somatotipo_mesomorfia || 0) * 10)}%` }}></div>
-              </div>
-            </div>
-
-            <div>
-              <div className="flex justify-between text-sm font-semibold mb-1">
-                <span className="text-emerald-700">Ectomorfia (Magreza / Linearidade)</span>
-                <span>{dados.somatotipo_ectomorfia || '-'}</span>
-              </div>
-              <div className="w-full bg-gray-100 h-2.5 rounded-full">
-                <div className="bg-emerald-500 h-2.5 rounded-full" style={{ width: `${Math.min(100, (dados.somatotipo_ectomorfia || 0) * 10)}%` }}></div>
-              </div>
+      {/* 1. MEDIDAS BÁSICAS */}
+      {(podeExibir('laudo_peso') || podeExibir('laudo_estatura') || podeExibir('laudo_altura_sentado') || podeExibir('laudo_envergadura')) && (
+        <div>
+          <h3 className="text-sm font-bold text-gray-800 uppercase tracking-wider mb-3 px-1 mt-6">📐 1. Medidas Básicas</h3>
+          <div className="bg-white p-5 rounded-xl border border-gray-100 shadow-sm">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-x-8 gap-y-2">
+              {renderMedidaItem('Peso', aval.peso_paciente, 'kg', 'laudo_peso')}
+              {renderMedidaItem('Estatura', aval.altura_paciente, 'cm', 'laudo_estatura')}
+              {renderMedidaItem('Altura Sentado', aval.altura_sentado_paciente, 'cm', 'laudo_altura_sentado')}
+              {renderMedidaItem('Envergadura', aval.envergadura_paciente, 'cm', 'laudo_envergadura')}
             </div>
           </div>
         </div>
+      )}
 
-        <div className="bg-white p-6 rounded-xl border border-gray-100 shadow-sm flex flex-col items-center justify-center">
-          <div className="relative">
-            <svg width="280" height="280" className="border rounded-lg bg-slate-50 shadow-inner">
-              <line x1="140" y1="20" x2="140" y2="260" stroke="#cbd5e1" strokeWidth="1.5" strokeDasharray="4" />
-              <line x1="20" y1="140" x2="260" y2="140" stroke="#cbd5e1" strokeWidth="1.5" strokeDasharray="4" />
-              <polygon points="140,30 40,230 240,230" fill="none" stroke="#94a3b8" strokeWidth="1.5" />
-              <text x="140" y="20" textAnchor="middle" className="text-[10px] font-bold fill-blue-600">MESOMORFIA</text>
-              <text x="50" y="245" textAnchor="middle" className="text-[10px] font-bold fill-amber-600">ENDOMORFIA</text>
-              <text x="230" y="245" textAnchor="middle" className="text-[10px] font-bold fill-emerald-600">ECTOMORFIA</text>
-              {dados.somatocarta_eixo_x != null && dados.somatocarta_eixo_y != null && (
-                <circle cx={coordX} cy={coordY} r="7" fill="#10b981" stroke="#ffffff" strokeWidth="2" className="shadow-lg" />
-              )}
-            </svg>
-            <p className="text-center text-xs text-gray-500 mt-3 font-medium">
-              Coordenadas: X ({dados.somatocarta_eixo_x || '0'}) | Y ({dados.somatocarta_eixo_y || '0'})
-            </p>
+      {/* 2. COMPOSIÇÃO CORPORAL */}
+      {(podeExibir('laudo_imc') || podeExibir('laudo_percentual_gordura') || podeExibir('laudo_massa_gorda') || podeExibir('laudo_massa_magra') || podeExibir('laudo_massa_muscular')) && (
+        <div>
+          <h3 className="text-sm font-bold text-gray-800 uppercase tracking-wider mb-3 px-1 mt-6">📊 2. Composição Corporal</h3>
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+            {podeExibir('laudo_imc') && (
+              <div className="bg-white p-5 rounded-xl border border-gray-100 shadow-sm flex flex-col justify-center">
+                <p className="text-xs font-semibold text-gray-500 uppercase">IMC</p>
+                <p className="text-2xl font-black text-gray-800 mt-1">{imc > 0 ? imc.toFixed(1) : '-'} <span className="text-xs font-normal text-gray-500">kg/m²</span></p>
+              </div>
+            )}
+            {podeExibir('laudo_percentual_gordura') && (
+              <div className="bg-white p-5 rounded-xl border border-gray-100 shadow-sm flex flex-col justify-center">
+                <p className="text-xs font-semibold text-gray-500 uppercase">% Gordura</p>
+                <p className="text-2xl font-black text-amber-500 mt-1">{percentualGordura > 0 ? percentualGordura.toFixed(2) : '-'} <span className="text-xs font-normal text-gray-500">%</span></p>
+              </div>
+            )}
+            {podeExibir('laudo_massa_gorda') && (
+              <div className="bg-white p-5 rounded-xl border border-gray-100 shadow-sm flex flex-col justify-center">
+                <p className="text-xs font-semibold text-gray-500 uppercase">Massa Gorda</p>
+                <p className="text-2xl font-black text-amber-600 mt-1">{massaGorda > 0 ? massaGorda.toFixed(2) : '-'} <span className="text-xs font-normal text-gray-500">kg</span></p>
+              </div>
+            )}
+            {podeExibir('laudo_massa_magra') && (
+              <div className="bg-white p-5 rounded-xl border border-gray-100 shadow-sm flex flex-col justify-center">
+                <p className="text-xs font-semibold text-gray-500 uppercase">Massa Magra</p>
+                <p className="text-2xl font-black text-blue-600 mt-1">{massaMagra > 0 ? massaMagra.toFixed(2) : '-'} <span className="text-xs font-normal text-gray-500">kg</span></p>
+              </div>
+            )}
+            {podeExibir('laudo_massa_muscular') && (
+              <div className="bg-white p-5 rounded-xl border border-gray-100 shadow-sm flex flex-col justify-center border-l-4 border-l-emerald-500 relative">
+                <p className="text-xs font-semibold text-gray-500 uppercase">Massa Muscular</p>
+                <p className="text-2xl font-black text-emerald-700 mt-1">{massaMuscular > 0 ? massaMuscular.toFixed(2) : '-'} <span className="text-xs font-normal text-gray-500">kg</span></p>
+                <span className="absolute bottom-2 right-3 text-[9px] font-medium text-gray-400">Ref: Lee 2000</span>
+              </div>
+            )}
           </div>
         </div>
-      </div>
+      )}
 
-      <div className="bg-white p-6 rounded-xl border border-gray-100 shadow-sm space-y-4 mt-6">
-        <h3 className="text-sm font-bold text-gray-800 uppercase tracking-wider border-b pb-2">🚀 10. Outros Indicadores & Classificações</h3>
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
-
-          <div className="flex justify-between items-center p-3 border border-gray-100 rounded-lg bg-gray-50">
-            <span className="text-xs font-semibold text-gray-700">Índice Adiposo Muscular (IAM)</span>
-            <span className="text-xs font-bold text-gray-800">
-              {iamVal > 0 ? iamVal.toFixed(2) : '-'}
-            </span>
-          </div>
-
-          <div className="flex flex-col p-3 border border-gray-100 rounded-lg bg-gray-50 space-y-1">
-            <div className="flex justify-between items-center">
-              <span className="text-xs font-semibold text-gray-700">Índice de Músculo Ósseo (IMO)</span>
-              <span className="text-sm font-bold text-emerald-700">
-                {imoVal > 0 ? imoVal.toFixed(3) : '-'}
-              </span>
+      {/* 3. DOBRAS CUTÂNEAS */}
+      {(podeExibir('laudo_dobra_triceps') || podeExibir('laudo_dobra_subescapular') || podeExibir('laudo_dobra_biceps') || podeExibir('laudo_dobra_crista_iliaca') || podeExibir('laudo_dobra_supraespinhal') || podeExibir('laudo_dobra_abdominal') || podeExibir('laudo_dobra_coxa') || podeExibir('laudo_dobra_panturrilha')) && (
+        <div>
+          <h3 className="text-sm font-bold text-gray-800 uppercase tracking-wider mb-3 px-1 mt-6">🤏 3. Dobras Cutâneas</h3>
+          <div className="bg-white p-5 rounded-xl border border-gray-100 shadow-sm">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-x-8 gap-y-2">
+              {renderMedidaItem('Tríceps', aval.dobra_cutanea_triceps, 'mm', 'laudo_dobra_triceps')}
+              {renderMedidaItem('Subescapular', aval.dobra_cutanea_subescapular, 'mm', 'laudo_dobra_subescapular')}
+              {renderMedidaItem('Bíceps', aval.dobra_cutanea_biceps, 'mm', 'laudo_dobra_biceps')}
+              {renderMedidaItem('Crista Ilíaca', aval.dobra_cutanea_crista_iliaca, 'mm', 'laudo_dobra_crista_iliaca')}
+              {renderMedidaItem('Supraespinhal', aval.dobra_cutanea_supraespinhal, 'mm', 'laudo_dobra_supraespinhal')}
+              {renderMedidaItem('Abdominal', aval.dobra_cutanea_abdominal, 'mm', 'laudo_dobra_abdominal')}
+              {renderMedidaItem('Coxa Média', aval.dobra_cutanea_coxa_media, 'mm', 'laudo_dobra_coxa')}
+              {renderMedidaItem('Panturrilha', aval.dobra_cutanea_panturrilha, 'mm', 'laudo_dobra_panturrilha')}
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* 4. INDICADORES DE SAÚDE */}
+      {(podeExibir('laudo_rcq') || podeExibir('laudo_rce') || podeExibir('laudo_status_cintura') || podeExibir('laudo_soma_6') || podeExibir('laudo_soma_8')) && (
+        <div>
+          <h3 className="text-sm font-bold text-gray-800 uppercase tracking-wider mb-3 px-1 mt-6">⚖️ 4. Indicadores de Saúde</h3>
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            {podeExibir('laudo_rcq') && (
+              <div className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm flex justify-between items-center">
+                <span className="text-xs font-bold text-gray-600">Relação Cintura-Quadril</span>
+                <span className="text-lg font-black text-indigo-600">{rcq > 0 ? rcq.toFixed(2) : '-'}</span>
+              </div>
+            )}
+            {podeExibir('laudo_rce') && (
+              <div className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm flex justify-between items-center">
+                <span className="text-xs font-bold text-gray-600">Relação Cintura-Estatura</span>
+                <span className="text-lg font-black text-indigo-600">{rce > 0 ? rce.toFixed(2) : '-'}</span>
+              </div>
+            )}
+            {podeExibir('laudo_status_cintura') && (
+              <div className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm flex justify-between items-center">
+                <span className="text-xs font-semibold text-gray-700">Circunferência da Cintura (Status)</span>
+                <span className="text-xs font-bold bg-emerald-100 text-emerald-800 px-2 py-1 rounded-md uppercase tracking-wide">
+                  {statusCintura}
+                </span>
+              </div>
+            )}
+            {podeExibir('laudo_soma_6') && (
+              <div className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm flex justify-between items-center">
+                <span className="text-xs font-bold text-gray-600">Σ 6 Dobras</span>
+                <span className="text-lg font-black text-amber-600">{soma6 > 0 ? soma6.toFixed(1) : '-'} <span className="text-xs font-normal text-gray-400">mm</span></span>
+              </div>
+            )}
+            {podeExibir('laudo_soma_8') && (
+              <div className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm flex justify-between items-center">
+                <span className="text-xs font-bold text-gray-600">Σ 8 Dobras</span>
+                <span className="text-lg font-black text-amber-600">{soma8 > 0 ? soma8.toFixed(1) : '-'} <span className="text-xs font-normal text-gray-400">mm</span></span>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* 5. PERÍMETROS */}
+      {(podeExibir('laudo_perim_braco_rel') || podeExibir('laudo_perim_braco_cont') || podeExibir('laudo_perim_antibraco') || podeExibir('laudo_perim_cintura') || podeExibir('laudo_perim_abdominal') || podeExibir('laudo_perim_quadril') || podeExibir('laudo_perim_coxa_max') || podeExibir('laudo_perim_coxa_med') || podeExibir('laudo_perim_panturrilha')) && (
+        <div>
+          <h3 className="text-sm font-bold text-gray-800 uppercase tracking-wider mb-3 px-1 mt-6">🔄 5. Perímetros</h3>
+          <div className="bg-white p-5 rounded-xl border border-gray-100 shadow-sm">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-x-8 gap-y-2">
+              {renderMedidaItem('Braço Relaxado', aval.perimetro_braco_relaxado, 'cm', 'laudo_perim_braco_rel')}
+              {renderMedidaItem('Braço Contraído', aval.perimetro_braco_contraido, 'cm', 'laudo_perim_braco_cont')}
+              {renderMedidaItem('Antebraço', aval.perimetro_antibraco, 'cm', 'laudo_perim_antibraco')}
+              {renderMedidaItem('Cintura', aval.perimetro_cintura, 'cm', 'laudo_perim_cintura')}
+              {renderMedidaItem('Abdominal', aval.perimetro_abdominal, 'cm', 'laudo_perim_abdominal')}
+              {renderMedidaItem('Quadril', aval.perimetro_quadril, 'cm', 'laudo_perim_quadril')}
+              {renderMedidaItem('Coxa Máxima', aval.perimetro_coxa_maxima, 'cm', 'laudo_perim_coxa_max')}
+              {renderMedidaItem('Coxa Média', aval.perimetro_coxa_media, 'cm', 'laudo_perim_coxa_med')}
+              {renderMedidaItem('Panturrilha', aval.perimetro_panturrilha, 'cm', 'laudo_perim_panturrilha')}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 6. PERÍMETROS CORRIGIDOS */}
+      {(podeExibir('laudo_perim_corrigido_braco') || podeExibir('laudo_perim_corrigido_coxa') || podeExibir('laudo_perim_corrigido_panturrilha')) && (
+        <div>
+          <h3 className="text-sm font-bold text-gray-800 uppercase tracking-wider mb-3 px-1 mt-6">💪 6. Perímetros Corrigidos (Massa Muscular Regional)</h3>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {podeExibir('laudo_perim_corrigido_braco') && (
+              <div className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm flex justify-between items-center">
+                <span className="text-xs font-bold text-gray-600">Braço</span>
+                <span className="text-lg font-black text-emerald-600">{perimCorrigidoBraco > 0 ? perimCorrigidoBraco.toFixed(2) : '-'} <span className="text-xs font-normal text-gray-400">cm</span></span>
+              </div>
+            )}
+            {podeExibir('laudo_perim_corrigido_coxa') && (
+              <div className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm flex justify-between items-center">
+                <span className="text-xs font-bold text-gray-600">Coxa</span>
+                <span className="text-lg font-black text-emerald-600">{perimCorrigidoCoxa > 0 ? perimCorrigidoCoxa.toFixed(2) : '-'} <span className="text-xs font-normal text-gray-400">cm</span></span>
+              </div>
+            )}
+            {podeExibir('laudo_perim_corrigido_panturrilha') && (
+              <div className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm flex justify-between items-center">
+                <span className="text-xs font-bold text-gray-600">Panturrilha</span>
+                <span className="text-lg font-black text-emerald-600">{perimCorrigidoPanturrilha > 0 ? perimCorrigidoPanturrilha.toFixed(2) : '-'} <span className="text-xs font-normal text-gray-400">cm</span></span>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* 7. DIÂMETROS ÓSSEOS */}
+      {(podeExibir('laudo_diam_umero') || podeExibir('laudo_diam_femur') || podeExibir('laudo_diam_punho') || podeExibir('laudo_diam_maleolar')) && (
+        <div>
+          <h3 className="text-sm font-bold text-gray-800 uppercase tracking-wider mb-3 px-1 mt-6">🦴 7. Diâmetros Ósseos</h3>
+          <div className="bg-white p-5 rounded-xl border border-gray-100 shadow-sm">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-x-8 gap-y-2">
+              {renderMedidaItem('Úmero', aval.diametro_umero, 'cm', 'laudo_diam_umero')}
+              {renderMedidaItem('Fêmur', aval.diametro_femur, 'cm', 'laudo_diam_femur')}
+              {renderMedidaItem('Punho', aval.diametro_punho, 'cm', 'laudo_diam_punho')}
+              {renderMedidaItem('Tornozelo', aval.diametro_maleolar, 'cm', 'laudo_diam_maleolar')}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 8 e 9. SOMATOTIPO E SOMATOCARTA */}
+      {(podeExibir('laudo_somatotipo_barras') || podeExibir('laudo_somatocarta_grafico')) && (
+        <>
+          <h3 className="text-sm font-bold text-gray-800 uppercase tracking-wider mb-3 px-1 mt-6">🧬 8. Somatotipo (Heath-Carter)</h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {podeExibir('laudo_somatotipo_barras') && (
+              <div className="bg-white p-6 rounded-xl border border-gray-100 shadow-sm space-y-4">
+                <div className="space-y-5 mt-2">
+                  <div>
+                    <div className="flex justify-between text-sm font-semibold mb-1">
+                      <span className="text-amber-700">Endomorfia (Adiposidade)</span>
+                      <span>{dados.somatotipo_endomorfia || '-'}</span>
+                    </div>
+                    <div className="w-full bg-gray-100 h-2.5 rounded-full">
+                      <div className="bg-amber-500 h-2.5 rounded-full" style={{ width: `${Math.min(100, (dados.somatotipo_endomorfia || 0) * 10)}%` }}></div>
+                    </div>
+                  </div>
+
+                  <div>
+                    <div className="flex justify-between text-sm font-semibold mb-1">
+                      <span className="text-blue-700">Mesomorfia (Musculosidade)</span>
+                      <span>{dados.somatotipo_mesomorfia || '-'}</span>
+                    </div>
+                    <div className="w-full bg-gray-100 h-2.5 rounded-full">
+                      <div className="bg-blue-500 h-2.5 rounded-full" style={{ width: `${Math.min(100, (dados.somatotipo_mesomorfia || 0) * 10)}%` }}></div>
+                    </div>
+                  </div>
+
+                  <div>
+                    <div className="flex justify-between text-sm font-semibold mb-1">
+                      <span className="text-emerald-700">Ectomorfia (Magreza / Linearidade)</span>
+                      <span>{dados.somatotipo_ectomorfia || '-'}</span>
+                    </div>
+                    <div className="w-full bg-gray-100 h-2.5 rounded-full">
+                      <div className="bg-emerald-500 h-2.5 rounded-full" style={{ width: `${Math.min(100, (dados.somatotipo_ectomorfia || 0) * 10)}%` }}></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {podeExibir('laudo_somatocarta_grafico') && (
+              <div className="bg-white p-6 rounded-xl border border-gray-100 shadow-sm flex flex-col items-center justify-center">
+                <div className="relative">
+                  <svg width="280" height="280" className="border rounded-lg bg-slate-50 shadow-inner">
+                    <line x1="140" y1="20" x2="140" y2="260" stroke="#cbd5e1" strokeWidth="1.5" strokeDasharray="4" />
+                    <line x1="20" y1="140" x2="260" y2="140" stroke="#cbd5e1" strokeWidth="1.5" strokeDasharray="4" />
+                    <polygon points="140,30 40,230 240,230" fill="none" stroke="#94a3b8" strokeWidth="1.5" />
+                    <text x="140" y="20" textAnchor="middle" className="text-[10px] font-bold fill-blue-600">MESOMORFIA</text>
+                    <text x="50" y="245" textAnchor="middle" className="text-[10px] font-bold fill-amber-600">ENDOMORFIA</text>
+                    <text x="230" y="245" textAnchor="middle" className="text-[10px] font-bold fill-emerald-600">ECTOMORFIA</text>
+                    {dados.somatocarta_eixo_x != null && dados.somatocarta_eixo_y != null && (
+                      <circle cx={coordX} cy={coordY} r="7" fill="#10b981" stroke="#ffffff" strokeWidth="2" className="shadow-lg" />
+                    )}
+                  </svg>
+                  <p className="text-center text-xs text-gray-500 mt-3 font-medium">
+                    Coordenadas: X ({dados.somatocarta_eixo_x || '0'}) | Y ({dados.somatocarta_eixo_y || '0'})
+                  </p>
+                </div>
+              </div>
+            )}
+          </div>
+        </>
+      )}
+
+      {/* 10. OUTROS INDICADORES */}
+      {(podeExibir('laudo_iam') || podeExibir('laudo_imo')) && (
+        <div className="bg-white p-6 rounded-xl border border-gray-100 shadow-sm space-y-4 mt-6">
+          <h3 className="text-sm font-bold text-gray-800 uppercase tracking-wider border-b pb-2">🚀 10. Outros Indicadores & Classificações</h3>
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+            {podeExibir('laudo_iam') && (
+              <div className="flex justify-between items-center p-3 border border-gray-100 rounded-lg bg-gray-50">
+                <span className="text-xs font-semibold text-gray-700">Índice Adiposo Muscular (IAM)</span>
+                <span className="text-xs font-bold text-gray-800">
+                  {iamVal > 0 ? iamVal.toFixed(2) : '-'}
+                </span>
+              </div>
+            )}
+
+            {podeExibir('laudo_imo') && (
+              <div className="flex flex-col p-3 border border-gray-100 rounded-lg bg-gray-50 space-y-1">
+                <div className="flex justify-between items-center">
+                  <span className="text-xs font-semibold text-gray-700">Índice de Músculo Ósseo (IMO)</span>
+                  <span className="text-sm font-bold text-emerald-700">
+                    {imoVal > 0 ? imoVal.toFixed(3) : '-'}
+                  </span>
+                </div>
+              </div>
+            )}
+            
+            {[
+              'Área de Previsão Visceral (APVAT)', 
+              'Gordura (Escala Morrow)', 
+              'Gordura (Escala Argoref)'
+            ].map((item, index) => (
+              <div key={index} className="flex justify-between items-center p-3 border border-gray-100 rounded-lg bg-gray-50">
+                <span className="text-xs font-semibold text-gray-700">{item}</span>
+                <span className="text-[10px] font-bold bg-gray-200 text-gray-500 px-2 py-1 rounded-md uppercase tracking-wide">Em breve</span>
+              </div>
+            ))}
           </div>
           
-          {[
-            'Área de Previsão Visceral (APVAT)', 
-            'Gordura (Escala Morrow)', 
-            'Gordura (Escala Argoref)'
-          ].map((item, index) => (
-            <div key={index} className="flex justify-between items-center p-3 border border-gray-100 rounded-lg bg-gray-50">
-              <span className="text-xs font-semibold text-gray-700">{item}</span>
-              <span className="text-[10px] font-bold bg-gray-200 text-gray-500 px-2 py-1 rounded-md uppercase tracking-wide">Em breve</span>
-            </div>
-          ))}
-
+          {dados && (
+            <BotaoExportarPDF 
+              dados={dados} 
+              idade={idade} 
+              statusCintura={statusCintura} 
+              iamVal={iamVal} 
+              imoVal={imoVal} 
+              nomeEmpresa={nomeEmpresa}
+              nomeAvaliador={nomeAvaliador}
+              logomarcaUrl={logomarcaUrl}
+              tokenPublico={tokenPublico}
+              isPublicView={isPublicView}
+            />
+          )}
         </div>
-        
-        {dados && (
-          <BotaoExportarPDF 
-            dados={dados} 
-            idade={idade} 
-            statusCintura={statusCintura} 
-            iamVal={iamVal} 
-            imoVal={imoVal} 
-            nomeEmpresa={nomeEmpresa}
-            nomeAvaliador={nomeAvaliador}
-            logomarcaUrl={logomarcaUrl}
-            tokenPublico={tokenPublico}
-            isPublicView={isPublicView}
-          />
-        )}
-      </div>
+      )}
 
     </div>
   )

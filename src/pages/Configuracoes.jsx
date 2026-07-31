@@ -78,7 +78,7 @@ export default function Configuracoes() {
   const abas = [
     { id: 'coleta', label: 'Formulário & Coleta', icon: '📝' },
     { id: 'preferencias', label: 'Protocolos & Margens', icon: '⚡' },
-    { id: 'privacidade', label: 'Link Público (WhatsApp)', icon: '👁️' },
+    { id: 'privacidade', label: 'Visibilidade', icon: '👁️' },
     { id: 'backup', label: 'Backup & Dados', icon: '💾' }
   ]
 

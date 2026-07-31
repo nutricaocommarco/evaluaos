@@ -240,7 +240,7 @@ export default function VisibilidadePublicaForm({ config, setConfig, onSave, sav
         <div className="flex items-center gap-2 border-b border-gray-200 pb-2">
           <span className="text-lg">📈</span>
           <h4 className="text-xs font-black text-emerald-800 uppercase tracking-wider">
-            1. PÁGINA DE EVOLUÇÃO (EvolucaoPaciente.jsx)
+            1. PÁGINA DE EVOLUÇÃO 
           </h4>
         </div>
         <div className="space-y-4">
@@ -253,7 +253,7 @@ export default function VisibilidadePublicaForm({ config, setConfig, onSave, sav
         <div className="flex items-center gap-2 border-b border-gray-200 pb-2">
           <span className="text-lg">📋</span>
           <h4 className="text-xs font-black text-emerald-800 uppercase tracking-wider">
-            2. LAUDO ANTROPOMÉTRICO (ResultadoAvaliacao.jsx)
+            2. LAUDO ANTROPOMÉTRICO 
           </h4>
         </div>
         <div className="space-y-4">
