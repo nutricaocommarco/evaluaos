@@ -71,7 +71,7 @@ export default function EvolucaoPaciente() {
             const { data } = await supabase
               .from('avaliadores')
               .select('nome_completo, instagram, empresa, logomarca_url')
-              .eq('auth_id', idAvaliadorPublico) // <-- A MÁGICA ACONTECE AQUI! Mudei de 'id' para 'auth_id'
+              .eq('auth_id', idAvaliadorPublico)
               .maybeSingle();
             avalData = data;
         }
@@ -221,7 +221,7 @@ export default function EvolucaoPaciente() {
     window.open(link, '_blank');
   }
 
-  // COMPONENTE: Cartão de Evolução Step-by-Step
+  // COMPONENTE: Cartão de Evolução Step-by-Step (Com container de rolagem isolado e limpo)
   const CardEvolucao = ({ titulo, chaveDado, unidade = "", isInverso = false }) => {
     const totalAvaliacoes = historico.length;
     const primeiraAv = Number(historico[0][chaveDado]);
@@ -255,29 +255,32 @@ export default function EvolucaoPaciente() {
           )}
         </div>
         
-        <div className="flex items-center gap-2 overflow-x-auto pb-2 hide-scrollbar">
-          {historico.map((av, idx) => {
-            const valorAtual = Number(av[chaveDado]);
-            let deltaUI = null;
-            if (idx > 0) {
-              const valorAnterior = Number(historico[idx - 1][chaveDado]);
-              const diferenca = (valorAtual - valorAnterior);
-              deltaUI = renderBadge(diferenca);
-            }
-            return (
-              <div key={idx} className="flex items-center shrink-0">
-                <div className="flex flex-col items-center justify-center p-2 rounded-lg bg-gray-50/50 border border-gray-50 min-w-[70px]">
-                  <div className="flex flex-col items-center mb-1">
-                      <span className="text-[9px] font-bold uppercase" style={{ color: av.cor }}>{av.nome_avaliacao}</span>
-                      <span className="text-[8px] text-gray-400 font-medium">{av.dataStr_curta}</span>
+        {/* Contained scroll wrapper so the scrollbar doesn't spill over to the main layout */}
+        <div className="w-full overflow-x-auto pb-2 scrollbar-thin scrollbar-thumb-gray-200">
+          <div className="flex items-center gap-2 min-w-max">
+            {historico.map((av, idx) => {
+              const valorAtual = Number(av[chaveDado]);
+              let deltaUI = null;
+              if (idx > 0) {
+                const valorAnterior = Number(historico[idx - 1][chaveDado]);
+                const diferenca = (valorAtual - valorAnterior);
+                deltaUI = renderBadge(diferenca);
+              }
+              return (
+                <div key={idx} className="flex items-center shrink-0">
+                  <div className="flex flex-col items-center justify-center p-2 rounded-lg bg-gray-50/50 border border-gray-50 min-w-[70px]">
+                    <div className="flex flex-col items-center mb-1">
+                        <span className="text-[9px] font-bold uppercase" style={{ color: av.cor }}>{av.nome_avaliacao}</span>
+                        <span className="text-[8px] text-gray-400 font-medium">{av.dataStr_curta}</span>
+                    </div>
+                    <span className="text-lg font-black text-gray-800">{valorAtual.toFixed(1)}</span>
                   </div>
-                  <span className="text-lg font-black text-gray-800">{valorAtual.toFixed(1)}</span>
+                  {deltaUI}
+                  {idx < historico.length - 1 && <div className="w-4 h-[1px] bg-gray-200 mx-1"></div>}
                 </div>
-                {deltaUI}
-                {idx < historico.length - 1 && <div className="w-4 h-[1px] bg-gray-200 mx-1"></div>}
-              </div>
-            )
-          })}
+              )
+            })}
+          </div>
         </div>
       </div>
     )
@@ -318,7 +321,7 @@ export default function EvolucaoPaciente() {
     )
   }
 
-  return (
+return (
     <div className="max-w-6xl mx-auto space-y-10 pb-12 animate-fade-in-up print:m-0 print:p-0">
       
       {/* CSS para Imprimir em PDF */}

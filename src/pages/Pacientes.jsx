@@ -257,7 +257,7 @@ export default function Pacientes({ userId }) {
         </div>
       </div>
 
-      {/* --- LISTA DE PACIENTES --- */}
+{/* --- LISTA DE PACIENTES --- */}
       <div className="bg-white rounded-xl shadow border border-gray-100 overflow-hidden">
         {loading ? (
           <div className="p-8 text-center text-gray-500">Carregando pacientes...</div>
@@ -272,16 +272,16 @@ export default function Pacientes({ userId }) {
           </div>
         ) : (
           <>
-            {/* --- VISÃO MOBILE --- */}
+            {/* --- VISÃO MOBILE (SEM SCROLL HORIZONTAL) --- */}
             <div className="block md:hidden">
               {pacientesFiltrados.map((p) => {
                 const ePraticante = p.pratica_esporte === true || p.pratica_esporte === 'true'
                 return (
                   <div key={p.id} className="p-4 border-b border-gray-100 last:border-0 hover:bg-gray-50 transition-colors">
-                    <div className="flex justify-between items-start mb-2">
+                    <div className="flex justify-between items-start mb-3">
                       <div>
                         <h3 className="font-bold text-gray-900 text-sm uppercase">{p.nome_completo}</h3>
-                        <p className="text-xs text-gray-500 mt-1">
+                        <p className="text-xs text-gray-500 mt-0.5">
                           {p.sexo === 'M' ? 'Masculino' : 'Feminino'} • {p.telefone || p.email || '-'}
                         </p>
                       </div>
@@ -296,21 +296,20 @@ export default function Pacientes({ userId }) {
                       )}
                     </div>
                     
-                    <div className="flex gap-2 mt-4 overflow-x-auto pb-1">
+                    {/* Botões ajustados em grade fluida para evitar scroll horizontal */}
+                    <div className="grid grid-cols-2 gap-2 mt-3 pt-2 border-t border-gray-50">
                       <button 
                         onClick={() => handleVerHistorico(p)}
-                        className="flex-shrink-0 px-3 text-center py-2 border border-gray-200 text-gray-600 hover:bg-gray-50 font-semibold text-xs rounded"
+                        className="py-2 px-3 border border-gray-200 text-gray-700 hover:bg-gray-50 font-semibold text-xs rounded-lg text-center"
                       >
                         Histórico
                       </button>
 
-                      {/* --- BOTÃO DE EVOLUÇÃO MOBILE ADICIONADO AQUI --- */}
                       <button 
                         onClick={() => navigate('/evolucao', { state: { paciente: p } })}
-                        className="flex-shrink-0 px-3 py-2 text-emerald-600 border border-emerald-100 hover:bg-emerald-50 rounded transition-colors flex items-center justify-center gap-1 font-semibold text-xs"
-                        title="Ver Evolução"
+                        className="py-2 px-3 text-emerald-700 border border-emerald-200 bg-emerald-50 hover:bg-emerald-100 rounded-lg transition-colors flex items-center justify-center gap-1 font-semibold text-xs text-center"
                       >
-                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                           <polyline points="23 6 13.5 15.5 8.5 10.5 1 18"></polyline>
                           <polyline points="17 6 23 6 23 12"></polyline>
                         </svg>
@@ -319,30 +318,30 @@ export default function Pacientes({ userId }) {
 
                       <button 
                         onClick={() => navigate('/nova-avaliacao', { state: { paciente: p } })}
-                        className="flex-shrink-0 px-3 text-center py-2 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 font-semibold text-xs rounded"
+                        className="py-2 px-3 bg-emerald-600 text-white hover:bg-emerald-700 font-semibold text-xs rounded-lg text-center shadow-sm col-span-2"
                       >
-                        + Avaliação
+                        + Nova Avaliação
                       </button>
 
                       <button 
                         onClick={() => handleEditPaciente(p)}
-                        className="flex-shrink-0 px-3 py-2 text-blue-500 border border-blue-100 hover:bg-blue-50 rounded transition-colors flex items-center justify-center"
-                        title="Editar Paciente"
+                        className="py-2 px-3 text-blue-600 border border-blue-200 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors flex items-center justify-center gap-1 font-semibold text-xs text-center"
                       >
-                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                           <path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"></path>
                         </svg>
+                        Editar
                       </button>
 
                       <button 
                         onClick={() => handleDeletePaciente(p.id)}
-                        className="flex-shrink-0 px-3 py-2 text-red-500 border border-red-100 hover:bg-red-50 rounded transition-colors flex items-center justify-center"
-                        title="Excluir Paciente"
+                        className="py-2 px-3 text-red-600 border border-red-200 bg-red-50 hover:bg-red-100 rounded-lg transition-colors flex items-center justify-center gap-1 font-semibold text-xs text-center"
                       >
-                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                           <polyline points="3 6 5 6 21 6"></polyline>
                           <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
                         </svg>
+                        Excluir
                       </button>
                     </div>
                   </div>
@@ -386,7 +385,6 @@ export default function Pacientes({ userId }) {
                             Histórico
                           </button>
                           
-                          {/* --- BOTÃO DE EVOLUÇÃO DESKTOP ADICIONADO AQUI --- */}
                           <button 
                             onClick={() => navigate('/evolucao', { state: { paciente: p } })} 
                             className="text-emerald-700 font-medium text-xs border border-emerald-100 bg-emerald-50 hover:bg-emerald-100 px-3 py-1.5 rounded transition-colors flex items-center gap-1"

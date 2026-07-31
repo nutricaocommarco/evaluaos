@@ -110,6 +110,27 @@ export default function EscolhaPercGordura() {
 
   const dropdownRef = useRef(null)
 
+  const buscarEquacaoPadraoConfigurada = async (sexoPaciente) => {
+    try {
+      const { data: authData } = await supabase.auth.getUser()
+      if (!authData?.user) return ''
+
+      const { data: conf } = await supabase
+        .from('configuracoes_avaliador')
+        .select('equacao_padrao_masculina, equacao_padrao_feminina')
+        .eq('auth_id', authData.user.id)
+        .maybeSingle()
+
+      if (conf) {
+        if (sexoPaciente === 'M') return conf.equacao_padrao_masculina || ''
+        if (sexoPaciente === 'F') return conf.equacao_padrao_feminina || ''
+      }
+    } catch (err) {
+      console.error('Erro ao carregar equação padrão das configurações:', err)
+    }
+    return ''
+  }
+
   // 1. CARREGAMENTO INICIAL VINDO DO AVALIACAO_FORM
   useEffect(() => {
     if (pacienteInicial) {
@@ -170,11 +191,16 @@ export default function EscolhaPercGordura() {
         .eq('id', avaliacaoIdReq)
         .single()
 
-      if (aval) {
+if (aval) {
         setAvaliacaoAtual(aval)
         setMedidasBrutas(aval)
-        if (aval.equacao_de_regressao_escolhida) {
+        
+        // TRAVA DE SEGURANÇA: Só busca da configuração se NÃO tiver equação E NÃO tiver %GC escolhido
+        if (aval.equacao_de_regressao_escolhida && aval.percentual_de_gordura != null && aval.percentual_de_gordura > 0) {
           setEquacaoSelecionada(aval.equacao_de_regressao_escolhida)
+        } else {
+          const eqPadrao = await buscarEquacaoPadraoConfigurada(paciente.sexo)
+          setEquacaoSelecionada(eqPadrao)
         }
       }
 
@@ -207,7 +233,7 @@ export default function EscolhaPercGordura() {
 
     if (historico && historico.length > 0) {
       setHistoricoAvaliacoes(historico)
-      selecionarAvaliacaoDoHistorico(historico[0].id) // Carrega a mais recente
+      selecionarAvaliacaoDoHistorico(historico[0].id, paciente.sexo)
     } else {
       setHistoricoAvaliacoes([])
       setAvaliacaoAtual(null)
@@ -217,17 +243,26 @@ export default function EscolhaPercGordura() {
   }
 
   // TROCAR AVALIAÇÃO PELO DROPDOWN DE HISTÓRICO
-  const selecionarAvaliacaoDoHistorico = async (idAvaliacao) => {
+  const selecionarAvaliacaoDoHistorico = async (idAvaliacao, sexoPacienteOverride) => {
     const { data: aval } = await supabase
       .from('avaliacoes')
       .select('*')
       .eq('id', idAvaliacao)
       .single()
 
+      const sexoP = sexoPacienteOverride || pacienteSelecionado?.sexo
+
     if (aval) {
       setAvaliacaoAtual(aval)
       setMedidasBrutas(aval)
-      setEquacaoSelecionada(aval.equacao_de_regressao_escolhida || '')
+      
+      // TRAVA DE SEGURANÇA: Mantém o salvo se já tiver equação e %GC preenchidos
+      if (aval.equacao_de_regressao_escolhida && aval.percentual_de_gordura != null && aval.percentual_de_gordura > 0) {
+        setEquacaoSelecionada(aval.equacao_de_regressao_escolhida)
+      } else {
+        const eqPadrao = await buscarEquacaoPadraoConfigurada(sexoP)
+        setEquacaoSelecionada(eqPadrao)
+      }
     }
 
     // === BUSCA OS CÁLCULOS DESSA AVALIAÇÃO ===
