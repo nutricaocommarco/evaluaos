@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { useLocation, useNavigate } from 'react-router-dom'
+import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import { supabase } from '../supabaseClient'
 import {
   ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend
@@ -360,6 +360,9 @@ if (!pacienteLocal) {
                 Voltar
               </button>
             )}
+
+          </div> {/* <--- ADICIONE ESTA DIV AQUI */}
+        </div> {/* <--- E ADICIONE MAIS ESTA DIV AQUI */}
 
         {/* Dados Demográficos do Paciente */}
         <div>
