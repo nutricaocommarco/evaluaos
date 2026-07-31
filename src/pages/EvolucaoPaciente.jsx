@@ -46,29 +46,41 @@ useEffect(() => {
 
       if (!pacienteAtual) return;
 
-      // 2. Busca do Avaliador (Dinâmico)
-      let avaliadorIdBuscado = pacienteAtual.id_avaliador;
+// 2. Busca do Avaliador (Dinâmico e à prova de falhas)
+      let avalData = null;
 
-      if (!avaliadorIdBuscado && !isPublicView) {
-        const { data: authData } = await supabase.auth.getUser();
-        if (authData?.user?.email) {
-          const { data: avaliadorEmail } = await supabase
-            .from('avaliadores')
-            .select('id')
-            .eq('email', authData.user.email)
-            .maybeSingle();
-          if (avaliadorEmail) avaliadorIdBuscado = avaliadorEmail.id;
+      // A) Tenta pegar pelo usuário logado (Avaliador usando o sistema)
+      const { data: authData } = await supabase.auth.getUser();
+      if (authData?.user?.email) {
+        const { data } = await supabase
+          .from('avaliadores')
+          .select('nome_completo, instagram, empresa, logomarca_url')
+          .eq('email', authData.user.email)
+          .maybeSingle();
+        avalData = data;
+      }
+
+      // B) Se não achar (Paciente acessando pelo Link Público), puxa pela avaliação dele
+      if (!avalData) {
+        let idAvaliadorPublico = pacienteAtual.id_avaliador;
+        
+        // Se o paciente não tiver o ID salvo nele, busca direto na avaliação dele
+        if (!idAvaliadorPublico) {
+            const { data: avalBackup } = await supabase.from('avaliacoes').select('id_avaliador').eq('id_paciente', pacienteAtual.id).limit(1).maybeSingle();
+            if (avalBackup) idAvaliadorPublico = avalBackup.id_avaliador;
+        }
+
+        if (idAvaliadorPublico) {
+            const { data } = await supabase
+              .from('avaliadores')
+              .select('nome_completo, instagram, empresa, logomarca_url')
+              .eq('id', idAvaliadorPublico)
+              .maybeSingle();
+            avalData = data;
         }
       }
 
-      if (avaliadorIdBuscado) {
-        const { data: avaliadorData } = await supabase
-          .from('avaliadores')
-          .select('nome_completo, instagram, empresa, logomarca_url')
-          .eq('id', avaliadorIdBuscado)
-          .maybeSingle();
-        if (avaliadorData) setAvaliador(avaliadorData);
-      }
+      if (avalData) setAvaliador(avalData);
 
       // 3. Busca Avaliações (Usando o ID do pacienteAtual)
       const { data: avaliacoes, error: errAvaliacoes } = await supabase
@@ -627,5 +639,7 @@ if (!pacienteLocal) {
             />
           </div>
         </div>
+
+      </div>
   )
 }
