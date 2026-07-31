@@ -623,7 +623,8 @@ if (!pacienteLocal) {
                 isPublicView={isPublicView}
             />
           </div>
-
+        </div>
+      </div>
     </div>
   )
 }
