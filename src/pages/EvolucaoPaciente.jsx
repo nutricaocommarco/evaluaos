@@ -12,14 +12,27 @@ export default function EvolucaoPaciente() {
 
   const [loading, setLoading] = useState(true)
   const [historico, setHistorico] = useState([])
+  const [avaliador, setAvaliador] = useState(null)
   
   // Cores padronizadas para as bolinhas da Somatocarta e Legendas
   const coresAvaliacoes = ['#10b981', '#3b82f6', '#f59e0b', '#ec4899', '#8b5cf6', '#ef4444', '#14b8a6', '#64748b']
 
   useEffect(() => {
-    async function carregarHistorico() {
+    async function carregarDados() {
       if (!paciente) return
 
+      // 1. Busca os dados do Avaliador (Header)
+      if (paciente.id_avaliador) {
+        const { data: avaliadorData } = await supabase
+          .from('avaliadores')
+          .select('nome_completo, instagram, empresa, logomarca_url')
+          .eq('id', paciente.id_avaliador)
+          .single()
+        
+        if (avaliadorData) setAvaliador(avaliadorData)
+      }
+
+      // 2. Busca o Histórico de Avaliações do Paciente
       const { data: avaliacoes, error: errAval } = await supabase
         .from('avaliacoes')
         .select('*')
@@ -32,6 +45,7 @@ export default function EvolucaoPaciente() {
         return
       }
 
+      // 3. Busca os Dados Calculados
       const { data: calculos, error: errCalc } = await supabase
         .from('dados_calculados')
         .select('*')
@@ -39,6 +53,7 @@ export default function EvolucaoPaciente() {
 
       if (errCalc) console.error(errCalc)
 
+      // 4. Mescla e Formata os Dados
       const dadosMesclados = avaliacoes.map((aval, index) => {
         const calc = calculos?.find(c => c.id_avaliacao === aval.id) || {}
         
@@ -56,8 +71,18 @@ export default function EvolucaoPaciente() {
           massa_magra: Number(calc.massa_magra || 0).toFixed(2),
           massa_muscular: Number(calc.massa_muscular || 0).toFixed(2),
           
-          // Índices
+          // Perímetros / Circunferências
+          braco_rel: Number(aval.perimetro_braco_relaxado || 0).toFixed(1),
+          braco_cont: Number(aval.perimetro_braco_contraido || 0).toFixed(1),
+          antibraco: Number(aval.perimetro_antibraco || 0).toFixed(1),
           cintura: Number(aval.perimetro_cintura || 0).toFixed(1),
+          perim_abdominal: Number(aval.perimetro_abdominal || 0).toFixed(1),
+          quadril: Number(aval.perimetro_quadril || 0).toFixed(1),
+          coxa_max: Number(aval.perimetro_coxa_maxima || 0).toFixed(1),
+          coxa_med: Number(aval.perimetro_coxa_media || 0).toFixed(1),
+          perim_panturrilha: Number(aval.perimetro_panturrilha || 0).toFixed(1),
+
+          // Índices de Risco
           cintura_estatura: Number(calc.relacao_cintura_estatura || 0).toFixed(2),
           cintura_quadril: Number(calc.relacao_cintura_quadril || 0).toFixed(2),
           imo: Number(calc.indice_massa_ossea_imo || 0).toFixed(2),
@@ -73,10 +98,17 @@ export default function EvolucaoPaciente() {
           abdominal: Number(aval.dobra_cutanea_abdominal || 0).toFixed(1),
           coxa: Number(aval.dobra_cutanea_coxa_media || 0).toFixed(1),
           panturrilha: Number(aval.dobra_cutanea_panturrilha || 0).toFixed(1),
+          
+          // Somatórios
           soma_6: Number(calc.somatorio_6_dobras || 0).toFixed(1),
           soma_8: Number(calc.somatorio_8_dobras || 0).toFixed(1),
           
-          // Gráficos Recharts (Precisam ser números puros)
+          // Somatotipo Individual (Barras)
+          endo: Number(calc.somatotipo_endomorfia || 0).toFixed(1),
+          meso: Number(calc.somatotipo_mesomorfia || 0).toFixed(1),
+          ecto: Number(calc.somatotipo_ectomorfia || 0).toFixed(1),
+
+          // Gráficos Recharts (Números puros)
           grafico_peso: Number(aval.peso_paciente || 0),
           grafico_massa_muscular: Number(calc.massa_muscular || 0),
           grafico_massa_gorda: Number(calc.massa_gorda || 0),
@@ -89,7 +121,7 @@ export default function EvolucaoPaciente() {
       setLoading(false)
     }
 
-    carregarHistorico()
+    carregarDados()
   }, [paciente])
 
   if (!paciente) {
@@ -115,16 +147,41 @@ export default function EvolucaoPaciente() {
     )
   }
 
-  // COMPONENTE: Cartão de Evolução (Altamente Visual)
+  // COMPONENTE: Cartão de Evolução (Step-by-Step e Delta Total)
   const CardEvolucao = ({ titulo, chaveDado, unidade = "", isInverso = false }) => {
-    // Só exibe a jornada passo a passo se houver MAIS de 3 avaliações (ou seja, 4+)
-    const mostrarStepByStep = historico.length > 3;
+    const totalAvaliacoes = historico.length;
+    const primeiraAv = Number(historico[0][chaveDado]);
+    const ultimaAv = Number(historico[totalAvaliacoes - 1][chaveDado]);
+    const deltaTotal = (ultimaAv - primeiraAv).toFixed(1);
+
+    const renderBadge = (diferenca, extraClasses = "") => {
+      if (Number(diferenca) === 0) return <div className={`text-[9px] text-gray-400 font-bold ml-1 bg-gray-50 px-1.5 py-0.5 rounded-md border border-gray-100 ${extraClasses}`}>(0)</div>;
+      
+      const isPositivo = diferenca > 0;
+      const isBom = isInverso ? !isPositivo : isPositivo;
+      const corBadge = isBom ? 'text-emerald-700 bg-emerald-50 border-emerald-100' : 'text-red-700 bg-red-50 border-red-100';
+      
+      return (
+        <div className={`flex items-center justify-center px-1.5 py-0.5 rounded-md border text-[9px] font-bold ${corBadge} ml-1 ${extraClasses}`}>
+          {isPositivo ? '↑' : '↓'} {Math.abs(diferenca).toFixed(1)}
+        </div>
+      );
+    }
 
     return (
       <div className="bg-white rounded-xl border border-gray-100 p-4 shadow-sm flex flex-col hover:border-emerald-200 transition-colors">
-        <div className="flex justify-between items-center mb-4">
-          <h4 className="text-gray-600 font-black text-xs uppercase tracking-wider">{titulo}</h4>
-          {unidade && <span className="text-[10px] bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full font-bold">{unidade}</span>}
+        <div className="flex justify-between items-start mb-4">
+          <div>
+            <h4 className="text-gray-600 font-black text-xs uppercase tracking-wider">{titulo}</h4>
+            {unidade && <span className="text-[10px] bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full font-bold mt-1 inline-block">{unidade}</span>}
+          </div>
+          {/* Delta Total (Aparece apenas se tiver 3 ou mais avaliações) */}
+          {totalAvaliacoes >= 3 && (
+            <div className="flex flex-col items-end">
+              <span className="text-[8px] uppercase text-gray-400 font-bold mb-0.5">Delta Total</span>
+              {renderBadge(deltaTotal)}
+            </div>
+          )}
         </div>
         
         <div className="flex items-center gap-2 overflow-x-auto pb-2 hide-scrollbar">
@@ -132,30 +189,18 @@ export default function EvolucaoPaciente() {
             const valorAtual = Number(av[chaveDado]);
             let deltaUI = null;
 
-            if (mostrarStepByStep && idx > 0) {
+            // Mostra sempre o ganho/perda de uma avaliação para a anterior
+            if (idx > 0) {
               const valorAnterior = Number(historico[idx - 1][chaveDado]);
-              const diferenca = (valorAtual - valorAnterior).toFixed(2);
-              
-              if (diferenca != 0) {
-                const isPositivo = diferenca > 0;
-                const isBom = isInverso ? !isPositivo : isPositivo;
-                const corBadge = isBom ? 'text-emerald-700 bg-emerald-50 border-emerald-100' : 'text-red-700 bg-red-50 border-red-100';
-                
-                deltaUI = (
-                  <div className={`flex items-center justify-center px-1.5 py-0.5 rounded-md border text-[9px] font-bold ${corBadge} ml-1`}>
-                    {isPositivo ? '↑' : '↓'} {Math.abs(diferenca)}
-                  </div>
-                );
-              } else {
-                deltaUI = <div className="text-[9px] text-gray-400 font-bold ml-1 bg-gray-50 px-1.5 py-0.5 rounded-md border border-gray-100">(0)</div>;
-              }
+              const diferenca = (valorAtual - valorAnterior);
+              deltaUI = renderBadge(diferenca);
             }
 
             return (
               <div key={idx} className="flex items-center shrink-0">
                 <div className="flex flex-col items-center justify-center p-2 rounded-lg bg-gray-50/50 border border-gray-50 min-w-[65px]">
                   <span className="text-[9px] font-bold text-gray-400 uppercase mb-1" style={{ color: av.cor }}>{av.nome_avaliacao}</span>
-                  <span className="text-sm font-black text-gray-800">{valorAtual.toFixed(2).replace('.00', '')}</span>
+                  <span className="text-sm font-black text-gray-800">{valorAtual.toFixed(1)}</span>
                 </div>
                 {deltaUI}
                 {idx < historico.length - 1 && <div className="w-4 h-[1px] bg-gray-200 mx-1"></div>}
@@ -167,16 +212,74 @@ export default function EvolucaoPaciente() {
     )
   }
 
+  // COMPONENTE: Barras de Somatotipo Individuais (Evolução Completa)
+  const BarChartSomatotipo = () => {
+    const maxVal = 12; // Valor base máximo para a proporção das barras
+    
+    // Função para renderizar o bloco de cada componente
+    const renderBlocoBarras = (titulo, chaveDado, corBarra) => (
+      <div className="flex flex-col gap-3 mb-6 last:mb-0">
+        <h5 className="text-xs font-bold" style={{ color: corBarra }}>{titulo}</h5>
+        <div className="space-y-2">
+          {historico.map((av, idx) => {
+            const val = Number(av[chaveDado]);
+            const pct = Math.min((val / maxVal) * 100, 100);
+            
+            return (
+              <div key={idx} className="flex items-center gap-3">
+                {/* Nome da Avaliação com a cor idêntica à bolinha dela no gráfico */}
+                <span className="w-8 text-[10px] font-bold text-right" style={{ color: av.cor }}>{av.nome_avaliacao}</span>
+                
+                {/* A barra com a cor fixa da métrica (Laranja, Azul ou Verde) */}
+                <div className="flex-1 bg-gray-100 h-2.5 rounded-full overflow-hidden flex items-center">
+                  <div className="h-full rounded-full transition-all duration-1000" style={{ width: `${pct}%`, backgroundColor: corBarra }}></div>
+                </div>
+                
+                {/* O valor em si */}
+                <span className="w-6 text-right text-xs font-black text-gray-800">{val.toFixed(1)}</span>
+              </div>
+            )
+          })}
+        </div>
+      </div>
+    )
+
+    return (
+      <div className="flex flex-col w-full mt-2">
+        {renderBlocoBarras('Endomorfia (Adiposidade)', 'endo', '#f97316')}
+        {renderBlocoBarras('Mesomorfia (Musculosidade)', 'meso', '#3b82f6')}
+        {renderBlocoBarras('Ectomorfia (Magreza / Linearidade)', 'ecto', '#10b981')}
+      </div>
+    )
+  }
+
   return (
     <div className="max-w-6xl mx-auto space-y-10 pb-12 animate-fade-in-up">
       
-      {/* Cabeçalho */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center bg-white p-6 rounded-xl border border-gray-100 shadow-sm gap-4">
+      {/* Cabeçalho do Paciente e Avaliador */}
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center bg-white p-6 rounded-xl border border-gray-100 shadow-sm gap-6">
         <div>
           <button onClick={() => navigate('/pacientes')} className="text-xs text-emerald-600 font-semibold hover:underline mb-1 inline-block">← Voltar aos Pacientes</button>
           <h2 className="text-2xl font-bold text-gray-800">Evolução: {paciente.nome_completo}</h2>
           <p className="text-sm text-gray-500">Comparativo visual de {historico.length} avaliações.</p>
         </div>
+
+        {avaliador && (
+          <div className="flex items-center gap-3 bg-gray-50 px-4 py-3 rounded-xl border border-gray-100 w-full md:w-auto">
+            {avaliador.logomarca_url ? (
+              <img src={avaliador.logomarca_url} alt="Logo" className="w-12 h-12 rounded-full object-cover border border-gray-200 bg-white" />
+            ) : (
+              <div className="w-12 h-12 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-600 font-bold text-lg">
+                {avaliador.nome_completo?.charAt(0)}
+              </div>
+            )}
+            <div className="flex flex-col">
+              <span className="text-sm font-bold text-gray-800">{avaliador.nome_completo}</span>
+              {avaliador.empresa && <span className="text-xs text-gray-500 font-medium">{avaliador.empresa}</span>}
+              {avaliador.instagram && <span className="text-[10px] text-emerald-600 font-bold mt-0.5 tracking-wide">{avaliador.instagram}</span>}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* BLOCO 1: Composição Corporal */}
@@ -219,34 +322,27 @@ export default function EvolucaoPaciente() {
           </div>
         </div>
 
-        {/* Somatocarta Customizada (Fiel ao Anexo) */}
-        <div className="bg-white p-6 rounded-xl border border-gray-100 shadow-sm flex flex-col items-center">
-          <h3 className="text-sm font-black text-gray-800 uppercase tracking-wider w-full text-left mb-6">Trajetória do Somatotipo</h3>
+        {/* Somatocarta Customizada + Gráfico em Barras */}
+        <div className="bg-white p-6 rounded-xl border border-gray-100 shadow-sm flex flex-col items-center justify-between">
+          <h3 className="text-sm font-black text-gray-800 uppercase tracking-wider w-full text-left mb-4">Trajetória do Somatotipo</h3>
           
-          <div className="relative w-full max-w-[300px] aspect-square bg-[#f8fafc] rounded-lg border border-gray-200 overflow-hidden mt-2">
+          <div className="relative w-full max-w-[250px] aspect-square bg-[#f8fafc] rounded-lg border border-gray-200 overflow-hidden mt-2">
             
-            {/* Eixos Tracejados Centrais */}
             <div className="absolute inset-y-0 left-1/2 w-px border-l border-dashed border-gray-300"></div>
             <div className="absolute inset-x-0 top-1/2 h-px border-t border-dashed border-gray-300"></div>
 
-            {/* Triângulo SVG Exato */}
             <svg className="absolute inset-0 w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none">
-              {/* O topo (Mesomorfia) fica em x=50, y=10. Endomorfia fica em x=15, y=85. Ectomorfia fica em x=85, y=85 */}
               <polygon points="50,15 15,85 85,85" fill="none" stroke="#94a3b8" strokeWidth="1" vectorEffect="non-scaling-stroke" />
             </svg>
 
-            {/* Labels nas Pontas */}
             <span className="absolute top-4 left-1/2 -translate-x-1/2 text-[9px] font-black text-blue-600">MESOMORFIA</span>
             <span className="absolute bottom-4 left-4 text-[9px] font-black text-orange-600">ENDOMORFIA</span>
             <span className="absolute bottom-4 right-4 text-[9px] font-black text-emerald-600">ECTOMORFIA</span>
 
-            {/* Bolinhas das Avaliações */}
             {historico.map((av, idx) => {
-              // Mapeando Eixos Cartesianos Reais (-10 a 10) para Porcentagem na Div (0% a 100%)
               const leftPos = ((av.eixo_x + 10) / 20) * 100;
               const topPos = ((10 - av.eixo_y) / 20) * 100;
               
-              // Limitar para não vazar da div
               const safeLeft = Math.max(5, Math.min(95, leftPos));
               const safeTop = Math.max(5, Math.min(95, topPos));
 
@@ -261,8 +357,7 @@ export default function EvolucaoPaciente() {
             })}
           </div>
 
-          {/* Legenda de Cores e Coordenadas */}
-          <div className="mt-6 w-full flex flex-wrap justify-center gap-3">
+          <div className="mt-4 w-full flex flex-wrap justify-center gap-3">
             {historico.map((av, idx) => (
               <div key={idx} className="flex items-center gap-1.5 text-xs text-gray-600 font-medium bg-gray-50 px-2 py-1 rounded-md border border-gray-100">
                 <div className="w-3 h-3 rounded-full" style={{ backgroundColor: av.cor }}></div>
@@ -270,13 +365,37 @@ export default function EvolucaoPaciente() {
               </div>
             ))}
           </div>
-          <div className="mt-4 text-xs font-bold text-gray-500 text-center">
-            Última Coordenada: X ({historico[historico.length - 1].eixo_x}) | Y ({historico[historico.length - 1].eixo_y})
+
+          {/* Gráfico de Barras do Somatotipo Individual (Anexo) Atualizado para ter todas as avaliações */}
+          <div className="w-full mt-6 border-t border-gray-100 pt-6">
+            <h4 className="text-xs font-bold text-gray-500 uppercase text-center mb-4">Evolução dos Componentes</h4>
+            <BarChartSomatotipo />
           </div>
         </div>
       </div>
 
-      {/* BLOCO 3: Dobras Cutâneas e Somatórios */}
+      {/* BLOCO 3: Circunferências / Perímetros */}
+      <div>
+        <div className="flex items-center gap-2 mb-4 px-2">
+          <div className="w-8 h-8 rounded-full bg-rose-50 text-rose-600 flex items-center justify-center">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path><path d="M2 12h20"></path></svg>
+          </div>
+          <h3 className="text-lg font-black text-gray-800">Circunferências (Perímetros)</h3>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <CardEvolucao titulo="Cintura" chaveDado="cintura" unidade="cm" isInverso={true} />
+          <CardEvolucao titulo="Abdominal" chaveDado="perim_abdominal" unidade="cm" isInverso={true} />
+          <CardEvolucao titulo="Quadril" chaveDado="quadril" unidade="cm" isInverso={true} />
+          <CardEvolucao titulo="Braço Relaxado" chaveDado="braco_rel" unidade="cm" isInverso={false} />
+          <CardEvolucao titulo="Braço Contraído" chaveDado="braco_cont" unidade="cm" isInverso={false} />
+          <CardEvolucao titulo="Antebraço" chaveDado="antibraco" unidade="cm" isInverso={false} />
+          <CardEvolucao titulo="Coxa Máxima" chaveDado="coxa_max" unidade="cm" isInverso={false} />
+          <CardEvolucao titulo="Coxa Média" chaveDado="coxa_med" unidade="cm" isInverso={false} />
+          <CardEvolucao titulo="Panturrilha" chaveDado="perim_panturrilha" unidade="cm" isInverso={false} />
+        </div>
+      </div>
+
+      {/* BLOCO 4: Dobras Cutâneas e Somatórios */}
       <div>
         <div className="flex items-center gap-2 mb-4 px-2">
           <div className="w-8 h-8 rounded-full bg-orange-50 text-orange-600 flex items-center justify-center">
@@ -284,9 +403,9 @@ export default function EvolucaoPaciente() {
           </div>
           <h3 className="text-lg font-black text-gray-800">Dobras Cutâneas e Somatórios</h3>
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          <CardEvolucao titulo="Somatório 6 Dobras" chaveDado="soma_6" unidade="mm" isInverso={true} />
-          <CardEvolucao titulo="Somatório 8 Dobras" chaveDado="soma_8" unidade="mm" isInverso={true} />
+        
+        {/* Sub-bloco: Dobras Individuais */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
           <CardEvolucao titulo="Tríceps" chaveDado="triceps" unidade="mm" isInverso={true} />
           <CardEvolucao titulo="Subescapular" chaveDado="subescapular" unidade="mm" isInverso={true} />
           <CardEvolucao titulo="Bíceps" chaveDado="biceps" unidade="mm" isInverso={true} />
@@ -296,18 +415,30 @@ export default function EvolucaoPaciente() {
           <CardEvolucao titulo="Coxa Média" chaveDado="coxa" unidade="mm" isInverso={true} />
           <CardEvolucao titulo="Panturrilha" chaveDado="panturrilha" unidade="mm" isInverso={true} />
         </div>
+
+        {/* Separador Visual */}
+        <div className="flex items-center gap-4 my-8">
+          <div className="h-px bg-gray-200 flex-1"></div>
+          <span className="text-xs font-bold text-gray-400 uppercase tracking-wider">Somatórios Gerais</span>
+          <div className="h-px bg-gray-200 flex-1"></div>
+        </div>
+
+        {/* Sub-bloco: Somatórios Separados */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <CardEvolucao titulo="Somatório 6 Dobras" chaveDado="soma_6" unidade="mm" isInverso={true} />
+          <CardEvolucao titulo="Somatório 8 Dobras" chaveDado="soma_8" unidade="mm" isInverso={true} />
+        </div>
       </div>
 
-      {/* BLOCO 4: Relações e Índices de Risco */}
+      {/* BLOCO 5: Relações e Índices de Risco */}
       <div>
         <div className="flex items-center gap-2 mb-4 px-2">
           <div className="w-8 h-8 rounded-full bg-purple-50 text-purple-600 flex items-center justify-center">
             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"></path></svg>
           </div>
-          <h3 className="text-lg font-black text-gray-800">Risco Cardiometabólico</h3>
+          <h3 className="text-lg font-black text-gray-800">Risco Cardiometabólico e Índices</h3>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          <CardEvolucao titulo="Circunferência Cintura" chaveDado="cintura" unidade="cm" isInverso={true} />
           <CardEvolucao titulo="Cintura / Estatura" chaveDado="cintura_estatura" isInverso={true} />
           <CardEvolucao titulo="Cintura / Quadril (RCQ)" chaveDado="cintura_quadril" isInverso={true} />
           <CardEvolucao titulo="Área Visceral (apVAT)" chaveDado="apvat" isInverso={true} />
