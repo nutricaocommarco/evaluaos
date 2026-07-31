@@ -13,7 +13,7 @@ export default function EvolucaoPaciente() {
   const [loading, setLoading] = useState(true)
   const [historico, setHistorico] = useState([])
   
-  // Estados do Avaliador idênticos ao Laudo
+  // Estados do Avaliador
   const [nomeEmpresa, setNomeEmpresa] = useState('')
   const [nomeAvaliador, setNomeAvaliador] = useState('')
   const [logomarcaUrl, setLogomarcaUrl] = useState('')
@@ -25,17 +25,40 @@ export default function EvolucaoPaciente() {
     async function carregarDados() {
       if (!paciente) return
 
-      // 1. Busca os dados do Avaliador (Header) cravado no ID 3
-      const { data: avaliadorData } = await supabase
-        .from('avaliadores')
-        .select('empresa, nome_completo, logomarca_url')
-        .eq('id', 3)
-        .maybeSingle();
+      // --- BUSCA DINÂMICA DO AVALIADOR ---
+      let avaliadorIdBuscado = paciente.id_avaliador;
+
+      // Se o paciente não tiver um avaliador vinculado, tentamos pegar o usuário logado
+      if (!avaliadorIdBuscado) {
+        const { data: { user } } = await supabase.auth.getUser();
         
-      if (avaliadorData) {
-        setNomeEmpresa(avaliadorData.empresa || '');
-        setNomeAvaliador(avaliadorData.nome_completo || '');
-        setLogomarcaUrl(avaliadorData.logomarca_url || '');
+        // Se achou o usuário logado, vamos buscar o ID numérico dele na tabela de avaliadores através do email
+        if (user && user.email) {
+            const { data: avaliadorPorEmail } = await supabase
+                .from('avaliadores')
+                .select('id')
+                .eq('email', user.email)
+                .maybeSingle();
+            
+            if (avaliadorPorEmail) {
+                avaliadorIdBuscado = avaliadorPorEmail.id;
+            }
+        }
+      }
+
+      // Agora fazemos a busca com o ID dinâmico encontrado
+      if (avaliadorIdBuscado) {
+        const { data: avaliadorData } = await supabase
+            .from('avaliadores')
+            .select('empresa, nome_completo, logomarca_url')
+            .eq('id', avaliadorIdBuscado)
+            .maybeSingle();
+        
+        if (avaliadorData) {
+            setNomeEmpresa(avaliadorData.empresa || '');
+            setNomeAvaliador(avaliadorData.nome_completo || '');
+            setLogomarcaUrl(avaliadorData.logomarca_url || '');
+        }
       }
 
       // 2. Busca o Histórico de Avaliações do Paciente
