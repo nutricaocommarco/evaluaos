@@ -66,8 +66,11 @@ export default function EvolucaoPaciente() {
         return {
           id: aval.id,
           nome_avaliacao: `Av. ${index + 1}`,
+          // ADICIONADO: Data formatada reduzida (ex: 20/07/2026) para mostrar no Step-by-Step
+          dataStr_curta: new Date(aval.data_avaliacao).toLocaleDateString('pt-BR', { timeZone: 'UTC', day: '2-digit', month: '2-digit', year: 'numeric' }),
           dataStr: new Date(aval.data_avaliacao).toLocaleDateString('pt-BR', { timeZone: 'UTC' }),
           cor: coresAvaliacoes[index % coresAvaliacoes.length],
+          token_publico: aval.token_publico, // Necessário para o Link do ZAP
           
           // Métricas Principais
           estatura: Number(aval.altura_paciente || 0),
@@ -132,7 +135,7 @@ export default function EvolucaoPaciente() {
     carregarDados()
   }, [paciente])
 
-  // Funções de Ação (PDF e WhatsApp)
+  // Funções de Ação (PDF Nativo e WhatsApp)
   const handlePrintPDF = () => {
     window.print();
   }
@@ -145,7 +148,14 @@ export default function EvolucaoPaciente() {
     }
     const primeiroNome = paciente.nome_completo ? paciente.nome_completo.split(' ')[0] : 'Paciente';
     const saudacao = avaliador?.nome_completo ? avaliador.nome_completo : 'seu Avaliador';
-    const msg = `Olá *${primeiroNome}*, tudo bem?\n\nAqui é ${saudacao}! Acabei de atualizar a sua *Evolução Antropométrica* com os dados da nossa última consulta.\n\nQualquer dúvida, estou à disposição!`;
+    
+    // Pega o token_publico da última avaliação para o paciente ver o laudo mais recente
+    const ultimaAvaliacao = historico[historico.length - 1];
+    const linkDoLaudo = ultimaAvaliacao && ultimaAvaliacao.token_publico 
+        ? `${window.location.origin}/laudo/${ultimaAvaliacao.token_publico}`
+        : `${window.location.origin}`;
+
+    const msg = `Olá *${primeiroNome}*, tudo bem?\n\nAqui é ${saudacao}! Acabei de atualizar a sua *Evolução Antropométrica* com os dados da nossa última consulta.\n\nAcesse o link abaixo para visualizar seus resultados interativos e acompanhar sua evolução:\n\n${linkDoLaudo}\n\nQualquer dúvida, estou à disposição!`;
     const link = `https://wa.me/${telefoneLimpo.startsWith('55') ? telefoneLimpo : '55' + telefoneLimpo}?text=${encodeURIComponent(msg)}`;
     window.open(link, '_blank');
   }
@@ -229,8 +239,11 @@ export default function EvolucaoPaciente() {
             }
             return (
               <div key={idx} className="flex items-center shrink-0">
-                <div className="flex flex-col items-center justify-center p-2 rounded-lg bg-gray-50/50 border border-gray-50 min-w-[65px]">
-                  <span className="text-[9px] font-bold text-gray-400 uppercase mb-1" style={{ color: av.cor }}>{av.nome_avaliacao}</span>
+                <div className="flex flex-col items-center justify-center p-2 rounded-lg bg-gray-50/50 border border-gray-50 min-w-[70px]">
+                  <div className="flex flex-col items-center mb-1">
+                      <span className="text-[9px] font-bold uppercase" style={{ color: av.cor }}>{av.nome_avaliacao}</span>
+                      <span className="text-[8px] text-gray-400 font-medium">{av.dataStr_curta}</span>
+                  </div>
                   <span className="text-sm font-black text-gray-800">{valorAtual.toFixed(1)}</span>
                 </div>
                 {deltaUI}
@@ -239,6 +252,44 @@ export default function EvolucaoPaciente() {
             )
           })}
         </div>
+      </div>
+    )
+  }
+
+  // COMPONENTE: Barras de Somatotipo Individuais (Evolução Completa)
+  const BarChartSomatotipo = () => {
+    const maxVal = 12; // Valor base máximo para a proporção das barras
+    
+    // Função para renderizar o bloco de cada componente
+    const renderBlocoBarras = (titulo, chaveDado, corBarra) => (
+      <div className="flex flex-col gap-3 mb-6 last:mb-0">
+        <h5 className="text-xs font-bold" style={{ color: corBarra }}>{titulo}</h5>
+        <div className="space-y-2">
+          {historico.map((av, idx) => {
+            const val = Number(av[chaveDado]);
+            const pct = Math.min((val / maxVal) * 100, 100);
+            
+            return (
+              <div key={idx} className="flex items-center gap-3">
+                <span className="w-8 text-[10px] font-bold text-right" style={{ color: av.cor }}>{av.nome_avaliacao}</span>
+                
+                <div className="flex-1 bg-gray-100 h-2.5 rounded-full overflow-hidden flex items-center">
+                  <div className="h-full rounded-full transition-all duration-1000" style={{ width: `${pct}%`, backgroundColor: corBarra }}></div>
+                </div>
+                
+                <span className="w-6 text-right text-xs font-black text-gray-800">{val.toFixed(1)}</span>
+              </div>
+            )
+          })}
+        </div>
+      </div>
+    )
+
+    return (
+      <div className="flex flex-col w-full mt-2">
+        {renderBlocoBarras('Endomorfia (Adiposidade)', 'endo', '#f97316')}
+        {renderBlocoBarras('Mesomorfia (Musculosidade)', 'meso', '#3b82f6')}
+        {renderBlocoBarras('Ectomorfia (Magreza / Linearidade)', 'ecto', '#10b981')}
       </div>
     )
   }
@@ -279,11 +330,11 @@ export default function EvolucaoPaciente() {
             <button onClick={() => navigate('/pacientes')} className="px-4 py-2 border border-gray-200 text-gray-600 text-xs font-semibold rounded-lg hover:bg-gray-50 transition-colors">
               Voltar
             </button>
-            <button onClick={handleWhatsApp} className="flex items-center gap-2 px-4 py-2 bg-green-500 text-white text-xs font-semibold rounded-lg hover:bg-green-600 transition-colors">
+            <button onClick={handleWhatsApp} className="flex items-center justify-center gap-2 px-4 py-2 bg-green-500 text-white text-xs font-semibold rounded-lg hover:bg-green-600 transition-colors w-full md:w-auto">
               <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
               ZAP
             </button>
-            <button onClick={handlePrintPDF} className="px-4 py-2 bg-gray-800 text-white text-xs font-semibold rounded-lg hover:bg-gray-900 transition-colors">
+            <button onClick={handlePrintPDF} className="px-4 py-2 bg-gray-800 text-white text-xs font-semibold rounded-lg hover:bg-gray-900 transition-colors w-full md:w-auto">
               Baixar PDF
             </button>
           </div>
