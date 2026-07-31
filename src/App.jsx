@@ -9,7 +9,8 @@ import EscolhaPercGordura from './pages/EscolhaPercGordura'
 import AvaliacaoForm from './pages/AvaliacaoForm'
 import ResultadoAvaliacao from './pages/ResultadoAvaliacao'
 import Avaliador from './pages/Avaliador'
-import EvolucaoPaciente from './pages/EvolucaoPaciente' // <-- IMPORTAÇÃO ADICIONADA AQUI
+import EvolucaoPaciente from './pages/EvolucaoPaciente' 
+import Configuracoes from './pages/Configuracoes'
 
 function MainApp() {
   const [session, setSession] = useState(null)
@@ -203,6 +204,8 @@ function MainApp() {
             <Route path="/evolucao" element={<EvolucaoPaciente />} /> {/* ROTA DA EVOLUÇÃO ADICIONADA AQUI */}
             <Route path="/avaliador" element={<Avaliador userId={session.user.id} />} />
             <Route path="/laudo/:tokenUrl" element={<ResultadoAvaliacao />} />
+            <Route path="/configuracoes" element={<Configuracoes />} />
+            <Route path="/evolucao/:tokenUrl" element={<EvolucaoPaciente />} />
 
             <Route path="*" element={
               <div className="flex flex-col items-center justify-center h-full text-center p-6">
