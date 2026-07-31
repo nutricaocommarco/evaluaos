@@ -89,7 +89,7 @@ const calcularSomatotipo = (medidas) => {
   }
 }
 
-const MeasureRow = ({ label, field, categoryType, state, setter, isSingleMode, handleMeasureChange }) => {
+const MeasureRow = ({ label, field, categoryType, state, setter, isSingleMode, handleMeasureChange, tolerancias }) => {
   const { m1, m2, m3 } = state[field] || { m1: '', m2: '', m3: '' }
   const v1 = parseFloat(m1)
   const v2 = parseFloat(m2)
@@ -100,7 +100,14 @@ const MeasureRow = ({ label, field, categoryType, state, setter, isSingleMode, h
 
   if (!isSingleMode && !isNaN(v1) && !isNaN(v2) && v1 > 0 && v2 > 0) {
     diffPercent = (Math.abs(v1 - v2) / ((v1 + v2) / 2)) * 100
-    const threshold = categoryType === 'dobras' ? 5 : 1
+    
+    // Tolerância dinâmica configurada pelo avaliador
+    let threshold = 1.0
+    if (categoryType === 'dobras') threshold = tolerancias?.tolerancia_dobras ?? 5.0
+    else if (categoryType === 'perimetros') threshold = tolerancias?.tolerancia_perimetros ?? 1.0
+    else if (categoryType === 'diametros') threshold = tolerancias?.tolerancia_diametros ?? 1.0
+    else if (categoryType === 'basicas') threshold = tolerancias?.tolerancia_basicas ?? 1.0
+
     needsThird = diffPercent > threshold
   }
 
@@ -150,7 +157,15 @@ export default function AvaliacaoForm() {
   const [loading, setLoading] = useState(false)
   const [isSingleMode, setIsSingleMode] = useState(false)
 
-  // Estado para armazenar os cálculos antigos e não apagá-los na edição
+  // Configurações do Avaliador vindas do banco
+  const [configAvaliador, setConfigAvaliador] = useState({
+    tolerancia_dobras: 5.0,
+    tolerancia_perimetros: 1.0,
+    tolerancia_diametros: 1.0,
+    tolerancia_basicas: 1.0,
+    campos_visiveis: null
+  })
+
   const [dadosCalculadosAntigos, setDadosCalculadosAntigos] = useState({})
 
   const [dataAvaliacao, setDataAvaliacao] = useState(new Date().toISOString().split('T')[0])
@@ -161,56 +176,68 @@ export default function AvaliacaoForm() {
   const [perimetros, setPerimetros] = useState(initMeasures(perimetroKeys))
   const [diametros, setDiametros] = useState(initMeasures(diametroKeys))
   
-  useEffect(() => {
-    async function carregarAvaliacaoParaEdicao() {
-      if (!avaliacaoIdParaEditar) return
+useEffect(() => {
+    async function carregarDadosIniciais() {
       setLoading(true)
 
-      // 1. Busca os dados BRUTOS da avaliação
-      const { data: avaliacaoData, error: avaliacaoError } = await supabase
-        .from('avaliacoes')
-        .select('*')
-        .eq('id', avaliacaoIdParaEditar)
-        .single()
+      // 1. Carrega as configurações do avaliador
+      const { data: authUser } = await supabase.auth.getUser()
+      if (authUser?.user) {
+        const { data: confData } = await supabase
+          .from('configuracoes_avaliador')
+          .select('*')
+          .eq('auth_id', authUser.user.id)
+          .maybeSingle()
 
-      if (avaliacaoError) {
-        alert('Erro ao carregar avaliação para edição: ' + avaliacaoError.message)
-        setLoading(false)
-        return
+        if (confData) {
+          setConfigAvaliador(confData)
+        }
       }
 
-      // 2. Busca os CÁLCULOS SALVOS anteriormente (para não zerar Massa Gorda/IAM)
-      const { data: calcData } = await supabase
-        .from('dados_calculados')
-        .select('*')
-        .eq('id_avaliacao', avaliacaoIdParaEditar)
-        .maybeSingle()
+      // 2. Se for edição, carrega a avaliação e os cálculos salvos
+      if (avaliacaoIdParaEditar) {
+        const { data: avaliacaoData, error: avaliacaoError } = await supabase
+          .from('avaliacoes')
+          .select('*')
+          .eq('id', avaliacaoIdParaEditar)
+          .single()
 
-      if (calcData) {
-        setDadosCalculadosAntigos(calcData)
-      }
-
-      if (avaliacaoData) {
-        setDataAvaliacao(avaliacaoData.data_avaliacao || new Date().toISOString().split('T')[0])
-        setHoraAvaliacao(avaliacaoData.hora_avaliacao || '')
-
-        const preencherEstado = (keys) => {
-          return keys.reduce((acc, key) => {
-            acc[key] = { m1: avaliacaoData[key] != null ? String(avaliacaoData[key]) : '', m2: '', m3: '' }
-            return acc
-          }, {})
+        if (avaliacaoError) {
+          alert('Erro ao carregar avaliação para edição: ' + avaliacaoError.message)
+          setLoading(false)
+          return
         }
 
-        setBasicas(preencherEstado(basicaKeys))
-        setDobras(preencherEstado(dobraKeys))
-        setPerimetros(preencherEstado(perimetroKeys))
-        setDiametros(preencherEstado(diametroKeys))
-        setIsSingleMode(true) // Quando edita, o mais seguro é abrir já no modo de edição (m1)
+        const { data: calcData } = await supabase
+          .from('dados_calculados')
+          .select('*')
+          .eq('id_avaliacao', avaliacaoIdParaEditar)
+          .maybeSingle()
+
+        if (calcData) setDadosCalculadosAntigos(calcData)
+
+        if (avaliacaoData) {
+          setDataAvaliacao(avaliacaoData.data_avaliacao || new Date().toISOString().split('T')[0])
+          setHoraAvaliacao(avaliacaoData.hora_avaliacao || '')
+
+          const preencherEstado = (keys) => {
+            return keys.reduce((acc, key) => {
+              acc[key] = { m1: avaliacaoData[key] != null ? String(avaliacaoData[key]) : '', m2: '', m3: '' }
+              return acc
+            }, {})
+          }
+
+          setBasicas(preencherEstado(basicaKeys))
+          setDobras(preencherEstado(dobraKeys))
+          setPerimetros(preencherEstado(perimetroKeys))
+          setDiametros(preencherEstado(diametroKeys))
+          setIsSingleMode(true)
+        }
       }
       setLoading(false)
     }
 
-    carregarAvaliacaoParaEdicao()
+    carregarDadosIniciais()
   }, [avaliacaoIdParaEditar])
 
   if (!paciente) {
@@ -286,7 +313,6 @@ export default function AvaliacaoForm() {
     let avaliacaoSalvaId = avaliacaoIdParaEditar
 
     if (avaliacaoIdParaEditar) {
-      // MODO ATUALIZAÇÃO
       const { error: updateError } = await supabase
         .from('avaliacoes')
         .update(payloadBruto)
@@ -298,7 +324,6 @@ export default function AvaliacaoForm() {
         return
       }
     } else {
-      // MODO NOVO
       const { data: novaAval, error: insertError } = await supabase
         .from('avaliacoes')
         .insert([payloadBruto])
@@ -318,10 +343,8 @@ export default function AvaliacaoForm() {
     const alturaM = alturaCm / 100
 
     const calcImc = alturaM > 0 ? pesoFinal / (alturaM * alturaM) : 0
-    
-    // Puxa a Massa Gorda e Magra antigas (se não existirem, usa 0) para não apagar a gordura na edição
-    const massaGordaAntiga = dadosCalculadosAntigos.massa_gorda || 0
-    const massaMagraAntiga = dadosCalculadosAntigos.massa_magra || 0
+    const massaGordaCalc = 0
+    const massaMagraCalc = 0
 
     const pBraco = resolvedPerimetros.perimetro_braco_relaxado || 0
     const pCoxa = resolvedPerimetros.perimetro_coxa_media || 0
@@ -371,32 +394,12 @@ export default function AvaliacaoForm() {
     const calcSoma6 = dTri + dSub + dSup + dAbd + dCoxa + dPant
     const calcSoma8 = calcSoma6 + dBic + dIli
 
-    // === CÁLCULOS ADICIONAIS: IMO e IAM ===
-    
-    // 1. Índice de Massa Óssea (IMO)
-    const dPunho = resolvedDiametros.diametro_punho || 0
-    const dFemur = resolvedDiametros.diametro_femur || 0
-    let calcImo = 0
-    if (alturaM > 0 && dPunho > 0 && dFemur > 0 && pesoFinal > 0) {
-      const dPunhoM = dPunho / 100 // cm para metros
-      const dFemurM = dFemur / 100 // cm para metros
-      const massaOssea = 3.02 * Math.pow((alturaM * alturaM) * dPunhoM * dFemurM * 400, 0.712)
-      calcImo = (massaOssea / pesoFinal) * 100 // Resultado %
-    }
-
-    // 2. Índice Adiposo Muscular (IAM)
-    let calcIam = 0
-    if (calcMuscular > 0 && massaGordaAntiga > 0) {
-      // IAM é re-calculado se a massa gorda já existe no banco
-      calcIam = massaGordaAntiga / calcMuscular
-    }
-
     const payloadCalculado = {
       id_paciente: paciente.id,
       id_avaliacao: avaliacaoSalvaId,
       imc: Number(calcImc.toFixed(2)),
-      massa_gorda: Number(massaGordaAntiga.toFixed(2)), // Preserva a antiga
-      massa_magra: Number(massaMagraAntiga.toFixed(2)), // Preserva a antiga
+      massa_gorda: Number(massaGordaCalc.toFixed(2)),
+      massa_magra: Number(massaMagraCalc.toFixed(2)),
       massa_muscular: Number(calcMuscular.toFixed(2)),
       relacao_cintura_quadril: Number(calcRcq.toFixed(2)),
       relacao_cintura_estatura: Number(calcRce.toFixed(2)),
@@ -405,8 +408,6 @@ export default function AvaliacaoForm() {
       perimetro_corrigido_braco: Number(calcPerimCorrigidoBraco.toFixed(2)),
       perimetro_corrigido_coxa: Number(calcPerimCorrigidoCoxa.toFixed(2)),
       perimetro_corrigido_panturrilha: Number(calcPerimCorrigidoPanturrilha.toFixed(2)),
-      indice_massa_ossea_imo: Number(calcImo.toFixed(2)), // Salva o IMO Calculado aqui
-      indice_adiposo_muscular: Number(calcIam.toFixed(2)), // Salva o IAM recalculado aqui
       ...somatotipo
     }
 
@@ -430,25 +431,49 @@ export default function AvaliacaoForm() {
     setLoading(false)
   }
 
-  const renderMeasureBlock = (title, keys, type, state, setter) => (
-    <div className="bg-white p-4 md:p-6 rounded-xl border border-gray-100 shadow-sm space-y-2">
-      <h3 className="text-sm font-bold text-gray-800 uppercase tracking-wider mb-4 border-b pb-2">{title}</h3>
-      <div className="w-full">
-        <div className="hidden md:grid grid-cols-12 gap-2 items-center pb-2 text-xs font-bold text-gray-400 uppercase tracking-wider border-b px-2">
-          <div className="col-span-4">Local da Medida</div>
-          <div className="col-span-6 grid grid-cols-3 gap-2 text-center">
-            <div>{isSingleMode ? 'Valor (Edição/Único)' : '1ª Medida'}</div>
-            {!isSingleMode && <div>2ª Medida</div>}
-            {!isSingleMode && <div className="text-red-400">3ª (Tira-teima)</div>}
+  // Função para checar se o campo está visível segundo as preferências do avaliador
+  const campoVisivel = (categoria, key) => {
+    if (!configAvaliador.campos_visiveis) return true // Se não salvou nada ainda, exibe tudo por padrão
+    const lista = configAvaliador.campos_visiveis[categoria]
+    if (!lista) return true
+    return lista.includes(key)
+  }
+
+  const renderMeasureBlock = (title, keys, type, state, setter) => {
+    // Filtra apenas as chaves que estão visíveis nas configurações
+    const keysFiltradas = keys.filter(key => campoVisivel(type, key))
+    if (keysFiltradas.length === 0) return null // Se desmarcou tudo na categoria, esconde o bloco inteiro
+  
+return (
+      <div className="bg-white p-4 md:p-6 rounded-xl border border-gray-100 shadow-sm space-y-2">
+        <h3 className="text-sm font-bold text-gray-800 uppercase tracking-wider mb-4 border-b pb-2">{title}</h3>
+        <div className="w-full">
+          <div className="hidden md:grid grid-cols-12 gap-2 items-center pb-2 text-xs font-bold text-gray-400 uppercase tracking-wider border-b px-2">
+            <div className="col-span-4">Local da Medida</div>
+            <div className="col-span-6 grid grid-cols-3 gap-2 text-center">
+              <div>{isSingleMode ? 'Valor (Edição/Único)' : '1ª Medida'}</div>
+              {!isSingleMode && <div>2ª Medida</div>}
+              {!isSingleMode && <div className="text-red-400">3ª (Tira-teima)</div>}
+            </div>
+            <div className="col-span-2 text-center text-emerald-600">Calculado</div>
           </div>
-          <div className="col-span-2 text-center text-emerald-600">Calculado</div>
+          {keysFiltradas.map((key) => (
+            <MeasureRow 
+              key={key} 
+              label={labels[key]} 
+              field={key} 
+              categoryType={type} 
+              state={state} 
+              setter={setter} 
+              isSingleMode={isSingleMode} 
+              handleMeasureChange={handleMeasureChange} 
+              tolerancias={configAvaliador}
+            />
+          ))}
         </div>
-        {keys.map((key) => (
-          <MeasureRow key={key} label={labels[key]} field={key} categoryType={type} state={state} setter={setter} isSingleMode={isSingleMode} handleMeasureChange={handleMeasureChange} />
-        ))}
       </div>
-    </div>
-  )
+    )
+  }
 
   return (
     <div className="space-y-6">
@@ -492,9 +517,9 @@ export default function AvaliacaoForm() {
         </div>
 
         {renderMeasureBlock('2. Medidas Básicas', basicaKeys, 'basicas', basicas, setBasicas)}
-        {renderMeasureBlock('3. Dobras Cutâneas (mm) - Tolerância 5%', dobraKeys, 'dobras', dobras, setDobras)}
-        {renderMeasureBlock('4. Perímetros / Circunferências (cm) - Tolerância 1%', perimetroKeys, 'perimetros', perimetros, setPerimetros)}
-        {renderMeasureBlock('5. Diâmetros Ósseos (cm) - Tolerância 1%', diametroKeys, 'diametros', diametros, setDiametros)}
+        {renderMeasureBlock(`3. Dobras Cutâneas (mm) - Tolerância ${configAvaliador.tolerancia_dobras ?? 5}%`, dobraKeys, 'dobras', dobras, setDobras)}
+        {renderMeasureBlock(`4. Perímetros / Circunferências (cm) - Tolerância ${configAvaliador.tolerancia_perimetros ?? 1}%`, perimetroKeys, 'perimetros', perimetros, setPerimetros)}
+        {renderMeasureBlock(`5. Diâmetros Ósseos (cm) - Tolerância ${configAvaliador.tolerancia_diametros ?? 1}%`, diametroKeys, 'diametros', diametros, setDiametros)}
 
         <div className="flex justify-end gap-3 pt-4 sticky bottom-4 bg-white/80 p-4 border-t backdrop-blur-md rounded-xl z-10">
           <button type="button" tabIndex={400} onClick={() => navigate('/pacientes')} className="px-6 py-2.5 border border-gray-300 text-gray-700 rounded-lg text-sm font-semibold hover:bg-gray-50">Cancelar</button>
