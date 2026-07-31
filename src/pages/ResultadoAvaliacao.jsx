@@ -103,20 +103,35 @@ export default function ResultadoAvaliacao() {
       }
 
       setTokenPublico(avalDados.token_publico || '')
-
       const pac = avalDados.pacientes || {}
 
-      // BUSCA DIRETA E SEGURA DO AVALIADOR NO ID 3 (Garante o carregamento da logo e dados)
-      const { data: avaliadorData } = await supabase
-        .from('avaliadores')
-        .select('empresa, nome_completo, logomarca_url')
-        .eq('id', 3)
-        .maybeSingle();
-        
-      if (avaliadorData) {
-        setNomeEmpresa(avaliadorData.empresa || '');
-        setNomeAvaliador(avaliadorData.nome_completo || '');
-        setLogomarcaUrl(avaliadorData.logomarca_url || '');
+      // BUSCA DINÂMICA DO AVALIADOR
+      let avalData = null;
+      if (pac.id_avaliador) {
+        const { data } = await supabase
+          .from('avaliadores')
+          .select('empresa, nome_completo, logomarca_url')
+          .eq('auth_id', pac.id_avaliador)
+          .maybeSingle();
+        avalData = data;
+      }
+
+      if (!avalData) {
+        const { data: authData } = await supabase.auth.getUser();
+        if (authData?.user?.email) {
+          const { data } = await supabase
+            .from('avaliadores')
+            .select('empresa, nome_completo, logomarca_url')
+            .eq('email', authData.user.email)
+            .maybeSingle();
+          avalData = data;
+        }
+      }
+
+      if (avalData) {
+        setNomeEmpresa(avalData.empresa || '');
+        setNomeAvaliador(avalData.nome_completo || '');
+        setLogomarcaUrl(avalData.logomarca_url || '');
       }
 
       const pesoFinal = avalDados.peso_paciente || 0
@@ -176,6 +191,24 @@ export default function ResultadoAvaliacao() {
 
       const somatotipo = calcularSomatotipo(avalDados)
 
+      // === CÁLCULOS DO IAM E IMO PARA O BANCO DE DADOS ===
+      const iamVal = (calcMuscular > 0 && massaGordaCalc > 0) ? (massaGordaCalc / calcMuscular) : 0
+
+      const dUmero = Number(avalDados.diametro_umero) || 0;
+      const dFemur = Number(avalDados.diametro_femur) || 0;
+      const dRadio = Number(avalDados.diametro_punho) || 0; 
+      const dMaleolar = Number(avalDados.diametro_maleolar) || 0;
+      const parte1 = 0.6 * alturaCm * Math.pow(dUmero + dFemur + dRadio + dMaleolar, 2) * 0.0001;
+
+      const cCoxa = Number(avalDados.perimetro_coxa_media) || 0;
+      const cAntebraco = Number(avalDados.perimetro_antibraco) || 0;
+      const cPant = Number(avalDados.perimetro_panturrilha) || 0;
+
+      const tCoxa = cCoxa - (dCoxa * 0.3141);
+      const tPant = cPant - (dPant * 0.3141);
+      const parte2 = (alturaCm * (0.0553 * Math.pow(tCoxa, 2) + 0.0987 * Math.pow(cAntebraco, 2) + 0.0331 * Math.pow(tPant, 2)) - 2445) * 0.001;
+      const imoVal = (parte1 > 0 && parte2 > 0) ? (parte2 / parte1) : 0;
+
       const payloadCalculado = {
         id_paciente: pac.id || avalDados.id_paciente,
         id_avaliacao: avalDados.id,
@@ -190,6 +223,8 @@ export default function ResultadoAvaliacao() {
         perimetro_corrigido_braco: Number(calcPerimCorrigidoBraco.toFixed(2)),
         perimetro_corrigido_coxa: Number(calcPerimCorrigidoCoxa.toFixed(2)),
         perimetro_corrigido_panturrilha: Number(calcPerimCorrigidoPanturrilha.toFixed(2)),
+        indice_massa_ossea_imo: Number(imoVal.toFixed(3)),
+        indice_adiposo_muscular: Number(iamVal.toFixed(2)),
         ...somatotipo
       }
 
@@ -248,33 +283,12 @@ export default function ResultadoAvaliacao() {
   const massaMagra = dados.massa_magra || 0
   const massaMuscular = dados.massa_muscular || 0
 
-  const iamVal = (massaMuscular > 0 && massaGorda > 0) ? (massaGorda / massaMuscular) : 0
+  const iamVal = dados.indice_adiposo_muscular || ((massaMuscular > 0 && massaGorda > 0) ? (massaGorda / massaMuscular) : 0)
+  const imoVal = dados.indice_massa_ossea_imo || 0
 
-  const pBraco = aval.perimetro_braco_relaxado || 0;
-  const pCoxa = aval.perimetro_coxa_media || 0;
-  const pPant = aval.perimetro_panturrilha || 0;
-  const perimCorrigidoBraco = dados.perimetro_corrigido_braco || (pBraco > 0 ? pBraco - ((aval.dobra_cutanea_triceps || 0) * 0.314) : 0);
-  const perimCorrigidoCoxa = dados.perimetro_corrigido_coxa || (pCoxa > 0 ? pCoxa - ((aval.dobra_cutanea_coxa_media || 0) * 0.314) : 0);
-  const perimCorrigidoPanturrilha = dados.perimetro_corrigido_panturrilha || (pPant > 0 ? pPant - ((aval.dobra_cutanea_panturrilha || 0) * 0.314) : 0);
-
-  const estatura = Number(aval.altura_paciente) || 0;
-  const dUmero = Number(aval.diametro_umero) || 0;
-  const dFemur = Number(aval.diametro_femur) || 0;
-  const dRadio = Number(aval.diametro_punho) || 0; 
-  const dMaleolar = Number(aval.diametro_maleolar) || 0;
-
-  const parte1 = 0.6 * estatura * Math.pow(dUmero + dFemur + dRadio + dMaleolar, 2) * 0.0001;
-
-  const cCoxa = Number(aval.perimetro_coxa_media) || 0;
-  const dCoxa = Number(aval.dobra_cutanea_coxa_media) || 0;
-  const cAntebraco = Number(aval.perimetro_antibraco) || 0;
-  const cPant = Number(aval.perimetro_panturrilha) || 0;
-  const dPant = Number(aval.dobra_cutanea_panturrilha) || 0;
-
-  const termoCoxa = cCoxa - (dCoxa * 0.3141);
-  const termoPant = cPant - (dPant * 0.3141);
-  const parte2 = (estatura * (0.0553 * Math.pow(termoCoxa, 2) + 0.0987 * Math.pow(cAntebraco, 2) + 0.0331 * Math.pow(termoPant, 2)) - 2445) * 0.001;
-  const imoVal = (parte1 > 0 && parte2 > 0) ? (parte2 / parte1) : 0;
+  const perimCorrigidoBraco = dados.perimetro_corrigido_braco || 0;
+  const perimCorrigidoCoxa = dados.perimetro_corrigido_coxa || 0;
+  const perimCorrigidoPanturrilha = dados.perimetro_corrigido_panturrilha || 0;
 
   const coordX = 150 + ((dados.somatocarta_eixo_x || 0) * 15)
   const coordY = 150 - ((dados.somatocarta_eixo_y || 0) * 11)
@@ -485,7 +499,7 @@ export default function ResultadoAvaliacao() {
       </div>
 
       <div>
-        <h3 className="text-sm font-bold text-gray-800 uppercase tracking-wider mb-3 px-1 mt-6">🦴 7. Diâmetros ÓSSEos</h3>
+        <h3 className="text-sm font-bold text-gray-800 uppercase tracking-wider mb-3 px-1 mt-6">🦴 7. Diâmetros Ósseos</h3>
         <div className="bg-white p-5 rounded-xl border border-gray-100 shadow-sm">
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-x-8 gap-y-2">
             {renderMedidaItem('Úmero', aval.diametro_umero, 'cm')}

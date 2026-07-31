@@ -98,7 +98,7 @@ export default function EscolhaPercGordura() {
   const [avaliacaoAtual, setAvaliacaoAtual] = useState(null)
   const [medidasBrutas, setMedidasBrutas] = useState({})
   
-  // Estado para guardar os cálculos antigos (especialmente a Massa Muscular, necessária pro IAM)
+  // === NOVO ESTADO: Para buscar a Massa Muscular já salva ===
   const [dadosCalculados, setDadosCalculados] = useState({})
   
   const [equacaoSelecionada, setEquacaoSelecionada] = useState('')
@@ -147,7 +147,7 @@ export default function EscolhaPercGordura() {
     return () => document.removeEventListener('mousedown', handleClickFora)
   }, [])
 
-  // SELEÇÃO DIRETA DO FORMULÁRIO (Garante que vai pegar a avaliação recém-editada)
+  // SELEÇÃO DIRETA DO FORMULÁRIO
   const selecionarPacienteViaForm = async (paciente, avaliacaoIdReq) => {
     setPacienteSelecionado(paciente)
     setBusca(paciente.nome_completo)
@@ -177,8 +177,8 @@ export default function EscolhaPercGordura() {
           setEquacaoSelecionada(aval.equacao_de_regressao_escolhida)
         }
       }
-      
-      // Busca OS CÁLCULOS para garantir que temos a Massa Muscular para o IAM
+
+      // === BUSCA OS CÁLCULOS SALVOS (Inclui Massa Muscular) ===
       const { data: calc } = await supabase
         .from('dados_calculados')
         .select('*')
@@ -189,7 +189,7 @@ export default function EscolhaPercGordura() {
     }
   }
 
-  // SELEÇÃO PELA BARRA DE BUSCA (Pega o histórico e seleciona a última)
+  // SELEÇÃO PELA BARRA DE BUSCA
   const selecionarPacienteBusca = async (paciente) => {
     setPacienteSelecionado(paciente)
     setBusca(paciente.nome_completo)
@@ -197,7 +197,7 @@ export default function EscolhaPercGordura() {
     setEquacaoSelecionada('')
     setResultadoGordura(0)
     setMetadados(null)
-    setDadosCalculados({})
+    setDadosCalculados({}) // Reseta ao trocar
 
     const { data: historico } = await supabase
       .from('avaliacoes')
@@ -229,7 +229,8 @@ export default function EscolhaPercGordura() {
       setMedidasBrutas(aval)
       setEquacaoSelecionada(aval.equacao_de_regressao_escolhida || '')
     }
-    
+
+    // === BUSCA OS CÁLCULOS DESSA AVALIAÇÃO ===
     const { data: calc } = await supabase
       .from('dados_calculados')
       .select('*')
@@ -271,7 +272,6 @@ export default function EscolhaPercGordura() {
 
     setSalvando(true)
 
-    // Salva a Equação na avaliação bruta
     const { error: avalError } = await supabase
       .from('avaliacoes')
       .update({
@@ -280,25 +280,25 @@ export default function EscolhaPercGordura() {
       })
       .eq('id', avaliacaoAtual.id)
 
-    // Calcula os novos pesos e IAM
+    // 1. Calcula Massa Gorda e Massa Magra
     const peso = Number(medidasBrutas.peso_paciente || 0)
     const massaGorda = peso > 0 ? (resultadoGordura * peso) / 100 : 0
     const massaMagra = peso > 0 ? peso - massaGorda : 0
-    
-    // Calcula o Índice Adiposo Muscular (IAM) => Massa Gorda / Massa Muscular
+
+    // 2. Calcula o IAM (Índice Adiposo Muscular)
     const massaMuscular = Number(dadosCalculados.massa_muscular || 0)
     let iam = 0
     if (massaMuscular > 0) {
-        iam = massaGorda / massaMuscular
+      iam = massaGorda / massaMuscular
     }
 
-    // Atualiza os dados calculados com a nova massa gorda, massa magra e o IAM exato!
+    // 3. Atualiza tudo no banco
     const { error: calcError } = await supabase
       .from('dados_calculados')
       .update({
         massa_gorda: Number(massaGorda.toFixed(2)),
         massa_magra: Number(massaMagra.toFixed(2)),
-        indice_adiposo_muscular: Number(iam.toFixed(2))
+        indice_adiposo_muscular: Number(iam.toFixed(2)) // <-- SALVA O IAM AQUI!
       })
       .eq('id_avaliacao', avaliacaoAtual.id)
 
@@ -307,9 +307,7 @@ export default function EscolhaPercGordura() {
     if (avalError || calcError) {
       alert('Erro ao salvar: ' + (avalError?.message || calcError?.message))
     } else {
-      alert('Equação, % Gordura, Massas e Índices salvos com sucesso!')
-      
-      // Opcional: navega direto pro laudo ou pra lista de pacientes pra ver tudo pronto
+      alert('Equação, % Gordura, Massas e IAM salvos com sucesso!')
       navigate('/laudo-antropometrico', { state: { avaliacaoId: avaliacaoAtual.id } })
     }
   }
