@@ -2,8 +2,7 @@ import React, { useState, useEffect } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { supabase } from '../supabaseClient'
 import {
-  ResponsiveContainer, LineChart, Line, AreaChart, Area, ScatterChart, Scatter,
-  XAxis, YAxis, ZAxis, CartesianGrid, Tooltip, Legend, ReferenceLine, ReferenceDot
+  ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend
 } from 'recharts'
 
 export default function EvolucaoPaciente() {
@@ -14,6 +13,9 @@ export default function EvolucaoPaciente() {
   const [loading, setLoading] = useState(true)
   const [historico, setHistorico] = useState([])
   
+  // Cores padronizadas para as bolinhas da Somatocarta e Legendas
+  const coresAvaliacoes = ['#10b981', '#3b82f6', '#f59e0b', '#ec4899', '#8b5cf6', '#ef4444', '#14b8a6', '#64748b']
+
   useEffect(() => {
     async function carregarHistorico() {
       if (!paciente) return
@@ -44,6 +46,7 @@ export default function EvolucaoPaciente() {
           id: aval.id,
           nome_avaliacao: `Av. ${index + 1}`,
           dataStr: new Date(aval.data_avaliacao).toLocaleDateString('pt-BR', { timeZone: 'UTC' }),
+          cor: coresAvaliacoes[index % coresAvaliacoes.length],
           
           // Métricas Principais
           peso: Number(aval.peso_paciente || 0).toFixed(1),
@@ -53,7 +56,7 @@ export default function EvolucaoPaciente() {
           massa_magra: Number(calc.massa_magra || 0).toFixed(2),
           massa_muscular: Number(calc.massa_muscular || 0).toFixed(2),
           
-          // Índices e Risco
+          // Índices
           cintura: Number(aval.perimetro_cintura || 0).toFixed(1),
           cintura_estatura: Number(calc.relacao_cintura_estatura || 0).toFixed(2),
           cintura_quadril: Number(calc.relacao_cintura_quadril || 0).toFixed(2),
@@ -70,16 +73,17 @@ export default function EvolucaoPaciente() {
           abdominal: Number(aval.dobra_cutanea_abdominal || 0).toFixed(1),
           coxa: Number(aval.dobra_cutanea_coxa_media || 0).toFixed(1),
           panturrilha: Number(aval.dobra_cutanea_panturrilha || 0).toFixed(1),
+          soma_6: Number(calc.somatorio_6_dobras || 0).toFixed(1),
+          soma_8: Number(calc.somatorio_8_dobras || 0).toFixed(1),
           
-          // Gráficos Recharts (Precisam ser números puros, sem toFixed)
+          // Gráficos Recharts (Precisam ser números puros)
+          grafico_peso: Number(aval.peso_paciente || 0),
           grafico_massa_muscular: Number(calc.massa_muscular || 0),
           grafico_massa_gorda: Number(calc.massa_gorda || 0),
-          grafico_soma_6: Number(calc.somatorio_6_dobras || 0),
-          grafico_soma_8: Number(calc.somatorio_8_dobras || 0),
           eixo_x: Number(calc.somatocarta_eixo_x || 0),
           eixo_y: Number(calc.somatocarta_eixo_y || 0)
         }
-      }).filter(item => item.peso > 0)
+      }).filter(item => item.grafico_peso > 0)
 
       setHistorico(dadosMesclados)
       setLoading(false)
@@ -111,153 +115,207 @@ export default function EvolucaoPaciente() {
     )
   }
 
-  // Função para calcular diferença e formatar visualmente
-  const renderDelta = (chave, isInverso = false) => {
-    const primeira = Number(historico[0][chave])
-    const ultima = Number(historico[historico.length - 1][chave])
-    const delta = (ultima - primeira).toFixed(2)
-    
-    if (delta == 0) return <span className="text-gray-400 text-xs font-bold bg-gray-100 px-2 py-1 rounded">(0)</span>
-    
-    const isPositivo = delta > 0
-    // Se isInverso for true (ex: Gordura), cair é verde. Se false (ex: Músculo), subir é verde.
-    const isBom = isInverso ? !isPositivo : isPositivo
-    const cor = isBom ? 'text-emerald-600 bg-emerald-50' : 'text-red-600 bg-red-50'
-    const seta = isPositivo ? '↑' : '↓'
+  // COMPONENTE: Cartão de Evolução (Altamente Visual)
+  const CardEvolucao = ({ titulo, chaveDado, unidade = "", isInverso = false }) => {
+    // Só exibe a jornada passo a passo se houver MAIS de 3 avaliações (ou seja, 4+)
+    const mostrarStepByStep = historico.length > 3;
 
     return (
-      <span className={`${cor} text-xs font-bold px-2 py-1 rounded flex items-center gap-1`}>
-        {seta} {isPositivo ? '+' : ''}{delta}
-      </span>
+      <div className="bg-white rounded-xl border border-gray-100 p-4 shadow-sm flex flex-col hover:border-emerald-200 transition-colors">
+        <div className="flex justify-between items-center mb-4">
+          <h4 className="text-gray-600 font-black text-xs uppercase tracking-wider">{titulo}</h4>
+          {unidade && <span className="text-[10px] bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full font-bold">{unidade}</span>}
+        </div>
+        
+        <div className="flex items-center gap-2 overflow-x-auto pb-2 hide-scrollbar">
+          {historico.map((av, idx) => {
+            const valorAtual = Number(av[chaveDado]);
+            let deltaUI = null;
+
+            if (mostrarStepByStep && idx > 0) {
+              const valorAnterior = Number(historico[idx - 1][chaveDado]);
+              const diferenca = (valorAtual - valorAnterior).toFixed(2);
+              
+              if (diferenca != 0) {
+                const isPositivo = diferenca > 0;
+                const isBom = isInverso ? !isPositivo : isPositivo;
+                const corBadge = isBom ? 'text-emerald-700 bg-emerald-50 border-emerald-100' : 'text-red-700 bg-red-50 border-red-100';
+                
+                deltaUI = (
+                  <div className={`flex items-center justify-center px-1.5 py-0.5 rounded-md border text-[9px] font-bold ${corBadge} ml-1`}>
+                    {isPositivo ? '↑' : '↓'} {Math.abs(diferenca)}
+                  </div>
+                );
+              } else {
+                deltaUI = <div className="text-[9px] text-gray-400 font-bold ml-1 bg-gray-50 px-1.5 py-0.5 rounded-md border border-gray-100">(0)</div>;
+              }
+            }
+
+            return (
+              <div key={idx} className="flex items-center shrink-0">
+                <div className="flex flex-col items-center justify-center p-2 rounded-lg bg-gray-50/50 border border-gray-50 min-w-[65px]">
+                  <span className="text-[9px] font-bold text-gray-400 uppercase mb-1" style={{ color: av.cor }}>{av.nome_avaliacao}</span>
+                  <span className="text-sm font-black text-gray-800">{valorAtual.toFixed(2).replace('.00', '')}</span>
+                </div>
+                {deltaUI}
+                {idx < historico.length - 1 && <div className="w-4 h-[1px] bg-gray-200 mx-1"></div>}
+              </div>
+            )
+          })}
+        </div>
+      </div>
     )
   }
 
-  // Componente reutilizável para cada linha de métrica
-  const LinhaMetrica = ({ titulo, chaveDado, unidade, isInverso }) => (
-    <div className="flex flex-col md:flex-row md:items-center justify-between p-3 hover:bg-gray-50 border-b border-gray-50 transition-colors">
-      <div className="w-full md:w-1/3 mb-2 md:mb-0">
-        <span className="text-sm font-semibold text-gray-700">{titulo}</span>
-        {unidade && <span className="text-xs text-gray-400 ml-1">({unidade})</span>}
-      </div>
-      
-      <div className="flex flex-1 items-center justify-between gap-2 overflow-x-auto pb-2 md:pb-0 hide-scrollbar">
-        {historico.map((av, idx) => (
-          <div key={idx} className="flex flex-col items-center min-w-[60px]">
-            <span className="text-[10px] text-gray-400 mb-1">{av.nome_avaliacao}</span>
-            <span className="text-sm font-medium text-gray-800">{av[chaveDado]}</span>
-          </div>
-        ))}
-      </div>
-      
-      <div className="w-full md:w-24 mt-2 md:mt-0 flex md:justify-end items-center border-t md:border-t-0 pt-2 md:pt-0 border-gray-100">
-        {renderDelta(chaveDado, isInverso)}
-      </div>
-    </div>
-  )
-
   return (
-    <div className="max-w-6xl mx-auto space-y-8 pb-12 animate-fade-in-up">
+    <div className="max-w-6xl mx-auto space-y-10 pb-12 animate-fade-in-up">
       
       {/* Cabeçalho */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center bg-white p-6 rounded-xl border border-gray-100 shadow-sm gap-4">
         <div>
           <button onClick={() => navigate('/pacientes')} className="text-xs text-emerald-600 font-semibold hover:underline mb-1 inline-block">← Voltar aos Pacientes</button>
           <h2 className="text-2xl font-bold text-gray-800">Evolução: {paciente.nome_completo}</h2>
-          <p className="text-sm text-gray-500">Comparativo histórico de {historico.length} avaliações.</p>
-        </div>
-        <button className="px-5 py-2.5 bg-gray-800 text-white rounded-lg text-sm font-semibold hover:bg-gray-900 transition-colors flex items-center gap-2 shadow-md">
-          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
-          Exportar PDF Completo
-        </button>
-      </div>
-
-      {/* BLOCO 1: DETALHAMENTO COMPLETO (Substitui as Cards) */}
-      <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
-        
-        {/* Seção: Composição Corporal */}
-        <div className="bg-gray-50 px-6 py-3 border-b border-gray-100">
-          <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider">Composição Corporal</h3>
-        </div>
-        <div className="px-3">
-          <LinhaMetrica titulo="Massa Corporal" chaveDado="peso" unidade="kg" isInverso={true} />
-          <LinhaMetrica titulo="IMC" chaveDado="imc" unidade="kg/m²" isInverso={true} />
-          <LinhaMetrica titulo="Gordura" chaveDado="gordura_perc" unidade="%" isInverso={true} />
-          <LinhaMetrica titulo="Massa de Gordura" chaveDado="massa_gorda" unidade="kg" isInverso={true} />
-          <LinhaMetrica titulo="Massa Magra" chaveDado="massa_magra" unidade="kg" isInverso={false} />
-          <LinhaMetrica titulo="Massa Muscular" chaveDado="massa_muscular" unidade="kg" isInverso={false} />
-        </div>
-
-        {/* Seção: Índices e Risco */}
-        <div className="bg-gray-50 px-6 py-3 border-y border-gray-100 mt-4">
-          <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider">Relações e Índices</h3>
-        </div>
-        <div className="px-3">
-          <LinhaMetrica titulo="Cintura" chaveDado="cintura" unidade="cm" isInverso={true} />
-          <LinhaMetrica titulo="Cintura / Estatura" chaveDado="cintura_estatura" isInverso={true} />
-          <LinhaMetrica titulo="Cintura / Quadril" chaveDado="cintura_quadril" isInverso={true} />
-          <LinhaMetrica titulo="Índice de Massa Óssea (IMO)" chaveDado="imo" isInverso={false} />
-          <LinhaMetrica titulo="Área Visceral (apVAT)" chaveDado="apvat" isInverso={true} />
-          <LinhaMetrica titulo="Índice Adiposo Muscular" chaveDado="iam" isInverso={true} />
-        </div>
-
-        {/* Seção: Dobras Cutâneas */}
-        <div className="bg-gray-50 px-6 py-3 border-y border-gray-100 mt-4">
-          <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider">Dobras Cutâneas (mm)</h3>
-        </div>
-        <div className="px-3 pb-2">
-          <LinhaMetrica titulo="Tríceps" chaveDado="triceps" isInverso={true} />
-          <LinhaMetrica titulo="Subescapular" chaveDado="subescapular" isInverso={true} />
-          <LinhaMetrica titulo="Bíceps" chaveDado="biceps" isInverso={true} />
-          <LinhaMetrica titulo="Crista Ilíaca" chaveDado="crista_iliaca" isInverso={true} />
-          <LinhaMetrica titulo="Supraespinhal" chaveDado="supraespinhal" isInverso={true} />
-          <LinhaMetrica titulo="Abdominal" chaveDado="abdominal" isInverso={true} />
-          <LinhaMetrica titulo="Coxa Média" chaveDado="coxa" isInverso={true} />
-          <LinhaMetrica titulo="Panturrilha" chaveDado="panturrilha" isInverso={true} />
+          <p className="text-sm text-gray-500">Comparativo visual de {historico.length} avaliações.</p>
         </div>
       </div>
 
-      {/* BLOCO 2: Gráficos Visuais */}
+      {/* BLOCO 1: Composição Corporal */}
+      <div>
+        <div className="flex items-center gap-2 mb-4 px-2">
+          <div className="w-8 h-8 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"></path><line x1="7" y1="7" x2="7.01" y2="7"></line></svg>
+          </div>
+          <h3 className="text-lg font-black text-gray-800">Composição Corporal</h3>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <CardEvolucao titulo="Massa Corporal (Peso)" chaveDado="peso" unidade="kg" isInverso={true} />
+          <CardEvolucao titulo="Gordura Corporal" chaveDado="gordura_perc" unidade="%" isInverso={true} />
+          <CardEvolucao titulo="Massa de Gordura" chaveDado="massa_gorda" unidade="kg" isInverso={true} />
+          <CardEvolucao titulo="Massa Muscular" chaveDado="massa_muscular" unidade="kg" isInverso={false} />
+          <CardEvolucao titulo="Massa Magra" chaveDado="massa_magra" unidade="kg" isInverso={false} />
+          <CardEvolucao titulo="IMC" chaveDado="imc" unidade="kg/m²" isInverso={true} />
+        </div>
+      </div>
+
+      {/* BLOCO 2: Gráficos Visuais de Composição e Somatotipo */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         
-        <div className="bg-white p-6 rounded-xl border border-gray-100 shadow-sm">
-          <h3 className="text-sm font-bold text-gray-800 uppercase tracking-wider mb-6">Composição Corporal (kg)</h3>
-          <div className="h-72 w-full">
+        {/* Gráfico de Linhas */}
+        <div className="bg-white p-6 rounded-xl border border-gray-100 shadow-sm flex flex-col">
+          <h3 className="text-sm font-black text-gray-800 uppercase tracking-wider mb-6">Gráfico de Composição (kg)</h3>
+          <div className="flex-1 w-full min-h-[300px]">
             <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={historico} margin={{ top: 5, right: 20, bottom: 5, left: -20 }}>
+              <LineChart data={historico} margin={{ top: 5, right: 10, bottom: 5, left: -20 }}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f3f4f6" />
                 <XAxis dataKey="nome_avaliacao" tick={{fontSize: 12, fill: '#9ca3af'}} axisLine={false} tickLine={false} />
                 <YAxis tick={{fontSize: 12, fill: '#9ca3af'}} axisLine={false} tickLine={false} />
                 <Tooltip contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} />
                 <Legend iconType="circle" wrapperStyle={{ fontSize: '12px', paddingTop: '10px' }} />
-                <Line type="monotone" name="Massa Muscular" dataKey="grafico_massa_muscular" stroke="#059669" strokeWidth={3} dot={{ r: 4, strokeWidth: 2 }} activeDot={{ r: 6 }} />
-                <Line type="monotone" name="Massa Gorda" dataKey="grafico_massa_gorda" stroke="#f59e0b" strokeWidth={3} dot={{ r: 4, strokeWidth: 2 }} activeDot={{ r: 6 }} />
+                <Line type="monotone" name="Peso Total" dataKey="grafico_peso" stroke="#0ea5e9" strokeWidth={3} dot={{ r: 4 }} />
+                <Line type="monotone" name="Massa Muscular" dataKey="grafico_massa_muscular" stroke="#10b981" strokeWidth={3} dot={{ r: 4 }} />
+                <Line type="monotone" name="Massa Gorda" dataKey="grafico_massa_gorda" stroke="#f59e0b" strokeWidth={3} dot={{ r: 4 }} />
               </LineChart>
             </ResponsiveContainer>
           </div>
         </div>
 
-        <div className="bg-white p-6 rounded-xl border border-gray-100 shadow-sm overflow-hidden">
-          <h3 className="text-sm font-bold text-gray-800 uppercase tracking-wider mb-2">Trajetória do Somatotipo</h3>
-          <div className="h-72 w-full relative mt-4">
-            <ResponsiveContainer width="100%" height="100%">
-              <ScatterChart margin={{ top: 10, right: 20, bottom: 10, left: 10 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                <XAxis type="number" dataKey="eixo_x" name="Ecto-Endo" domain={[-8, 8]} tick={{fontSize: 12}} />
-                <YAxis type="number" dataKey="eixo_y" name="Meso" domain={[-8, 8]} tick={{fontSize: 12}} />
-                <ZAxis type="category" dataKey="nome_avaliacao" name="Etapa" />
-                <Tooltip cursor={{strokeDasharray: '3 3'}} contentStyle={{ borderRadius: '8px' }} />
-                <ReferenceLine y={0} stroke="#9ca3af" strokeWidth={2} />
-                <ReferenceLine x={0} stroke="#9ca3af" strokeWidth={2} />
-                <Scatter name="Evolução" data={historico} fill="#059669" line={{stroke: '#10b981', strokeWidth: 2}} shape="circle" />
-                {historico.length > 0 && (
-                  <ReferenceDot x={historico[historico.length - 1].eixo_x} y={historico[historico.length - 1].eixo_y} r={6} fill="#ef4444" stroke="#fff" strokeWidth={2} />
-                )}
-              </ScatterChart>
-            </ResponsiveContainer>
+        {/* Somatocarta Customizada (Fiel ao Anexo) */}
+        <div className="bg-white p-6 rounded-xl border border-gray-100 shadow-sm flex flex-col items-center">
+          <h3 className="text-sm font-black text-gray-800 uppercase tracking-wider w-full text-left mb-6">Trajetória do Somatotipo</h3>
+          
+          <div className="relative w-full max-w-[300px] aspect-square bg-[#f8fafc] rounded-lg border border-gray-200 overflow-hidden mt-2">
+            
+            {/* Eixos Tracejados Centrais */}
+            <div className="absolute inset-y-0 left-1/2 w-px border-l border-dashed border-gray-300"></div>
+            <div className="absolute inset-x-0 top-1/2 h-px border-t border-dashed border-gray-300"></div>
+
+            {/* Triângulo SVG Exato */}
+            <svg className="absolute inset-0 w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none">
+              {/* O topo (Mesomorfia) fica em x=50, y=10. Endomorfia fica em x=15, y=85. Ectomorfia fica em x=85, y=85 */}
+              <polygon points="50,15 15,85 85,85" fill="none" stroke="#94a3b8" strokeWidth="1" vectorEffect="non-scaling-stroke" />
+            </svg>
+
+            {/* Labels nas Pontas */}
+            <span className="absolute top-4 left-1/2 -translate-x-1/2 text-[9px] font-black text-blue-600">MESOMORFIA</span>
+            <span className="absolute bottom-4 left-4 text-[9px] font-black text-orange-600">ENDOMORFIA</span>
+            <span className="absolute bottom-4 right-4 text-[9px] font-black text-emerald-600">ECTOMORFIA</span>
+
+            {/* Bolinhas das Avaliações */}
+            {historico.map((av, idx) => {
+              // Mapeando Eixos Cartesianos Reais (-10 a 10) para Porcentagem na Div (0% a 100%)
+              const leftPos = ((av.eixo_x + 10) / 20) * 100;
+              const topPos = ((10 - av.eixo_y) / 20) * 100;
+              
+              // Limitar para não vazar da div
+              const safeLeft = Math.max(5, Math.min(95, leftPos));
+              const safeTop = Math.max(5, Math.min(95, topPos));
+
+              return (
+                <div 
+                  key={idx} 
+                  className="absolute w-4 h-4 rounded-full -ml-2 -mt-2 shadow-sm border-2 border-white transition-transform hover:scale-125 z-10" 
+                  style={{ left: `${safeLeft}%`, top: `${safeTop}%`, backgroundColor: av.cor }}
+                  title={`${av.nome_avaliacao} - X(${av.eixo_x}) Y(${av.eixo_y})`}
+                />
+              )
+            })}
+          </div>
+
+          {/* Legenda de Cores e Coordenadas */}
+          <div className="mt-6 w-full flex flex-wrap justify-center gap-3">
+            {historico.map((av, idx) => (
+              <div key={idx} className="flex items-center gap-1.5 text-xs text-gray-600 font-medium bg-gray-50 px-2 py-1 rounded-md border border-gray-100">
+                <div className="w-3 h-3 rounded-full" style={{ backgroundColor: av.cor }}></div>
+                {av.nome_avaliacao}
+              </div>
+            ))}
+          </div>
+          <div className="mt-4 text-xs font-bold text-gray-500 text-center">
+            Última Coordenada: X ({historico[historico.length - 1].eixo_x}) | Y ({historico[historico.length - 1].eixo_y})
           </div>
         </div>
-
       </div>
+
+      {/* BLOCO 3: Dobras Cutâneas e Somatórios */}
+      <div>
+        <div className="flex items-center gap-2 mb-4 px-2">
+          <div className="w-8 h-8 rounded-full bg-orange-50 text-orange-600 flex items-center justify-center">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
+          </div>
+          <h3 className="text-lg font-black text-gray-800">Dobras Cutâneas e Somatórios</h3>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <CardEvolucao titulo="Somatório 6 Dobras" chaveDado="soma_6" unidade="mm" isInverso={true} />
+          <CardEvolucao titulo="Somatório 8 Dobras" chaveDado="soma_8" unidade="mm" isInverso={true} />
+          <CardEvolucao titulo="Tríceps" chaveDado="triceps" unidade="mm" isInverso={true} />
+          <CardEvolucao titulo="Subescapular" chaveDado="subescapular" unidade="mm" isInverso={true} />
+          <CardEvolucao titulo="Bíceps" chaveDado="biceps" unidade="mm" isInverso={true} />
+          <CardEvolucao titulo="Crista Ilíaca" chaveDado="crista_iliaca" unidade="mm" isInverso={true} />
+          <CardEvolucao titulo="Supraespinhal" chaveDado="supraespinhal" unidade="mm" isInverso={true} />
+          <CardEvolucao titulo="Abdominal" chaveDado="abdominal" unidade="mm" isInverso={true} />
+          <CardEvolucao titulo="Coxa Média" chaveDado="coxa" unidade="mm" isInverso={true} />
+          <CardEvolucao titulo="Panturrilha" chaveDado="panturrilha" unidade="mm" isInverso={true} />
+        </div>
+      </div>
+
+      {/* BLOCO 4: Relações e Índices de Risco */}
+      <div>
+        <div className="flex items-center gap-2 mb-4 px-2">
+          <div className="w-8 h-8 rounded-full bg-purple-50 text-purple-600 flex items-center justify-center">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"></path></svg>
+          </div>
+          <h3 className="text-lg font-black text-gray-800">Risco Cardiometabólico</h3>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <CardEvolucao titulo="Circunferência Cintura" chaveDado="cintura" unidade="cm" isInverso={true} />
+          <CardEvolucao titulo="Cintura / Estatura" chaveDado="cintura_estatura" isInverso={true} />
+          <CardEvolucao titulo="Cintura / Quadril (RCQ)" chaveDado="cintura_quadril" isInverso={true} />
+          <CardEvolucao titulo="Área Visceral (apVAT)" chaveDado="apvat" isInverso={true} />
+          <CardEvolucao titulo="Índice Adiposo Muscular" chaveDado="iam" isInverso={true} />
+          <CardEvolucao titulo="Índice Massa Óssea (IMO)" chaveDado="imo" isInverso={false} />
+        </div>
+      </div>
+
     </div>
   )
 }
