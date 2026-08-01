@@ -19,6 +19,7 @@ export default function Login({ onLoginSuccess }) {
 
     try {
       if (isSignUp) {
+        // 1. Criar usuário no Supabase Auth
         const { data: authData, error: authError } = await supabase.auth.signUp({
           email,
           password,
@@ -26,20 +27,26 @@ export default function Login({ onLoginSuccess }) {
 
         if (authError) throw authError
 
+        // 2. Criar a linha do avaliador já vinculando o auth_id e definindo o plano_status inicial
         if (authData?.user) {
           const { error: dbError } = await supabase.from('avaliadores').insert([
             {
+              auth_id: authData.user.id, // 👈 VÍNCULO FUNDAMENTAL
               email: email,
               nome_completo: nome,
               crn_numep: crnNumep,
+              plano_status: 'gratis',   // 👈 STATUS INICIAL DEFINIDO
             },
           ])
 
-          if (dbError) console.error('Erro ao registrar detalhes do avaliador:', dbError)
+          if (dbError) {
+            console.error('Erro ao registrar detalhes do avaliador:', dbError.message)
+          }
         }
 
         setInfoMsg('Cadastro realizado com sucesso! Verifique seu e-mail para confirmar ou faça login.')
       } else {
+        // MODO LOGIN
         const { data, error } = await supabase.auth.signInWithPassword({
           email,
           password,
@@ -48,6 +55,24 @@ export default function Login({ onLoginSuccess }) {
         if (error) throw error
 
         if (data?.user) {
+          // 🛡️ FALLBACK DE SEGURANÇA: Garante que a linha na tabela 'avaliadores' existe
+          const { data: avalExistente } = await supabase
+            .from('avaliadores')
+            .select('id')
+            .eq('auth_id', data.user.id)
+            .maybeSingle()
+
+          if (!avalExistente) {
+            // Se o usuário existia no Auth mas ainda não tinha linha em 'avaliadores'
+            await supabase.from('avaliadores').insert([
+              {
+                auth_id: data.user.id,
+                email: data.user.email,
+                plano_status: 'gratis',
+              },
+            ])
+          }
+
           if (onLoginSuccess) onLoginSuccess(data.user)
         }
       }
