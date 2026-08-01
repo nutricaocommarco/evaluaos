@@ -264,10 +264,26 @@ export default function ResultadoAvaliacao() {
   if (!dados) return <div className="p-8 text-center text-red-500">Não foi possível carregar os resultados desta avaliação.</div>
 
   // Helper de Trava de Visibilidade
-  const podeExibir = (chave) => {
-    if (!configVisibilidade) return true;
+  // Substitua o helper podeExibir nas duas telas por esta implementação inteligente:
+const podeExibir = (chave) => {
+  if (!configVisibilidade) return true;
+
+  const idPaciente = pacienteLocal?.id || pac?.id;
+
+  // 1. Checa se existe regra individual para ESTE paciente
+  if (idPaciente && configVisibilidade.pacientes?.[idPaciente]?.[chave] !== undefined) {
+    return configVisibilidade.pacientes[idPaciente][chave];
+  }
+
+  // 2. Se não tem regra do paciente, usa a regra GLOBAL
+  if (configVisibilidade[chave] !== undefined) {
     return configVisibilidade[chave] !== false;
   }
+
+  // 3. Se nada foi configurado ainda, exibe por padrão
+  return true;
+}
+
 
   const aval = dados.avaliacoes || {}
   const pac = dados.pacientes || {}
