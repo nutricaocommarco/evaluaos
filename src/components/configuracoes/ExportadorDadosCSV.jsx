@@ -1,22 +1,13 @@
 import React, { useState } from 'react'
 import { supabase } from '../../supabaseClient'
-import { useAuth } from '../../../context/AuthContext'
 import { useNavigate } from 'react-router-dom'
 
 export default function ExportadorDadosCSV() {
   const [exportando, setExportando] = useState(false)
   const [modalUpgradeAberto, setModalUpgradeAberto] = useState(false)
-  
-  const { planoStatus } = useAuth()
   const navigate = useNavigate()
 
   const exportarBackupCompletoCSV = async () => {
-    // 🔒 TRAVA PLANO PRO: Se não for 'pro', abre o modal de upgrade e cancela a exportação
-    if (planoStatus !== 'pro') {
-      setModalUpgradeAberto(true)
-      return
-    }
-
     setExportando(true)
     try {
       // 1. Pega o usuário logado atual
@@ -26,7 +17,21 @@ export default function ExportadorDadosCSV() {
       }
       const userId = authData.user.id
 
-      // 2. Consulta unificada trazendo todas as colunas das 3 tabelas
+      // 2. Consulta o status do plano na tabela 'avaliadores'
+      const { data: avaliadorData, error: avaliadorError } = await supabase
+        .from('avaliadores')
+        .select('plano_status')
+        .eq('id', userId) // ou 'user_id', conforme sua chave primária
+        .single()
+
+      // 🔒 TRAVA PLANO PRO: Se não for 'pro', bloqueia a exportação e exibe o modal
+      if (avaliadorError || avaliadorData?.plano_status !== 'pro') {
+        setExportando(false)
+        setModalUpgradeAberto(true)
+        return
+      }
+
+      // 3. Consulta unificada trazendo todas as colunas das 3 tabelas
       const { data, error } = await supabase
         .from('avaliacoes')
         .select(`
@@ -45,7 +50,7 @@ export default function ExportadorDadosCSV() {
         return
       }
 
-      // 3. Cabeçalhos abrangendo Paciente, Avaliação e Dados Calculados
+      // 4. Cabeçalhos abrangendo Paciente, Avaliação e Dados Calculados
       const cabecalhos = [
         // Paciente
         'ID Paciente', 'Nome Completo', 'Data Nascimento', 'Sexo', 'Email', 'Telefone', 'Etnia', 'Nacionalidade', 'Pratica Esporte', 'Modalidade Esportiva', 'Nível Prática', 'Ocupação', 'Observações Paciente',
@@ -181,11 +186,9 @@ export default function ExportadorDadosCSV() {
           <div>
             <div className="flex items-center gap-2">
               <span className="text-xs font-bold text-gray-800 block">Exportar Backup Completo (Meus Dados)</span>
-              {planoStatus !== 'pro' && (
-                <span className="px-2 py-0.5 bg-amber-100 text-amber-800 text-[10px] font-bold rounded-full uppercase">
-                  Exclusivo Pro
-                </span>
-              )}
+              <span className="px-2 py-0.5 bg-amber-100 text-amber-800 text-[10px] font-bold rounded-full uppercase">
+                Exclusivo Pro
+              </span>
             </div>
             <span className="text-[11px] text-gray-400 block">Arquivo CSV estruturado para Excel, Google Planilhas e análises avançadas</span>
           </div>
@@ -196,7 +199,7 @@ export default function ExportadorDadosCSV() {
           disabled={exportando}
           className="px-4 py-2.5 bg-gray-800 text-white rounded-lg text-xs font-semibold hover:bg-gray-900 disabled:opacity-50 transition-colors shadow-sm flex items-center gap-2 whitespace-nowrap"
         >
-          {exportando ? 'Gerando Backup...' : 'Baixar Backup Completo (CSV)'}
+          {exportando ? 'Verificando permissão...' : 'Baixar Backup Completo (CSV)'}
         </button>
       </div>
 
@@ -211,7 +214,7 @@ export default function ExportadorDadosCSV() {
             <div>
               <h3 className="text-lg font-bold text-gray-900">Recurso Exclusivo do Plano Pro</h3>
               <p className="text-xs text-gray-500 mt-2 leading-relaxed">
-                A exportação completa de backups em CSV e planilhas é uma funcionalidade avançada reservada aos assinantes do **Plano Pro**.
+                A exportação completa de backups em CSV é uma funcionalidade avançada reservada aos assinantes do **Plano Pro**.
               </p>
             </div>
 
