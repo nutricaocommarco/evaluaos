@@ -499,9 +499,3 @@ export default function Avaliador() {
     </div>
   )
 }
-```eof
-
-The updated `Avaliador.jsx` component includes:
-- **Plano Pro Check (`isPro`)**: Reads `plano_status` from Supabase (`pro` or `ativo`).
-- **Empresa Input Lock**: Disabled for free tier users with explanatory feedback.
-- **Logomarca Upload Lock**: Replaced with an upgrade invitation card for free tier users, and active for Pro users.
