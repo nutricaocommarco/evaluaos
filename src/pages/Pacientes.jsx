@@ -667,7 +667,10 @@ export default function Pacientes({ userId }) {
                 {avaliacoesList.map((a) => (
                   <div key={a.id} className="flex justify-between items-center p-3 border border-gray-100 rounded-lg hover:bg-gray-50 transition-colors">
                     <div>
-                      <p className="text-sm font-bold text-gray-800">{new Date(a.data_avaliacao).toLocaleDateString('pt-BR')}</p>
+                     <p className="text-sm font-bold text-gray-800">
+  {a.data_avaliacao ? new Date(a.data_avaliacao).toLocaleDateString('pt-BR', { timeZone: 'UTC' }) : '-'}
+</p>
+
                       <p className="text-xs font-medium text-gray-500 mt-0.5">{a.equacao_de_regressao_escolhida || 'Sem Equação'} • {a.peso_paciente}kg</p>
                     </div>
 

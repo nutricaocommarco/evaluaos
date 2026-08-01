@@ -217,7 +217,13 @@ useEffect(() => {
         if (calcData) setDadosCalculadosAntigos(calcData)
 
         if (avaliacaoData) {
-          setDataAvaliacao(avaliacaoData.data_avaliacao || new Date().toISOString().split('T')[0])
+          if (avaliacaoData.data_avaliacao) {
+  // Corta a string diretamente para pegar os primeiros 10 caracteres (YYYY-MM-DD) sem conversão de fuso
+  setDataAvaliacao(avaliacaoData.data_avaliacao.split('T')[0])
+} else {
+  setDataAvaliacao(new Date().toLocaleDateString('en-CA')) // Formato YYYY-MM-DD local seguro
+}
+
           setHoraAvaliacao(avaliacaoData.hora_avaliacao || '')
 
           const preencherEstado = (keys) => {
