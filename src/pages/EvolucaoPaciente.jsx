@@ -12,7 +12,7 @@ export default function EvolucaoPaciente() {
   const { tokenUrl } = useParams() // Pega o token se for link público
 
   const isPublicView = !!tokenUrl;
-  
+
   // Usa o paciente do state (se logado) ou null para buscar depois (se for link público)
   const [pacienteLocal, setPacienteLocal] = useState(location.state?.paciente || null)
 
@@ -20,7 +20,7 @@ export default function EvolucaoPaciente() {
   const [historico, setHistorico] = useState([])
   const [avaliador, setAvaliador] = useState(null)
   const [configVisibilidade, setConfigVisibilidade] = useState({})
-  
+
   // Cores padronizadas para as bolinhas da Somatocarta e Legendas
   const coresAvaliacoes = ['#10b981', '#3b82f6', '#f59e0b', '#ec4899', '#8b5cf6', '#ef4444', '#14b8a6', '#64748b']
 
@@ -50,7 +50,7 @@ export default function EvolucaoPaciente() {
         return;
       }
 
-    // 2. Busca do Avaliador e de Suas Configurações
+      // 2. Busca do Avaliador e de Suas Configurações
       let avalData = null;
 
       // A) Se usuário está logado no sistema
@@ -84,7 +84,7 @@ export default function EvolucaoPaciente() {
             .select('visibilidade_publica')
             .eq('auth_id', avalData.auth_id)
             .maybeSingle();
-          
+
           if (configData?.visibilidade_publica) {
             setConfigVisibilidade(configData.visibilidade_publica);
           } else {
@@ -93,7 +93,7 @@ export default function EvolucaoPaciente() {
         }
       }
 
-      // 3. Busca Avaliações
+      // 4. Busca Avaliações
       const { data: avaliacoes, error: errAvaliacoes } = await supabase
         .from('avaliacoes')
         .select('*')
@@ -106,7 +106,7 @@ export default function EvolucaoPaciente() {
         return
       }
 
-      // 4. Busca Cálculos
+      // 5. Busca Cálculos
       const { data: calculos, error: errCalc } = await supabase
         .from('dados_calculados')
         .select('*')
@@ -114,10 +114,10 @@ export default function EvolucaoPaciente() {
 
       if (errCalc) console.error(errCalc)
 
-      // 5. Mescla e Formata os Dados
+      // 6. Mescla e Formata os Dados
       const dadosMesclados = (avaliacoes || []).map((aval, index) => {
         const calc = calculos?.find(c => c.id_avaliacao === aval.id) || {}
-        
+
         return {
           id: aval.id,
           nome_avaliacao: `Av. ${index + 1}`,
@@ -125,7 +125,7 @@ export default function EvolucaoPaciente() {
           dataStr: new Date(aval.data_avaliacao).toLocaleDateString('pt-BR', { timeZone: 'UTC' }),
           cor: coresAvaliacoes[index % coresAvaliacoes.length],
           token_publico: aval.token_publico,
-          
+
           estatura: Number(aval.altura_paciente || 0),
           peso: Number(aval.peso_paciente || 0).toFixed(1),
           imc: Number(calc.imc || 0).toFixed(2),
@@ -133,7 +133,7 @@ export default function EvolucaoPaciente() {
           massa_gorda: Number(calc.massa_gorda || 0).toFixed(2),
           massa_magra: Number(calc.massa_magra || 0).toFixed(2),
           massa_muscular: Number(calc.massa_muscular || 0).toFixed(2),
-          
+
           braco_rel: Number(aval.perimetro_braco_relaxado || 0).toFixed(1),
           braco_cont: Number(aval.perimetro_braco_contraido || 0).toFixed(1),
           antibraco: Number(aval.perimetro_antibraco || 0).toFixed(1),
@@ -144,12 +144,17 @@ export default function EvolucaoPaciente() {
           coxa_med: Number(aval.perimetro_coxa_media || 0).toFixed(1),
           perim_panturrilha: Number(aval.perimetro_panturrilha || 0).toFixed(1),
 
+          // Perímetros Corrigidos por Dobras
+          perim_corrigido_braco: Number(calc.perimetro_corrigido_braco || 0).toFixed(1),
+          perim_corrigido_coxa: Number(calc.perimetro_corrigido_coxa || 0).toFixed(1),
+          perim_corrigido_panturrilha: Number(calc.perimetro_corrigido_panturrilha || 0).toFixed(1),
+
           cintura_estatura: Number(calc.relacao_cintura_estatura || 0).toFixed(2),
           cintura_quadril: Number(calc.relacao_cintura_quadril || 0).toFixed(2),
           imo: Number(calc.indice_massa_ossea_imo || 0).toFixed(2),
           apvat: Number(calc.area_previsao_visceral_apvat || 0).toFixed(2),
           iam: Number(calc.indice_adiposo_muscular || 0).toFixed(2),
-          
+
           triceps: Number(aval.dobra_cutanea_triceps || 0).toFixed(1),
           subescapular: Number(aval.dobra_cutanea_subescapular || 0).toFixed(1),
           biceps: Number(aval.dobra_cutanea_biceps || 0).toFixed(1),
@@ -158,10 +163,10 @@ export default function EvolucaoPaciente() {
           abdominal: Number(aval.dobra_cutanea_abdominal || 0).toFixed(1),
           coxa: Number(aval.dobra_cutanea_coxa_media || 0).toFixed(1),
           panturrilha: Number(aval.dobra_cutanea_panturrilha || 0).toFixed(1),
-          
+
           soma_6: Number(calc.somatorio_6_dobras || 0).toFixed(1),
           soma_8: Number(calc.somatorio_8_dobras || 0).toFixed(1),
-          
+
           endo: Number(calc.somatotipo_endomorfia || 0).toFixed(1),
           meso: Number(calc.somatotipo_mesomorfia || 0).toFixed(1),
           ecto: Number(calc.somatotipo_ectomorfia || 0).toFixed(1),
@@ -170,6 +175,14 @@ export default function EvolucaoPaciente() {
           grafico_gordura: Number(aval.percentual_de_gordura || 0),
           grafico_massa_muscular: Number(calc.massa_muscular || 0),
           grafico_massa_gorda: Number(calc.massa_gorda || 0),
+          grafico_cintura: Number(aval.perimetro_cintura || 0),
+          grafico_quadril: Number(aval.perimetro_quadril || 0),
+          grafico_braco_cont: Number(aval.perimetro_braco_contraido || 0),
+          grafico_soma_6: Number(calc.somatorio_6_dobras || 0),
+          grafico_soma_8: Number(calc.somatorio_8_dobras || 0),
+          grafico_perim_corr_braco: Number(calc.perimetro_corrigido_braco || 0),
+          grafico_perim_corr_coxa: Number(calc.perimetro_corrigido_coxa || 0),
+          grafico_perim_corr_panturrilha: Number(calc.perimetro_corrigido_panturrilha || 0),
           eixo_x: Number(calc.somatocarta_eixo_x || 0),
           eixo_y: Number(calc.somatocarta_eixo_y || 0)
         }
@@ -230,7 +243,7 @@ export default function EvolucaoPaciente() {
     }
     const primeiroNome = pacienteLocal?.nome_completo ? pacienteLocal.nome_completo.split(' ')[0] : 'Paciente';
     const saudacao = avaliador?.nome_completo ? avaliador.nome_completo : 'seu Avaliador';
-    
+
     const tokenPublico = pacienteLocal?.token_publico;
     const linkDaEvolucao = tokenPublico 
         ? `${window.location.origin}/evolucao/${tokenPublico}`
@@ -278,7 +291,7 @@ export default function EvolucaoPaciente() {
             </div>
           )}
         </div>
-        
+
         {isVertical ? (
           <div className="flex flex-col gap-2 w-full mt-2">
             {historico.map((av, idx) => {
@@ -336,7 +349,7 @@ export default function EvolucaoPaciente() {
   // COMPONENTE: Barras de Somatotipo Individuais
   const BarChartSomatotipo = () => {
     const maxVal = 12;
-    
+
     const renderBlocoBarras = (titulo, chaveDado, corBarra) => (
       <div className="flex flex-col gap-3 mb-6 last:mb-0">
         <h5 className="text-xs font-bold" style={{ color: corBarra }}>{titulo}</h5>
@@ -344,7 +357,7 @@ export default function EvolucaoPaciente() {
           {historico.map((av, idx) => {
             const val = Number(av[chaveDado]);
             const pct = Math.min((val / maxVal) * 100, 100);
-            
+
             return (
               <div key={idx} className="flex items-center gap-3">
                 <span className="w-8 text-[10px] font-bold text-right" style={{ color: av.cor }}>{av.nome_avaliacao}</span>
@@ -373,9 +386,12 @@ export default function EvolucaoPaciente() {
   const exibeBlocoPerimetros = podeExibir('evo_perim_braco_rel') || podeExibir('evo_perim_braco_cont') || podeExibir('evo_perim_antibraco') || podeExibir('evo_perim_cintura') || podeExibir('evo_perim_abdominal') || podeExibir('evo_perim_quadril') || podeExibir('evo_perim_coxa_max') || podeExibir('evo_perim_coxa_med') || podeExibir('evo_perim_panturrilha');
   const exibeBlocoIndices = podeExibir('evo_idx_cintura_estatura') || podeExibir('evo_idx_rcq') || podeExibir('evo_idx_apvat') || podeExibir('evo_idx_iam') || podeExibir('evo_idx_imo');
 
+  const exibeGraficoPerimetrosCriticos = podeExibir('evo_perim_cintura') || podeExibir('evo_perim_quadril') || podeExibir('evo_perim_braco_cont');
+  const exibeGraficoSomatorios = podeExibir('evo_soma_6') || podeExibir('evo_soma_8');
+
   return (
     <div className="w-full max-w-6xl mx-auto space-y-10 pb-12 px-4 sm:px-6 overflow-x-hidden animate-fade-in-up print:m-0 print:p-0 print:overflow-visible">
-      
+
       {/* CSS para Imprimir em PDF */}
       <style>{`
         @media print {
@@ -388,7 +404,7 @@ export default function EvolucaoPaciente() {
 
       {/* --- CABEÇALHO PROFISSIONAL --- */}
       <div className="bg-white p-5 sm:p-6 rounded-xl border border-gray-100 shadow-sm flex flex-col gap-6 w-full min-w-0 overflow-hidden">
-        
+
         {/* Topo: Avaliador, Logo e Botões */}
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center border-b border-gray-100 pb-4 gap-4 w-full">
           <div className="flex items-center gap-4">
@@ -424,7 +440,7 @@ export default function EvolucaoPaciente() {
           <h2 className="text-2xl sm:text-3xl font-black text-gray-900 uppercase tracking-tight break-words break-all sm:break-normal">
             {pacienteLocal?.nome_completo}
           </h2>
-          
+
           <div className="flex flex-wrap gap-x-6 gap-y-4 mt-5 bg-gray-50 p-4 rounded-xl border border-gray-100 w-full">
             <div className="flex flex-col gap-0.5">
               <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Idade</span>
@@ -531,7 +547,7 @@ export default function EvolucaoPaciente() {
           {podeExibir('evo_grafico_somatocarta') && (
             <div className="bg-white p-4 sm:p-6 rounded-xl border border-gray-100 shadow-sm flex flex-col items-center justify-between min-w-0 w-full overflow-hidden">
               <h3 className="text-sm font-black text-gray-800 uppercase tracking-wider w-full text-left mb-4">Trajetória do Somatotipo</h3>
-              
+
               <div className="relative w-full max-w-[280px] sm:max-w-[320px] aspect-square bg-[#f8fafc] rounded-lg border border-gray-200 overflow-hidden mt-2">
                 <div className="absolute inset-y-0 left-1/2 w-px border-l border-dashed border-gray-300"></div>
                 <div className="absolute inset-x-0 top-1/2 h-px border-t border-dashed border-gray-300"></div>
@@ -571,7 +587,7 @@ export default function EvolucaoPaciente() {
           )}
         </div>
       )}
-      
+
       {/* BARRAS DO SOMATOTIPO INDIVIDUAL */}
       {podeExibir('evo_grafico_barras_somatotipo') && (
         <div className="bg-white p-4 sm:p-6 rounded-xl border border-gray-100 shadow-sm flex flex-col break-inside-avoid min-w-0 w-full overflow-hidden">
@@ -582,13 +598,14 @@ export default function EvolucaoPaciente() {
 
       {/* BLOCO 3: Circunferências / Perímetros */}
       {exibeBlocoPerimetros && (
-        <div className="break-inside-avoid w-full">
+        <div className="break-inside-avoid w-full space-y-6">
           <div className="flex items-center gap-2 mb-4 px-1">
             <div className="w-8 h-8 rounded-full bg-rose-50 text-rose-600 flex items-center justify-center shrink-0">
               <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10z"></path><path d="M2 12h20"></path></svg>
             </div>
             <h3 className="text-lg font-black text-gray-800">Circunferências (Perímetros)</h3>
           </div>
+
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 w-full min-w-0">
             <CardEvolucao titulo="Braço Relaxado" chaveDado="braco_rel" unidade="cm" isInverso={false} chaveVisibilidade="evo_perim_braco_rel" />
             <CardEvolucao titulo="Braço Contraído" chaveDado="braco_cont" unidade="cm" isInverso={false} chaveVisibilidade="evo_perim_braco_cont" />
@@ -600,19 +617,79 @@ export default function EvolucaoPaciente() {
             <CardEvolucao titulo="Coxa Média" chaveDado="coxa_med" unidade="cm" isInverso={false} chaveVisibilidade="evo_perim_coxa_med" />
             <CardEvolucao titulo="Panturrilha" chaveDado="perim_panturrilha" unidade="cm" isInverso={false} chaveVisibilidade="evo_perim_panturrilha" />
           </div>
+
+          {/* 🚀 GRÁFICO 1 NOVO: Comparativo em Linhas para Perímetros Críticos (Cintura, Quadril e Braço Contraído) */}
+          {exibeGraficoPerimetrosCriticos && (
+            <div className="bg-white p-4 sm:p-6 rounded-xl border border-gray-100 shadow-sm flex flex-col min-w-0 w-full overflow-hidden">
+              <h3 className="text-sm font-black text-gray-800 uppercase tracking-wider mb-6">Comparativo de Perímetros Críticos (cm)</h3>
+              <div className="w-full h-[280px] relative">
+                <div className="absolute inset-0">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <LineChart data={historico} margin={{ top: 5, right: 10, bottom: 5, left: -20 }}>
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f3f4f6" />
+                      <XAxis dataKey="nome_avaliacao" tick={{fontSize: 12, fill: '#9ca3af'}} axisLine={false} tickLine={false} />
+                      <YAxis tick={{fontSize: 12, fill: '#9ca3af'}} axisLine={false} tickLine={false} domain={['auto', 'auto']} />
+                      <Tooltip contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} formatter={(val) => [`${val} cm`]} />
+                      <Legend iconType="circle" wrapperStyle={{ fontSize: '11px', paddingTop: '10px' }} />
+                      {podeExibir('evo_perim_cintura') && <Line type="monotone" name="Cintura" dataKey="grafico_cintura" stroke="#e11d48" strokeWidth={3} dot={{ r: 4 }} />}
+                      {podeExibir('evo_perim_quadril') && <Line type="monotone" name="Quadril" dataKey="grafico_quadril" stroke="#8b5cf6" strokeWidth={3} dot={{ r: 4 }} />}
+                      {podeExibir('evo_perim_braco_cont') && <Line type="monotone" name="Braço Contraído" dataKey="grafico_braco_cont" stroke="#3b82f6" strokeWidth={3} dot={{ r: 4 }} />}
+                    </LineChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* SUBSEÇÃO: Perímetros Corrigidos por Dobras Cutâneas */}
+          {(podeExibir('evo_perim_braco_rel') || podeExibir('evo_perim_coxa_med') || podeExibir('evo_perim_panturrilha')) && (
+            <div className="pt-4 space-y-4 border-t border-gray-100">
+              <div className="flex items-center gap-2">
+                <span className="text-base">💪</span>
+                <h4 className="text-xs font-black text-gray-700 uppercase tracking-wider">Massa Muscular Regional (Perímetros Corrigidos por Dobras)</h4>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 w-full min-w-0">
+                <CardEvolucao titulo="Braço Corrigido" chaveDado="perim_corrigido_braco" unidade="cm" isInverso={false} chaveVisibilidade="evo_perim_braco_rel" />
+                <CardEvolucao titulo="Coxa Corrigida" chaveDado="perim_corrigido_coxa" unidade="cm" isInverso={false} chaveVisibilidade="evo_perim_coxa_med" />
+                <CardEvolucao titulo="Panturrilha Corrigida" chaveDado="perim_corrigido_panturrilha" unidade="cm" isInverso={false} chaveVisibilidade="evo_perim_panturrilha" />
+              </div>
+
+              {/* 🚀 GRÁFICO 3 NOVO: Evolução das Circunferências Corrigidas */}
+              <div className="bg-white p-4 sm:p-6 rounded-xl border border-gray-100 shadow-sm flex flex-col min-w-0 w-full overflow-hidden">
+                <h3 className="text-sm font-black text-gray-800 uppercase tracking-wider mb-6">Evolução do Perímetro Corrigido / Muscular (cm)</h3>
+                <div className="w-full h-[280px] relative">
+                  <div className="absolute inset-0">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <LineChart data={historico} margin={{ top: 5, right: 10, bottom: 5, left: -20 }}>
+                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f3f4f6" />
+                        <XAxis dataKey="nome_avaliacao" tick={{fontSize: 12, fill: '#9ca3af'}} axisLine={false} tickLine={false} />
+                        <YAxis tick={{fontSize: 12, fill: '#9ca3af'}} axisLine={false} tickLine={false} domain={['auto', 'auto']} />
+                        <Tooltip contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} formatter={(val) => [`${val} cm`]} />
+                        <Legend iconType="circle" wrapperStyle={{ fontSize: '11px', paddingTop: '10px' }} />
+                        {podeExibir('evo_perim_braco_rel') && <Line type="monotone" name="Braço Corrigido" dataKey="grafico_perim_corr_braco" stroke="#10b981" strokeWidth={3} dot={{ r: 4 }} />}
+                        {podeExibir('evo_perim_coxa_med') && <Line type="monotone" name="Coxa Corrigida" dataKey="grafico_perim_corr_coxa" stroke="#059669" strokeWidth={3} dot={{ r: 4 }} />}
+                        {podeExibir('evo_perim_panturrilha') && <Line type="monotone" name="Panturrilha Corrigida" dataKey="grafico_perim_corr_panturrilha" stroke="#047857" strokeWidth={3} dot={{ r: 4 }} />}
+                      </LineChart>
+                    </ResponsiveContainer>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       )}
 
       {/* BLOCO 4: Dobras Cutâneas e Somatórios */}
-      {(exibeBlocoDobras || podeExibir('evo_soma_6') || podeExibir('evo_soma_8')) && (
-        <div className="break-inside-avoid w-full">
+      {(exibeBlocoDobras || exibeGraficoSomatorios) && (
+        <div className="break-inside-avoid w-full space-y-6">
           <div className="flex items-center gap-2 mb-4 px-1">
             <div className="w-8 h-8 rounded-full bg-orange-50 text-orange-600 flex items-center justify-center shrink-0">
               <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
             </div>
             <h3 className="text-lg font-black text-gray-800">Dobras Cutâneas e Somatórios</h3>
           </div>
-          
+
           {exibeBlocoDobras && (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6 w-full min-w-0">
               <CardEvolucao titulo="Tríceps" chaveDado="triceps" unidade="mm" isInverso={true} chaveVisibilidade="evo_dobra_triceps" />
@@ -626,7 +703,7 @@ export default function EvolucaoPaciente() {
             </div>
           )}
 
-          {(podeExibir('evo_soma_6') || podeExibir('evo_soma_8')) && (
+          {exibeGraficoSomatorios && (
             <>
               <div className="flex items-center gap-4 my-8">
                 <div className="h-px bg-gray-200 flex-1"></div>
@@ -637,6 +714,26 @@ export default function EvolucaoPaciente() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 w-full min-w-0">
                 <CardEvolucao titulo="Somatório 6 Dobras" chaveDado="soma_6" unidade="mm" isInverso={true} chaveVisibilidade="evo_soma_6" />
                 <CardEvolucao titulo="Somatório 8 Dobras" chaveDado="soma_8" unidade="mm" isInverso={true} chaveVisibilidade="evo_soma_8" />
+              </div>
+
+              {/* 🚀 GRÁFICO 2 NOVO: Evolução do Somatório de Dobras (Σ 6 e Σ 8) */}
+              <div className="bg-white p-4 sm:p-6 rounded-xl border border-gray-100 shadow-sm flex flex-col min-w-0 w-full overflow-hidden">
+                <h3 className="text-sm font-black text-gray-800 uppercase tracking-wider mb-6">Evolução do Somatório de Dobras (mm)</h3>
+                <div className="w-full h-[280px] relative">
+                  <div className="absolute inset-0">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <LineChart data={historico} margin={{ top: 5, right: 10, bottom: 5, left: -20 }}>
+                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f3f4f6" />
+                        <XAxis dataKey="nome_avaliacao" tick={{fontSize: 12, fill: '#9ca3af'}} axisLine={false} tickLine={false} />
+                        <YAxis tick={{fontSize: 12, fill: '#9ca3af'}} axisLine={false} tickLine={false} domain={['auto', 'auto']} />
+                        <Tooltip contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} formatter={(val) => [`${val} mm`]} />
+                        <Legend iconType="circle" wrapperStyle={{ fontSize: '11px', paddingTop: '10px' }} />
+                        {podeExibir('evo_soma_6') && <Line type="monotone" name="Σ 6 Dobras" dataKey="grafico_soma_6" stroke="#f59e0b" strokeWidth={3} dot={{ r: 4 }} />}
+                        {podeExibir('evo_soma_8') && <Line type="monotone" name="Σ 8 Dobras" dataKey="grafico_soma_8" stroke="#d97706" strokeWidth={3} dot={{ r: 4 }} />}
+                      </LineChart>
+                    </ResponsiveContainer>
+                  </div>
+                </div>
               </div>
             </>
           )}
@@ -661,7 +758,7 @@ export default function EvolucaoPaciente() {
           </div>
         </div>
       )}
-          
+
       <div className="flex justify-end gap-2 w-full mt-6 no-print">
         <BotaoExportarEvolucaoPDF 
             historico={historico} 
