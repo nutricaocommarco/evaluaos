@@ -758,11 +758,38 @@ export default function Pacientes({ userId }) {
                       <p className="text-xs font-medium text-gray-500 mt-0.5">{a.equacao_de_regressao_escolhida || 'Sem Equação'} • {a.peso_paciente}kg</p>
                     </div>
 
-                    <div className="flex gap-2 items-center">
-                      <button onClick={() => navigate('/nova-avaliacao', { state: { paciente: historicoPaciente, avaliacaoIdParaEditar: a.id } })} className="p-1.5 text-blue-500 hover:bg-blue-100 rounded">Editar</button>
-                      <button onClick={() => handleDeleteAvaliacao(a.id)} className="p-1.5 text-red-500 hover:bg-red-100 rounded">Excluir</button>
-                      <button onClick={() => navigate('/laudo-antropometrico', { state: { avaliacaoId: a.id } })} className="px-3 py-1.5 bg-emerald-600 text-white rounded-md text-xs font-semibold">Laudo</button>
-                    </div>
+<div className="flex gap-2 items-center">
+  {/* Ícone do Lápis */}
+  <button
+    onClick={() => navigate('/nova-avaliacao', { state: { paciente: historicoPaciente, avaliacaoIdParaEditar: a.id } })}
+    className="p-1.5 text-blue-500 hover:bg-blue-100 rounded transition-colors"
+    title="Editar Avaliação"
+  >
+    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"></path>
+    </svg>
+  </button>
+
+  {/* Ícone da Lixeira */}
+  <button 
+    onClick={() => handleDeleteAvaliacao(a.id)} 
+    className="p-1.5 text-red-500 hover:bg-red-100 rounded transition-colors" 
+    title="Excluir Avaliação"
+  >
+    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <polyline points="3 6 5 6 21 6"></polyline>
+      <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+    </svg>
+  </button>
+
+  {/* Botão de Laudo */}
+  <button
+    onClick={() => navigate('/laudo-antropometrico', { state: { avaliacaoId: a.id } })}
+    className="px-3 py-1.5 bg-emerald-600 text-white rounded-md text-xs font-semibold hover:bg-emerald-700 shadow-sm transition-colors ml-1"
+  >
+    Laudo
+  </button>
+</div>
                   </div>
                 ))}
               </div>
