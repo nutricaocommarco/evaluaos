@@ -9,7 +9,7 @@ const calcularSomatotipo = (medidas) => {
   const subescapular = medidas.dobra_cutanea_subescapular || 0;
   const supraespinhal = medidas.dobra_cutanea_supraespinhal || 0;
   const panturrilha_dobra = medidas.dobra_cutanea_panturrilha || 0;
-  
+
   const altura = medidas.altura_paciente || 0;
   const diam_umero = medidas.diametro_umero || 0;
   const diam_femur = medidas.diametro_femur || 0;
@@ -64,7 +64,7 @@ export default function ResultadoAvaliacao() {
 
   const [loading, setLoading] = useState(true)
   const [dados, setDados] = useState(null)
-  
+
   const [nomeEmpresa, setNomeEmpresa] = useState('')
   const [nomeAvaliador, setNomeAvaliador] = useState('')
   const [logomarcaUrl, setLogomarcaUrl] = useState('')
@@ -82,11 +82,11 @@ export default function ResultadoAvaliacao() {
       </div>
     )
   }
-  
+
   useEffect(() => {
     async function processarERecarregarResultados() {
       setLoading(true)
-      
+
       let query = supabase.from('avaliacoes').select(`*, pacientes ( * )`);
 
       if (tokenUrl) {
@@ -106,7 +106,6 @@ export default function ResultadoAvaliacao() {
       setTokenPublico(avalDados.token_publico || '')
       const pac = avalDados.pacientes || {}
 
-      // BUSCA DINÂMICA DO AVALIADOR E SUAS CONFIGURAÇÕES DE PRIVACIDADE
       let avalData = null;
       if (pac.id_avaliador) {
         const { data } = await supabase
@@ -140,7 +139,7 @@ export default function ResultadoAvaliacao() {
             .select('visibilidade_publica')
             .eq('auth_id', avalData.auth_id)
             .maybeSingle();
-          
+
           if (configData?.visibilidade_publica) {
             setConfigVisibilidade(configData.visibilidade_publica);
           }
@@ -198,7 +197,7 @@ export default function ResultadoAvaliacao() {
       const dAbd = avalDados.dobra_cutanea_abdominal || 0
       const dBic = avalDados.dobra_cutanea_biceps || 0
       const dIli = avalDados.dobra_cutanea_crista_iliaca || 0
-      
+
       const calcSoma6 = dTri + dSub + dSup + dAbd + dCoxa + dPant
       const calcSoma8 = calcSoma6 + dBic + dIli
 
@@ -253,7 +252,7 @@ export default function ResultadoAvaliacao() {
         avaliacoes: avalDados,
         pacientes: pac
       })
-      
+
       setLoading(false)
     }
 
@@ -263,14 +262,28 @@ export default function ResultadoAvaliacao() {
   if (loading) return <div className="p-8 text-center text-gray-500">Carregando e atualizando relatório...</div>
   if (!dados) return <div className="p-8 text-center text-red-500">Não foi possível carregar os resultados desta avaliação.</div>
 
-  // Helper de Trava de Visibilidade
-  const podeExibir = (chave) => {
-    if (!configVisibilidade) return true;
-    return configVisibilidade[chave] !== false;
-  }
-
   const aval = dados.avaliacoes || {}
   const pac = dados.pacientes || {}
+
+  // 🛡️ HELPER DE TRAVA DE VISIBILIDADE HIERÁRQUICO
+  const podeExibir = (chave) => {
+    if (!configVisibilidade) return true;
+
+    const idPaciente = pac?.id;
+
+    // 1. Regra Individual do Paciente
+    if (idPaciente && configVisibilidade.pacientes?.[idPaciente]?.[chave] !== undefined) {
+      return configVisibilidade.pacientes[idPaciente][chave];
+    }
+
+    // 2. Regra Global
+    if (configVisibilidade[chave] !== undefined) {
+      return configVisibilidade[chave] !== false;
+    }
+
+    // 3. Padrão True
+    return true;
+  }
 
   let idade = 0
   if (pac.data_nascimento) {
@@ -330,7 +343,7 @@ export default function ResultadoAvaliacao() {
 
   return (
     <div className={`space-y-6 pb-10 ${isPublicView ? 'max-w-4xl mx-auto p-4 sm:p-6' : ''}`}>
-      
+
       {/* TOPO E CABEÇALHO */}
       <div className="bg-white p-5 rounded-xl border border-gray-100 shadow-sm relative">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 border-b border-gray-100 pb-4">
@@ -347,7 +360,7 @@ export default function ResultadoAvaliacao() {
               <p className="text-xs text-gray-500">Avaliador(a): <span className="font-semibold text-gray-700">{nomeAvaliador || '-'}</span></p>
             </div>
           </div>
-          
+
           <div className="flex flex-col items-end mt-4 sm:mt-0">
             <span className="text-[10px] text-gray-400 font-medium tracking-wide">
               Gerado via <span className="font-bold text-emerald-600">EvaluaOS</span>
@@ -364,7 +377,7 @@ export default function ResultadoAvaliacao() {
           <h2 className="text-2xl font-black text-gray-800">Laudo Antropométrico</h2>
           <p className="text-lg font-medium text-gray-500 mt-1">{pac.nome_completo}</p>
         </div>
-        
+
         <div className="mt-4 flex flex-col md:flex-row gap-4">
           <div className="flex-1 bg-gray-50 p-4 rounded-lg border border-gray-100">
             <p className="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-2">Sobre a Avaliação</p>
@@ -665,7 +678,7 @@ export default function ResultadoAvaliacao() {
                 </div>
               </div>
             )}
-            
+
             {[
               'Área de Previsão Visceral (APVAT)', 
               'Gordura (Escala Morrow)', 
@@ -677,7 +690,7 @@ export default function ResultadoAvaliacao() {
               </div>
             ))}
           </div>
-          
+
           {dados && (
             <BotaoExportarPDF 
               dados={dados} 
