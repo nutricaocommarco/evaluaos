@@ -1,13 +1,12 @@
 import React, { useState, useEffect } from 'react'
-import { supabase } from '../supabaseClient'
+import { supabase } from '../../supabaseClient'
 
 export default function VisibilidadePublicaForm({ config, setConfig, onSave, saving }) {
   const [pacientes, setPacientes] = useState([])
-  const [pacienteSelecionado, setPacienteSelecionado] = useState('global') // 'global' ou id_paciente
+  const [pacienteSelecionado, setPacienteSelecionado] = useState('global')
   const [searchTerm, setSearchTerm] = useState('')
   const [loadingPacientes, setLoadingPacientes] = useState(false)
 
-  // Carrega lista de pacientes para o dropdown de busca
   useEffect(() => {
     async function carregarPacientes() {
       setLoadingPacientes(true)
@@ -24,18 +23,15 @@ export default function VisibilidadePublicaForm({ config, setConfig, onSave, sav
 
   const vis = config.visibilidade_publica || {}
 
-  // Helper para ler o estado do checkbox considerando se é Global ou Paciente Específico
   const getIsChecked = (chave) => {
     if (pacienteSelecionado === 'global') {
       return vis[chave] !== false
     }
-    // Se selecionou paciente específico, checa se tem regra específica. Se não tiver, herda da Global.
     const regraPaciente = vis.pacientes?.[pacienteSelecionado]?.[chave]
     if (regraPaciente !== undefined) return regraPaciente
     return vis[chave] !== false
   }
 
-  // Alterna o checkbox no nível atual (Global ou Paciente Específico)
   const handleToggle = (chave) => {
     const valorAtual = getIsChecked(chave)
     const novoValor = !valorAtual
@@ -72,7 +68,6 @@ export default function VisibilidadePublicaForm({ config, setConfig, onSave, sav
     })
   }
 
-  // Marcar/Desmarcar todos do grupo no nível selecionado
   const handleToggleGrupo = (chaves, ativar) => {
     setConfig(prev => {
       const visAtual = prev.visibilidade_publica || {}
@@ -100,7 +95,6 @@ export default function VisibilidadePublicaForm({ config, setConfig, onSave, sav
     })
   }
 
-  // Limpa regras personalizadas do paciente selecionado para ele voltar a seguir 100% a Global
   const handleResetarPaciente = () => {
     if (pacienteSelecionado === 'global') return
     setConfig(prev => {
@@ -118,7 +112,6 @@ export default function VisibilidadePublicaForm({ config, setConfig, onSave, sav
     })
   }
 
-  // --- GRUPOS DA EVOLUÇÃO ---
   const gruposEvolucao = [
     {
       titulo: 'Composição Corporal & Indicadores',
@@ -181,7 +174,6 @@ export default function VisibilidadePublicaForm({ config, setConfig, onSave, sav
     }
   ]
 
-  // --- GRUPOS DO LAUDO ---
   const gruposLaudo = [
     {
       titulo: 'Medidas Básicas',
@@ -319,7 +311,7 @@ export default function VisibilidadePublicaForm({ config, setConfig, onSave, sav
                 <input
                   type="checkbox"
                   checked={isChecked}
-                  onChange={() => {}} // Tratado no onClick da label
+                  onChange={() => {}}
                   className="w-4 h-4 text-emerald-600 rounded border-gray-300 focus:ring-emerald-500 shrink-0"
                 />
               </label>
@@ -341,7 +333,6 @@ export default function VisibilidadePublicaForm({ config, setConfig, onSave, sav
         </p>
       </div>
 
-      {/* --- CAIXA DE SELEÇÃO E PESQUISA DO PACIENTE --- */}
       <div className="bg-emerald-50/60 p-4 rounded-xl border border-emerald-100 space-y-3">
         <label className="block text-xs font-bold text-emerald-900 uppercase tracking-wider">
           Configurar Regra de Visibilidade Para:
@@ -361,7 +352,6 @@ export default function VisibilidadePublicaForm({ config, setConfig, onSave, sav
             ))}
           </select>
 
-          {/* Campo Filtro rápido */}
           <input
             type="text"
             placeholder="Filtrar paciente..."
@@ -371,7 +361,6 @@ export default function VisibilidadePublicaForm({ config, setConfig, onSave, sav
           />
         </div>
 
-        {/* STATUS DO NÍVEL SELECIONADO */}
         <div className="flex justify-between items-center pt-1">
           {pacienteSelecionado === 'global' ? (
             <span className="text-[11px] font-bold text-emerald-800 flex items-center gap-1">
@@ -397,7 +386,6 @@ export default function VisibilidadePublicaForm({ config, setConfig, onSave, sav
         </div>
       </div>
 
-      {/* SEÇÃO 1: EVOLUÇÃO PACIENTE */}
       <div className="space-y-4">
         <div className="flex items-center gap-2 border-b border-gray-200 pb-2">
           <span className="text-lg">📈</span>
@@ -410,7 +398,6 @@ export default function VisibilidadePublicaForm({ config, setConfig, onSave, sav
         </div>
       </div>
 
-      {/* SEÇÃO 2: RESULTADO DA AVALIAÇÃO / LAUDO */}
       <div className="space-y-4 pt-4 border-t border-gray-200">
         <div className="flex items-center gap-2 border-b border-gray-200 pb-2">
           <span className="text-lg">📋</span>
