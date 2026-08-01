@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
 import { supabase } from '../../supabaseClient'
-import { useAuth } from '../../context/AuthContext' // Importa a autenticação/status do plano
+import { useAuth } from '../../../context/AuthContext'
 import { useNavigate } from 'react-router-dom'
 
 export default function ExportadorDadosCSV() {
