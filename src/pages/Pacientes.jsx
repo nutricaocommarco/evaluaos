@@ -718,7 +718,7 @@ export default function Pacientes({ userId }) {
 
             <div className="pt-2 space-y-2">
               <button
-                onClick={() => navigate('/configuracoes?aba=plano')}
+                onClick={() => navigate('/meu-plano')}
                 className="w-full py-3 bg-emerald-600 text-white font-bold text-sm rounded-xl hover:bg-emerald-700 shadow-md transition-colors"
               >
                 Conhecer o Plano Pro (Apenas R$ 29,90/mês)

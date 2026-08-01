@@ -10,9 +10,12 @@ export default function MeuPlano() {
   // Estado do FAQ (Acordeão)
   const [faqOpen, setFaqOpen] = useState(null)
 
-  // Links do Checkout da Kiwify / Stripe (Substitua pelos seus links reais quando criar o produto)
+  // Links do Checkout da Kiwify / Stripe
   const LINK_CHECKOUT_MENSAL = "https://pay.kiwify.com.br/SEU_CHECKOUT_MENSAL"
   const LINK_CHECKOUT_ANUAL = "https://pay.kiwify.com.br/SEU_CHECKOUT_ANUAL"
+
+  // Número do WhatsApp de Suporte do EvaluaOS (Ajuste para o seu número)
+  const NUMERO_WHATSAPP_SUPORTE = "5521997704300"
 
   useEffect(() => {
     async function carregarDadosPlano() {
@@ -60,6 +63,17 @@ export default function MeuPlano() {
     }
     const finalUrl = `${baseUrl}?email=${encodeURIComponent(userEmail)}`
     window.open(finalUrl, '_blank')
+  }
+
+  // Ação de Cancelamento / Gerenciamento
+  const handleCancelarAssinatura = () => {
+    const confirmar = window.confirm(
+      "Deseja solicitar o cancelamento ou gerenciamento da sua assinatura Pro?\n\nVocê será redirecionado para o atendimento oficial no WhatsApp para concluir sua solicitação."
+    )
+    if (confirmar) {
+      const mensagem = encodeURIComponent(`Olá! Gostaria de gerenciar/cancelar minha assinatura do EvaluaOS Pro.\nE-mail cadastrado: ${userEmail}`)
+      window.open(`https://wa.me/${NUMERO_WHATSAPP_SUPORTE}?text=${mensagem}`, '_blank')
+    }
   }
 
   const toggleFaq = (index) => {
@@ -120,7 +134,7 @@ export default function MeuPlano() {
         </div>
 
         {/* BARRA DE PROGRESSO DO PLANO GRATUITO */}
-        {!isPro && (
+        {!isPro ? (
           <div className="space-y-2 bg-gray-50 p-4 rounded-xl border border-gray-100">
             <div className="flex justify-between items-center text-xs font-bold">
               <span className="text-gray-700">Uso de Pacientes Grátis</span>
@@ -144,10 +158,27 @@ export default function MeuPlano() {
               </p>
             )}
           </div>
+        ) : (
+          /* GERENCIAMENTO E CANCELAMENTO DA ASSINATURA PRO */
+          <div className="pt-2 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+            <div>
+              <span className="text-xs font-bold text-gray-700 block">Sua assinatura está ativa</span>
+              <p className="text-[11px] text-gray-400">
+                A renovação é automática. Você pode cancelar ou alterar seu plano a qualquer momento.
+              </p>
+            </div>
+
+            <button
+              onClick={handleCancelarAssinatura}
+              className="text-xs font-bold text-gray-500 hover:text-red-600 underline transition-colors shrink-0"
+            >
+              Cancelar ou Gerenciar Assinatura
+            </button>
+          </div>
         )}
       </div>
 
-      {/* 💳 CARDS DE OFERTA / TABELA DE PLANOS (EXIBE SE NÃO FOR PRO OU PARA TROCA) */}
+      {/* 💳 CARDS DE OFERTA / TABELA DE PLANOS */}
       <div className="space-y-4">
         <div className="text-center sm:text-left">
           <h3 className="text-lg font-bold text-gray-800">Escolha o Plano Ideal para Sua Consultoria</h3>
@@ -190,9 +221,8 @@ export default function MeuPlano() {
             </button>
           </div>
 
-          {/* PLANO ANUAL (O OGRO CAMPEÃO 🏆) */}
+          {/* PLANO ANUAL */}
           <div className="bg-white p-6 rounded-2xl border-2 border-emerald-500 shadow-lg flex flex-col justify-between space-y-6 relative overflow-hidden">
-            {/* TAG DESTAQUE */}
             <div className="absolute top-0 right-0 bg-emerald-500 text-white text-[10px] font-black uppercase px-3 py-1 rounded-bl-xl tracking-wider">
               🏆 Economize 30%
             </div>
@@ -235,7 +265,7 @@ export default function MeuPlano() {
         </div>
       </div>
 
-      {/* ❓ SEÇÃO DE FAQ (PERGUNTAS FREQUENTES) */}
+      {/* ❓ SEÇÃO DE FAQ */}
       <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm space-y-4">
         <h3 className="text-base font-bold text-gray-800 border-b border-gray-100 pb-3">
           Dúvidas Frequentes sobre a Assinatura
@@ -245,7 +275,7 @@ export default function MeuPlano() {
           {[
             {
               q: "Posso cancelar a assinatura quando quiser?",
-              a: "Sim, sem nenhuma burocracia ou taxa de cancelamento. Você pode cancelar a renovação da sua assinatura a qualquer momento diretamente no seu painel ou através do e-mail do gateway de pagamento."
+              a: "Sim, sem nenhuma burocracia ou taxa de cancelamento. Você pode solicitar o cancelamento a qualquer momento diretamente nesta página ou pelo atendimento do suporte."
             },
             {
               q: "O que acontece com os meus dados se eu voltar para o Plano Grátis?",

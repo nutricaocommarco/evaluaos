@@ -486,7 +486,7 @@ export default function Avaliador() {
               </div>
               <button
                 type="button"
-                onClick={() => navigate('/configuracoes?aba=plano')}
+                onClick={() => navigate('/meu-plano')}
                 className="px-4 py-2 bg-amber-600 text-white rounded-lg text-xs font-bold hover:bg-amber-700 shadow-sm shrink-0 transition-colors"
               >
                 Upgrade para Pro a partir de (R$ 29,90)
