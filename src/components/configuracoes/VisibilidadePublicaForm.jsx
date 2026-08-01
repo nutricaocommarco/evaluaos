@@ -1,33 +1,124 @@
-import React from 'react'
+import React, { useState, useEffect } from 'react'
+import { supabase } from '../supabaseClient'
 
 export default function VisibilidadePublicaForm({ config, setConfig, onSave, saving }) {
-  // Estado padrão: se for null/undefined, inicia tudo como true
+  const [pacientes, setPacientes] = useState([])
+  const [pacienteSelecionado, setPacienteSelecionado] = useState('global') // 'global' ou id_paciente
+  const [searchTerm, setSearchTerm] = useState('')
+  const [loadingPacientes, setLoadingPacientes] = useState(false)
+
+  // Carrega lista de pacientes para o dropdown de busca
+  useEffect(() => {
+    async function carregarPacientes() {
+      setLoadingPacientes(true)
+      const { data } = await supabase
+        .from('pacientes')
+        .select('id, nome_completo')
+        .order('nome_completo', { ascending: true })
+
+      if (data) setPacientes(data)
+      setLoadingPacientes(false)
+    }
+    carregarPacientes()
+  }, [])
+
   const vis = config.visibilidade_publica || {}
 
-  const handleToggle = (chave) => {
-    setConfig(prev => ({
-      ...prev,
-      visibilidade_publica: {
-        ...(prev.visibilidade_publica || {}),
-        [chave]: prev.visibilidade_publica?.[chave] === undefined ? false : !prev.visibilidade_publica[chave]
-      }
-    }))
+  // Helper para ler o estado do checkbox considerando se é Global ou Paciente Específico
+  const getIsChecked = (chave) => {
+    if (pacienteSelecionado === 'global') {
+      return vis[chave] !== false
+    }
+    // Se selecionou paciente específico, checa se tem regra específica. Se não tiver, herda da Global.
+    const regraPaciente = vis.pacientes?.[pacienteSelecionado]?.[chave]
+    if (regraPaciente !== undefined) return regraPaciente
+    return vis[chave] !== false
   }
 
-  const handleToggleGrupo = (chaves, ativar) => {
+  // Alterna o checkbox no nível atual (Global ou Paciente Específico)
+  const handleToggle = (chave) => {
+    const valorAtual = getIsChecked(chave)
+    const novoValor = !valorAtual
+
     setConfig(prev => {
-      const novavis = { ...(prev.visibilidade_publica || {}) }
-      chaves.forEach(k => {
-        novavis[k] = ativar
-      })
-      return {
-        ...prev,
-        visibilidade_publica: novavis
+      const visAtual = prev.visibilidade_publica || {}
+
+      if (pacienteSelecionado === 'global') {
+        return {
+          ...prev,
+          visibilidade_publica: {
+            ...visAtual,
+            [chave]: novoValor
+          }
+        }
+      } else {
+        const pacientesObj = visAtual.pacientes || {}
+        const pacienteAtualObj = pacientesObj[pacienteSelecionado] || {}
+
+        return {
+          ...prev,
+          visibilidade_publica: {
+            ...visAtual,
+            pacientes: {
+              ...pacientesObj,
+              [pacienteSelecionado]: {
+                ...pacienteAtualObj,
+                [chave]: novoValor
+              }
+            }
+          }
+        }
       }
     })
   }
 
-  // --- ESTRUTURA COMPLETA INDIVIDUALIZADA DA EVOLUÇÃO ---
+  // Marcar/Desmarcar todos do grupo no nível selecionado
+  const handleToggleGrupo = (chaves, ativar) => {
+    setConfig(prev => {
+      const visAtual = prev.visibilidade_publica || {}
+
+      if (pacienteSelecionado === 'global') {
+        const novavis = { ...visAtual }
+        chaves.forEach(k => { novavis[k] = ativar })
+        return { ...prev, visibilidade_publica: novavis }
+      } else {
+        const pacientesObj = visAtual.pacientes || {}
+        const pacienteAtualObj = { ...(pacientesObj[pacienteSelecionado] || {}) }
+        chaves.forEach(k => { pacienteAtualObj[k] = ativar })
+
+        return {
+          ...prev,
+          visibilidade_publica: {
+            ...visAtual,
+            pacientes: {
+              ...pacientesObj,
+              [pacienteSelecionado]: pacienteAtualObj
+            }
+          }
+        }
+      }
+    })
+  }
+
+  // Limpa regras personalizadas do paciente selecionado para ele voltar a seguir 100% a Global
+  const handleResetarPaciente = () => {
+    if (pacienteSelecionado === 'global') return
+    setConfig(prev => {
+      const visAtual = prev.visibilidade_publica || {}
+      const pacientesObj = { ...(visAtual.pacientes || {}) }
+      delete pacientesObj[pacienteSelecionado]
+
+      return {
+        ...prev,
+        visibilidade_publica: {
+          ...visAtual,
+          pacientes: pacientesObj
+        }
+      }
+    })
+  }
+
+  // --- GRUPOS DA EVOLUÇÃO ---
   const gruposEvolucao = [
     {
       titulo: 'Composição Corporal & Indicadores',
@@ -90,7 +181,7 @@ export default function VisibilidadePublicaForm({ config, setConfig, onSave, sav
     }
   ]
 
-  // --- ESTRUTURA COMPLETA INDIVIDUALIZADA DO LAUDO (RESULTADO) ---
+  // --- GRUPOS DO LAUDO ---
   const gruposLaudo = [
     {
       titulo: 'Medidas Básicas',
@@ -181,9 +272,15 @@ export default function VisibilidadePublicaForm({ config, setConfig, onSave, sav
     }
   ]
 
+  const pacientesFiltrados = pacientes.filter(p =>
+    p.nome_completo.toLowerCase().includes(searchTerm.toLowerCase())
+  )
+
+  const temRegraPersonalizada = pacienteSelecionado !== 'global' && vis.pacientes?.[pacienteSelecionado]
+
   const renderBlocoGrupo = (grupo) => {
     const listaChaves = grupo.chaves.map(item => item.key)
-    const todosAtivos = listaChaves.every(k => vis[k] !== false)
+    const todosAtivos = listaChaves.every(k => getIsChecked(k))
 
     return (
       <div key={grupo.titulo} className="bg-gray-50/50 p-4 rounded-xl border border-gray-100 space-y-3">
@@ -200,7 +297,9 @@ export default function VisibilidadePublicaForm({ config, setConfig, onSave, sav
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
           {grupo.chaves.map(opt => {
-            const isChecked = vis[opt.key] !== false
+            const isChecked = getIsChecked(opt.key)
+            const herdaGlobal = pacienteSelecionado !== 'global' && vis.pacientes?.[pacienteSelecionado]?.[opt.key] === undefined
+
             return (
               <label
                 key={opt.key}
@@ -211,7 +310,12 @@ export default function VisibilidadePublicaForm({ config, setConfig, onSave, sav
                     : 'bg-gray-100/50 border-gray-200 text-gray-400 opacity-60'
                 }`}
               >
-                <span className="text-xs font-semibold truncate pr-2">{opt.label}</span>
+                <div className="flex flex-col min-w-0 pr-2">
+                  <span className="text-xs font-semibold truncate">{opt.label}</span>
+                  {herdaGlobal && (
+                    <span className="text-[9px] text-gray-400 font-normal">(padrão global)</span>
+                  )}
+                </div>
                 <input
                   type="checkbox"
                   checked={isChecked}
@@ -226,12 +330,71 @@ export default function VisibilidadePublicaForm({ config, setConfig, onSave, sav
     )
   }
 
+  const nomePacienteAtual = pacientes.find(p => p.id === pacienteSelecionado)?.nome_completo
+
   return (
-    <div className="bg-white p-6 rounded-xl border border-gray-100 shadow-sm space-y-8">
+    <div className="bg-white p-6 rounded-xl border border-gray-100 shadow-sm space-y-6">
       <div>
-        <h3 className="text-sm font-bold text-gray-800 uppercase tracking-wider">Visibilidade e Exibição de Campos no Sistema & Laudos</h3>
+        <h3 className="text-sm font-bold text-gray-800 uppercase tracking-wider">Visibilidade e Exibição de Campos</h3>
         <p className="text-xs text-gray-500 mt-0.5">
-          Desmarque os itens que você deseja ocultar das telas do sistema (Evolução e Laudo Antropométrico), tanto no seu painel interno quanto nos links compartilhados via WhatsApp.        </p>
+          Configure a visibilidade padrão para **Todos os Pacientes** ou selecione um paciente específico para aplicar regras personalizadas.
+        </p>
+      </div>
+
+      {/* --- CAIXA DE SELEÇÃO E PESQUISA DO PACIENTE --- */}
+      <div className="bg-emerald-50/60 p-4 rounded-xl border border-emerald-100 space-y-3">
+        <label className="block text-xs font-bold text-emerald-900 uppercase tracking-wider">
+          Configurar Regra de Visibilidade Para:
+        </label>
+
+        <div className="flex flex-col sm:flex-row gap-3">
+          <select
+            value={pacienteSelecionado}
+            onChange={(e) => setPacienteSelecionado(e.target.value)}
+            className="flex-1 px-3 py-2 bg-white border border-gray-300 rounded-lg text-sm font-semibold text-gray-800 focus:ring-2 focus:ring-emerald-500 outline-none shadow-2xs"
+          >
+            <option value="global">🌐 Todos os Pacientes (Configuração Global)</option>
+            {pacientesFiltrados.map(p => (
+              <option key={p.id} value={p.id}>
+                👤 {p.nome_completo} {vis.pacientes?.[p.id] ? '⚡ (Regra Personalizada)' : ''}
+              </option>
+            ))}
+          </select>
+
+          {/* Campo Filtro rápido */}
+          <input
+            type="text"
+            placeholder="Filtrar paciente..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="sm:w-48 px-3 py-2 bg-white border border-gray-200 rounded-lg text-xs outline-none focus:border-emerald-500"
+          />
+        </div>
+
+        {/* STATUS DO NÍVEL SELECIONADO */}
+        <div className="flex justify-between items-center pt-1">
+          {pacienteSelecionado === 'global' ? (
+            <span className="text-[11px] font-bold text-emerald-800 flex items-center gap-1">
+              <span>🌐</span> Editando padrão global para todos os alunos.
+            </span>
+          ) : (
+            <div className="flex items-center justify-between w-full">
+              <span className="text-[11px] font-bold text-blue-800 flex items-center gap-1">
+                <span>👤</span> Editando exceção para: <span className="underline">{nomePacienteAtual}</span>
+              </span>
+              {temRegraPersonalizada && (
+                <button
+                  type="button"
+                  onClick={handleResetarPaciente}
+                  className="text-[10px] font-bold text-red-600 hover:text-red-800 bg-red-50 px-2 py-1 rounded border border-red-100 transition-colors"
+                  title="Remove exceções e volta a obedecer a regra Global"
+                >
+                  Restaurar para Padrão Global
+                </button>
+              )}
+            </div>
+          )}
+        </div>
       </div>
 
       {/* SEÇÃO 1: EVOLUÇÃO PACIENTE */}
@@ -239,7 +402,7 @@ export default function VisibilidadePublicaForm({ config, setConfig, onSave, sav
         <div className="flex items-center gap-2 border-b border-gray-200 pb-2">
           <span className="text-lg">📈</span>
           <h4 className="text-xs font-black text-emerald-800 uppercase tracking-wider">
-            1. PÁGINA DE EVOLUÇÃO 
+            1. PÁGINA DE EVOLUÇÃO
           </h4>
         </div>
         <div className="space-y-4">
@@ -252,7 +415,7 @@ export default function VisibilidadePublicaForm({ config, setConfig, onSave, sav
         <div className="flex items-center gap-2 border-b border-gray-200 pb-2">
           <span className="text-lg">📋</span>
           <h4 className="text-xs font-black text-emerald-800 uppercase tracking-wider">
-            2. LAUDO ANTROPOMÉTRICO 
+            2. LAUDO ANTROPOMÉTRICO
           </h4>
         </div>
         <div className="space-y-4">
@@ -266,7 +429,7 @@ export default function VisibilidadePublicaForm({ config, setConfig, onSave, sav
           disabled={saving}
           className="px-6 py-2.5 bg-emerald-600 text-white rounded-lg text-xs font-bold hover:bg-emerald-700 disabled:opacity-50 transition-colors shadow-sm"
         >
-          {saving ? 'Salvando...' : 'Salvar Preferências Individuais'}
+          {saving ? 'Salvando...' : 'Salvar Todas as Preferências'}
         </button>
       </div>
     </div>
