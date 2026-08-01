@@ -11,8 +11,8 @@ export default function MeuPlano() {
   const [faqOpen, setFaqOpen] = useState(null)
 
   // Links do Checkout da Kiwify / Stripe
-  const LINK_CHECKOUT_MENSAL = "https://pay.kiwify.com.br/SEU_CHECKOUT_MENSAL"
-  const LINK_CHECKOUT_ANUAL = "https://pay.kiwify.com.br/SEU_CHECKOUT_ANUAL"
+  const LINK_CHECKOUT_MENSAL = "https://pay.hotmart.com/R106982290A?off=jfqiilu6"
+  const LINK_CHECKOUT_ANUAL = "https://pay.hotmart.com/R106982290A?off=1xmn7a6b"
 
   // Número do WhatsApp de Suporte do EvaluaOS (Ajuste para o seu número)
   const NUMERO_WHATSAPP_SUPORTE = "5521997704300"
