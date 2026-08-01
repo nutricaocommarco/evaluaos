@@ -11,6 +11,7 @@ import ResultadoAvaliacao from './pages/ResultadoAvaliacao'
 import Avaliador from './pages/Avaliador'
 import EvolucaoPaciente from './pages/EvolucaoPaciente' 
 import Configuracoes from './pages/Configuracoes'
+import MeuPlano from './pages/MeuPlano'
 
 function MainApp() {
   const [session, setSession] = useState(null)
@@ -57,13 +58,17 @@ function MainApp() {
       icon: <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="20" x2="18" y2="10"></line><line x1="12" y1="20" x2="12" y2="4"></line><line x1="6" y1="20" x2="6" y2="14"></line></svg> 
     },
     { 
-      // ITEM ADICIONADO AQUI
       name: 'Evolução', path: '/evolucao',
       icon: <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"></polyline><polyline points="17 6 23 6 23 12"></polyline></svg> 
     },
     { 
       name: 'Avaliador', path: '/avaliador',
       icon: <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle><polyline points="16 11 18 13 22 9"></polyline></svg> 
+    },
+    { 
+      // 🌟 ITEM NOVO: MEU PLANO & ASSINATURA
+      name: 'Meu Plano', path: '/meu-plano',
+      icon: <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>
     },
     { 
       name: 'Aprendizado', path: '/aprendizado',
@@ -202,8 +207,9 @@ function MainApp() {
             <Route path="/nova-avaliacao" element={<AvaliacaoForm />} />
             <Route path="/equacoes-de-regressao" element={<EscolhaPercGordura />} />
             <Route path="/laudo-antropometrico" element={<ResultadoAvaliacao />} />
-            <Route path="/evolucao" element={<EvolucaoPaciente />} /> {/* ROTA DA EVOLUÇÃO ADICIONADA AQUI */}
+            <Route path="/evolucao" element={<EvolucaoPaciente />} />
             <Route path="/avaliador" element={<Avaliador userId={session.user.id} />} />
+            <Route path="/meu-plano" element={<MeuPlano />} />
             <Route path="/laudo/:tokenUrl" element={<ResultadoAvaliacao />} />
             <Route path="/configuracoes" element={<Configuracoes />} />
             <Route path="/evolucao/:tokenUrl" element={<EvolucaoPaciente />} />
