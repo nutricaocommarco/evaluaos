@@ -8,7 +8,11 @@ export default function Pacientes({ userId }) {
   const [pacientes, setPacientes] = useState([])
   const [loading, setLoading] = useState(true)
   const [showModal, setShowModal] = useState(false)
-  
+  const [showUpgradeModal, setShowUpgradeModal] = useState(false)
+
+  // Status do plano do avaliador
+  const [planoStatus, setPlanoStatus] = useState('gratis') // 'gratis' ou 'pro'/'ativo'
+
   const [historicoPaciente, setHistoricoPaciente] = useState(null)
   const [avaliacoesList, setAvaliacoesList] = useState([])
 
@@ -36,6 +40,26 @@ export default function Pacientes({ userId }) {
 
   const fetchPacientes = async () => {
     setLoading(true)
+
+    // 1. Busca o status do plano do avaliador logado usando auth_id
+    const { data: authUser } = await supabase.auth.getUser()
+    const currentAuthId = authUser?.user?.id || userId
+
+    if (currentAuthId) {
+      const { data: avalData } = await supabase
+        .from('avaliadores')
+        .select('plano_status')
+        .eq('auth_id', currentAuthId)
+        .maybeSingle()
+
+      if (avalData?.plano_status) {
+        setPlanoStatus(avalData.plano_status.toLowerCase())
+      } else {
+        setPlanoStatus('gratis')
+      }
+    }
+
+    // 2. Busca Lista de Pacientes
     const { data, error } = await supabase
       .from('pacientes')
       .select('*')
@@ -53,8 +77,15 @@ export default function Pacientes({ userId }) {
     fetchPacientes()
   }, [])
 
-  // Abre o modal limpo para um NOVO paciente
+  const isFreeAccount = planoStatus !== 'pro' && planoStatus !== 'ativo'
+
+  // 🛡️ Lógica de trava do 8º paciente (Cota de 7)
   const handleOpenNovoPaciente = () => {
+    if (isFreeAccount && pacientes.length >= 7) {
+      setShowUpgradeModal(true)
+      return
+    }
+
     setEditingPacienteId(null)
     setNome('')
     setDataNascimento('')
@@ -91,6 +122,13 @@ export default function Pacientes({ userId }) {
 
   const handleSubmit = async (e) => {
     e.preventDefault()
+
+    // Trava de segurança no envio do formulário
+    if (!editingPacienteId && isFreeAccount && pacientes.length >= 7) {
+      setShowUpgradeModal(true)
+      return
+    }
+
     setSaving(true)
 
     const payload = {
@@ -110,7 +148,6 @@ export default function Pacientes({ userId }) {
     }
 
     if (editingPacienteId) {
-      // MODO ATUALIZAÇÃO
       const { error } = await supabase
         .from('pacientes')
         .update(payload)
@@ -123,7 +160,6 @@ export default function Pacientes({ userId }) {
         fetchPacientes()
       }
     } else {
-      // MODO CRIAÇÃO (NOVO)
       const { error } = await supabase.from('pacientes').insert([payload])
 
       if (error) {
@@ -149,7 +185,7 @@ export default function Pacientes({ userId }) {
 
   const handleDeleteAvaliacao = async (idAvaliacao) => {
     const digitado = window.prompt("⚠️ Ação irreversível!\n\nPara confirmar a exclusão desta avaliação, digite exatamente a palavra APAGAR:")
-    
+
     if (digitado === "APAGAR") {
       try {
         await supabase.from('dados_calculados').delete().eq('id_avaliacao', idAvaliacao)
@@ -164,11 +200,18 @@ export default function Pacientes({ userId }) {
     } else if (digitado !== null) {
       alert('Palavra incorreta. A exclusão foi cancelada.')
     }
-  } 
+  }
 
+  // 🛡️ Trava de exclusão de pacientes para contas grátis
   const handleDeletePaciente = async (idPaciente) => {
+    if (isFreeAccount) {
+      alert("🔒 Recurso exclusivo do Plano Pro\n\nNo Plano Gratuito, a exclusão de pacientes é desabilitada para preservação de histórico e prevenção de reciclagem de vagas.\n\nAssine o Plano Pro para ter gerenciamento completo e pacientes ilimitados!")
+      setShowUpgradeModal(true)
+      return
+    }
+
     const digitado = window.prompt("⚠️ ATENÇÃO: Isso apagará o paciente e todo o seu histórico!\n\nDigite APAGAR para confirmar:")
-    
+
     if (digitado === "APAGAR") {
       const { error } = await supabase.from('pacientes').delete().eq('id', idPaciente)
       if (error) {
@@ -185,21 +228,18 @@ export default function Pacientes({ userId }) {
   // --- LÓGICA DE FILTRAGEM ---
   const pacientesFiltrados = pacientes.filter(p => {
     const termo = searchTerm.toLowerCase();
-    
-    // Busca por NOME OU E-MAIL (ignora maiúsculas/minúsculas)
+
     const matchBusca = 
       p.nome_completo?.toLowerCase().includes(termo) || 
       p.email?.toLowerCase().includes(termo);
-    
-    // Filtro por Sexo
+
     const matchSexo = filterSexo === 'Todos' || p.sexo === filterSexo;
-    
-    // Filtro por Esporte
+
     const isPraticante = p.pratica_esporte === true || p.pratica_esporte === 'true';
     const matchEsporte = filterEsporte === 'Todos' ||
                          (filterEsporte === 'Pratica' && isPraticante) ||
                          (filterEsporte === 'NaoPratica' && !isPraticante);
-                         
+
     return matchBusca && matchSexo && matchEsporte;
   });
 
@@ -209,19 +249,26 @@ export default function Pacientes({ userId }) {
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h2 className="text-2xl font-bold text-gray-800">Meus Pacientes</h2>
-          <p className="text-sm text-gray-500">Gerencie a lista de alunos e pacientes avaliados</p>
+          <p className="text-sm text-gray-500">
+            Gerencie a lista de alunos e pacientes avaliados
+            {isFreeAccount && (
+              <span className="ml-2 font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-100 text-xs">
+                Uso: {pacientes.length}/7 Pacientes Grátis
+              </span>
+            )}
+          </p>
         </div>
         <button
           onClick={handleOpenNovoPaciente}
-          className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 font-medium text-sm transition-colors w-full sm:w-auto shadow-sm"
+          className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 font-medium text-sm transition-colors w-full sm:w-auto shadow-sm flex items-center justify-center gap-2"
         >
-          + Novo Paciente
+          <span>+ Novo Paciente</span>
+          {isFreeAccount && <span className="text-[10px] bg-emerald-800 px-1.5 py-0.5 rounded font-bold">({pacientes.length}/7)</span>}
         </button>
       </div>
 
       {/* --- BARRA DE BUSCA E FILTROS --- */}
       <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex flex-col md:flex-row gap-3">
-        {/* Campo de Busca */}
         <div className="relative flex-1">
           <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
           <input 
@@ -232,8 +279,7 @@ export default function Pacientes({ userId }) {
             className="w-full pl-9 pr-4 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:bg-white focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none transition-colors"
           />
         </div>
-        
-        {/* Filtros Dropdown */}
+
         <div className="flex flex-row gap-3">
           <select 
             value={filterSexo} 
@@ -257,7 +303,7 @@ export default function Pacientes({ userId }) {
         </div>
       </div>
 
-{/* --- LISTA DE PACIENTES --- */}
+      {/* --- LISTA DE PACIENTES --- */}
       <div className="bg-white rounded-xl shadow border border-gray-100 overflow-hidden">
         {loading ? (
           <div className="p-8 text-center text-gray-500">Carregando pacientes...</div>
@@ -272,7 +318,7 @@ export default function Pacientes({ userId }) {
           </div>
         ) : (
           <>
-            {/* --- VISÃO MOBILE (SEM SCROLL HORIZONTAL) --- */}
+            {/* --- VISÃO MOBILE --- */}
             <div className="block md:hidden">
               {pacientesFiltrados.map((p) => {
                 const ePraticante = p.pratica_esporte === true || p.pratica_esporte === 'true'
@@ -295,8 +341,7 @@ export default function Pacientes({ userId }) {
                         </span>
                       )}
                     </div>
-                    
-                    {/* Botões ajustados em grade fluida para evitar scroll horizontal */}
+
                     <div className="grid grid-cols-2 gap-2 mt-3 pt-2 border-t border-gray-50">
                       <button 
                         onClick={() => handleVerHistorico(p)}
@@ -335,8 +380,13 @@ export default function Pacientes({ userId }) {
 
                       <button 
                         onClick={() => handleDeletePaciente(p.id)}
-                        className="py-2 px-3 text-red-600 border border-red-200 bg-red-50 hover:bg-red-100 rounded-lg transition-colors flex items-center justify-center gap-1 font-semibold text-xs text-center"
+                        className={`py-2 px-3 border rounded-lg transition-colors flex items-center justify-center gap-1 font-semibold text-xs text-center ${
+                          isFreeAccount 
+                            ? 'text-gray-400 border-gray-200 bg-gray-50' 
+                            : 'text-red-600 border-red-200 bg-red-50 hover:bg-red-100'
+                        }`}
                       >
+                        {isFreeAccount && <span>🔒</span>}
                         <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                           <polyline points="3 6 5 6 21 6"></polyline>
                           <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
@@ -384,7 +434,7 @@ export default function Pacientes({ userId }) {
                           <button onClick={() => handleVerHistorico(p)} className="text-gray-600 hover:text-gray-900 font-medium text-xs underline">
                             Histórico
                           </button>
-                          
+
                           <button 
                             onClick={() => navigate('/evolucao', { state: { paciente: p } })} 
                             className="text-emerald-700 font-medium text-xs border border-emerald-100 bg-emerald-50 hover:bg-emerald-100 px-3 py-1.5 rounded transition-colors flex items-center gap-1"
@@ -396,7 +446,7 @@ export default function Pacientes({ userId }) {
                             </svg>
                             Evolução
                           </button>
-                          
+
                           <button 
                             onClick={() => navigate('/nova-avaliacao', { state: { paciente: p } })} 
                             className="text-white font-medium text-xs bg-emerald-600 hover:bg-emerald-700 px-3 py-1.5 rounded transition-colors"
@@ -410,7 +460,15 @@ export default function Pacientes({ userId }) {
                             </svg>
                           </button>
 
-                          <button onClick={() => handleDeletePaciente(p.id)} className="p-1.5 text-red-500 hover:bg-red-50 rounded transition-colors inline-flex items-center" title="Excluir Paciente">
+                          <button 
+                            onClick={() => handleDeletePaciente(p.id)} 
+                            className={`p-1.5 rounded transition-colors inline-flex items-center ${
+                              isFreeAccount 
+                                ? 'text-gray-300 cursor-not-allowed' 
+                                : 'text-red-500 hover:bg-red-50'
+                            }`} 
+                            title={isFreeAccount ? "Exclusão bloqueada no plano Grátis" : "Excluir Paciente"}
+                          >
                             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                               <polyline points="3 6 5 6 21 6"></polyline>
                               <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
@@ -431,7 +489,7 @@ export default function Pacientes({ userId }) {
       {showModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 overflow-y-auto">
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg max-h-[90vh] flex flex-col overflow-hidden animate-fade-in">
-            
+
             <div className="flex justify-between items-center px-6 py-4 border-b border-gray-100">
               <h3 className="text-lg font-bold text-gray-800">
                 {editingPacienteId ? 'Atualizar Paciente' : 'Cadastrar Paciente'}
@@ -643,6 +701,49 @@ export default function Pacientes({ userId }) {
         </div>
       )}
 
+      {/* 🚀 MODAL CONVITE DE UPGRADE PRO */}
+      {showUpgradeModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-fade-in">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 text-center space-y-5 border border-emerald-100">
+            <div className="w-16 h-16 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto text-2xl font-black">
+              🚀
+            </div>
+
+            <div>
+              <h3 className="text-xl font-black text-gray-900 uppercase">Sua Consultoria Cresceu!</h3>
+              <p className="text-xs text-gray-500 mt-2 leading-relaxed">
+                Você atingiu o limite de **7 pacientes cadastrados no Plano Gratuito**. Faça o upgrade para o **Plano Pro** e desbloqueie recursos ilimitados!
+              </p>
+            </div>
+
+            <div className="bg-emerald-50 p-4 rounded-xl text-left space-y-2 border border-emerald-100">
+              <span className="text-[10px] font-bold text-emerald-800 uppercase tracking-wider block">O que você ganha no Plano Pro:</span>
+              <ul className="text-xs text-gray-700 space-y-1.5 font-medium">
+                <li className="flex items-center gap-2">✅ Pacientes Ilimitados</li>
+                <li className="flex items-center gap-2">✅ Logomarca e Nome da sua Empresa nos Laudos</li>
+                <li className="flex items-center gap-2">✅ Gerenciamento e Exclusão Completa de Registros</li>
+                <li className="flex items-center gap-2">✅ Envio do Link Interativo direto pelo WhatsApp</li>
+              </ul>
+            </div>
+
+            <div className="pt-2 space-y-2">
+              <button
+                onClick={() => navigate('/configuracoes?aba=plano')}
+                className="w-full py-3 bg-emerald-600 text-white font-bold text-sm rounded-xl hover:bg-emerald-700 shadow-md transition-all"
+              >
+                Conhecer o Plano Pro (Apenas R$ 29,90/mês)
+              </button>
+              <button
+                onClick={() => setShowUpgradeModal(false)}
+                className="w-full py-2 text-xs font-semibold text-gray-400 hover:text-gray-600"
+              >
+                Continuar no Plano Gratuito por enquanto
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* --- MODAL DO HISTÓRICO DE AVALIAÇÕES --- */}
       {historicoPaciente && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
@@ -667,10 +768,9 @@ export default function Pacientes({ userId }) {
                 {avaliacoesList.map((a) => (
                   <div key={a.id} className="flex justify-between items-center p-3 border border-gray-100 rounded-lg hover:bg-gray-50 transition-colors">
                     <div>
-                     <p className="text-sm font-bold text-gray-800">
-  {a.data_avaliacao ? new Date(a.data_avaliacao).toLocaleDateString('pt-BR', { timeZone: 'UTC' }) : '-'}
-</p>
-
+                      <p className="text-sm font-bold text-gray-800">
+                        {a.data_avaliacao ? new Date(a.data_avaliacao).toLocaleDateString('pt-BR', { timeZone: 'UTC' }) : '-'}
+                      </p>
                       <p className="text-xs font-medium text-gray-500 mt-0.5">{a.equacao_de_regressao_escolhida || 'Sem Equação'} • {a.peso_paciente}kg</p>
                     </div>
 
@@ -682,7 +782,7 @@ export default function Pacientes({ userId }) {
                       >
                         <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"></path></svg>
                       </button>
-                      
+
                       <button 
                         onClick={() => handleDeleteAvaliacao(a.id)} 
                         className="p-1.5 text-red-500 hover:bg-red-100 rounded transition-colors" 
@@ -690,7 +790,7 @@ export default function Pacientes({ userId }) {
                       >
                         <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
                       </button>
-                      
+
                       <button
                         onClick={() => navigate('/laudo-antropometrico', { state: { avaliacaoId: a.id } })}
                         className="px-3 py-1.5 bg-emerald-600 text-white rounded-md text-xs font-semibold hover:bg-emerald-700 shadow-sm transition-colors ml-1"
