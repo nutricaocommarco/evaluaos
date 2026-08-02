@@ -8,7 +8,7 @@ export const ARTIGO_PERINI_2005_ETM = {
   categoria: 'Antropometria',
   tipo: 'artigo',
   tempoLeitura: '8 min de leitura',
-  capa: 'https://images.unsplash.com/photo-1576091160550-2173dba999ef?auto=format&fit=crop&w=600&q=80',
+  capa: '/Imagens/capas/capa-perini-2005-etm.webp',
   
   resumoCard: 'Entenda como calcular o ETM intra e interavaliador para garantir que as mudanças na composição corporal do paciente sejam reais e não erros da técnica.',
 
