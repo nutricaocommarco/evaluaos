@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route, Navigate, useNavigate, useLocation } from
 import { supabase } from './supabaseClient'
 
 // Importando suas telas 
+import HomePublica from './pages/HomePublica'
 import Login from './pages/Login'
 import Pacientes from './pages/Pacientes'
 import EscolhaPercGordura from './pages/EscolhaPercGordura'
@@ -14,6 +15,8 @@ import Configuracoes from './pages/Configuracoes'
 import MeuPlano from './pages/MeuPlano'
 import Aprendizado from './pages/Aprendizado'
 import ArtigoDetalhe from './pages/ArtigoDetalhe'
+import Precos from './pages/Precos'
+import Contato from './pages/Contato'
 
 function MainApp() {
   const [session, setSession] = useState(null)
@@ -89,20 +92,30 @@ function MainApp() {
     )
   }
 
+  // 🔴 USUÁRIO NÃO LOGADO: Acessa a Landing Page, Login, Preços, Contato e Aprendizado
   if (!session) {
     return (
       <Routes>
+        <Route path="/" element={<HomePublica />} />
         <Route path="/login" element={<Login />} />
         
-        {/* ROTA PÚBLICA: Liberada para o paciente acessar sem senha */}
+        {/* ROTAS PÚBLICAS DO PACIENTE (Acesso via Token) */}
         <Route path="/laudo/:tokenUrl" element={<ResultadoAvaliacao />} />
         <Route path="/evolucao/:tokenUrl" element={<EvolucaoPaciente />} />
+
+        {/* INSTITUCIONAL & SEO */}
+        <Route path="/aprendizado" element={<Aprendizado />} />
+        <Route path="/aprendizado/:artigoId" element={<ArtigoDetalhe />} />
+        <Route path="/precos" element={<Precos />} />
+        <Route path="/contato" element={<Contato />} />
         
-        <Route path="*" element={<Navigate to="/login" replace />} />
+        {/* Redireciona qualquer rota desconhecida de visitante para a Home */}
+        <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     )
   }
 
+  // 🟢 USUÁRIO LOGADO: Painel Interno Completo
   return (
     <div className="flex h-screen bg-gray-50 overflow-hidden">
       
@@ -218,7 +231,7 @@ function MainApp() {
             <Route path="/configuracoes" element={<Configuracoes />} />
             <Route path="/evolucao/:tokenUrl" element={<EvolucaoPaciente />} />
             
-            {/* 🎯 Central de Aprendizado e Rota do Artigo Detalhado */}
+            {/* Central de Aprendizado acessível internamente */}
             <Route path="/aprendizado" element={<Aprendizado />} />
             <Route path="/aprendizado/:artigoId" element={<ArtigoDetalhe />} />
 
