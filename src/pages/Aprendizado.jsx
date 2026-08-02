@@ -70,22 +70,27 @@ export default function Aprendizado() {
         </div>
       </div>
 
-   {/* 🏷️ FILTROS POR CATEGORIA (sem barra de rolagem visível) */}
-<div className="flex items-center gap-2 overflow-x-auto pb-2 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
-  {CATEGORIAS_APRENDIZADO.map(cat => (
-    <button
-      key={cat}
-      onClick={() => setCategoriaAtiva(cat)}
-      className={`px-4 py-2 rounded-xl text-xs font-semibold whitespace-nowrap transition-all ${
-        categoriaAtiva === cat
-          ? 'bg-emerald-600 text-white shadow-md'
-          : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-      }`}
-    >
-      {cat}
-    </button>
-  ))}
+  {/* 🏷️ FILTROS COM EFEITO FADE NA LATERAL */}
+<div className="relative w-full">
+  <div className="flex items-center gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden pr-8">
+    {CATEGORIAS_APRENDIZADO.map(cat => (
+      <button
+        key={cat}
+        onClick={() => setCategoriaAtiva(cat)}
+        className={`px-4 py-2 rounded-xl text-xs font-semibold whitespace-nowrap transition-all shrink-0 ${
+          categoriaAtiva === cat
+            ? 'bg-emerald-600 text-white shadow-md'
+            : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+        }`}
+      >
+        {cat}
+      </button>
+    ))}
+  </div>
+  {/* Sombra suave à direita indicando continuação */}
+  <div className="absolute right-0 top-0 bottom-1 w-8 bg-gradient-to-l from-white to-transparent pointer-events-none" />
 </div>
+
 
 
       {/* 🖼️ GRID DE CARDS COM CAPA */}
