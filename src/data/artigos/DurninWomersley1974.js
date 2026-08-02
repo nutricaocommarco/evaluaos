@@ -103,7 +103,7 @@ export const ARTIGO_DURNIN_WOMERSLEY_1974 = {
           </p>
         </div>
       </div>
-    `
+    `,
 
     conclusao: `
       <div className="bg-gray-900 text-white rounded-2xl p-6 mt-8 shadow-lg space-y-2">
