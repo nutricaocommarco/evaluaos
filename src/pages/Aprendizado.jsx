@@ -13,11 +13,11 @@ export default function Aprendizado() {
   const conteudosFiltrados = CONTEUDOS_APRENDIZADO.filter(item => {
     const bateCategoria = categoriaAtiva === 'Todos' || item.categoria === categoriaAtiva
     const bateBusca = item.titulo.toLowerCase().includes(busca.toLowerCase()) || 
-                      item.descricao.toLowerCase().includes(busca.toLowerCase())
+                      (item.descricao || item.resumoCard || '').toLowerCase().includes(busca.toLowerCase())
     return bateCategoria && bateBusca
   })
 
-  // Converte link do YouTube para embed de forma segura sem dar conflito no JSX
+  // Converte link do YouTube para embed de forma segura
   const obterUrlEmbed = (url) => {
     if (!url) return ''
     try {
@@ -46,7 +46,7 @@ export default function Aprendizado() {
   }
 
   return (
-    <div className="p-6 max-w-7xl mx-auto space-y-8">
+    <div className="p-4 sm:p-6 max-w-7xl mx-auto space-y-6 sm:space-y-8">
       {/* 🟢 CABEÇALHO */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-gray-100 pb-6">
         <div>
@@ -96,53 +96,63 @@ export default function Aprendizado() {
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {conteudosFiltrados.map((item) => (
-            <div
-              key={item.id}
-              onClick={() => handleAbrirConteudo(item)}
-              className="bg-white border border-gray-100 rounded-2xl overflow-hidden shadow-sm hover:shadow-xl hover:border-emerald-200 transition-all flex flex-col justify-between group cursor-pointer"
-            >
-              <div>
-                {/* 📸 CAPA DO CARD */}
-                <div className="relative h-44 w-full bg-gray-100 overflow-hidden">
-                  <img
-                    src={item.capa}
-                    alt={item.titulo}
-                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                  />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
-                  
-                  {/* Badge de Categoria sobre a imagem */}
-                  <span className="absolute bottom-3 left-3 px-2.5 py-1 bg-black/60 backdrop-blur-md text-white text-[10px] font-bold rounded-lg uppercase tracking-wider">
-                    {item.categoria}
-                  </span>
+          {conteudosFiltrados.map((item) => {
+            // Garante o resumo pegando resumoCard ou descricao
+            const textoResumo = item.resumoCard || item.descricao || ''
 
-                  {/* Ícone de Tipo (Vídeo / Artigo) */}
-                  <span className="absolute top-3 right-3 px-2.5 py-1 bg-white/90 backdrop-blur-md text-gray-800 text-[10px] font-bold rounded-full shadow-sm flex items-center gap-1">
-                    {item.tipo === 'video' ? '📹 Vídeo' : item.tipo === 'tutorial' ? '📖 Tutorial' : '📰 Artigo'}
-                  </span>
+            return (
+              <div
+                key={item.id}
+                onClick={() => handleAbrirConteudo(item)}
+                className="bg-white border border-gray-100 rounded-2xl overflow-hidden shadow-sm hover:shadow-xl hover:border-emerald-200 transition-all flex flex-col justify-between group cursor-pointer"
+              >
+                <div>
+                  {/* 📸 CAPA DO CARD */}
+                  <div className="relative h-44 w-full bg-gray-100 overflow-hidden">
+                    <img
+                      src={item.capa}
+                      alt={item.titulo}
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
+                    
+                    {/* Badge de Categoria sobre a imagem */}
+                    <span className="absolute bottom-3 left-3 px-2.5 py-1 bg-black/60 backdrop-blur-md text-white text-[10px] font-bold rounded-lg uppercase tracking-wider">
+                      {item.categoria}
+                    </span>
+
+                    {/* Ícone de Tipo (Vídeo / Artigo) */}
+                    <span className="absolute top-3 right-3 px-2.5 py-1 bg-white/90 backdrop-blur-md text-gray-800 text-[10px] font-bold rounded-full shadow-sm flex items-center gap-1">
+                      {item.tipo === 'video' ? '📹 Vídeo' : item.tipo === 'tutorial' ? '📖 Tutorial' : '📰 Artigo'}
+                    </span>
+                  </div>
+
+                  {/* Conteúdo do Card */}
+                  <div className="p-5 space-y-2.5">
+                    {/* Título sem corte excessivo (line-clamp-3 e texto sm) */}
+                    <h3 className="text-sm sm:text-base font-bold text-gray-900 group-hover:text-emerald-600 transition-colors line-clamp-3 leading-snug">
+                      {item.titulo}
+                    </h3>
+                    
+                    {/* Resuminho Explicativo (exibe até 3 linhas de resumo) */}
+                    {textoResumo && (
+                      <p className="text-xs text-gray-500 line-clamp-3 leading-relaxed">
+                        {textoResumo}
+                      </p>
+                    )}
+                  </div>
                 </div>
 
-                {/* Conteúdo do Card */}
-                <div className="p-5 space-y-2">
-                  <h3 className="text-base font-bold text-gray-900 group-hover:text-emerald-600 transition-colors line-clamp-2 leading-snug">
-                    {item.titulo}
-                  </h3>
-                  <p className="text-xs text-gray-500 line-clamp-2 leading-relaxed">
-                    {item.descricao}
-                  </p>
+                {/* Rodapé do Card */}
+                <div className="p-5 pt-0 mt-2 flex items-center justify-between text-xs border-t border-gray-50 pt-3">
+                  <span className="text-gray-400 text-[11px]">{item.tempoLeitura}</span>
+                  <span className="text-emerald-600 font-bold group-hover:translate-x-1 transition-transform flex items-center gap-1">
+                    Acessar ➔
+                  </span>
                 </div>
               </div>
-
-              {/* Rodapé do Card */}
-              <div className="p-5 pt-0 mt-2 flex items-center justify-between text-xs border-t border-gray-50 pt-3">
-                <span className="text-gray-400 text-[11px]">{item.tempoLeitura}</span>
-                <span className="text-emerald-600 font-bold group-hover:translate-x-1 transition-transform flex items-center gap-1">
-                  Acessar ➔
-                </span>
-              </div>
-            </div>
-          ))}
+            )
+          })}
         </div>
       )}
 
@@ -172,7 +182,9 @@ export default function Aprendizado() {
 
             <div className="p-5 pt-0">
               <h3 className="text-lg font-bold text-gray-900">{videoModal.titulo}</h3>
-              <p className="text-xs text-gray-500 mt-1 leading-relaxed">{videoModal.descricao}</p>
+              <p className="text-xs text-gray-500 mt-1 leading-relaxed">
+                {videoModal.resumoCard || videoModal.descricao}
+              </p>
             </div>
           </div>
         </div>
