@@ -1,24 +1,27 @@
-import React from 'react'
+import React, { useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 
 export default function PublicHeader() {
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
   const location = useLocation()
   const navigate = useNavigate()
 
   const isActive = (path) => location.pathname === path
+
+  const closeMenu = () => setIsMobileMenuOpen(false)
 
   return (
     <header className="sticky top-0 z-50 bg-white/95 backdrop-blur-md border-b border-slate-100 shadow-sm">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3 flex items-center justify-between">
         
         {/* LOGO EVALUAOS */}
-        <Link to="/" className="flex items-center gap-2 group">
+        <Link to="/" onClick={closeMenu} className="flex items-center gap-2 group">
           <img 
             src="/Imagens/Logo_png.png" 
             alt="EvaluaOS Logo" 
             className="h-10 w-auto object-contain group-hover:scale-105 transition-transform" 
           />
-          <div className="hidden sm:flex flex-col">
+          <div className="flex flex-col">
             <span className="text-base font-black text-slate-900 tracking-tight leading-none">
               Evalua<span className="text-emerald-600">OS</span>
             </span>
@@ -28,8 +31,8 @@ export default function PublicHeader() {
           </div>
         </Link>
 
-        {/* MENU DE NAVEGAÇÃO PÚBLICO */}
-        <nav className="flex items-center gap-3 sm:gap-6 text-xs font-bold text-slate-600">
+        {/* 💻 MENU DESKTOP (Escondido no telemóvel: hidden md:flex) */}
+        <nav className="hidden md:flex items-center gap-6 text-xs font-bold text-slate-600">
           <Link 
             to="/" 
             className={`transition-colors ${isActive('/') ? 'text-emerald-600 font-extrabold' : 'hover:text-emerald-600'}`}
@@ -65,7 +68,93 @@ export default function PublicHeader() {
             🔐 Entrar
           </button>
         </nav>
+
+        {/* 📱 BOTÃO HAMBÚRGUER / 3 TRAÇOS (Apenas no telemóvel: md:hidden) */}
+        <button
+          onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+          className="md:hidden p-2.5 rounded-xl text-slate-700 bg-slate-50 hover:bg-slate-100 border border-slate-200 transition-all focus:outline-none"
+          aria-label="Menu de Navegação"
+        >
+          {isMobileMenuOpen ? (
+            /* Ícone de Fechar (✕) */
+            <svg className="w-6 h-6 text-slate-900" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          ) : (
+            /* Ícone dos 3 Traços (☰) */
+            <svg className="w-6 h-6 text-slate-900" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M4 6h16M4 12h16M4 18h16" />
+            </svg>
+          )}
+        </button>
       </div>
+
+      {/* 📱 MENU DROPDOWN MOBILE (Aparece ao clicar nos 3 traços) */}
+      {isMobileMenuOpen && (
+        <div className="md:hidden bg-white border-b border-slate-200 px-4 pt-3 pb-6 space-y-2 shadow-xl animate-fadeIn">
+          
+          <Link
+            to="/"
+            onClick={closeMenu}
+            className={`flex items-center gap-3 px-4 py-3 rounded-2xl text-xs font-bold transition-all ${
+              isActive('/') 
+                ? 'bg-emerald-50 text-emerald-700 border border-emerald-100' 
+                : 'text-slate-700 hover:bg-slate-50'
+            }`}
+          >
+            <span className="text-base">🏠</span> Início
+          </Link>
+
+          <Link
+            to="/aprendizado"
+            onClick={closeMenu}
+            className={`flex items-center gap-3 px-4 py-3 rounded-2xl text-xs font-bold transition-all ${
+              isActive('/aprendizado') || location.pathname.startsWith('/aprendizado')
+                ? 'bg-emerald-50 text-emerald-700 border border-emerald-100'
+                : 'text-slate-700 hover:bg-slate-50'
+            }`}
+          >
+            <span className="text-base">📚</span> Central de Aprendizado
+          </Link>
+
+          <Link
+            to="/precos"
+            onClick={closeMenu}
+            className={`flex items-center gap-3 px-4 py-3 rounded-2xl text-xs font-bold transition-all ${
+              isActive('/precos') 
+                ? 'bg-emerald-50 text-emerald-700 border border-emerald-100' 
+                : 'text-slate-700 hover:bg-slate-50'
+            }`}
+          >
+            <span className="text-base">💰</span> Planos e Preços
+          </Link>
+
+          <Link
+            to="/contato"
+            onClick={closeMenu}
+            className={`flex items-center gap-3 px-4 py-3 rounded-2xl text-xs font-bold transition-all ${
+              isActive('/contato') 
+                ? 'bg-emerald-50 text-emerald-700 border border-emerald-100' 
+                : 'text-slate-700 hover:bg-slate-50'
+            }`}
+          >
+            <span className="text-base">📞</span> Fale Conosco / Suporte
+          </Link>
+
+          <div className="pt-2 border-t border-slate-100">
+            <button
+              onClick={() => {
+                closeMenu()
+                navigate('/login')
+              }}
+              className="w-full flex items-center justify-center gap-2 px-4 py-3.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-extrabold uppercase tracking-wider rounded-2xl shadow-md shadow-emerald-600/20 transition-all"
+            >
+              🔐 Acessar Minha Conta
+            </button>
+          </div>
+
+        </div>
+      )}
     </header>
   )
 }
