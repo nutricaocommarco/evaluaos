@@ -34,22 +34,22 @@ export default function PublicHeader() {
     <header className="sticky top-0 z-50 bg-white/95 backdrop-blur-md border-b border-slate-100 shadow-sm">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3 flex items-center justify-between">
         
-        {/* LOGO EVALUAOS */}
-        <Link to="/" onClick={closeMenu} className="flex items-center gap-2 group">
-          <img 
-            src="/Imagens/Logo_png.png" 
-            alt="EvaluaOS Logo" 
-            className="h-10 w-auto object-contain group-hover:scale-105 transition-transform" 
-          />
-          <div className="flex flex-col">
-            <span className="text-base font-black text-slate-900 tracking-tight leading-none">
-              Evalua<span className="text-emerald-600">OS</span>
-            </span>
-            <span className="text-[9px] text-slate-400 font-bold uppercase tracking-wider mt-0.5">
-              Antropometria de Precisão
-            </span>
-          </div>
-        </Link>
+{/* LOGO EVALUAOS */}
+<Link to="/" onClick={closeMenu} className="flex items-center gap-2 group">
+  <img 
+    src="/Imagens/Logo_png.png" 
+    alt="EvaluaOS Logo" 
+    className="h-[70px] w-auto object-contain group-hover:scale-105 transition-transform" 
+  />
+  <div className="flex flex-col">
+    <span className="text-base font-black text-slate-900 tracking-tight leading-none">
+      Evalua<span className="text-emerald-600">OS</span>
+    </span>
+    <span className="text-[9px] text-slate-400 font-bold uppercase tracking-wider mt-0.5">
+      Antropometria de Precisão
+    </span>
+  </div>
+</Link>
 
         {/* 💻 MENU DESKTOP */}
         <nav className="hidden md:flex items-center gap-6 text-xs font-bold text-slate-600">
