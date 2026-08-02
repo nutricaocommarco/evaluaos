@@ -1,3 +1,4 @@
+import { artigoAlanMartin1984 } from './artigos/alanMartin1984'
 import { ARTIGO_COME_BACK_SKINFOLDS } from './artigos/ComeBackSkinfolds'
 import { ARTIGO_PERINI_2005_ETM } from './artigos/Perini2005ETM'
 import { ARTIGO_HOLWAY_2005_ARGOREF } from './artigos/Holway2005Argoref'
@@ -37,6 +38,7 @@ export const CONTEUDOS_APRENDIZADO = [
 },
 
   // 📄 2. Artigo completo e comentado do Come Back Skinfolds (Importado do Módulo)
+artigoAlanMartin1984,
   ARTIGO_COME_BACK_SKINFOLDS,
 ARTIGO_PERINI_2005_ETM,
 ARTIGO_HOLWAY_2005_ARGOREF,
