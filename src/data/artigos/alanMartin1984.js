@@ -8,7 +8,7 @@ export const artigoAlanMartin1984 = {
   categoria: 'Artigos e Ciência',
   tipo: 'artigo',
   tempoLeitura: '12 min de leitura',
-  capa: '/Imagens/capas/capa-alan-martin-1984.jpg',
+  capa: '/Imagens/capas/capa-alan-martin-1984.webp',
   resumoCard: 'A tese seminal que dissecou 25 cadáveres e provou que a densidade da massa livre de gordura varia amplamente entre indivíduos, invalidando equações clássicas de densitometria.',
   conteudoCompleto: {
     introducao: `
