@@ -70,22 +70,23 @@ export default function Aprendizado() {
         </div>
       </div>
 
-      {/* 🏷️ FILTROS POR CATEGORIA */}
-      <div className="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-none">
-        {CATEGORIAS_APRENDIZADO.map(cat => (
-          <button
-            key={cat}
-            onClick={() => setCategoriaAtiva(cat)}
-            className={`px-4 py-2 rounded-xl text-xs font-semibold whitespace-nowrap transition-all ${
-              categoriaAtiva === cat
-                ? 'bg-emerald-600 text-white shadow-md'
-                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-            }`}
-          >
-            {cat}
-          </button>
-        ))}
-      </div>
+   {/* 🏷️ FILTROS POR CATEGORIA (sem barra de rolagem visível) */}
+<div className="flex items-center gap-2 overflow-x-auto pb-2 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
+  {CATEGORIAS_APRENDIZADO.map(cat => (
+    <button
+      key={cat}
+      onClick={() => setCategoriaAtiva(cat)}
+      className={`px-4 py-2 rounded-xl text-xs font-semibold whitespace-nowrap transition-all ${
+        categoriaAtiva === cat
+          ? 'bg-emerald-600 text-white shadow-md'
+          : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+      }`}
+    >
+      {cat}
+    </button>
+  ))}
+</div>
+
 
       {/* 🖼️ GRID DE CARDS COM CAPA */}
       {conteudosFiltrados.length === 0 ? (
