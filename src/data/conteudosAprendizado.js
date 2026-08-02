@@ -1,6 +1,7 @@
 import { ARTIGO_COME_BACK_SKINFOLDS } from './artigos/ComeBackSkinfolds'
 import { ARTIGO_PERINI_2005_ETM } from './artigos/Perini2005ETM'
 import { ARTIGO_HOLWAY_2005_ARGOREF } from './artigos/Holway2005Argoref'
+import { ARTIGO_DURNIN_WOMERSLEY_1974 } from './artigos/DurninWomersley1974'
 
 
 export const CATEGORIAS_APRENDIZADO = [
@@ -39,6 +40,7 @@ export const CONTEUDOS_APRENDIZADO = [
   ARTIGO_COME_BACK_SKINFOLDS,
 ARTIGO_PERINI_2005_ETM,
 ARTIGO_HOLWAY_2005_ARGOREF,
+ARTIGO_DURNIN_WOMERSLEY_1974,
 
   // 📄 1. Artigos Científicos com link direto (ou futuros módulos)
   {
