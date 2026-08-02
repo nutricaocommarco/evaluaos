@@ -80,6 +80,31 @@ export const ARTIGO_DURNIN_WOMERSLEY_1974 = {
       </p>
     `,
 
+    analiticaCritica: `
+      <div className="bg-slate-900 text-slate-100 rounded-2xl p-6 mt-8 border border-slate-800 shadow-xl space-y-3">
+        <div className="flex items-center gap-2 border-b border-slate-800 pb-3">
+          <span className="text-lg">🧐</span>
+          <h4 className="text-amber-400 font-bold text-sm uppercase tracking-wider">
+            Análise Crítica & Limitações Metodológicas
+          </h4>
+        </div>
+
+        <div className="space-y-3 text-xs leading-relaxed text-slate-300">
+          <p>
+            <strong className="text-white">Pontos Fortes:</strong> O estudo foi revolucionário ao introduzir a transformação logarítmica para corrigir a não-linearidade da espessura das dobras cutâneas em sujeitos mais obesos, além de demonstrar que a idade e o sexo alteram drasticamente a relação entre gordura subcutânea e densidade corporal.
+          </p>
+
+          <p>
+            <strong className="text-white">Limitações do Estudo:</strong> A equação foi construída sobre o modelo bicompartimental de Siri (1956), que assume uma densidade fixa e imutável para a Massa Livre de Gordura (FFM) de 1,100 g/cm³. Em populações com densidade óssea atípica (ex: idosos com osteopenia/osteoporose ou atletas de alto impacto), essa premissa falha, podendo superestimar a gordura corporal.
+          </p>
+
+          <p>
+            <strong className="text-white">Aplicação Clínica Prática:</strong> É uma equação de excelência para a <strong>população adulta geral sedentária ou moderadamente ativa</strong>. Evite utilizá-la para atletas de elite ou indivíduos com hipertrofia muscular acentuada — nesses casos, utilize o Somatório de Dobras bruto em mm ou equações específicas para atletas.
+          </p>
+        </div>
+      </div>
+    `
+
     conclusao: `
       <div className="bg-gray-900 text-white rounded-2xl p-6 mt-8 shadow-lg space-y-2">
         <h4 className="text-emerald-400 font-bold text-sm uppercase tracking-wider">🎯 Aplicação Prática no EvaluaOS</h4>
