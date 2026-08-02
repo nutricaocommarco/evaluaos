@@ -21,6 +21,17 @@ export const CONTEUDOS_APRENDIZADO = [
   capa: 'https://img.youtube.com/vi/_Fmm4T4Ooto/hqdefault.jpg'
 },
 
+{
+  id: 'video-perfil-completo-isak',
+  titulo: 'Perfil Completo ISAK: Protocolo Internacional Antropométrico Avançado',
+  descricao: 'Guia completo demonstrativo com todas as marcações de pontos, dobras, perímetros adicionais (antebraço, coxa máxima) e diâmetros ósseos.',
+  categoria: 'Antropometria',
+  tipo: 'video',
+  url: 'https://www.youtube.com/watch?v=Ff2WDc7LhXU',
+  tempoLeitura: '34 min assistindo',
+  capa: 'https://img.youtube.com/vi/Ff2WDc7LhXU/hqdefault.jpg'
+},
+
   // 📄 2. Artigo completo e comentado do Come Back Skinfolds (Importado do Módulo)
   ARTIGO_COME_BACK_SKINFOLDS,
 
