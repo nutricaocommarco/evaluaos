@@ -44,7 +44,7 @@ export default function HomePublica() {
             </button>
           </div>
 
-          {/* Badges de Destaques e Recursos em Breve */}
+          {/* Badges de Destaques */}
           <div className="pt-10 grid grid-cols-2 md:grid-cols-4 gap-4 max-w-3xl mx-auto border-t border-slate-100">
             <div className="p-3 bg-white border border-slate-100 rounded-xl shadow-sm">
               <span className="block text-lg font-black text-emerald-600">∑ Dobras mm</span>
@@ -52,14 +52,14 @@ export default function HomePublica() {
             </div>
             
             <div className="p-3 bg-white border border-slate-100 rounded-xl shadow-sm">
-              <span className="block text-lg font-black text-emerald-600">Laudos PDF</span>
-              <span className="text-[10px] font-bold text-slate-400 uppercase">Interativo e Web</span>
+              <span className="block text-lg font-black text-emerald-600">+60 Equações</span>
+              <span className="text-[10px] font-bold text-slate-400 uppercase">Homens & Mulheres</span>
             </div>
 
             <div className="p-3 bg-white border border-slate-100 rounded-xl shadow-sm relative overflow-hidden">
               <span className="absolute top-1 right-1 px-1.5 py-0.5 bg-amber-100 text-amber-800 text-[8px] font-black rounded uppercase">Em breve</span>
-              <span className="block text-lg font-black text-slate-700">5 Massas</span>
-              <span className="text-[10px] font-bold text-slate-400 uppercase">Kerr & Ross (1988)</span>
+              <span className="block text-lg font-black text-slate-700">4 Massas</span>
+              <span className="text-[10px] font-bold text-slate-400 uppercase">Kerr (1988)</span>
             </div>
 
             <div className="p-3 bg-white border border-slate-100 rounded-xl shadow-sm relative overflow-hidden">
@@ -113,9 +113,9 @@ export default function HomePublica() {
               <div className="w-10 h-10 bg-amber-500/10 text-amber-400 rounded-xl flex items-center justify-center font-bold text-lg">
                 📐
               </div>
-              <h3 className="text-base font-bold text-white">ETM, 5 Massas & Baremos ARGOREF</h3>
+              <h3 className="text-base font-bold text-white">ETM, 4 Massas & Baremos ARGOREF</h3>
               <p className="text-xs text-slate-300 leading-relaxed">
-                Estamos desenvolvendo o cálculo automático do Erro Técnico (ETM), Fracionamento de 5 Massas e comparações normativas regionais.
+                Estamos desenvolvendo o cálculo automático do Erro Técnico (ETM), Fracionamento de 4 Massas e comparações normativas regionais.
               </p>
             </div>
 
@@ -181,8 +181,8 @@ export default function HomePublica() {
         </div>
       </section>
 
-      {/* 💰 5. SEÇÃO DE PREÇOS NA HOME */}
-      <section className="py-20 max-w-7xl mx-auto px-4 sm:px-6 space-y-12">
+      {/* 💰 5. SEÇÃO DE PREÇOS NA HOME (Sincronizada) */}
+      <section id="precos" className="py-20 max-w-7xl mx-auto px-4 sm:px-6 space-y-12">
         
         <div className="text-center space-y-2 max-w-xl mx-auto">
           <span className="text-xs font-bold text-emerald-600 uppercase tracking-widest">Acesso Transparente</span>
@@ -202,9 +202,11 @@ export default function HomePublica() {
               <div className="text-3xl font-black text-slate-900">R$ 0 <span className="text-xs text-slate-400 font-normal">/ para sempre</span></div>
               
               <ul className="space-y-2.5 text-xs text-slate-600 pt-2">
+                <li className="flex items-center gap-2"><span className="text-emerald-500 font-bold">✓</span> <strong>Até 7 Pacientes grátis</strong></li>
+                <li className="flex items-center gap-2"><span className="text-emerald-500 font-bold">✓</span> <strong>Até 3 Avaliações por paciente</strong></li>
+                <li className="flex items-center gap-2"><span className="text-emerald-500 font-bold">✓</span> Laboratório de Equações (+60 equações)</li>
+                <li className="flex items-center gap-2"><span className="text-emerald-500 font-bold">✓</span> Geração de Laudos em PDF e Web</li>
                 <li className="flex items-center gap-2"><span className="text-emerald-500 font-bold">✓</span> Acesso livre à Central de Aprendizado</li>
-                <li className="flex items-center gap-2"><span className="text-emerald-500 font-bold">✓</span> Cadastro de pacientes teste</li>
-                <li className="flex items-center gap-2"><span className="text-emerald-500 font-bold">✓</span> Modelos de avaliação e gráficos básicos</li>
               </ul>
             </div>
 
@@ -219,7 +221,7 @@ export default function HomePublica() {
           {/* Plano Pro */}
           <div className="bg-gradient-to-b from-slate-900 to-slate-950 text-white p-8 rounded-3xl shadow-2xl space-y-6 flex flex-col justify-between relative overflow-hidden border border-emerald-500/30">
             <div className="absolute top-4 right-4 px-3 py-1 bg-emerald-500 text-white text-[10px] font-extrabold uppercase rounded-full tracking-wider shadow-lg">
-              Mais Popular
+              Recomendado
             </div>
 
             <div className="space-y-4">
@@ -227,22 +229,36 @@ export default function HomePublica() {
                 Profissional
               </span>
               <h3 className="text-xl font-black text-white">EvaluaOS Pro</h3>
-              <div className="text-3xl font-black text-white">R$ 49,90 <span className="text-xs text-slate-400 font-normal">/ mês</span></div>
+              <div>
+                <div className="text-3xl font-black text-white">R$ 29,90 <span className="text-xs text-slate-400 font-normal">/ mês</span></div>
+                <span className="text-[11px] text-emerald-400 font-bold block mt-1">
+                  Ou R$ 20,75/mês no plano Anual (30% OFF)
+                </span>
+              </div>
               
               <ul className="space-y-2.5 text-xs text-slate-300 pt-2">
-                <li className="flex items-center gap-2"><span className="text-emerald-400 font-bold">✓</span> Avaliações e laudos em PDF ilimitados</li>
-                <li className="flex items-center gap-2"><span className="text-emerald-400 font-bold">✓</span> Somatório de Dobras (mm) e histórico completo</li>
-                <li className="flex items-center gap-2"><span className="text-emerald-400 font-bold">✓</span> Links públicos de evolução para o paciente</li>
-                <li className="flex items-center gap-2 text-amber-300"><span className="text-amber-400 font-bold">⏳</span> Baremos ARGOREF, ETM e 5 Massas <em>(Em breve)</em></li>
+                <li className="flex items-center gap-2"><span className="text-emerald-400 font-bold">✓</span> <strong>Pacientes e Avaliações Ilimitadas</strong></li>
+                <li className="flex items-center gap-2"><span className="text-emerald-400 font-bold">✓</span> Personalização de Laudo (Logo + Zap)</li>
+                <li className="flex items-center gap-2"><span className="text-emerald-400 font-bold">✓</span> Habilitar/Desabilitar Medidas</li>
+                <li className="flex items-center gap-2"><span className="text-emerald-400 font-bold">✓</span> Backup de Dados Automático</li>
+                <li className="flex items-center gap-2 text-amber-300"><span className="text-amber-400 font-bold">⏳</span> ETM, 4 Massas (Kerr) e ARGOREF <em>(Em breve)</em></li>
               </ul>
             </div>
 
-            <button
-              onClick={() => navigate('/login')}
-              className="w-full py-3.5 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-xs uppercase tracking-wider rounded-xl shadow-lg shadow-emerald-500/20 transition-all"
-            >
-              Assinar Plano Pro 🚀
-            </button>
+            <div className="space-y-2">
+              <button
+                onClick={() => navigate('/login')}
+                className="w-full py-3.5 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-xs uppercase tracking-wider rounded-xl shadow-lg shadow-emerald-500/20 transition-all"
+              >
+                Assinar Plano Pro 🚀
+              </button>
+              <button
+                onClick={() => navigate('/precos')}
+                className="w-full text-center text-[11px] text-slate-400 hover:text-emerald-400 transition-colors font-bold block"
+              >
+                Ver Tabela Comparativa Completa ➔
+              </button>
+            </div>
           </div>
 
         </div>
