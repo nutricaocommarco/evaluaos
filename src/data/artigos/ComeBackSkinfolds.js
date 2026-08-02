@@ -70,6 +70,31 @@ export const ARTIGO_COME_BACK_SKINFOLDS = {
         </p>
       </div>
     `,
+    analiticaCritica: `
+      <div className="bg-slate-900 text-slate-100 rounded-2xl p-6 mt-8 border border-slate-800 shadow-xl space-y-3">
+        <div className="flex items-center gap-2 border-b border-slate-800 pb-3">
+          <span className="text-lg">🧐</span>
+          <h4 className="text-amber-400 font-bold text-sm uppercase tracking-wider">
+            Análise Crítica & Limitações Metodológicas
+          </h4>
+        </div>
+
+        <div className="space-y-3 text-xs leading-relaxed text-slate-300">
+          <p>
+            <strong className="text-white">Pontos Fortes:</strong> Um dos artigos mais corajosos da nutrição esportiva recente. Ele desmonta a ideia do DXA como "padrão-ouro infalível" ao demonstrar com dados concretos como flutuações cotidianas de glicocênio, hidratação e refeições geram erros gritantes de leitura.
+          </p>
+
+          <p>
+            <strong className="text-white">Limitações do Estudo:</strong> O foco do artigo é voltado para atletas de alto rendimento sujeitos a variações agudas e extremas de peso/água (ex: lutadores de MMA e jogadores de rugby). Em indivíduos com obesidade grau II ou III em consultório geral, a medição de dobras com plicômetro pode apresentar dificuldade técnica de pinçamento.
+          </p>
+
+          <p>
+            <strong className="text-white">Aplicação Clínica Prática:</strong> Reforça a diretriz máxima da ISAK: em vez de ficar preso às distorções de porcentagens preditivas relativas (%GC), acompanhe a evolução longitudinal do seu paciente pelo <strong>Somatório de Dobras Cutâneas em milímetros (∑SF)</strong>.
+          </p>
+        </div>
+      </div>
+    `
+
 
     conclusaoEPratica: `
       <div className="bg-gray-900 text-white rounded-2xl p-6 mt-8 shadow-lg space-y-2">
