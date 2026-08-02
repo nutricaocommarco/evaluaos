@@ -4,7 +4,7 @@ export const ARTIGO_HOLWAY_2005_ARGOREF = {
   subtitulo: 'Entenda como utilizar os baremos de Francis Holway para comparar seu paciente com uma população saudável real e não com atletas de elite.',
   autores: 'Francis Holway, MSc. (Club Atlético River Plate / ISAK Level 4)',
   revista: 'Cineantropometría y Ciencias de la Salud',
-  doiUrl: 'https://nutricaocommarco.com.br/artigos/argoref-holway-2005.pdf',
+  doiUrl: ''https://www.ResearchGate.net/publication/235338167_Datos_de_referencia_antropometricos_para_el_trabajo_en_ciencias_de_la_salud_las_tablas_ARGOREF',
   categoria: 'Antropometria',
   tipo: 'artigo',
   tempoLeitura: '9 min de leitura',
