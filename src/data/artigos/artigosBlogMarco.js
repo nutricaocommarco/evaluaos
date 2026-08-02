@@ -9,7 +9,7 @@ export const artigosBlogMarco = [
     categoria: 'Antropometria',
     tipo: 'externo',
     tempoLeitura: '8 min de leitura',
-    capa: 'https://www.nutricaocommarco.com.br/Blog/Avaliacao_Antropometrica_Capa.webp',
+    capa: '/Blog/Avaliacao_Antropometrica_Capa.webp',
     resumoCard: 'Aprenda como fazer uma avaliação antropométrica completa. Domine o protocolo ISAK, Pollock, dobras cutâneas, calcule seu somatotipo online e descubra como automatizar seus relatórios!'
   },
   {
@@ -22,7 +22,7 @@ export const artigosBlogMarco = [
     categoria: 'Composição Corporal',
     tipo: 'externo',
     tempoLeitura: '6 min de leitura',
-    capa: 'https://www.nutricaocommarco.com.br/Blog/PercentualGorduraFeminino_Capa.webp',
+    capa: '/Blog/PercentualGorduraFeminino_Capa.webp',
     resumoCard: 'Pare de olhar apenas para a balança. Entenda as tabelas reais de referência e descubra qual o percentual de gordura feminino ideal para a sua idade e saúde.'
   },
   {
@@ -35,7 +35,7 @@ export const artigosBlogMarco = [
     categoria: 'Prática Clínica',
     tipo: 'externo',
     tempoLeitura: '5 min de leitura',
-    capa: 'https://www.nutricaocommarco.com.br/Blog/melhor_horario_pesagem.webp',
+    capa: '/Blog/melhor_horario_pesagem.webp',
     resumoCard: 'Seu peso varia até 2kg por dia! Descubra qual o melhor horário para se pesar, as armadilhas da retenção de líquidos e como não se frustrar com a balança.'
   },
   {
@@ -48,7 +48,7 @@ export const artigosBlogMarco = [
     categoria: 'Antropometria',
     tipo: 'externo',
     tempoLeitura: '6 min de leitura',
-    capa: 'https://www.nutricaocommarco.com.br/Blog/O_que_e_antropometria.webp',
+    capa: '/Blog/O_que_e_antropometria.webp',
     resumoCard: 'Entenda por que a antropometria (ISAK) é a única ferramenta confiável para avaliar a saúde, mapeando ossos, gordura, músculos e composição corporal exata.'
   },
   {
@@ -61,7 +61,7 @@ export const artigosBlogMarco = [
     categoria: 'Composição Corporal',
     tipo: 'externo',
     tempoLeitura: '7 min de leitura',
-    capa: 'https://www.nutricaocommarco.com.br/Blog/Bia1.webp',
+    capa: '/Blog/Bia1.webp',
     resumoCard: 'A sua balança cara pode estar mentindo para você. Descubra como a hidratação, bexiga cheia e até o estresse mascaram os resultados da sua bioimpedância.'
   }
 ]
