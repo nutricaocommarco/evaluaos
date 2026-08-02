@@ -10,58 +10,88 @@ export const ARTIGO_PERINI_2005_ETM = {
   tempoLeitura: '8 min de leitura',
   capa: 'https://images.unsplash.com/photo-1576091160550-2173dba999ef?auto=format&fit=crop&w=600&q=80',
   
-  // Resumo para o card da Central de Aprendizado
   resumoCard: 'Entenda como calcular o ETM intra e interavaliador para garantir que as mudanças na composição corporal do paciente sejam reais e não erros da técnica.',
 
-  // Conteúdo completo e didático
   conteudoCompleto: {
     introducao: `
-As medidas antropométricas são amplamente utilizadas para monitorar a composição corporal, avaliar a resposta adaptativa ao treinamento e caracterizar o estado nutricional. No entanto, no ato de repetir uma medição, podem ocorrer variações biológicas e variações técnicas da própria medição.
-
-Para garantir dados confiáveis e controlar a qualidade do avaliador, este estudo clássico do Laboratório de Fisiologia do Exercício (Labofise/UFRJ) difunde a estratégia do **Erro Técnico de Medição (ETM)** segundo os padrões internacionais da *International Society for Advancement in Kinanthropometry (ISAK)* e a metodologia de Kevin Norton & Tim Olds.
+      <p className="text-gray-700 leading-relaxed mb-4">
+        As medidas antropométricas são amplamente utilizadas para monitorar a composição corporal, avaliar a resposta adaptativa ao treinamento e caracterizar o estado nutricional. No entanto, no ato de repetir uma medição, podem ocorrer variações biológicas e variações técnicas da própria medição.
+      </p>
+      <p className="text-gray-700 leading-relaxed mb-4">
+        Para garantir dados confiáveis e controlar a qualidade do avaliador, este estudo clássico do Laboratório de Fisiologia do Exercício (Labofise/UFRJ) difunde a estratégia do <strong>Erro Técnico de Medição (ETM)</strong> segundo os padrões internacionais da <em>International Society for Advancement in Kinanthropometry (ISAK)</em> e a metodologia de Kevin Norton & Tim Olds.
+      </p>
     `,
 
     oQueEETM: `
-### 📏 O que é o Erro Técnico de Medição (ETM)?
+      <h3 className="text-lg font-bold text-gray-900 mt-6 mb-3 flex items-center gap-2">
+        📏 O que é o Erro Técnico de Medição (ETM)?
+      </h3>
+      <p className="text-gray-700 leading-relaxed mb-4">
+        O ETM é um índice de precisão que representa o desvio-padrão entre medidas repetidas. Ele mede o grau de variabilidade e o controle de qualidade do antropometrista:
+      </p>
+      <ul className="list-disc pl-5 space-y-2 text-gray-700 mb-6">
+        <li><strong>ETM Intra-avaliador:</strong> Analisa a variação das medidas repetidas em uma mesma pessoa (ou grupo) feitas pelo <strong>mesmo</strong> avaliador em momentos/dias diferentes.</li>
+        <li><strong>ETM Interavaliador:</strong> Analisa a variação das medidas feitas por <strong>diferentes</strong> avaliadores no mesmo grupo de pessoas. É indispensável em clínicas, academias ou clubes onde mais de um profissional avalia os alunos.</li>
+      </ul>
 
-O ETM é um índice de precisão que representa o desvio-padrão entre medidas repetidas. Ele mede o grau de variabilidade e o controle de qualidade do antropometrista:
-
-1. **ETM Intra-avaliador:** Analisa a variação das medidas repetidas em uma mesma pessoa (ou grupo) feitas pelo **mesmo** avaliador em momentos/dias diferentes.
-2. **ETM Interavaliador:** Analisa a variação das medidas feitas por **diferentes** avaliadores no mesmo grupo de pessoas. É indispensável em clínicas, academias ou clubes onde mais de um profissional avalia os alunos.
-
-#### 🎯 Padrões de Tolerância (Cortes Aceitáveis da ISAK):
-* **Iniciantes / Estagiários:** ETM até **7,5%** para dobras cutâneas e **1,5%** para outras medidas (perímetros/diâmetros).
-* **Experientes / Certificados:** ETM até **5,0%** para dobras cutâneas e **1,0%** para outras medidas.
+      <div className="bg-emerald-50 border border-emerald-100 rounded-xl p-4 mb-6">
+        <h4 className="font-bold text-emerald-900 text-sm mb-2">🎯 Padrões de Tolerância (Cortes Aceitáveis da ISAK):</h4>
+        <ul className="list-disc pl-5 space-y-1 text-emerald-800 text-xs">
+          <li><strong>Iniciantes / Estagiários:</strong> ETM até <strong>7,5%</strong> para dobras cutâneas e <strong>1,5%</strong> para outras medidas (perímetros/diâmetros).</li>
+          <li><strong>Experientes / Certificados:</strong> ETM até <strong>5,0%</strong> para dobras cutâneas e <strong>1,0%</strong> para outras medidas.</li>
+        </ul>
+      </div>
     `,
 
     passoAPassoCalculo: `
-### 🧮 Como Calcular o ETM na Prática (Método das Diferenças)
-
-O cálculo do ETM absoluto e relativo envolve 4 etapas simples:
-
-1. **Obter as diferenças ($d$):** Calcule a diferença entre a 1ª e a 2ª medição de cada ponto em pelo menos 20 voluntários.
-2. **Elevar ao quadrado ($d^2$):** Eleve cada diferença individual ao quadrado.
-3. **ETM Absoluto:** Aplique a fórmula da raiz do somatório dos quadrados dividido por duas vezes o número de sujeitos ($n$):
-   $$\\text{ETM Absoluto} = \\sqrt{\\frac{\\sum d^2}{2n}}$$
-4. **ETM Relativo (%):** Divida o ETM absoluto pelo **Valor Médio da Variável (VMV)** e multiplique por 100:
-   $$\\text{ETM Relativo (\\%)} = \\left( \\frac{\\text{ETM}}{\\text{VMV}} \\right) \\times 100$$
+      <h3 className="text-lg font-bold text-gray-900 mt-6 mb-3 flex items-center gap-2">
+        🧮 Como Calcular o ETM na Prática (Método das Diferenças)
+      </h3>
+      <p className="text-gray-700 leading-relaxed mb-4">
+        O cálculo do ETM absoluto e relativo envolve 4 etapas simples:
+      </p>
+      <ol className="list-decimal pl-5 space-y-3 text-gray-700 mb-6">
+        <li><strong>Obter as diferenças (d):</strong> Calcule a diferença entre a 1ª e a 2ª medição de cada ponto em pelo menos 20 voluntários.</li>
+        <li><strong>Elevar ao quadrado (d²):</strong> Eleve cada diferença individual ao quadrado.</li>
+        <li>
+          <strong>ETM Absoluto:</strong> Aplique a fórmula da raiz do somatório dos quadrados dividido por duas vezes o número de sujeitos (n):
+          <div className="my-3 p-4 bg-gray-50 border border-gray-200 rounded-xl text-center font-mono font-bold text-emerald-700 text-sm shadow-inner">
+            ETM Absoluto = √ ( Σ d² / 2n )
+          </div>
+        </li>
+        <li>
+          <strong>ETM Relativo (%):</strong> Divida o ETM absoluto pelo <strong>Valor Médio da Variável (VMV)</strong> e multiplique por 100:
+          <div className="my-3 p-4 bg-gray-50 border border-gray-200 rounded-xl text-center font-mono font-bold text-emerald-700 text-sm shadow-inner">
+            ETM Relativo (%) = ( ETM Absoluto / VMV ) × 100
+          </div>
+        </li>
+      </ol>
     `,
 
     ondeOcorreOMaiorErro: `
-### ⚠️ Locais de Maior Erro e Dicas Práticas
-
-O estudo apontou que dobras cutâneas em regiões de **maior acúmulo de gordura (como abdômen, supra-ilíaca e coxa)** apresentam maior variação do ETM.
-
-#### 💡 Recomendações do Estudo para Reduzir o Erro:
-* **Localização Anatômica Precisa:** A marcação correta dos pontos de referência anatômica com lápis dermográfico reduz a maior parte do erro técnico.
-* **Técnica de Pinçamento:** Em dobras maiores ou indivíduos com tecido adiposo muito espesso, recomenda-se que um auxiliar ajude a segurar a dobra com as duas mãos para o antropometrista aplicar o plicômetro com precisão.
-* **Aprimoramento Contínuo:** Praticar com frequência é o único caminho para reduzir o erro técnico e atingir os padrões internacionais da ISAK.
+      <h3 className="text-lg font-bold text-gray-900 mt-6 mb-3 flex items-center gap-2">
+        ⚠️ Locais de Maior Erro e Dicas Práticas
+      </h3>
+      <p className="text-gray-700 leading-relaxed mb-4">
+        O estudo apontou que dobras cutâneas em regiões de <strong>maior acúmulo de gordura (como abdômen, supra-ilíaca e coxa)</strong> apresentam maior variação do ETM.
+      </p>
+      <div className="bg-amber-50 border border-amber-100 rounded-xl p-4 mb-6">
+        <h4 className="font-bold text-amber-900 text-sm mb-2">💡 Recomendações do Estudo para Reduzir o Erro:</h4>
+        <ul className="list-disc pl-5 space-y-2 text-amber-800 text-xs">
+          <li><strong>Localização Anatômica Precisa:</strong> A marcação correta dos pontos de referência anatômica com lápis dermográfico reduz a maior parte do erro técnico.</li>
+          <li><strong>Técnica de Pinçamento:</strong> Em dobras maiores ou indivíduos com tecido adiposo muito espesso, recomenda-se que um auxiliar ajude a segurar a dobra com as duas mãos para o antropometrista aplicar o plicômetro com precisão.</li>
+          <li><strong>Aprimoramento Contínuo:</strong> Praticar com frequência é o único caminho para reduzir o erro técnico e atingir os padrões internacionais da ISAK.</li>
+        </ul>
+      </div>
     `,
 
     conclusao: `
-### 🎯 Aplicação no EvaluaOS
-
-Controlar o seu ETM garante que, quando o laudo do EvaluaOS mostrar uma redução no somatório de dobras do seu paciente, essa diferença seja **uma adaptação real ao plano alimentar e ao treino**, e não uma mera oscilação da sua fita métrica ou do seu plicômetro!
+      <div className="bg-gray-900 text-white rounded-2xl p-6 mt-8 shadow-lg space-y-2">
+        <h4 className="text-emerald-400 font-bold text-sm uppercase tracking-wider">🎯 Aplicação no EvaluaOS</h4>
+        <p className="text-xs text-gray-300 leading-relaxed">
+          Controlar o seu ETM garante que, quando o laudo do EvaluaOS mostrar uma redução no somatório de dobras do seu paciente, essa diferença seja <strong>uma adaptação real ao plano alimentar e ao treino</strong>, e não uma mera oscilação da sua fita métrica ou do seu plicômetro!
+        </p>
+      </div>
     `
   }
 }
