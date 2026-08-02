@@ -93,7 +93,7 @@ export const ARTIGO_COME_BACK_SKINFOLDS = {
           </p>
         </div>
       </div>
-    `
+    `,
 
 
     conclusaoEPratica: `
