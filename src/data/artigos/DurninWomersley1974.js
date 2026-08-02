@@ -63,12 +63,12 @@ export const ARTIGO_DURNIN_WOMERSLEY_1974 = {
       </div>
     `,
 
-    conversaoParaGordura: `
+ conversaoParaGordura: `
       <h3 className="text-lg font-bold text-gray-900 mt-6 mb-3 flex items-center gap-2">
         ⚖️ Conversão de Densidade para % de Gordura (Siri / Brožek)
       </h3>
       <p className="text-gray-700 leading-relaxed mb-4">
-        Após obter a densidade corporal ($D$), converte-se o valor para o percentual de gordura corporal (%GC) utilizando a clássica equação de Siri (1956):
+        Após obter a densidade corporal (<em>D</em>), converte-se o valor para o percentual de gordura corporal (%GC) utilizando a clássica equação de Siri (1956):
       </p>
       
       <div className="my-3 p-4 bg-gray-50 border border-gray-200 rounded-xl text-center font-mono font-bold text-emerald-700 text-sm shadow-inner">
