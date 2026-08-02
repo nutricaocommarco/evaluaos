@@ -120,7 +120,7 @@ export const ARTIGO_HOLWAY_2005_ARGOREF = {
           </p>
         </div>
       </div>
-    `
+    `,
 
 
     conclusao: `
