@@ -12,6 +12,7 @@ import Avaliador from './pages/Avaliador'
 import EvolucaoPaciente from './pages/EvolucaoPaciente' 
 import Configuracoes from './pages/Configuracoes'
 import MeuPlano from './pages/MeuPlano'
+import Aprendizado from './pages/Aprendizado'
 
 function MainApp() {
   const [session, setSession] = useState(null)
@@ -213,6 +214,7 @@ function MainApp() {
             <Route path="/laudo/:tokenUrl" element={<ResultadoAvaliacao />} />
             <Route path="/configuracoes" element={<Configuracoes />} />
             <Route path="/evolucao/:tokenUrl" element={<EvolucaoPaciente />} />
+            <Route path="/Aprendizado" element={<Aprendizado />} />
 
             <Route path="*" element={
               <div className="flex flex-col items-center justify-center h-full text-center p-6">
