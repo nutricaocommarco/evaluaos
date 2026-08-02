@@ -3,7 +3,7 @@ import { ARTIGO_COME_BACK_SKINFOLDS } from './artigos/ComeBackSkinfolds'
 import { ARTIGO_PERINI_2005_ETM } from './artigos/Perini2005ETM'
 import { ARTIGO_HOLWAY_2005_ARGOREF } from './artigos/Holway2005Argoref'
 import { ARTIGO_DURNIN_WOMERSLEY_1974 } from './artigos/DurninWomersley1974'
-
+import { artigosBlogMarco } from './artigos/artigosBlogMarco'
 
 export const CATEGORIAS_APRENDIZADO = [
   'Todos',
@@ -15,36 +15,39 @@ export const CATEGORIAS_APRENDIZADO = [
 ]
 
 export const CONTEUDOS_APRENDIZADO = [
+  // 📹 1. Vídeos Práticos
   {
-  id: 'video-perfil-restrito-isak',
-  titulo: 'Perfil Restringido ISAK: Protocolo Internacional de Valoração Antropométrica',
-  descricao: 'Vídeo oficial demonstrativo mostrando a localização de pontos anatômicos, dobras cutâneas, perímetros e diâmetros do perfil restrito.',
-  categoria: 'Antropometria',
-  tipo: 'video',
-  url: 'https://www.youtube.com/watch?v=_Fmm4T4Ooto',
-  tempoLeitura: '20 min assistindo',
-  capa: 'https://img.youtube.com/vi/_Fmm4T4Ooto/hqdefault.jpg'
-},
+    id: 'video-perfil-restrito-isak',
+    titulo: 'Perfil Restringido ISAK: Protocolo Internacional de Valoração Antropométrica',
+    descricao: 'Vídeo oficial demonstrativo mostrando a localização de pontos anatômicos, dobras cutâneas, perímetros e diâmetros do perfil restrito.',
+    categoria: 'Antropometria',
+    tipo: 'video',
+    url: 'https://www.youtube.com/watch?v=_Fmm4T4Ooto',
+    tempoLeitura: '20 min assistindo',
+    capa: 'https://img.youtube.com/vi/_Fmm4T4Ooto/hqdefault.jpg'
+  },
+  {
+    id: 'video-perfil-completo-isak',
+    titulo: 'Perfil Completo ISAK: Protocolo Internacional Antropométrico Avançado',
+    descricao: 'Guia completo demonstrativo com todas as marcações de pontos, dobras, perímetros adicionais (antebraço, coxa máxima) e diâmetros ósseos.',
+    categoria: 'Antropometria',
+    tipo: 'video',
+    url: 'https://www.youtube.com/watch?v=Ff2WDc7LhXU',
+    tempoLeitura: '34 min assistindo',
+    capa: 'https://img.youtube.com/vi/Ff2WDc7LhXU/hqdefault.jpg'
+  },
 
-{
-  id: 'video-perfil-completo-isak',
-  titulo: 'Perfil Completo ISAK: Protocolo Internacional Antropométrico Avançado',
-  descricao: 'Guia completo demonstrativo com todas as marcações de pontos, dobras, perímetros adicionais (antebraço, coxa máxima) e diâmetros ósseos.',
-  categoria: 'Antropometria',
-  tipo: 'video',
-  url: 'https://www.youtube.com/watch?v=Ff2WDc7LhXU',
-  tempoLeitura: '34 min assistindo',
-  capa: 'https://img.youtube.com/vi/Ff2WDc7LhXU/hqdefault.jpg'
-},
+  // 🌐 2. Artigos do Seu Blog Oficial (Links Externos)
+  ...artigosBlogMarco,
 
-  // 📄 2. Artigo completo e comentado do Come Back Skinfolds (Importado do Módulo)
-artigoAlanMartin1984,
+  // 📄 3. Artigos Científicos Comentados (Módulos Internos)
+  artigoAlanMartin1984,
   ARTIGO_COME_BACK_SKINFOLDS,
-ARTIGO_PERINI_2005_ETM,
-ARTIGO_HOLWAY_2005_ARGOREF,
-ARTIGO_DURNIN_WOMERSLEY_1974,
+  ARTIGO_PERINI_2005_ETM,
+  ARTIGO_HOLWAY_2005_ARGOREF,
+  ARTIGO_DURNIN_WOMERSLEY_1974,
 
-  // 📄 1. Artigos Científicos com link direto (ou futuros módulos)
+  // 📄 4. Artigos Científicos Internacionais (Links DOI Diretos)
   {
     id: 'samouda-2013',
     titulo: 'Gordura Visceral sem CT-Scan ou DXA: Entenda a Ciência do apVAT',
@@ -76,7 +79,7 @@ ARTIGO_DURNIN_WOMERSLEY_1974,
     capa: 'https://images.unsplash.com/photo-1551836022-d5d88e9218df?auto=format&fit=crop&w=600&q=80'
   },
 
-  // 📖 3. Tutoriais e Conteúdos Internos do EvaluaOS
+  // 📖 5. Tutoriais e Conteúdos de Gestão
   {
     id: 'tutorial-evaluaos',
     titulo: 'Dominando o EvaluaOS: Do Cadastro ao Laudo em 5 minutos',
