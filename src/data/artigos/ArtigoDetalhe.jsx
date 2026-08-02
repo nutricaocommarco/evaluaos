@@ -82,23 +82,23 @@ export default function ArtigoDetalhe() {
         </div>
       </div>
 
-      {/* Conteúdo do Resumo Explicativo */}
-      {artigo.conteudoCompleto ? (
-        <div className="bg-white p-6 md:p-8 rounded-2xl border border-gray-100 shadow-sm space-y-6 text-gray-700 text-xs md:text-sm leading-relaxed">
-          {Object.entries(artigo.conteudoCompleto).map(([chave, texto]) => (
-            <div 
-              key={chave} 
-              className="prose prose-sm max-w-none"
-              dangerouslySetInnerHTML={{ __html: texto.replace(/\n/g, '<br/>') }} 
-            />
-          ))}
-        </div>
-      ) : (
-        <div className="p-6 bg-amber-50 border border-amber-100 rounded-2xl text-xs text-amber-800 space-y-2">
-          <p className="font-bold">Artigo Externo</p>
-          <p>Este estudo não possui um resumo interno completo cadastrado. Clique no botão acima para acessar o artigo original na íntegra.</p>
-        </div>
-      )}
+    {/* Conteúdo do Resumo Explicativo */}
+{artigo.conteudoCompleto ? (
+  <div className="bg-white p-6 md:p-8 rounded-2xl border border-gray-100 shadow-sm space-y-4">
+    {Object.entries(artigo.conteudoCompleto).map(([chave, htmlTexto]) => (
+      <div 
+        key={chave} 
+        dangerouslySetInnerHTML={{ __html: htmlTexto }} 
+      />
+    ))}
+  </div>
+) : (
+  <div className="p-6 bg-amber-50 border border-amber-100 rounded-2xl text-xs text-amber-800 space-y-2">
+    <p className="font-bold">Artigo Externo</p>
+    <p>Este estudo não possui um resumo interno completo cadastrado. Clique no botão acima para acessar o artigo original na íntegra.</p>
+  </div>
+)}
+
 
       {/* Rodapé da Página */}
       <div className="pt-6 border-t border-gray-100 flex justify-between items-center text-xs text-gray-400">
