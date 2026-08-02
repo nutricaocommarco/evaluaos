@@ -70,9 +70,13 @@ export default function Aprendizado() {
         </div>
       </div>
 
-  {/* 🏷️ FILTROS COM EFEITO FADE NA LATERAL */}
-<div className="relative w-full">
-  <div className="flex items-center gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden pr-8">
+  {/* 🏷️ FILTROS POR CATEGORIA COM SETA DE INDICAÇÃO PARA MOBILE */}
+<div className="relative w-full flex items-center">
+  {/* Container com scroll e padding para a seta não cobrir o último botão */}
+  <div 
+    id="container-categorias"
+    className="flex items-center gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden pr-10 scroll-smooth w-full"
+  >
     {CATEGORIAS_APRENDIZADO.map(cat => (
       <button
         key={cat}
@@ -87,9 +91,15 @@ export default function Aprendizado() {
       </button>
     ))}
   </div>
-  {/* Sombra suave à direita indicando continuação */}
-  <div className="absolute right-0 top-0 bottom-1 w-8 bg-gradient-to-l from-white to-transparent pointer-events-none" />
+
+  {/* Sombra + Ícone de Seta indicando claramente que há mais opções */}
+  <div className="absolute right-0 top-0 bottom-1 flex items-center justify-end w-12 bg-gradient-to-l from-white via-white/80 to-transparent pointer-events-none">
+    <span className="text-emerald-600 text-xs font-bold animate-pulse mr-1">
+      ➔
+    </span>
+  </div>
 </div>
+
 
 
 
