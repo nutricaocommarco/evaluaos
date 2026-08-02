@@ -12,10 +12,19 @@ export default function HomePublica() {
       {/* 🟢 1. HEADER / NAVBAR GLOBAL FIXA */}
       <PublicHeader />
 
-      {/* 🚀 2. HERO SECTION */}
-      <section className="relative overflow-hidden pt-12 pb-20 md:pt-20 md:pb-28 bg-gradient-to-b from-emerald-50/50 via-white to-white">
+      {/* 🚀 2. HERO SECTION (Com Logo Grande) */}
+      <section className="relative overflow-hidden pt-10 pb-20 md:pt-16 md:pb-28 bg-gradient-to-b from-emerald-50/50 via-white to-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 text-center space-y-6">
           
+          {/* 🌟 LOGO GRANDE EM DESTAQUE NA HOME */}
+          <div className="flex justify-center items-center pt-2">
+            <img 
+              src="/Imagens/Logo_png.png" 
+              alt="EvaluaOS Logo" 
+              className="h-44 sm:h-56 md:h-64 w-auto object-contain hover:scale-105 transition-transform duration-300 drop-shadow-sm" 
+            />
+          </div>
+
           <div className="inline-flex items-center gap-2 px-3.5 py-1.5 bg-emerald-100/80 border border-emerald-200 text-emerald-800 text-[11px] font-bold rounded-full tracking-wide">
             <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
             Padrão ISAK & Metrologia Científica
@@ -181,7 +190,7 @@ export default function HomePublica() {
         </div>
       </section>
 
-      {/* 💰 5. SEÇÃO DE PREÇOS NA HOME (Sincronizada) */}
+      {/* 💰 5. SEÇÃO DE PREÇOS NA HOME */}
       <section id="precos" className="py-20 max-w-7xl mx-auto px-4 sm:px-6 space-y-12">
         
         <div className="text-center space-y-2 max-w-xl mx-auto">
