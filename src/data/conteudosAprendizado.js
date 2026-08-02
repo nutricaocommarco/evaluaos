@@ -1,4 +1,6 @@
 import { ARTIGO_COME_BACK_SKINFOLDS } from './artigos/ComeBackSkinfolds'
+import { ARTIGO_PERINI_2005_ETM } from './artigos/Perini2005ETM'
+
 
 export const CATEGORIAS_APRENDIZADO = [
   'Todos',
@@ -34,6 +36,7 @@ export const CONTEUDOS_APRENDIZADO = [
 
   // 📄 2. Artigo completo e comentado do Come Back Skinfolds (Importado do Módulo)
   ARTIGO_COME_BACK_SKINFOLDS,
+ARTIGO_PERINI_2005_ETM,
 
   // 📄 1. Artigos Científicos com link direto (ou futuros módulos)
   {
