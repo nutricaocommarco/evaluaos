@@ -1,51 +1,18 @@
 import React from 'react'
 import { useNavigate, Link } from 'react-router-dom'
+import PublicHeader from '../components/PublicHeader'
 import { CONTEUDOS_APRENDIZADO } from '../data/conteudosAprendizado'
 
 export default function HomePublica() {
   const navigate = useNavigate()
 
-  const scrollToSection = (id) => {
-    const element = document.getElementById(id)
-    if (element) {
-      element.scrollIntoView({ behavior: 'smooth' })
-    }
-  }
-
   return (
     <div className="min-h-screen bg-white text-slate-800 font-sans selection:bg-emerald-500 selection:text-white">
       
-      {/* 🟢 1. HEADER / NAVBAR FIXA */}
-      <header className="sticky top-0 z-50 bg-white/95 backdrop-blur-md border-b border-slate-100">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3 flex items-center justify-between">
-          <Link to="/" className="flex items-center gap-2">
-            <img src="/Imagens/Logo_png.png" alt="EvaluaOS Logo" className="h-10 w-auto object-contain" />
-            <div className="hidden sm:flex flex-col">
-              <span className="text-base font-black text-slate-900 tracking-tight leading-none">
-                Evalua<span className="text-emerald-600">OS</span>
-              </span>
-              <span className="text-[9px] text-slate-400 font-bold uppercase tracking-wider mt-0.5">
-                Antropometria de Precisão
-              </span>
-            </div>
-          </Link>
+      {/* 🟢 1. HEADER / NAVBAR GLOBAL FIXA */}
+      <PublicHeader />
 
-          <nav className="flex items-center gap-4 sm:gap-8 text-xs font-bold text-slate-600">
-            <Link to="/" className="text-emerald-600 font-extrabold">🏠 Início</Link>
-            <Link to="/aprendizado" className="hover:text-emerald-600 transition-colors">📚 Aprendizado</Link>
-            <button onClick={() => scrollToSection('precos')} className="hover:text-emerald-600 transition-colors">💰 Preços</button>
-            <button onClick={() => scrollToSection('contato')} className="hover:text-emerald-600 transition-colors">📞 Contato</button>
-            <button
-              onClick={() => navigate('/login')}
-              className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl shadow-md shadow-emerald-600/20 transition-all ml-1"
-            >
-              🔐 Entrar
-            </button>
-          </nav>
-        </div>
-      </header>
-
-      {/* 🚀 2. HERO SECTION (Alta Conversão) */}
+      {/* 🚀 2. HERO SECTION */}
       <section className="relative overflow-hidden pt-12 pb-20 md:pt-20 md:pb-28 bg-gradient-to-b from-emerald-50/50 via-white to-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 text-center space-y-6">
           
@@ -59,7 +26,7 @@ export default function HomePublica() {
           </h1>
 
           <p className="text-sm sm:text-base md:text-lg text-slate-600 max-w-2xl mx-auto leading-relaxed">
-            Abandone equações genéricas. O EvaluaOS automatiza o cálculo do <strong>Erro Técnico de Medição (ETM)</strong>, compara com as <strong>Tabelas ARGOREF</strong> e entrega o fracionamento em 5 massas com precisão cirúrgica.
+            Abandone equações genéricas sem critério. O EvaluaOS organiza suas avaliações físicas, acompanha a evolução real pelo <strong>Somatório de Dobras (mm)</strong> e entrega laudos profissionais e interativos para seus pacientes.
           </p>
 
           <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-4">
@@ -77,30 +44,35 @@ export default function HomePublica() {
             </button>
           </div>
 
-          {/* Badges de Prova Científica */}
+          {/* Badges de Destaques e Recursos em Breve */}
           <div className="pt-10 grid grid-cols-2 md:grid-cols-4 gap-4 max-w-3xl mx-auto border-t border-slate-100">
-            <div className="p-3 bg-white border border-slate-100 rounded-xl shadow-sm">
-              <span className="block text-lg font-black text-emerald-600">ETM</span>
-              <span className="text-[10px] font-bold text-slate-400 uppercase">Perini et al. (2005)</span>
-            </div>
-            <div className="p-3 bg-white border border-slate-100 rounded-xl shadow-sm">
-              <span className="block text-lg font-black text-emerald-600">5 Massas</span>
-              <span className="text-[10px] font-bold text-slate-400 uppercase">Kerr & Ross (1988)</span>
-            </div>
-            <div className="p-3 bg-white border border-slate-100 rounded-xl shadow-sm">
-              <span className="block text-lg font-black text-emerald-600">ARGOREF</span>
-              <span className="text-[10px] font-bold text-slate-400 uppercase">Francis Holway (2005)</span>
-            </div>
             <div className="p-3 bg-white border border-slate-100 rounded-xl shadow-sm">
               <span className="block text-lg font-black text-emerald-600">∑ Dobras mm</span>
               <span className="text-[10px] font-bold text-slate-400 uppercase">Kasper et al. (2021)</span>
+            </div>
+            
+            <div className="p-3 bg-white border border-slate-100 rounded-xl shadow-sm">
+              <span className="block text-lg font-black text-emerald-600">Laudos PDF</span>
+              <span className="text-[10px] font-bold text-slate-400 uppercase">Interativo e Web</span>
+            </div>
+
+            <div className="p-3 bg-white border border-slate-100 rounded-xl shadow-sm relative overflow-hidden">
+              <span className="absolute top-1 right-1 px-1.5 py-0.5 bg-amber-100 text-amber-800 text-[8px] font-black rounded uppercase">Em breve</span>
+              <span className="block text-lg font-black text-slate-700">5 Massas</span>
+              <span className="text-[10px] font-bold text-slate-400 uppercase">Kerr & Ross (1988)</span>
+            </div>
+
+            <div className="p-3 bg-white border border-slate-100 rounded-xl shadow-sm relative overflow-hidden">
+              <span className="absolute top-1 right-1 px-1.5 py-0.5 bg-amber-100 text-amber-800 text-[8px] font-black rounded uppercase">Em breve</span>
+              <span className="block text-lg font-black text-slate-700">ETM & Argoref</span>
+              <span className="text-[10px] font-bold text-slate-400 uppercase">Perini / Holway</span>
             </div>
           </div>
 
         </div>
       </section>
 
-      {/* 🧬 3. POR QUE O EVALUAOS É DIFERENTE? (Diferencial Científico) */}
+      {/* 🧬 3. POR QUE O EVALUAOS É DIFERENTE? */}
       <section className="py-16 bg-slate-900 text-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 space-y-12">
           
@@ -126,21 +98,24 @@ export default function HomePublica() {
 
             <div className="bg-slate-800/80 border border-slate-700/60 p-6 rounded-2xl space-y-3">
               <div className="w-10 h-10 bg-emerald-500/10 text-emerald-400 rounded-xl flex items-center justify-center font-bold text-lg">
-                📐
+                📊
               </div>
-              <h3 className="text-base font-bold text-white">Cálculo de ETM Automático</h3>
+              <h3 className="text-base font-bold text-white">Laudos e Comparativos de Evolução</h3>
               <p className="text-xs text-slate-300 leading-relaxed">
-                Garanta rigor metrológico. O sistema calcula seu Erro Técnico de Medição intra-avaliador para dar certeza de que a evolução do paciente é real.
+                Gere PDFs estilizados com sua marca e compartilhe o link de evolução diretamente no WhatsApp do seu paciente.
               </p>
             </div>
 
-            <div className="bg-slate-800/80 border border-slate-700/60 p-6 rounded-2xl space-y-3">
-              <div className="w-10 h-10 bg-emerald-500/10 text-emerald-400 rounded-xl flex items-center justify-center font-bold text-lg">
-                📊
+            <div className="bg-slate-800/80 border border-slate-700/60 p-6 rounded-2xl space-y-3 relative">
+              <span className="absolute top-4 right-4 px-2 py-0.5 bg-amber-500/20 text-amber-300 border border-amber-500/30 text-[9px] font-extrabold rounded uppercase">
+                Em breve
+              </span>
+              <div className="w-10 h-10 bg-amber-500/10 text-amber-400 rounded-xl flex items-center justify-center font-bold text-lg">
+                📐
               </div>
-              <h3 className="text-base font-bold text-white">Tabelas ARGOREF Latino-Americanas</h3>
+              <h3 className="text-base font-bold text-white">ETM, 5 Massas & Baremos ARGOREF</h3>
               <p className="text-xs text-slate-300 leading-relaxed">
-                Compare seu paciente com indivíduos saudáveis e não-sedentários da nossa região, e não com normas norte-americanas ou atletas olímpicos.
+                Estamos desenvolvendo o cálculo automático do Erro Técnico (ETM), Fracionamento de 5 Massas e comparações normativas regionais.
               </p>
             </div>
 
@@ -149,7 +124,7 @@ export default function HomePublica() {
         </div>
       </section>
 
-      {/* 📚 4. CENTRAL DE APRENDIZADO ABERTA (SEO + Autoridade) */}
+      {/* 📚 4. CENTRAL DE APRENDIZADO ABERTA */}
       <section id="aprendizado" className="py-20 bg-slate-50 border-b border-slate-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 space-y-10">
           
@@ -206,11 +181,11 @@ export default function HomePublica() {
         </div>
       </section>
 
-      {/* 💰 5. TABELA DE PREÇOS */}
-      <section id="precos" className="py-20 max-w-7xl mx-auto px-4 sm:px-6 space-y-12">
+      {/* 💰 5. SEÇÃO DE PREÇOS NA HOME */}
+      <section className="py-20 max-w-7xl mx-auto px-4 sm:px-6 space-y-12">
         
         <div className="text-center space-y-2 max-w-xl mx-auto">
-          <span className="text-xs font-bold text-emerald-600 uppercase tracking-widest">Acesso Sem Pegadinhas</span>
+          <span className="text-xs font-bold text-emerald-600 uppercase tracking-widest">Acesso Transparente</span>
           <h2 className="text-2xl sm:text-4xl font-black text-slate-900">Escolha o seu Plano</h2>
           <p className="text-xs sm:text-sm text-slate-500">
             Comece no plano gratuito para testar o sistema ou assine a versão Pro para atendimento ilimitado.
@@ -256,10 +231,9 @@ export default function HomePublica() {
               
               <ul className="space-y-2.5 text-xs text-slate-300 pt-2">
                 <li className="flex items-center gap-2"><span className="text-emerald-400 font-bold">✓</span> Avaliações e laudos em PDF ilimitados</li>
-                <li className="flex items-center gap-2"><span className="text-emerald-400 font-bold">✓</span> Cálculo automático de ETM (Erro Técnico)</li>
-                <li className="flex items-center gap-2"><span className="text-emerald-400 font-bold">✓</span> Fracionamento de 5 Massas em kg (Kerr)</li>
-                <li className="flex items-center gap-2"><span className="text-emerald-400 font-bold">✓</span> Tabelas normativas Baremos ARGOREF</li>
+                <li className="flex items-center gap-2"><span className="text-emerald-400 font-bold">✓</span> Somatório de Dobras (mm) e histórico completo</li>
                 <li className="flex items-center gap-2"><span className="text-emerald-400 font-bold">✓</span> Links públicos de evolução para o paciente</li>
+                <li className="flex items-center gap-2 text-amber-300"><span className="text-amber-400 font-bold">⏳</span> Baremos ARGOREF, ETM e 5 Massas <em>(Em breve)</em></li>
               </ul>
             </div>
 
@@ -294,7 +268,7 @@ export default function HomePublica() {
       </section>
 
       {/* 📞 7. RODAPÉ INSTITUCIONAL */}
-      <footer id="contato" className="bg-slate-950 text-slate-400 py-12 border-t border-slate-800 text-xs">
+      <footer className="bg-slate-950 text-slate-400 py-12 border-t border-slate-800 text-xs">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 flex flex-col md:flex-row justify-between items-center gap-6">
           
           <div className="space-y-1 text-center md:text-left">
