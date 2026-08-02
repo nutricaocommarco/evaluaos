@@ -8,7 +8,7 @@ export const ARTIGO_HOLWAY_2005_ARGOREF = {
   categoria: 'Antropometria',
   tipo: 'artigo',
   tempoLeitura: '9 min de leitura',
-  capa: 'https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?auto=format&fit=crop&w=600&q=80',
+  capa: '/Imagens/capas/Holway2005Argoref.webp',
 
   resumoCard: 'Descubra a relevância das Tabelas ARGOREF para classificar o perfil morfológico de adultos jovens (20 a 30 anos) com rigor metrológico ISAK.',
 

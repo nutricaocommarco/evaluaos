@@ -8,7 +8,7 @@ export const ARTIGO_DURNIN_WOMERSLEY_1974 = {
   categoria: 'Artigos e Ciência',
   tipo: 'artigo',
   tempoLeitura: '8 min de leitura',
-  capa: 'https://images.unsplash.com/photo-1576091160399-112ba8d25d1d?auto=format&fit=crop&w=600&q=80',
+  capa: '/Imagens/capas/DurninWomersley1974.webp',
 
   resumoCard: 'Aprenda como o estudo de 1974 revolucionou a avaliação da densidade corporal usando a transformação logarítmica de 4 dobras cutâneas divididas por idade e sexo.',
 

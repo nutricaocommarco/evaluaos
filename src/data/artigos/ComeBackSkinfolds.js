@@ -8,7 +8,7 @@ export const ARTIGO_COME_BACK_SKINFOLDS = {
   categoria: 'Artigos e Ciência',
   tipo: 'artigo',
   tempoLeitura: '10 min de leitura',
-  capa: 'https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?auto=format&fit=crop&w=600&q=80',
+  capa: '/Imagens/capas/ComeBackSkinfolds.webp',
 
   resumoCard: 'Entenda por que o DXA não é o padrão-ouro absoluto que todos pensavam e por que o Somatório de Dobras (ISAK) é a ferramenta mais confiável e imune a erros de hidratação na prática clínica.',
 
