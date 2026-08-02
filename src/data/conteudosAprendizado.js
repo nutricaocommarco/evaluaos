@@ -10,10 +10,21 @@ export const CATEGORIAS_APRENDIZADO = [
 ]
 
 export const CONTEUDOS_APRENDIZADO = [
-  // 📄 1. Artigo completo e comentado do Come Back Skinfolds (Importado do Módulo)
+  {
+  id: 'video-perfil-restrito-isak',
+  titulo: 'Perfil Restringido ISAK: Protocolo Internacional de Valoração Antropométrica',
+  descricao: 'Vídeo oficial demonstrativo mostrando a localização de pontos anatômicos, dobras cutâneas, perímetros e diâmetros do perfil restrito.',
+  categoria: 'Antropometria',
+  tipo: 'video',
+  url: 'https://www.youtube.com/watch?v=_Fmm4T4Ooto',
+  tempoLeitura: '20 min assistindo',
+  capa: 'https://img.youtube.com/vi/_Fmm4T4Ooto/hqdefault.jpg'
+},
+
+  // 📄 2. Artigo completo e comentado do Come Back Skinfolds (Importado do Módulo)
   ARTIGO_COME_BACK_SKINFOLDS,
 
-  // 📄 2. Artigos Científicos com link direto (ou futuros módulos)
+  // 📄 1. Artigos Científicos com link direto (ou futuros módulos)
   {
     id: 'samouda-2013',
     titulo: 'Gordura Visceral sem CT-Scan ou DXA: Entenda a Ciência do apVAT',
