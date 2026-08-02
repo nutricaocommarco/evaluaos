@@ -1,52 +1,62 @@
 import React, { useState } from 'react'
-import { useNavigate, Link } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
+import PublicHeader from '../components/PublicHeader'
 
 export default function Contato() {
   const navigate = useNavigate()
   const [nome, setNome] = useState('')
   const [email, setEmail] = useState('')
-  const [assunto, setAssunto] = useState('duvida')
+  const [assunto, setAssunto] = useState('Dúvidas sobre os Planos ou Sistema')
   const [mensagem, setMensagem] = useState('')
+  const [loading, setLoading] = useState(false)
   const [enviado, setEnviado] = useState(false)
+  const [erro, setErro] = useState('')
 
-  const handleSubmit = (e) => {
+  // 🔑 Sua Access Key do Web3Forms configurada
+  const ACCESS_KEY = 'c27fe984-3654-415a-b61d-a0c7d3e8abad'
+
+  const handleSubmit = async (e) => {
     e.preventDefault()
-    // Lógica de envio da mensagem (ex: API de e-mail / Supabase)
-    setEnviado(true)
+    setLoading(true)
+    setErro('')
+
+    try {
+      const response = await fetch('https://api.web3forms.com/submit', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Accept: 'application/json',
+        },
+        body: JSON.stringify({
+          access_key: ACCESS_KEY,
+          name: nome,
+          email: email,
+          subject: `[Contato EvaluaOS] ${assunto}`,
+          message: mensagem,
+          from_name: 'EvaluaOS - Formulário de Contato',
+        }),
+      })
+
+      const result = await response.json()
+
+      if (result.success) {
+        setEnviado(true)
+      } else {
+        throw new Error(result.message || 'Erro ao enviar e-mail')
+      }
+    } catch (err) {
+      console.error('Erro ao enviar mensagem por e-mail:', err)
+      setErro('Não foi possível enviar o e-mail no momento. Tente novamente ou entre em contato pelo WhatsApp.')
+    } finally {
+      setLoading(false)
+    }
   }
 
   return (
     <div className="min-h-screen bg-white text-slate-800 font-sans selection:bg-emerald-500 selection:text-white">
-      
-      {/* 🟢 1. HEADER / NAVBAR FIXA */}
-      <header className="sticky top-0 z-50 bg-white/95 backdrop-blur-md border-b border-slate-100">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3 flex items-center justify-between">
-          <Link to="/" className="flex items-center gap-2">
-            <img src="/Imagens/Logo_png.png" alt="EvaluaOS Logo" className="h-10 w-auto object-contain" />
-            <div className="hidden sm:flex flex-col">
-              <span className="text-base font-black text-slate-900 tracking-tight leading-none">
-                Evalua<span className="text-emerald-600">OS</span>
-              </span>
-              <span className="text-[9px] text-slate-400 font-bold uppercase tracking-wider mt-0.5">
-                Antropometria de Precisão
-              </span>
-            </div>
-          </Link>
 
-          <nav className="flex items-center gap-4 sm:gap-8 text-xs font-bold text-slate-600">
-            <Link to="/" className="hover:text-emerald-600 transition-colors">🏠 Início</Link>
-            <Link to="/aprendizado" className="hover:text-emerald-600 transition-colors">📚 Aprendizado</Link>
-            <Link to="/precos" className="hover:text-emerald-600 transition-colors">💰 Preços</Link>
-            <Link to="/contato" className="text-emerald-600 font-extrabold">📞 Contato</Link>
-            <button
-              onClick={() => navigate('/login')}
-              className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl shadow-md shadow-emerald-600/20 transition-all ml-1"
-            >
-              🔐 Entrar
-            </button>
-          </nav>
-        </div>
-      </header>
+      {/* 🟢 1. HEADER / NAVBAR FIXA */}
+      <PublicHeader />
 
       {/* 🚀 2. HERO DA TELA DE CONTATO */}
       <section className="pt-12 pb-12 md:pt-16 md:pb-16 bg-gradient-to-b from-emerald-50/60 via-white to-white">
@@ -68,11 +78,11 @@ export default function Contato() {
       {/* 📞 3. GRID PRINCIPAL: CANAIS RÁPIDOS + FORMULÁRIO */}
       <section className="pb-20 max-w-6xl mx-auto px-4 sm:px-6">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 items-start">
-          
-          {/* LADO ESQUERDO: Cards de Contato Direto (5 colunas) */}
+
+          {/* LADO ESQUERDO: Cards de Contato Direto */}
           <div className="lg:col-span-5 space-y-6">
-            
-            {/* Card WhatsApp (Principal Conversão) */}
+
+            {/* Card WhatsApp */}
             <div className="bg-gradient-to-br from-emerald-600 to-teal-700 text-white p-6 sm:p-8 rounded-3xl shadow-xl space-y-4 relative overflow-hidden">
               <span className="px-3 py-1 bg-white/20 text-white text-[10px] font-extrabold uppercase rounded-full tracking-wider">
                 Resposta Mais Rápida
@@ -121,22 +131,28 @@ export default function Contato() {
 
           </div>
 
-          {/* LADO DIREITO: Formulário de Contato (7 colunas) */}
+          {/* LADO DIREITO: Formulário de Contato */}
           <div className="lg:col-span-7 bg-white border border-slate-200 p-6 sm:p-10 rounded-3xl shadow-xl space-y-6">
             <div>
               <h3 className="text-xl font-black text-slate-900">Envie uma Mensagem</h3>
               <p className="text-xs text-slate-500 mt-1">Preencha os campos abaixo e responderemos em até 24 horas úteis.</p>
             </div>
 
+            {erro && (
+              <div className="p-4 bg-red-50 border-l-4 border-red-500 text-red-700 text-xs rounded-r-xl">
+                {erro}
+              </div>
+            )}
+
             {enviado ? (
               <div className="bg-emerald-50 border border-emerald-200 p-6 rounded-2xl text-center space-y-3">
                 <span className="text-3xl">🚀</span>
                 <h4 className="font-bold text-emerald-900 text-sm">Mensagem Enviada com Sucesso!</h4>
                 <p className="text-xs text-emerald-700 max-w-md mx-auto">
-                  Obrigado pelo contato. Nossa equipe entrará em contato pelo e-mail informado o mais breve possível.
+                  Obrigado pelo contato! Recebemos seu e-mail e retornaremos o mais breve possível no endereço informado.
                 </p>
                 <button
-                  onClick={() => { setEnviado(false); setMensagem(''); }}
+                  onClick={() => { setEnviado(false); setMensagem(''); setNome(''); setEmail(''); }}
                   className="px-4 py-2 bg-emerald-600 text-white text-xs font-bold rounded-xl shadow-sm hover:bg-emerald-700 transition-all pt-2"
                 >
                   Enviar Outra Mensagem
@@ -175,11 +191,11 @@ export default function Contato() {
                     onChange={(e) => setAssunto(e.target.value)}
                     className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:ring-2 focus:ring-emerald-500 focus:bg-white outline-none transition-all font-medium text-slate-700"
                   >
-                    <option value="duvida">Dúvidas sobre os Planos ou Sistema</option>
-                    <option value="suporte">Suporte Técnico / Dúvida em Laudo</option>
-                    <option value="parceria">Parcerias Acadêmicas / Ligas / Cursos</option>
-                    <option value="sugestao">Sugestão de Novo Protocolo ou Funcionalidade</option>
-                    <option value="outro">Outro Assunto</option>
+                    <option value="Dúvidas sobre os Planos ou Sistema">Dúvidas sobre os Planos ou Sistema</option>
+                    <option value="Suporte Técnico / Dúvida em Laudo">Suporte Técnico / Dúvida em Laudo</option>
+                    <option value="Parcerias Acadêmicas / Ligas / Cursos">Parcerias Acadêmicas / Ligas / Cursos</option>
+                    <option value="Sugestão de Novo Protocolo ou Funcionalidade">Sugestão de Novo Protocolo ou Funcionalidade</option>
+                    <option value="Outro Assunto">Outro Assunto</option>
                   </select>
                 </div>
 
@@ -197,9 +213,10 @@ export default function Contato() {
 
                 <button
                   type="submit"
-                  className="w-full py-4 bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs uppercase tracking-wider rounded-2xl shadow-lg shadow-emerald-600/20 transition-all hover:scale-[1.01]"
+                  disabled={loading}
+                  className="w-full py-4 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white font-black text-xs uppercase tracking-wider rounded-2xl shadow-lg shadow-emerald-600/20 transition-all hover:scale-[1.01]"
                 >
-                  Enviar Mensagem ➔
+                  {loading ? 'Enviando E-mail...' : 'Enviar Mensagem por E-mail ➔'}
                 </button>
               </form>
             )}
