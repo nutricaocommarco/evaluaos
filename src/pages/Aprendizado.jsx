@@ -1,88 +1,5 @@
 import React, { useState } from 'react'
-
-// Base de dados refinada com tutoriais e estudos científicos do EvaluaOS
-const CONTEUDOS_APRENDIZADO = [
-  {
-    id: 1,
-    titulo: 'Gordura Visceral sem CT-Scan ou DXA: Entenda a Ciência do apVAT',
-    descricao: 'Descubra como a subtração entre a circunferência da cintura e da coxa proximal revolucionou a avaliação da gordura visceral (Samouda et al., 2013).',
-    categoria: 'Artigos e Ciência',
-    tipo: 'artigo', // 'video' | 'artigo' | 'tutorial'
-    url: 'https://doi.org/10.1002/oby.20033',
-    tempoLeitura: '7 min de leitura',
-    capa: 'https://images.unsplash.com/photo-1576091160399-112ba8d25d1d?auto=format&fit=crop&w=600&q=80'
-  },
-  {
-    id: 2,
-    titulo: 'Validação do apVAT: Risco Metabólico e Mortalidade (Estudo NHANES III)',
-    descricao: 'Análise de mais de 10.600 adultos comprovando que o apVAT prevê risco cardiovascular, diabetes e mortalidade melhor que o IMC e a cintura (Brown et al.).',
-    categoria: 'Artigos e Ciência',
-    tipo: 'artigo',
-    url: 'https://doi.org/10.1007/s00394-016-1308-8',
-    tempoLeitura: '8 min de leitura',
-    capa: 'https://images.unsplash.com/photo-1532094349884-543bc11b234d?auto=format&fit=crop&w=600&q=80'
-  },
-  {
-    id: 3,
-    titulo: 'O Resgate Científico das Dobras Cutâneas: "Come Back Skinfolds"',
-    descricao: 'Estudo da Nutrients explicando por que o Somatório de Dobras (ISAK) é mais confiável e imune a erros de hidratação do que o DXA na prática esportiva.',
-    categoria: 'Artigos e Ciência',
-    tipo: 'artigo',
-    url: 'https://doi.org/10.3390/nu13041075',
-    tempoLeitura: '10 min de leitura',
-    capa: 'https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?auto=format&fit=crop&w=600&q=80'
-  },
-  {
-    id: 4,
-    titulo: 'A Origem do Somatotipo Heath-Carter: A Evolução Antropométrica',
-    descricao: 'Conheça o estudo clássico de 1967 que criou a metodologia dinâmica de Somatotipo (Endomorfia, Mesomorfia e Ectomorfia) sem limites fixos.',
-    categoria: 'Antropometria',
-    tipo: 'artigo',
-    url: 'https://doi.org/10.1002/ajpa.1330270108',
-    tempoLeitura: '9 min de leitura',
-    capa: 'https://images.unsplash.com/photo-1551836022-d5d88e9218df?auto=format&fit=crop&w=600&q=80'
-  },
-  {
-    id: 5,
-    titulo: 'Dominando o EvaluaOS: Do Cadastro ao Laudo em 5 minutos',
-    descricao: 'Passo a passo prático para configurar seu perfil, cadastrar alunos e emitir laudos interativos sem complicação.',
-    categoria: 'Uso do EvaluaOS',
-    tipo: 'tutorial',
-    url: 'https://nutricaocommarco.com.br/tutorial-evaluaos',
-    tempoLeitura: '5 min de leitura',
-    capa: 'https://images.unsplash.com/photo-1460925895917-afdab827c52f?auto=format&fit=crop&w=600&q=80'
-  },
-  {
-    id: 6,
-    titulo: 'Como interpretar e explicar a Somatocarta ao Paciente',
-    descricao: 'Aprenda a traduzir Endomorfia, Mesomorfia e Ectomorfia em linguagem simples para gerar impacto e adesão do aluno.',
-    categoria: 'Interpretação de dados',
-    tipo: 'video',
-    url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
-    tempoLeitura: '10 min assistindo',
-    capa: 'https://images.unsplash.com/photo-1507679799987-c73779587ccf?auto=format&fit=crop&w=600&q=80'
-  },
-  {
-    id: 7,
-    titulo: 'Usando a Projeção de Metas para Vender Consultoria Contínua',
-    descricao: 'Estratégias de vendas atreladas ao laudo: como demonstrar o valor da reavaliação periódica no seu consultório.',
-    categoria: 'Gestão e Vendas',
-    tipo: 'artigo',
-    url: 'https://nutricaocommarco.com.br/vendas-consultoria',
-    tempoLeitura: '6 min de leitura',
-    capa: 'https://images.unsplash.com/photo-1553729459-efe14ef6055d?auto=format&fit=crop&w=600&q=80'
-  }
-]
-
-// Categorias atualizadas
-const CATEGORIAS = [
-  'Todos',
-  'Uso do EvaluaOS',
-  'Antropometria',
-  'Interpretação de dados',
-  'Artigos e Ciência',
-  'Gestão e Vendas'
-]
+import { CONTEUDOS_APRENDIZADO, CATEGORIAS_APRENDIZADO } from '../data/conteudosAprendizado'
 
 export default function Aprendizado() {
   const [busca, setBusca] = useState('')
@@ -140,7 +57,7 @@ export default function Aprendizado() {
 
       {/* 🏷️ FILTROS POR CATEGORIA */}
       <div className="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-none">
-        {CATEGORIAS.map(cat => (
+        {CATEGORIAS_APRENDIZADO.map(cat => (
           <button
             key={cat}
             onClick={() => setCategoriaAtiva(cat)}
