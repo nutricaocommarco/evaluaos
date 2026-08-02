@@ -97,6 +97,31 @@ export const ARTIGO_HOLWAY_2005_ARGOREF = {
         O <strong>Índice Músculo/Ósseo (Músculo em kg / Hueso em kg)</strong> é a clássica relação "motor/chassi". Um valor abaixo do percentil 15 (3,0 para mulheres e 3,8 para homens) indica baixa reserva muscular para a estrutura óssea, enquanto atletas de força/potência se aproximam da marca de 5,0 kg de músculo para cada 1,0 kg de osso.
       </p>
     `,
+    analiticaCritica: `
+      <div className="bg-slate-900 text-slate-100 rounded-2xl p-6 mt-8 border border-slate-800 shadow-xl space-y-3">
+        <div className="flex items-center gap-2 border-b border-slate-800 pb-3">
+          <span className="text-lg">🧐</span>
+          <h4 className="text-amber-400 font-bold text-sm uppercase tracking-wider">
+            Análise Crítica & Limitações Metodológicas
+          </h4>
+        </div>
+
+        <div className="space-y-3 text-xs leading-relaxed text-slate-300">
+          <p>
+            <strong className="text-white">Pontos Fortes:</strong> As tabelas ARGOREF resolveram o histórico problema da falta de dados normativos regionais para a América Latina. O rigor metrológico na coleta (Erro Técnico de Medição rigorosamente controlado por avaliadores ISAK) garante uma qualidade de dados extremamente confiável.
+          </p>
+
+          <p>
+            <strong className="text-white">Limitações do Estudo:</strong> A amostra é restrita à faixa etária de 20 a 30 anos (n = 87 homens, n = 90 mulheres) e proveniente prioritariamente da região metropolitana de Buenos Aires. Não possui amostragem aleatória populacional e não deve ser extrapolada diretamente para idosos, adolescentes ou populações de altitude.
+          </p>
+
+          <p>
+            <strong className="text-white">Aplicação Clínica Prática:</strong> Trata-se do melhor parâmetro comparativo para adultos jovens saudáveis e fisicamente ativos da nossa região. O avaliador deve utilizar os percentis como uma <strong>referência comparativa</strong> e não como um veredito absoluto de saúde ou desempenho.
+          </p>
+        </div>
+      </div>
+    `
+
 
     conclusao: `
       <div className="bg-gray-900 text-white rounded-2xl p-6 mt-8 shadow-lg space-y-2">
