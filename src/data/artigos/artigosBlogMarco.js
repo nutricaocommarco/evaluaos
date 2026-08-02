@@ -1,6 +1,4 @@
-// 🔗 Base do repositório Fotografecommarco no GitHub
-// (Se as imagens no seu repositório estiverem dentro de /public, basta adicionar 'public/' no final da URL)
-const githubImgBase = 'https://raw.githubusercontent.com/marconevesjr/Fotografecommarco/main/'
+const imgBase = 'https://www.nutricaocommarco.com.br/Imagens/Blog/'
 
 export const artigosBlogMarco = [
   {
@@ -13,7 +11,7 @@ export const artigosBlogMarco = [
     categoria: 'Antropometria',
     tipo: 'externo',
     tempoLeitura: '8 min de leitura',
-    capa: `${githubImgBase}Blog/Avaliacao_Antropometrica_Capa.webp`,
+    capa: `${imgBase}Avaliacao_Antropometrica_Capa.webp`,
     resumoCard: 'Aprenda como fazer uma avaliação antropométrica completa. Domine o protocolo ISAK, Pollock, dobras cutâneas, calcule seu somatotipo online e descubra como automatizar seus relatórios!'
   },
   {
@@ -26,7 +24,7 @@ export const artigosBlogMarco = [
     categoria: 'Composição Corporal',
     tipo: 'externo',
     tempoLeitura: '6 min de leitura',
-    capa: `${githubImgBase}Blog/PercentualGorduraFeminino_Capa.webp`,
+    capa: `${imgBase}PercentualGorduraFeminino_Capa.webp`,
     resumoCard: 'Pare de olhar apenas para a balança. Entenda as tabelas reais de referência e descubra qual o percentual de gordura feminino ideal para a sua idade e saúde.'
   },
   {
@@ -39,7 +37,7 @@ export const artigosBlogMarco = [
     categoria: 'Prática Clínica',
     tipo: 'externo',
     tempoLeitura: '5 min de leitura',
-    capa: `${githubImgBase}Blog/melhor_horario_pesagem.webp`,
+    capa: `${imgBase}melhor_horario_pesagem.webp`,
     resumoCard: 'Seu peso varia até 2kg por dia! Descubra qual o melhor horário para se pesar, as armadilhas da retenção de líquidos e como não se frustrar com a balança.'
   },
   {
@@ -52,7 +50,7 @@ export const artigosBlogMarco = [
     categoria: 'Antropometria',
     tipo: 'externo',
     tempoLeitura: '6 min de leitura',
-    capa: `${githubImgBase}Blog/O_que_e_antropometria.webp`,
+    capa: `${imgBase}O_que_e_antropometria.webp`,
     resumoCard: 'Entenda por que a antropometria (ISAK) é a única ferramenta confiável para avaliar a saúde, mapeando ossos, gordura, músculos e composição corporal exata.'
   },
   {
@@ -65,7 +63,7 @@ export const artigosBlogMarco = [
     categoria: 'Composição Corporal',
     tipo: 'externo',
     tempoLeitura: '7 min de leitura',
-    capa: `${githubImgBase}Blog/Bia1.webp`,
+    capa: `${imgBase}Bia1.webp`,
     resumoCard: 'A sua balança cara pode estar mentindo para você. Descubra como a hidratação, bexiga cheia e até o estresse mascaram os resultados da sua bioimpedância.'
   }
 ]
