@@ -1,13 +1,33 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
+import { supabase } from '../supabaseClient'
 
 export default function PublicHeader() {
+  const [session, setSession] = useState(null)
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
+  
   const location = useLocation()
   const navigate = useNavigate()
 
-  const isActive = (path) => location.pathname === path
+  useEffect(() => {
+    // Verifica se existe usuário logado
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session)
+    })
 
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setSession(session)
+    })
+
+    return () => subscription.unsubscribe()
+  }, [])
+
+  // 🔴 SE O USUÁRIO ESTIVER LOGADO, NÃO EXIBE O MENU PÚBLICO
+  if (session) {
+    return null
+  }
+
+  const isActive = (path) => location.pathname === path
   const closeMenu = () => setIsMobileMenuOpen(false)
 
   return (
@@ -31,7 +51,7 @@ export default function PublicHeader() {
           </div>
         </Link>
 
-        {/* 💻 MENU DESKTOP (Escondido no telemóvel: hidden md:flex) */}
+        {/* 💻 MENU DESKTOP */}
         <nav className="hidden md:flex items-center gap-6 text-xs font-bold text-slate-600">
           <Link 
             to="/" 
@@ -69,19 +89,17 @@ export default function PublicHeader() {
           </button>
         </nav>
 
-        {/* 📱 BOTÃO HAMBÚRGUER / 3 TRAÇOS (Apenas no telemóvel: md:hidden) */}
+        {/* 📱 BOTÃO HAMBÚRGUER (MOBILE) */}
         <button
           onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
           className="md:hidden p-2.5 rounded-xl text-slate-700 bg-slate-50 hover:bg-slate-100 border border-slate-200 transition-all focus:outline-none"
           aria-label="Menu de Navegação"
         >
           {isMobileMenuOpen ? (
-            /* Ícone de Fechar (✕) */
             <svg className="w-6 h-6 text-slate-900" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M6 18L18 6M6 6l12 12" />
             </svg>
           ) : (
-            /* Ícone dos 3 Traços (☰) */
             <svg className="w-6 h-6 text-slate-900" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M4 6h16M4 12h16M4 18h16" />
             </svg>
@@ -89,10 +107,9 @@ export default function PublicHeader() {
         </button>
       </div>
 
-      {/* 📱 MENU DROPDOWN MOBILE (Aparece ao clicar nos 3 traços) */}
+      {/* 📱 MENU DROPDOWN MOBILE */}
       {isMobileMenuOpen && (
         <div className="md:hidden bg-white border-b border-slate-200 px-4 pt-3 pb-6 space-y-2 shadow-xl animate-fadeIn">
-          
           <Link
             to="/"
             onClick={closeMenu}
@@ -152,7 +169,6 @@ export default function PublicHeader() {
               🔐 Acessar Minha Conta
             </button>
           </div>
-
         </div>
       )}
     </header>
