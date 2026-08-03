@@ -25,7 +25,7 @@ export default function Configuracoes() {
   })
 
   // 🔗 COLOQUE O SEU LINK DE AFILIADO DA HOTMART AQUI
-  const LINK_AFILIADO_HOTMART = "https://affiliate.hotmart.com/affiliate-recruiting/view/2019E106982311" 
+  const LINK_AFILIADO_HOTMART = "https://app.hotmart.com/affiliates" 
 
   useEffect(() => {
     async function carregarConfiguracoes() {
@@ -128,7 +128,7 @@ export default function Configuracoes() {
           <VisibilidadePublicaForm config={config} setConfig={setConfig} onSave={handleSalvarTudo} saving={saving} />
         )}
 
-        {/* 🤝 NOVA ABA: PROGRAMA DE INDICAÇÃO / AFILIADOS */}
+        {/* 🤝 ABA: PROGRAMA DE INDICAÇÃO / AFILIADOS */}
         {abaAtiva === 'afiliados' && (
           <div className="bg-white p-6 rounded-xl border border-gray-100 shadow-sm space-y-6">
             <div className="border-b pb-4">
@@ -144,27 +144,27 @@ export default function Configuracoes() {
               <div className="p-4 bg-emerald-50/60 border border-emerald-100 rounded-xl space-y-1">
                 <span className="text-2xl">💰</span>
                 <h4 className="text-xs font-bold text-emerald-900">Comissões Recorrentes</h4>
-                <p className="text-[11px] text-emerald-700">Fature uma porcentagem de cada mensalidade ou anuidade gerada pelas suas indicações.</p>
+                <p className="text-[11px] text-emerald-700">Ganhe por cada mensalidade ou anuidade gerada pelas suas indicações.</p>
               </div>
 
               <div className="p-4 bg-blue-50/60 border border-blue-100 rounded-xl space-y-1">
                 <span className="text-2xl">⚡</span>
                 <h4 className="text-xs font-bold text-blue-900">Gestão via Hotmart</h4>
-                <p className="text-[11px] text-blue-700">Acompanhamento transparente de cliques, conversões e pagamentos garantidos pela plataforma.</p>
+                <p className="text-[11px] text-blue-700">Acompanhamento transparente de cliques, conversões e pagamentos garantidos.</p>
               </div>
 
-              <div className="p-4 bg-amber-50/60 border border-amber-100 rounded-xl space-y-1">
-                <span className="text-2xl">🚀</span>
-                <h4 className="text-xs font-bold text-amber-900">Materiais Prontos</h4>
-                <p className="text-[11px] text-amber-700">Acesso a banners, textos e links para divulgar nas suas redes sociais e grupos.</p>
+              <div className="p-4 bg-purple-50/60 border border-purple-100 rounded-xl space-y-1">
+                <span className="text-2xl">📊</span>
+                <h4 className="text-xs font-bold text-purple-900">Indicação Natural</h4>
+                <p className="text-[11px] text-purple-700">Mostre seus laudos interativos para colegas do consultório ou da faculdade.</p>
               </div>
             </div>
 
             <div className="bg-gray-50 p-5 rounded-xl border border-gray-200 flex flex-col sm:flex-row justify-between items-center gap-4">
               <div>
-                <h4 className="text-xs font-bold text-gray-800">Como funciona?</h4>
+                <h4 className="text-xs font-bold text-gray-800">Como se tornar um parceiro?</h4>
                 <p className="text-xs text-gray-500 mt-0.5">
-                  Ao se cadastrar no nosso programa via Hotmart, você recebe o seu link de afiliado exclusivo para compartilhar.
+                  Ao se cadastrar no programa via Hotmart, você obtém seu link exclusivo de divulgação para indicar quando quiser.
                 </p>
               </div>
               
