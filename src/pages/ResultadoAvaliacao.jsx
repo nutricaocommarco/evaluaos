@@ -4,7 +4,6 @@ import { supabase } from '../supabaseClient'
 import { obterUrlEmbedYouTube } from '../utils/youtube'
 import BotaoExportarPDF from '../components/BotaoExportarPDF'
 
-// --- HELPER CÁLCULO DE SOMATOTIPO HEATH-CARTER ---
 const calcularSomatotipo = (medidas) => {
   const triceps = medidas.dobra_cutanea_triceps || 0;
   const subescapular = medidas.dobra_cutanea_subescapular || 0;
@@ -137,7 +136,6 @@ export default function ResultadoAvaliacao() {
         setLogomarcaUrl(avalData.logomarca_url || '');
         setVideoUrlPadrao(avalData.video_url_padrao || '');
 
-        // 🛠️ BUSCA OS EQUIPAMENTOS DO AVALIADOR
         const idParaEquipamento = avalData.id || avalData.auth_id;
         if (idParaEquipamento) {
           const { data: equipData } = await supabase
@@ -188,27 +186,41 @@ export default function ResultadoAvaliacao() {
       const termoCoxa = Math.pow(calcPerimCorrigidoCoxa, 2)
       const termoPant = Math.pow(calcPerimCorrigidoPanturrilha, 2)
 
+      let calcIdade = 25
+      if (pac.data_nascimento) {
+        const birthDate = new Date(pac.data_nascimento + 'T12:00:00')
+        const evalDate = new Date((avalDados.data_avaliacao || '') + 'T12:00:00')
+        calcIdade = evalDate.getFullYear() - birthDate.getFullYear()
+        const m = evalDate.getMonth() - birthDate.getMonth()
+        if (m < 0 || (m === 0 && evalDate.getDate() < birthDate.getDate())) calcIdade--
+      }
+
       let calcMuscular = 0
       if (alturaM > 0 && pBraco > 0 && pCoxa > 0 && pPant > 0) {
         const sexoNum = pac.sexo === 'M' ? 1 : 0
         let racaNum = 0
         if (pac.etnia === 'Afrodescendente') racaNum = 1.1
         if (pac.etnia === 'Asiatico') racaNum = -2
-        let idade = 25
-        if (pac.data_nascimento) {
-          const birthDate = new Date(pac.data_nascimento + 'T12:00:00')
-          const evalDate = new Date((avalDados.data_avaliacao || '') + 'T12:00:00')
-          idade = evalDate.getFullYear() - birthDate.getFullYear()
-          const m = evalDate.getMonth() - birthDate.getMonth()
-          if (m < 0 || (m === 0 && evalDate.getDate() < birthDate.getDate())) idade--
-        }
-        calcMuscular = (alturaM * ((0.00744 * termoBraco) + (0.00088 * termoCoxa) + (0.00441 * termoPant))) + (2.4 * sexoNum) - (0.048 * idade) + racaNum + 7.8
+        calcMuscular = (alturaM * ((0.00744 * termoBraco) + (0.00088 * termoCoxa) + (0.00441 * termoPant))) + (2.4 * sexoNum) - (0.048 * calcIdade) + racaNum + 7.8
       }
 
       const pCintura = avalDados.perimetro_cintura || 0
       const pQuadril = avalDados.perimetro_quadril || 0
+      const pCoxaMax = avalDados.perimetro_coxa_maxima || 0
+
       const calcRcq = pQuadril > 0 ? pCintura / pQuadril : 0
       const calcRce = alturaCm > 0 ? pCintura / alturaCm : 0
+
+      // Cálculo do apVAT com Fallback Dinâmico
+      let calcApVat = 0
+      if (pCintura > 0 && pCoxaMax > 0) {
+        if (pac.sexo === 'M') {
+          calcApVat = (6 * pCintura) - (4.41 * pCoxaMax) + (1.19 * calcIdade) - 213.65;
+        } else {
+          calcApVat = (2.15 * pCintura) - (3.63 * pCoxaMax) + (1.46 * calcIdade) + (6.22 * calcImc) - 92.713;
+        }
+        calcApVat = Math.max(0, calcApVat);
+      }
 
       const dSub = avalDados.dobra_cutanea_subescapular || 0
       const dSup = avalDados.dobra_cutanea_supraespinhal || 0
@@ -247,6 +259,7 @@ export default function ResultadoAvaliacao() {
         massa_muscular: Number(calcMuscular.toFixed(2)),
         relacao_cintura_quadril: Number(calcRcq.toFixed(2)),
         relacao_cintura_estatura: Number(calcRce.toFixed(2)),
+        area_previsao_visceral_apvat: Number(calcApVat.toFixed(1)),
         somatorio_6_dobras: Number(calcSoma6.toFixed(1)),
         somatorio_8_dobras: Number(calcSoma8.toFixed(1)),
         perimetro_corrigido_braco: Number(calcPerimCorrigidoBraco.toFixed(2)),
@@ -333,6 +346,21 @@ export default function ResultadoAvaliacao() {
 
   const iamVal = dados.indice_adiposo_muscular || ((massaMuscular > 0 && massaGorda > 0) ? (massaGorda / massaMuscular) : 0)
   const imoVal = dados.indice_massa_ossea_imo || 0
+  const apvatVal = dados.area_previsao_visceral_apvat || 0
+
+  // Mapeamento da Classificação do apVAT (Ruiz-Castell et al., 2021)
+  let apvatClassificacao = 'Baixo Risco'
+  let apvatCor = 'emerald'
+
+  if (pac.sexo === 'M') {
+    if (apvatVal >= 196.7) { apvatClassificacao = 'Risco Muito Elevado'; apvatCor = 'red'; }
+    else if (apvatVal >= 151.6) { apvatClassificacao = 'Risco Elevado'; apvatCor = 'orange'; }
+    else if (apvatVal >= 113.8) { apvatClassificacao = 'Risco Moderado'; apvatCor = 'amber'; }
+  } else {
+    if (apvatVal >= 127.4) { apvatClassificacao = 'Risco Muito Elevado'; apvatCor = 'red'; }
+    else if (apvatVal >= 89.4) { apvatClassificacao = 'Risco Elevado'; apvatCor = 'orange'; }
+    else if (apvatVal >= 58.8) { apvatClassificacao = 'Risco Moderado'; apvatCor = 'amber'; }
+  }
 
   const perimCorrigidoBraco = dados.perimetro_corrigido_braco || 0;
   const perimCorrigidoCoxa = dados.perimetro_corrigido_coxa || 0;
@@ -437,7 +465,6 @@ export default function ResultadoAvaliacao() {
           </div>
         </div>
 
-        {/* 🛠️ EQUIPAMENTOS UTILIZADOS (SÓ EXIBE SE PREENCHIDO) */}
         {temEquipamentos && (
           <div className="mt-4 bg-gray-50 p-4 rounded-lg border border-gray-100">
             <p className="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-2">🛠️ Equipamentos Utilizados</p>
@@ -711,10 +738,35 @@ export default function ResultadoAvaliacao() {
       )}
 
       {/* 10. OUTROS INDICADORES */}
-      {(podeExibir('laudo_iam') || podeExibir('laudo_imo')) && (
+      {(podeExibir('laudo_iam') || podeExibir('laudo_imo') || podeExibir('laudo_apvat')) && (
         <div className="bg-white p-6 rounded-xl border border-gray-100 shadow-sm space-y-4 mt-6">
           <h3 className="text-sm font-bold text-gray-800 uppercase tracking-wider border-b pb-2">🚀 10. Outros Indicadores & Classificações</h3>
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+            
+            {/* 🌟 CARD ATUALIZADO DO apVAT NO LAUDO */}
+            {podeExibir('laudo_apvat') && (
+              <div className="flex flex-col justify-between p-3 border border-gray-100 rounded-lg bg-gray-50 space-y-1">
+                <div className="flex justify-between items-center">
+                  <span className="text-xs font-semibold text-gray-700">Área de Previsão Visceral (apVAT)</span>
+                  <span className="text-xs font-bold text-gray-800">
+                    {apvatVal > 0 ? `${apvatVal.toFixed(1)} cm²` : '-'}
+                  </span>
+                </div>
+                {apvatVal > 0 && (
+                  <div className="flex justify-end">
+                    <span className={`text-[9px] font-bold px-2 py-0.5 rounded uppercase tracking-wider ${
+                      apvatCor === 'red' ? 'bg-red-100 text-red-800' :
+                      apvatCor === 'orange' ? 'bg-orange-100 text-orange-800' :
+                      apvatCor === 'amber' ? 'bg-amber-100 text-amber-800' :
+                      'bg-emerald-100 text-emerald-800'
+                    }`}>
+                      {apvatClassificacao}
+                    </span>
+                  </div>
+                )}
+              </div>
+            )}
+
             {podeExibir('laudo_iam') && (
               <div className="flex justify-between items-center p-3 border border-gray-100 rounded-lg bg-gray-50">
                 <span className="text-xs font-semibold text-gray-700">Índice Adiposo Muscular (IAM)</span>
@@ -736,7 +788,6 @@ export default function ResultadoAvaliacao() {
             )}
 
             {[
-              'Área de Previsão Visceral (APVAT)', 
               'Gordura (Escala Morrow)', 
               'Gordura (Escala Argoref)'
             ].map((item, index) => (
@@ -747,7 +798,6 @@ export default function ResultadoAvaliacao() {
             ))}
           </div>
 
-          {/* 🎥 PLAYER DE VÍDEO DO LAUDO DO PACIENTE */}
           {videoEmbedUrl && (
             <div className="bg-white border border-slate-200 rounded-3xl p-5 sm:p-6 shadow-sm space-y-3 my-6">
               <div className="flex items-center gap-3">
@@ -760,7 +810,6 @@ export default function ResultadoAvaliacao() {
                 </div>
               </div>
 
-              {/* Player Responsivo 16:9 */}
               <div className="aspect-video w-full rounded-2xl overflow-hidden shadow-md bg-slate-900">
                 <iframe
                   src={videoEmbedUrl}
