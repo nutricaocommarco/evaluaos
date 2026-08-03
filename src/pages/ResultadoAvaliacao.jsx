@@ -358,20 +358,20 @@ export default function ResultadoAvaliacao() {
   const dUmero = Number(aval.diametro_umero) || 0
   const dFemur = Number(aval.diametro_femur) || 0
 
-// --- CÁLCULO DE 2 COMPONENTES (2C - EQUAÇÃO DE REGRESSÃO ESCOLHIDA) ---
-const pctGorduraRegressao = aval.percentual_de_gordura || 0; // %GC da equação escolhida (Petroski, Faulkner, etc.)
-const pctMassaLivreGordura = pctGorduraRegressao > 0 ? (100 - pctGorduraRegressao) : 0;
+  // --- CÁLCULO DE 2 COMPONENTES (2C: EQUAÇÃO ESCOLHIDA) ---
+  const pctGorduraRegressao = percentualGordura
+  const pctMassaLivreGordura = pctGorduraRegressao > 0 ? (100 - pctGorduraRegressao) : 0
+  const massaGorda2C = dados.massa_gorda || (pesoTotal * (pctGorduraRegressao / 100))
+  const massaMagra2C = dados.massa_magra || (pesoTotal - massaGorda2C)
 
-const massaGorda2C = dados.massa_gorda || (pesoTotal * (pctGorduraRegressao / 100));
-const massaMagra2C = dados.massa_magra || (pesoTotal - massaGorda2C);
+  const dadosPizza2Comp = [
+    { name: 'Massa Gorda (%GC)', value: pctGorduraRegressao, kg: massaGorda2C, color: '#f59e0b' },
+    { name: 'Massa Livre de Gordura (MLG)', value: pctMassaLivreGordura, kg: massaMagra2C, color: '#3b82f6' }
+  ]
 
-// Dados estruturados para o gráfico de pizza de 2C
-const dadosPizza2Comp = [
-  { name: 'Massa Gorda (%GC)', value: pctGorduraRegressao, kg: massaGorda2C, color: '#f59e0b' },
-  { name: 'Massa Livre de Gordura (MLG)', value: pctMassaLivreGordura, kg: massaMagra2C, color: '#3b82f6' }
-];
+  // --- CÁLCULO DE 4 COMPONENTES (4C: DE ROSE ET AL.) ---
+  const massaMuscularLee = dados.massa_muscular || 0
 
-  // --- CÁLCULO DE 4 COMPONENTES (4C: DE ROSE ET AL. / ROCHA 1975 / WÜRCH 1973) ---
   // 1. Tecido Ósseo (Rocha, 1975)
   let massaOssea4C = 0
   if (alturaM > 0 && dUmero > 0 && dFemur > 0) {
@@ -382,24 +382,24 @@ const dadosPizza2Comp = [
   const pctResidualWurch = pac.sexo === 'M' ? 0.24 : 0.21
   const massaResidual4C = pesoTotal * pctResidualWurch
 
-  // 3. Tecido Muscular (Lee 2000 / Diferencial 4C)
-  const massaMuscularLee = dados.massa_muscular || Math.max(0, pesoTotal - (massaGorda2C + massaOssea4C + massaResidual4C))
+  // 3. Tecido Adiposo (Kerr 1991 / De Rose)
+  const massaAdiposa4C = massaGorda2C
 
   // Percentuais de De Rose
-  const pctGorduraDeRose = pesoTotal > 0 ? (massaGorda2C / pesoTotal) * 100 : 0
+  const pctGorduraDeRose = pesoTotal > 0 ? (massaAdiposa4C / pesoTotal) * 100 : 0
   const pctMusculoDeRose = pesoTotal > 0 ? (massaMuscularLee / pesoTotal) * 100 : 0
   const pctOssoDeRose = pesoTotal > 0 ? (massaOssea4C / pesoTotal) * 100 : 0
   const pctResidualDeRose = pesoTotal > 0 ? (massaResidual4C / pesoTotal) * 100 : 0
 
   // Dados para o Gráfico de Pizza de 4 Componentes
   const dadosPizza4Comp = [
-    { name: 'Tecido Adiposo (Kerr 1991)', value: pctGorduraDeRose, kg: massaGorda2C, color: '#f59e0b' },
+    { name: 'Tecido Adiposo (Kerr 1991)', value: pctGorduraDeRose, kg: massaAdiposa4C, color: '#f59e0b' },
     { name: 'Tecido Muscular (Lee 2000)', value: pctMusculoDeRose, kg: massaMuscularLee, color: '#10b981' },
     { name: 'Tecido Ósseo (Rocha 1975)', value: pctOssoDeRose, kg: massaOssea4C, color: '#6366f1' },
     { name: 'Massa Residual (Würch 1973)', value: pctResidualDeRose, kg: massaResidual4C, color: '#64748b' }
   ]
 
-  const iamVal = dados.indice_adiposo_muscular || ((massaMuscularLee > 0 && massaGorda2C > 0) ? (massaGorda2C / massaMuscularLee) : 0)
+  const iamVal = dados.indice_adiposo_muscular || ((massaMuscularLee > 0 && massaAdiposa4C > 0) ? (massaAdiposa4C / massaMuscularLee) : 0)
   const imoVal = dados.indice_massa_ossea_imo || 0
   const apvatVal = dados.area_previsao_visceral_apvat || 0
 
@@ -621,77 +621,77 @@ const dadosPizza2Comp = [
             {podeExibir('laudo_massa_muscular') && (
               <div className="bg-white p-5 rounded-xl border border-gray-100 shadow-sm flex flex-col justify-center border-l-4 border-l-emerald-500 relative">
                 <p className="text-xs font-semibold text-gray-500 uppercase">Massa Muscular</p>
-                <p className="text-2xl font-black text-emerald-700 mt-1">{massaMuscular > 0 ? massaMuscular.toFixed(2) : '-'} <span className="text-xs font-normal text-gray-500">kg</span></p>
+                <p className="text-2xl font-black text-emerald-700 mt-1">{massaMuscularLee > 0 ? massaMuscularLee.toFixed(2) : '-'} <span className="text-xs font-normal text-gray-500">kg</span></p>
                 <span className="absolute bottom-2 right-3 text-[9px] font-medium text-gray-400">Ref: Lee 2000</span>
               </div>
             )}
           </div>
 
-{/* 🥧 1. FRACIONAMENTO EM 2 COMPONENTES (EQUAÇÃO ESCOLHIDA) */}
-{pctGorduraRegressao > 0 && (
-  <div className="bg-white p-6 rounded-xl border border-gray-100 shadow-sm space-y-4 mb-6">
-    <div className="flex justify-between items-center border-b border-gray-100 pb-2">
-      <h3 className="text-sm font-black text-gray-800 uppercase tracking-wider">
-        📊 Fracionamento em 2 Componentes (Modelo 2C)
-      </h3>
-      <span className="text-[10px] bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded font-bold">
-        Protocolo: {aval.equacao_de_regressao_escolhida || 'Petroski'}
-      </span>
-    </div>
+          {/* 🥧 1. FRACIONAMENTO EM 2 COMPONENTES (EQUAÇÃO ESCOLHIDA) */}
+          {podeExibir('laudo_fracionamento_2c') && pctGorduraRegressao > 0 && (
+            <div className="bg-white p-6 rounded-xl border border-gray-100 shadow-sm space-y-4 mb-6">
+              <div className="flex justify-between items-center border-b border-gray-100 pb-2">
+                <h3 className="text-sm font-black text-gray-800 uppercase tracking-wider">
+                  📊 Fracionamento em 2 Componentes (Modelo 2C)
+                </h3>
+                <span className="text-[10px] bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded font-bold">
+                  Protocolo: {aval.equacao_de_regressao_escolhida || 'Petroski'}
+                </span>
+              </div>
 
-    <div className="flex flex-col md:flex-row items-center justify-around gap-6">
-      <div className="w-full md:w-1/2 h-[220px]">
-        <ResponsiveContainer width="100%" height="100%">
-          <PieChart>
-            <Pie
-              data={dadosPizza2Comp}
-              cx="50%"
-              cy="50%"
-              innerRadius={50}
-              outerRadius={75}
-              paddingAngle={4}
-              dataKey="value"
-            >
-              {dadosPizza2Comp.map((entry, index) => (
-                <Cell key={`cell-2c-${index}`} fill={entry.color} />
-              ))}
-            </Pie>
-            <Tooltip 
-              formatter={(val, name, entry) => [
-                `${val.toFixed(1)}% (${entry.payload.kg.toFixed(2)} kg)`, 
-                name
-              ]}
-              contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
-            />
-            <Legend iconType="circle" wrapperStyle={{ fontSize: '11px' }} />
-          </PieChart>
-        </ResponsiveContainer>
-      </div>
+              <div className="flex flex-col md:flex-row items-center justify-around gap-6">
+                <div className="w-full md:w-1/2 h-[220px]">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={dadosPizza2Comp}
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={50}
+                        outerRadius={75}
+                        paddingAngle={4}
+                        dataKey="value"
+                      >
+                        {dadosPizza2Comp.map((entry, index) => (
+                          <Cell key={`cell-2c-${index}`} fill={entry.color} />
+                        ))}
+                      </Pie>
+                      <Tooltip 
+                        formatter={(val, name, entry) => [
+                          `${val.toFixed(1)}% (${entry.payload.kg.toFixed(2)} kg)`, 
+                          name
+                        ]}
+                        contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
+                      />
+                      <Legend iconType="circle" wrapperStyle={{ fontSize: '11px' }} />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </div>
 
-      <div className="w-full md:w-1/2 space-y-2 bg-gray-50 p-4 rounded-xl border border-gray-100">
-        {dadosPizza2Comp.map((item, idx) => (
-          <div key={idx} className="flex justify-between items-center bg-white p-2.5 rounded-lg border border-gray-100">
-            <div className="flex items-center gap-2">
-              <div className="w-3 h-3 rounded-full" style={{ backgroundColor: item.color }}></div>
-              <span className="text-xs font-bold text-gray-700">{item.name}</span>
+                <div className="w-full md:w-1/2 space-y-2 bg-gray-50 p-4 rounded-xl border border-gray-100">
+                  {dadosPizza2Comp.map((item, idx) => (
+                    <div key={idx} className="flex justify-between items-center bg-white p-2.5 rounded-lg border border-gray-100">
+                      <div className="flex items-center gap-2">
+                        <div className="w-3 h-3 rounded-full" style={{ backgroundColor: item.color }}></div>
+                        <span className="text-xs font-bold text-gray-700">{item.name}</span>
+                      </div>
+                      <div className="text-right">
+                        <span className="text-xs font-black text-gray-800">{item.kg.toFixed(2)} kg</span>
+                        <span className="text-[10px] font-semibold text-gray-400 ml-1.5">({item.value.toFixed(1)}%)</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
             </div>
-            <div className="text-right">
-              <span className="text-xs font-black text-gray-800">{item.kg.toFixed(2)} kg</span>
-              <span className="text-[10px] font-semibold text-gray-400 ml-1.5">({item.value.toFixed(1)}%)</span>
-            </div>
-          </div>
-        ))}
-      </div>
-    </div>
-  </div>
-)}
+          )}
 
-          {/* 🥧 2. GRÁFICO DE PIZZA (4 COMPONENTES DE DE ROSE ET AL.) */}
-          {pesoTotal > 0 && (
+          {/* 🥧 2. FRACIONAMENTO EM 4 COMPONENTES (DE ROSE ET AL.) */}
+          {podeExibir('laudo_fracionamento_4c') && pesoTotal > 0 && (
             <div className="bg-white p-6 rounded-xl border border-gray-100 shadow-sm space-y-4">
               <div className="flex justify-between items-center border-b border-gray-100 pb-2">
                 <h3 className="text-sm font-black text-gray-800 uppercase tracking-wider">
-                  🧩 Fracionamento Anatômico em 4 Componentes (4C - De Rose et al.)
+                  🧩 Fracionamento Anatômico em 4 Componentes (Modelo 4C - De Rose et al.)
                 </h3>
                 <span className="text-[10px] text-gray-400 font-medium">Modelo 4C</span>
               </div>

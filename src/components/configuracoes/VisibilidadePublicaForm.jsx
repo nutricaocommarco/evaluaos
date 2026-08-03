@@ -185,13 +185,15 @@ export default function VisibilidadePublicaForm({ config, setConfig, onSave, sav
       ]
     },
     {
-      titulo: 'Composição Corporal',
+      titulo: 'Composição Corporal & Fracionamentos',
       chaves: [
         { key: 'laudo_imc', label: 'IMC' },
         { key: 'laudo_percentual_gordura', label: '% de Gordura' },
         { key: 'laudo_massa_gorda', label: 'Massa Gorda' },
         { key: 'laudo_massa_magra', label: 'Massa Magra' },
-        { key: 'laudo_massa_muscular', label: 'Massa Muscular' }
+        { key: 'laudo_massa_muscular', label: 'Massa Muscular' },
+        { key: 'laudo_fracionamento_2c', label: 'Gráfico: Fracionamento em 2 Componentes (2C)' },
+        { key: 'laudo_fracionamento_4c', label: 'Gráfico: Fracionamento em 4 Componentes (De Rose et al.)' }
       ]
     },
     {
