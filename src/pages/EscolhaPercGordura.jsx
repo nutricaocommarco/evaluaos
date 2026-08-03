@@ -101,7 +101,6 @@ export default function EscolhaPercGordura() {
   const [metadados, setMetadados] = useState(null)
   const [salvando, setSalvando] = useState(false)
 
-  // ESTADO DA RECOMENDAÇÃO AUTOMÁTICA DA ENGINE TCC
   const [recomendacaoEngine, setRecomendacaoEngine] = useState(null)
 
   const dropdownRef = useRef(null)
@@ -186,7 +185,6 @@ export default function EscolhaPercGordura() {
         setAvaliacaoAtual(aval)
         setMedidasBrutas(aval)
         
-        // DISPARA A ENGINE DE RECOMENDAÇÃO CIENTÍFICA (TCC)
         const rec = recomendarEquacaoIdeal(aval, paciente)
         setRecomendacaoEngine(rec)
 
@@ -409,7 +407,7 @@ export default function EscolhaPercGordura() {
           </div>
 
           {/* 💎 A CEREJA DO BOLO: CARD DE RECOMENDAÇÃO AUTOMÁTICA DA ENGINE TCC */}
-          {recomendacaoEngine && (
+          {recomendacaoEngine && recomendacaoEngine.nomeEquacaoRecomendada && (
             <div className="bg-gradient-to-r from-emerald-50 to-teal-50 border-2 border-emerald-200 rounded-xl p-5 shadow-sm space-y-3 relative overflow-hidden">
               <div className="flex justify-between items-start">
                 <div className="flex items-center gap-2">
@@ -439,7 +437,9 @@ export default function EscolhaPercGordura() {
               {recomendacaoEngine.travaKerr && (
                 <div className="pt-2 border-t border-emerald-100 flex flex-wrap gap-4 text-xs text-emerald-800 font-semibold">
                   <span>🔒 Trava de Segurança (Kerr, 1991): {recomendacaoEngine.travaKerr.massaAdiposaKg} kg ({recomendacaoEngine.travaKerr.pctAdiposo}%)</span>
-                  <span>Σ 6 Dobras: {recomendacaoEngine.indicadoresBrutos.soma6} mm ({recomendacaoEngine.indicadoresBrutos.statusArgoref})</span>
+                  <span>
+                    Σ 6 Dobras: {recomendacaoEngine.indicadoresCruzados?.soma6 || 0} mm ({recomendacaoEngine.indicadoresCruzados?.statusDobras || '-'})
+                  </span>
                 </div>
               )}
             </div>
