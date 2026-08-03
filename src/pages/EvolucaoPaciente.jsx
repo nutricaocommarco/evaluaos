@@ -152,7 +152,7 @@ export default function EvolucaoPaciente() {
 
           cintura_estatura: Number(calc.relacao_cintura_estatura || 0).toFixed(2),
           cintura_quadril: Number(calc.relacao_cintura_quadril || 0).toFixed(2),
-          imo: Number(calc.indice_massa_ossea_imo || 0).toFixed(2),
+          imo: Number(calc.indice_massa_ossea_imo || 0).toFixed(3), // 💡 FORMATADO COM 3 CASAS DECIMAIS
           apvat: Number(calc.area_previsao_visceral_apvat || 0).toFixed(2),
           iam: Number(calc.indice_adiposo_muscular || 0).toFixed(2),
 
@@ -252,7 +252,7 @@ export default function EvolucaoPaciente() {
   }
   const ultimaEstatura = historico[historico.length - 1]?.estatura || 0
 
-   const handleWhatsApp = () => {
+  const handleWhatsApp = () => {
     const telefoneLimpo = pacienteLocal?.telefone ? pacienteLocal.telefone.replace(/\D/g, '') : '';
     if (!telefoneLimpo) {
       alert('Este paciente não possui telefone cadastrado.');
@@ -270,15 +270,14 @@ export default function EvolucaoPaciente() {
     window.open(link, '_blank');
   } 
 
-
   // COMPONENTE: Cartão de Evolução
-  const CardEvolucao = ({ titulo, chaveDado, unidade = "", isInverso = false, chaveVisibilidade }) => {
+  const CardEvolucao = ({ titulo, chaveDado, unidade = "", isInverso = false, chaveVisibilidade, casasDecimais = 1 }) => {
     if (!podeExibir(chaveVisibilidade)) return null;
 
     const totalAvaliacoes = historico.length;
     const primeiraAv = Number(historico[0][chaveDado]);
     const ultimaAv = Number(historico[totalAvaliacoes - 1][chaveDado]);
-    const deltaTotal = (ultimaAv - primeiraAv).toFixed(1);
+    const deltaTotal = (ultimaAv - primeiraAv).toFixed(casasDecimais);
 
     const isVertical = totalAvaliacoes >= 3;
 
@@ -289,7 +288,7 @@ export default function EvolucaoPaciente() {
       const corBadge = isBom ? 'text-emerald-700 bg-emerald-50 border-emerald-100' : 'text-red-700 bg-red-50 border-red-100';
       return (
         <div className={`flex items-center justify-center px-1.5 py-0.5 rounded-md border text-[9px] font-bold ${corBadge} ${extraClasses}`}>
-          {isPositivo ? '↑' : '↓'} {Math.abs(diferenca).toFixed(1)}
+          {isPositivo ? '↑' : '↓'} {Math.abs(diferenca).toFixed(casasDecimais)}
         </div>
       );
     }
@@ -326,7 +325,7 @@ export default function EvolucaoPaciente() {
                       <span className="text-[9px] font-bold uppercase" style={{ color: av.cor }}>{av.nome_avaliacao}</span>
                       <span className="text-[8px] text-gray-400 font-medium">{av.dataStr_curta}</span>
                     </div>
-                    <span className="text-base font-black text-gray-800">{valorAtual.toFixed(1)}</span>
+                    <span className="text-base font-black text-gray-800">{valorAtual.toFixed(casasDecimais)}</span>
                   </div>
                   {deltaUI && <div>{deltaUI}</div>}
                 </div>
@@ -350,7 +349,7 @@ export default function EvolucaoPaciente() {
                       <span className="text-[9px] font-bold uppercase" style={{ color: av.cor }}>{av.nome_avaliacao}</span>
                       <span className="text-[8px] text-gray-400 font-medium">{av.dataStr_curta}</span>
                     </div>
-                    <span className="text-lg font-black text-gray-800">{valorAtual.toFixed(1)}</span>
+                    <span className="text-lg font-black text-gray-800">{valorAtual.toFixed(casasDecimais)}</span>
                   </div>
                   {deltaUI}
                   {idx < historico.length - 1 && <div className="w-4 h-[1px] bg-gray-200 mx-1 shrink-0"></div>}
@@ -760,7 +759,7 @@ export default function EvolucaoPaciente() {
             <CardEvolucao titulo="Cintura / Quadril (RCQ)" chaveDado="cintura_quadril" isInverso={true} chaveVisibilidade="evo_idx_rcq" />
             <CardEvolucao titulo="Área Visceral (apVAT)" chaveDado="apvat" isInverso={true} chaveVisibilidade="evo_idx_apvat" />
             <CardEvolucao titulo="Índice Adiposo Muscular" chaveDado="iam" isInverso={true} chaveVisibilidade="evo_idx_iam" />
-            <CardEvolucao titulo="Índice Massa Óssea (IMO)" chaveDado="imo" isInverso={false} chaveVisibilidade="evo_idx_imo" />
+            <CardEvolucao titulo="Índice Massa Óssea (IMO)" chaveDado="imo" isInverso={false} chaveVisibilidade="evo_idx_imo" casasDecimais={3} />
           </div>
         </div>
       )}
