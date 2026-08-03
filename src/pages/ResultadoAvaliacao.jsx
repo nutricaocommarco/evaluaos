@@ -287,7 +287,7 @@ export default function ResultadoAvaliacao() {
           .from('dados_calculados')
           .upsert(payloadCalculado, { onConflict: 'id_avaliacao' })
 
-        if (upsertError) consolewarn('Nota: Não foi possível sincronizar no banco.', upsertError)
+        if (upsertError) console.warn('Nota: Não foi possível sincronizar no banco.', upsertError)
       }
 
       setDados({
@@ -353,19 +353,69 @@ export default function ResultadoAvaliacao() {
   const imc = dados.imc || 0
   const infoImc = classificarImc ? classificarImc(imc) : { classificacao: '-', cor: 'gray' };
   const percentualGordura = aval.percentual_de_gordura || 0 
-  const massaGorda = dados.massa_gorda || 0
-  const massaMagra = dados.massa_magra || 0
-  const massaMuscular = dados.massa_muscular || 0
+  const pesoTotal = aval.peso_paciente || 0
+  const alturaCm = aval.altura_paciente || 0
+  const alturaM = alturaCm / 100
+  const dUmero = Number(aval.diametro_umero) || 0
+  const dFemur = Number(aval.diametro_femur) || 0
 
-  const percentualMassaLivre = percentualGordura > 0 ? (100 - percentualGordura) : 0;
+  // --- CÁLCULO DE 2 COMPONENTES (2C - EQUAÇÃO ESCOLHIDA) ---
+  const pctGorduraRegressao = percentualGordura
+  const pctMassaLivreGordura = pctGorduraRegressao > 0 ? (100 - pctGorduraRegressao) : 0
+  const massaGorda2C = dados.massa_gorda || (pesoTotal * (pctGorduraRegressao / 100))
+  const massaMagra2C = dados.massa_magra || (pesoTotal - massaGorda2C)
 
-  // Dados para o Gráfico de Pizza (2 Componentes)
   const dadosPizza2Comp = [
-    { name: 'Massa Gorda', value: percentualGordura, kg: massaGorda, color: '#f59e0b' },
-    { name: 'Massa Livre de Gordura', value: percentualMassaLivre, kg: massaMagra, color: '#3b82f6' }
-  ];
+    { name: 'Massa Gorda (%GC)', value: pctGorduraRegressao, kg: massaGorda2C, color: '#f59e0b' },
+    { name: 'Massa Livre de Gordura (MLG)', value: pctMassaLivreGordura, kg: massaMagra2C, color: '#3b82f6' }
+  ]
 
-  const iamVal = dados.indice_adiposo_muscular || ((massaMuscular > 0 && massaGorda > 0) ? (massaGorda / massaMuscular) : 0)
+  // --- CÁLCULO DO TECIDO ADIPOSO (MODELO PHANTOM DE KERR 1988 / 1991) ---
+  const dTri = aval.dobra_cutanea_triceps || 0
+  const dSub = aval.dobra_cutanea_subescapular || 0
+  const dSup = aval.dobra_cutanea_supraespinhal || 0
+  const dAbd = aval.dobra_cutanea_abdominal || 0
+  const dCoxa = aval.dobra_cutanea_coxa_media || 0
+  const dPant = aval.dobra_cutanea_panturrilha || 0
+
+  const soma6DobrasKerr = dTri + dSub + dSup + dAbd + dCoxa + dPant
+  
+  let massaAdiposaKerrKg = 0
+  if (soma6DobrasKerr > 0 && alturaCm > 0) {
+    const zAdiposo = ((soma6DobrasKerr * (170.18 / alturaCm)) - 116.41) / 34.79
+    massaAdiposaKerrKg = Math.max(0, ((zAdiposo * 5.85) + 25.6) / Math.pow(170.18 / alturaCm, 3))
+  } else {
+    massaAdiposaKerrKg = massaGorda2C
+  }
+
+  // --- CÁLCULO DE 4 COMPONENTES (4C - DE ROSE ET AL.) ---
+  const massaMuscularLee = dados.massa_muscular || 0
+
+  // 1. Tecido Ósseo (Rocha, 1975)
+  let massaOssea4C = 0
+  if (alturaM > 0 && dUmero > 0 && dFemur > 0) {
+    massaOssea4C = 3.02 * Math.pow(Math.pow(alturaM, 2) * (dUmero / 100) * (dFemur / 100) * 400, 0.712)
+  }
+
+  // 2. Tecido Residual (Würch, 1973)
+  const pctResidualWurch = pac.sexo === 'M' ? 0.24 : 0.21
+  const massaResidual4C = pesoTotal * pctResidualWurch
+
+  // Percentuais de De Rose
+  const pctGorduraDeRose = pesoTotal > 0 ? (massaAdiposaKerrKg / pesoTotal) * 100 : 0
+  const pctMusculoDeRose = pesoTotal > 0 ? (massaMuscularLee / pesoTotal) * 100 : 0
+  const pctOssoDeRose = pesoTotal > 0 ? (massaOssea4C / pesoTotal) * 100 : 0
+  const pctResidualDeRose = pesoTotal > 0 ? (massaResidual4C / pesoTotal) * 100 : 0
+
+  // Dados para o Gráfico de Pizza de 4 Componentes
+  const dadosPizza4Comp = [
+    { name: 'Tecido Adiposo (Kerr 1991)', value: pctGorduraDeRose, kg: massaAdiposaKerrKg, color: '#f59e0b' },
+    { name: 'Tecido Muscular (Lee 2000)', value: pctMusculoDeRose, kg: massaMuscularLee, color: '#10b981' },
+    { name: 'Tecido Ósseo (Rocha 1975)', value: pctOssoDeRose, kg: massaOssea4C, color: '#6366f1' },
+    { name: 'Massa Residual (Würch 1973)', value: pctResidualDeRose, kg: massaResidual4C, color: '#64748b' }
+  ]
+
+  const iamVal = dados.indice_adiposo_muscular || ((massaMuscularLee > 0 && massaAdiposaKerrKg > 0) ? (massaAdiposaKerrKg / massaMuscularLee) : 0)
   const imoVal = dados.indice_massa_ossea_imo || 0
   const apvatVal = dados.area_previsao_visceral_apvat || 0
 
@@ -575,79 +625,135 @@ export default function ResultadoAvaliacao() {
             {podeExibir('laudo_massa_gorda') && (
               <div className="bg-white p-5 rounded-xl border border-gray-100 shadow-sm flex flex-col justify-center">
                 <p className="text-xs font-semibold text-gray-500 uppercase">Massa Gorda</p>
-                <p className="text-2xl font-black text-amber-600 mt-1">{massaGorda > 0 ? massaGorda.toFixed(2) : '-'} <span className="text-xs font-normal text-gray-500">kg</span></p>
+                <p className="text-2xl font-black text-amber-600 mt-1">{massaGorda2C > 0 ? massaGorda2C.toFixed(2) : '-'} <span className="text-xs font-normal text-gray-500">kg</span></p>
               </div>
             )}
             {podeExibir('laudo_massa_magra') && (
               <div className="bg-white p-5 rounded-xl border border-gray-100 shadow-sm flex flex-col justify-center">
                 <p className="text-xs font-semibold text-gray-500 uppercase">Massa Magra</p>
-                <p className="text-2xl font-black text-blue-600 mt-1">{massaMagra > 0 ? massaMagra.toFixed(2) : '-'} <span className="text-xs font-normal text-gray-500">kg</span></p>
+                <p className="text-2xl font-black text-blue-600 mt-1">{massaMagra2C > 0 ? massaMagra2C.toFixed(2) : '-'} <span className="text-xs font-normal text-gray-500">kg</span></p>
               </div>
             )}
             {podeExibir('laudo_massa_muscular') && (
               <div className="bg-white p-5 rounded-xl border border-gray-100 shadow-sm flex flex-col justify-center border-l-4 border-l-emerald-500 relative">
                 <p className="text-xs font-semibold text-gray-500 uppercase">Massa Muscular</p>
-                <p className="text-2xl font-black text-emerald-700 mt-1">{massaMuscular > 0 ? massaMuscular.toFixed(2) : '-'} <span className="text-xs font-normal text-gray-500">kg</span></p>
+                <p className="text-2xl font-black text-emerald-700 mt-1">{massaMuscularLee > 0 ? massaMuscularLee.toFixed(2) : '-'} <span className="text-xs font-normal text-gray-500">kg</span></p>
                 <span className="absolute bottom-2 right-3 text-[9px] font-medium text-gray-400">Ref: Lee 2000</span>
               </div>
             )}
           </div>
 
-          {/* 🥧 GRÁFICO DE PIZZA (2 COMPONENTES: MASSA GORDA X MASSA LIVRE DE GORDURA) */}
-          {percentualGordura > 0 && (
-            <div className="bg-white p-6 rounded-xl border border-gray-100 shadow-sm flex flex-col md:flex-row items-center justify-around gap-6">
-              <div className="w-full md:w-1/2 h-[240px]">
-                <ResponsiveContainer width="100%" height="100%">
-                  <PieChart>
-                    <Pie
-                      data={dadosPizza2Comp}
-                      cx="50%"
-                      cy="50%"
-                      innerRadius={60}
-                      outerRadius={85}
-                      paddingAngle={4}
-                      dataKey="value"
-                    >
-                      {dadosPizza2Comp.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={entry.color} />
-                      ))}
-                    </Pie>
-                    <Tooltip 
-                      formatter={(val, name, entry) => [
-                        `${val.toFixed(1)}% (${entry.payload.kg.toFixed(2)} kg)`, 
-                        name
-                      ]}
-                      contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
-                    />
-                    <Legend iconType="circle" wrapperStyle={{ fontSize: '12px' }} />
-                  </PieChart>
-                </ResponsiveContainer>
+          {/* 🥧 1. FRACIONAMENTO EM 2 COMPONENTES (EQUAÇÃO ESCOLHIDA) */}
+          {podeExibir('laudo_fracionamento_2c') && pctGorduraRegressao > 0 && (
+            <div className="bg-white p-6 rounded-xl border border-gray-100 shadow-sm space-y-4 mb-6">
+              <div className="flex justify-between items-center border-b border-gray-100 pb-2">
+                <h3 className="text-sm font-black text-gray-800 uppercase tracking-wider">
+                  📊 Fracionamento em 2 Componentes (Modelo 2C)
+                </h3>
+                <span className="text-[10px] bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded font-bold">
+                  Protocolo: {aval.equacao_de_regressao_escolhida || 'Petroski'}
+                </span>
               </div>
 
-              {/* Tabela Resumo em Valores Numéricos e Percentuais ao Lado do Gráfico */}
-              <div className="w-full md:w-1/2 space-y-3 bg-gray-50 p-4 rounded-xl border border-gray-100">
-                <h4 className="text-xs font-black text-gray-600 uppercase tracking-wider mb-2">Fracionamento em 2 Componentes</h4>
-                
-                <div className="flex justify-between items-center bg-white p-3 rounded-lg border border-gray-100">
-                  <div className="flex items-center gap-2">
-                    <div className="w-3 h-3 rounded-full bg-amber-500"></div>
-                    <span className="text-xs font-bold text-gray-700">Massa Gorda</span>
-                  </div>
-                  <div className="text-right">
-                    <span className="text-sm font-black text-amber-600">{massaGorda.toFixed(2)} kg</span>
-                    <span className="text-xs font-semibold text-gray-400 ml-2">({percentualGordura.toFixed(1)}%)</span>
-                  </div>
+              <div className="flex flex-col md:flex-row items-center justify-around gap-6">
+                <div className="w-full md:w-1/2 h-[220px]">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={dadosPizza2Comp}
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={50}
+                        outerRadius={75}
+                        paddingAngle={4}
+                        dataKey="value"
+                      >
+                        {dadosPizza2Comp.map((entry, index) => (
+                          <Cell key={`cell-2c-${index}`} fill={entry.color} />
+                        ))}
+                      </Pie>
+                      <Tooltip 
+                        formatter={(val, name, entry) => [
+                          `${val.toFixed(1)}% (${entry.payload.kg.toFixed(2)} kg)`, 
+                          name
+                        ]}
+                        contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
+                      />
+                      <Legend iconType="circle" wrapperStyle={{ fontSize: '11px' }} />
+                    </PieChart>
+                  </ResponsiveContainer>
                 </div>
 
-                <div className="flex justify-between items-center bg-white p-3 rounded-lg border border-gray-100">
-                  <div className="flex items-center gap-2">
-                    <div className="w-3 h-3 rounded-full bg-blue-500"></div>
-                    <span className="text-xs font-bold text-gray-700">Massa Livre de Gordura</span>
-                  </div>
-                  <div className="text-right">
-                    <span className="text-sm font-black text-blue-600">{massaMagra.toFixed(2)} kg</span>
-                    <span className="text-xs font-semibold text-gray-400 ml-2">({percentualMassaLivre.toFixed(1)}%)</span>
-                  </div>
+                <div className="w-full md:w-1/2 space-y-2 bg-gray-50 p-4 rounded-xl border border-gray-100">
+                  {dadosPizza2Comp.map((item, idx) => (
+                    <div key={idx} className="flex justify-between items-center bg-white p-2.5 rounded-lg border border-gray-100">
+                      <div className="flex items-center gap-2">
+                        <div className="w-3 h-3 rounded-full" style={{ backgroundColor: item.color }}></div>
+                        <span className="text-xs font-bold text-gray-700">{item.name}</span>
+                      </div>
+                      <div className="text-right">
+                        <span className="text-xs font-black text-gray-800">{item.kg.toFixed(2)} kg</span>
+                        <span className="text-[10px] font-semibold text-gray-400 ml-1.5">({item.value.toFixed(1)}%)</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* 🥧 2. FRACIONAMENTO EM 4 COMPONENTES (DE ROSE ET AL.) */}
+          {podeExibir('laudo_fracionamento_4c') && pesoTotal > 0 && (
+            <div className="bg-white p-6 rounded-xl border border-gray-100 shadow-sm space-y-4">
+              <div className="flex justify-between items-center border-b border-gray-100 pb-2">
+                <h3 className="text-sm font-black text-gray-800 uppercase tracking-wider">
+                  🧩 Fracionamento Anatômico em 4 Componentes (Modelo 4C - De Rose et al.)
+                </h3>
+                <span className="text-[10px] text-gray-400 font-medium">Modelo 4C</span>
+              </div>
+
+              <div className="flex flex-col md:flex-row items-center justify-around gap-6">
+                <div className="w-full md:w-1/2 h-[260px]">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={dadosPizza4Comp}
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={55}
+                        outerRadius={85}
+                        paddingAngle={4}
+                        dataKey="value"
+                      >
+                        {dadosPizza4Comp.map((entry, index) => (
+                          <Cell key={`cell-4c-${index}`} fill={entry.color} />
+                        ))}
+                      </Pie>
+                      <Tooltip 
+                        formatter={(val, name, entry) => [
+                          `${val.toFixed(1)}% (${entry.payload.kg.toFixed(2)} kg)`, 
+                          name
+                        ]}
+                        contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
+                      />
+                      <Legend iconType="circle" wrapperStyle={{ fontSize: '11px' }} />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </div>
+
+                <div className="w-full md:w-1/2 space-y-2 bg-gray-50 p-4 rounded-xl border border-gray-100">
+                  {dadosPizza4Comp.map((item, idx) => (
+                    <div key={idx} className="flex justify-between items-center bg-white p-2.5 rounded-lg border border-gray-100">
+                      <div className="flex items-center gap-2">
+                        <div className="w-3 h-3 rounded-full" style={{ backgroundColor: item.color }}></div>
+                        <span className="text-xs font-bold text-gray-700">{item.name}</span>
+                      </div>
+                      <div className="text-right">
+                        <span className="text-xs font-black text-gray-800">{item.kg.toFixed(2)} kg</span>
+                        <span className="text-[10px] font-semibold text-gray-400 ml-1.5">({item.value.toFixed(1)}%)</span>
+                      </div>
+                    </div>
+                  ))}
                 </div>
               </div>
             </div>
@@ -910,7 +1016,7 @@ export default function ResultadoAvaliacao() {
       )}
 
       {/* 10. OUTROS INDICADORES & CLASSIFICAÇÕES */}
-      {(podeExibir('laudo_iam') || podeExibir('laudo_imo') || podeExibir('laudo_apvat')) && (
+      {(podeExibir('laudo_iam') || podeExibir('laudo_imo') || podeExibir('laudo_apvat') || podeExibir('laudo_morrow')) && (
         <div className="bg-white p-6 rounded-xl border border-gray-100 shadow-sm space-y-4 mt-6">
           <h3 className="text-sm font-bold text-gray-800 uppercase tracking-wider border-b pb-2">🚀 10. Outros Indicadores & Classificações</h3>
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
@@ -940,25 +1046,27 @@ export default function ResultadoAvaliacao() {
             )}
 
             {/* Classificação Morrow et al. (2003) */}
-            <div className="flex flex-col justify-between p-3 border border-gray-100 rounded-lg bg-gray-50 space-y-1">
-              <div className="flex justify-between items-center">
-                <span className="text-xs font-semibold text-gray-700">Gordura (Morrow 2003)</span>
-                <span className="text-xs font-bold text-gray-800">{percentualGordura > 0 ? `${percentualGordura.toFixed(1)}%` : '-'}</span>
-              </div>
-              {percentualGordura > 0 && (
-                <div className="flex justify-end">
-                  <span className={`text-[9px] font-bold px-2 py-0.5 rounded uppercase tracking-wider ${
-                    infoMorrow.cor === 'red' ? 'bg-red-100 text-red-800' :
-                    infoMorrow.cor === 'orange' ? 'bg-orange-100 text-orange-800' :
-                    infoMorrow.cor === 'amber' ? 'bg-amber-100 text-amber-800' :
-                    infoMorrow.cor === 'blue' ? 'bg-blue-100 text-blue-800' :
-                    'bg-emerald-100 text-emerald-800'
-                  }`}>
-                    {infoMorrow.classificacao}
-                  </span>
+            {podeExibir('laudo_morrow') && (
+              <div className="flex flex-col justify-between p-3 border border-gray-100 rounded-lg bg-gray-50 space-y-1">
+                <div className="flex justify-between items-center">
+                  <span className="text-xs font-semibold text-gray-700">Gordura (Morrow 2003)</span>
+                  <span className="text-xs font-bold text-gray-800">{percentualGordura > 0 ? `${percentualGordura.toFixed(1)}%` : '-'}</span>
                 </div>
-              )}
-            </div>
+                {percentualGordura > 0 && (
+                  <div className="flex justify-end">
+                    <span className={`text-[9px] font-bold px-2 py-0.5 rounded uppercase tracking-wider ${
+                      infoMorrow.cor === 'red' ? 'bg-red-100 text-red-800' :
+                      infoMorrow.cor === 'orange' ? 'bg-orange-100 text-orange-800' :
+                      infoMorrow.cor === 'amber' ? 'bg-amber-100 text-amber-800' :
+                      infoMorrow.cor === 'blue' ? 'bg-blue-100 text-blue-800' :
+                      'bg-emerald-100 text-emerald-800'
+                    }`}>
+                      {infoMorrow.classificacao}
+                    </span>
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* ÍNDICE ADIPOSO MUSCULAR (IAM) COM EXPLICAÇÃO PRÁTICA */}
             {podeExibir('laudo_iam') && (

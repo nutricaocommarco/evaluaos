@@ -185,13 +185,15 @@ export default function VisibilidadePublicaForm({ config, setConfig, onSave, sav
       ]
     },
     {
-      titulo: 'Composição Corporal',
+      titulo: 'Composição Corporal & Fracionamentos',
       chaves: [
         { key: 'laudo_imc', label: 'IMC' },
         { key: 'laudo_percentual_gordura', label: '% de Gordura' },
         { key: 'laudo_massa_gorda', label: 'Massa Gorda' },
         { key: 'laudo_massa_magra', label: 'Massa Magra' },
-        { key: 'laudo_massa_muscular', label: 'Massa Muscular' }
+        { key: 'laudo_massa_muscular', label: 'Massa Muscular' },
+        { key: 'laudo_fracionamento_2c', label: 'Gráfico: Fracionamento em 2 Componentes (2C)' },
+        { key: 'laudo_fracionamento_4c', label: 'Gráfico: Fracionamento em 4 Componentes (De Rose et al.)' }
       ]
     },
     {
@@ -255,9 +257,11 @@ export default function VisibilidadePublicaForm({ config, setConfig, onSave, sav
         { key: 'laudo_somatocarta_grafico', label: 'Gráfico da Somatocarta' }
       ]
     },
-    {
-      titulo: 'Outros Indicadores',
+{
+      titulo: 'Outros Indicadores & Classificações',
       chaves: [
+        { key: 'laudo_apvat', label: 'Área Visceral (apVAT)' },
+        { key: 'laudo_morrow', label: 'Gordura (Morrow 2003)' },
         { key: 'laudo_iam', label: 'Índice Adiposo Muscular (IAM)' },
         { key: 'laudo_imo', label: 'Índice Músculo Ósseo (IMO)' }
       ]
