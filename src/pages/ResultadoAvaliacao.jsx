@@ -532,29 +532,32 @@ export default function ResultadoAvaliacao() {
           <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
             
             {/* CARD DO IMC COM CLASSIFICAÇÃO */}
-            {podeExibir('laudo_imc') && (
-              <div className="bg-white p-5 rounded-xl border border-gray-100 shadow-sm flex flex-col justify-between">
-                <div>
-                  <p className="text-xs font-semibold text-gray-500 uppercase">IMC</p>
-                  <p className="text-2xl font-black text-gray-800 mt-1">
-                    {imc > 0 ? imc.toFixed(1) : '-'} <span className="text-xs font-normal text-gray-500">kg/m²</span>
-                  </p>
-                </div>
-                {imc > 0 && (
-                  <div className="pt-2 mt-2 border-t border-gray-50">
-                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded uppercase tracking-wider ${
-                      infoImc.cor === 'red' ? 'bg-red-100 text-red-800' :
-                      infoImc.cor === 'orange' ? 'bg-orange-100 text-orange-800' :
-                      infoImc.cor === 'amber' ? 'bg-amber-100 text-amber-800' :
-                      infoImc.cor === 'blue' ? 'bg-blue-100 text-blue-800' :
-                      'bg-emerald-100 text-emerald-800'
-                    }`}>
-                      {infoImc.label}
-                    </span>
-                  </div>
-                )}
-              </div>
-            )}
+{podeExibir('laudo_imc') && (
+  <div className="bg-white p-5 rounded-xl border border-gray-100 shadow-sm flex flex-col justify-between relative">
+    <div>
+      <p className="text-xs font-semibold text-gray-500 uppercase">IMC</p>
+      <p className="text-2xl font-black text-gray-800 mt-1">
+        {imc > 0 ? imc.toFixed(1) : '-'} <span className="text-xs font-normal text-gray-500">kg/m²</span>
+      </p>
+    </div>
+    
+    {imc > 0 && (
+      <div className="pt-2 mt-2 border-t border-gray-50 flex items-center justify-between">
+        <span className={`text-[10px] font-bold px-2 py-0.5 rounded uppercase tracking-wider ${
+          infoImc.cor === 'red' ? 'bg-red-100 text-red-800' :
+          infoImc.cor === 'orange' ? 'bg-orange-100 text-orange-800' :
+          infoImc.cor === 'amber' ? 'bg-amber-100 text-amber-800' :
+          infoImc.cor === 'blue' ? 'bg-blue-100 text-blue-800' :
+          'bg-emerald-100 text-emerald-800'
+        }`}>
+          {infoImc.classificacao || infoImc.label || '-'}
+        </span>
+      </div>
+    )}
+    
+    <span className="absolute bottom-2 right-3 text-[9px] font-medium text-gray-400">Ref: OMS 1998</span>
+  </div>
+)}
 
             {podeExibir('laudo_percentual_gordura') && (
               <div className="bg-white p-5 rounded-xl border border-gray-100 shadow-sm flex flex-col justify-center">
