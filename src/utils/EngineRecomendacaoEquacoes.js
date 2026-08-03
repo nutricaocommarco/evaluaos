@@ -203,7 +203,7 @@ export function recomendarEquacaoIdeal(medidas = {}, paciente = {}) {
   const ehFalsoSobrepeso = imcVal >= 25.0 && ehHipertrofiado
 
   // ============================================================
-  // 7. SISTEMA ESPECIALISTA: PONTUAÇÃO DE TODAS AS EQUAÇÕES
+  // 6. SISTEMA ESPECIALISTA: PONTUAÇÃO DE TODAS AS EQUAÇÕES
   // ============================================================
   const listaCandidatas = sexo === 'F' ? METADADOS_EQUACOES.filter(e => e.sexo === 'F') : METADADOS_EQUACOES.filter(e => e.sexo === 'M')
 
