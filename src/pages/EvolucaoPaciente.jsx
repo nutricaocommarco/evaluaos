@@ -152,8 +152,8 @@ export default function EvolucaoPaciente() {
 
           cintura_estatura: Number(calc.relacao_cintura_estatura || 0).toFixed(2),
           cintura_quadril: Number(calc.relacao_cintura_quadril || 0).toFixed(2),
-          imo: Number(calc.indice_massa_ossea_imo || 0).toFixed(3), // 💡 FORMATADO COM 3 CASAS DECIMAIS
-          apvat: Number(calc.area_previsao_visceral_apvat || 0).toFixed(2),
+          imo: Number(calc.indice_massa_ossea_imo || 0).toFixed(3),
+          apvat: Number(calc.area_previsao_visceral_apvat || 0).toFixed(1), // 🌟 AJUSTADO PARA apVAT (1 casa decimal)
           iam: Number(calc.indice_adiposo_muscular || 0).toFixed(2),
 
           triceps: Number(aval.dobra_cutanea_triceps || 0).toFixed(1),
@@ -757,7 +757,7 @@ export default function EvolucaoPaciente() {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 w-full min-w-0">
             <CardEvolucao titulo="Cintura / Estatura" chaveDado="cintura_estatura" isInverso={true} chaveVisibilidade="evo_idx_cintura_estatura" />
             <CardEvolucao titulo="Cintura / Quadril (RCQ)" chaveDado="cintura_quadril" isInverso={true} chaveVisibilidade="evo_idx_rcq" />
-            <CardEvolucao titulo="Área Visceral (apVAT)" chaveDado="apvat" isInverso={true} chaveVisibilidade="evo_idx_apvat" />
+            <CardEvolucao titulo="Área Visceral (apVAT)" chaveDado="apvat" unidade="cm²" isInverso={true} chaveVisibilidade="evo_idx_apvat" casasDecimais={1} />
             <CardEvolucao titulo="Índice Adiposo Muscular" chaveDado="iam" isInverso={true} chaveVisibilidade="evo_idx_iam" />
             <CardEvolucao titulo="Índice Massa Óssea (IMO)" chaveDado="imo" isInverso={false} chaveVisibilidade="evo_idx_imo" casasDecimais={3} />
           </div>
