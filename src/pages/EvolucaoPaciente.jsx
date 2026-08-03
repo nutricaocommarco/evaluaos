@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import { supabase } from '../supabaseClient'
+import { obterUrlEmbedYouTube } from '../utils/youtube'
 import {
   ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend
 } from 'recharts'
@@ -12,7 +13,7 @@ export default function EvolucaoPaciente() {
   const { tokenUrl } = useParams() // Pega o token se for link público
 
   const isPublicView = !!tokenUrl;
-
+  
   // Usa o paciente do state (se logado) ou null para buscar depois (se for link público)
   const [pacienteLocal, setPacienteLocal] = useState(location.state?.paciente || null)
 
@@ -217,6 +218,9 @@ export default function EvolucaoPaciente() {
       </div>
     )
   }
+
+  const urlVideoRaw = avaliacaosDados?.video_url || avaliadorDados?.video_url_padrao
+  const videoEmbedUrl = obterUrlEmbedYouTube(urlVideoRaw)
 
   // Helper de Trava de Visibilidade
   // Substitua o helper podeExibir nas duas telas por esta implementação inteligente:
@@ -774,6 +778,32 @@ const podeExibir = (chave) => {
           </div>
         </div>
       )}
+
+{/* Player vídeo */}
+      {videoEmbedUrl && (
+  <div className="bg-white border border-slate-200 rounded-3xl p-5 sm:p-6 shadow-sm space-y-3 my-6">
+    <div className="flex items-center gap-3">
+      <div className="w-9 h-9 bg-emerald-50 text-emerald-600 rounded-xl flex items-center justify-center font-bold text-base">
+        📹
+      </div>
+      <div>
+        <h3 className="text-sm font-bold text-slate-900">Mensagem & Orientações em Vídeo</h3>
+        <p className="text-xs text-slate-500">Assista às explicações do seu avaliador sobre os resultados.</p>
+      </div>
+    </div>
+
+    {/* Player Responsivo 16:9 */}
+    <div className="aspect-video w-full rounded-2xl overflow-hidden shadow-md bg-slate-900">
+      <iframe
+        src={videoEmbedUrl}
+        title="Orientações do Avaliador"
+        className="w-full h-full"
+        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+        allowFullScreen
+      />
+    </div>
+  </div>
+)}
 
       <div className="flex justify-end gap-2 w-full mt-6 no-print">
         <BotaoExportarEvolucaoPDF 

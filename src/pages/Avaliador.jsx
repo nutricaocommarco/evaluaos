@@ -364,6 +364,20 @@ export default function Avaliador() {
         </form>
       </div>
 
+{/* SEÇÃO 2.2: Vídeo Padrão de Boas Vindas */}
+      <div>
+  <label className="block text-xs font-bold text-slate-700 mb-1">
+    🎬 Vídeo Padrão de Boas-Vindas / Apresentação do Consultório
+  </label>
+  <input
+    type="url"
+    value={perfil.video_url_padrao || ''}
+    onChange={(e) => setPerfil({ ...perfil, video_url_padrao: e.target.value })}
+    placeholder="https://www.youtube.com/watch?v=..."
+    className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:ring-2 focus:ring-emerald-500 outline-none"
+  />
+</div>
+
       {/* SEÇÃO 2: EQUIPAMENTOS */}
       <div className="bg-white p-6 rounded-xl border border-gray-100 shadow-sm space-y-6">
         <div className="border-b pb-3">
