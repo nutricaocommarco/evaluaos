@@ -252,6 +252,25 @@ export default function EvolucaoPaciente() {
   }
   const ultimaEstatura = historico[historico.length - 1]?.estatura || 0
 
+   const handleWhatsApp = () => {
+    const telefoneLimpo = pacienteLocal?.telefone ? pacienteLocal.telefone.replace(/\D/g, '') : '';
+    if (!telefoneLimpo) {
+      alert('Este paciente não possui telefone cadastrado.');
+      return;
+    }
+    const primeiroNome = pacienteLocal?.nome_completo ? pacienteLocal.nome_completo.split(' ')[0] : 'Paciente';
+    const saudacao = avaliador?.nome_completo ? avaliador.nome_completo : 'seu Avaliador';
+
+    const tokenPublico = pacienteLocal?.token_publico;
+    const linkDaEvolucao = tokenPublico
+        ? `${window.location.origin}/evolucao/${tokenPublico}`
+        : window.location.origin;
+    const msg = `Olá *${primeiroNome}*, tudo bem?\n\nAqui é ${saudacao}! Acabei de atualizar a sua *Evolução Antropométrica* com os dados da nossa última consulta.\n\nAcesse o link abaixo para visualizar seus resultados interativos e acompanhar sua evolução:\n\n${linkDaEvolucao}\n\nQualquer dúvida, estou à disposição!`;
+    const link = `https://wa.me/${telefoneLimpo.startsWith('55') ? telefoneLimpo : '55' + telefoneLimpo}?text=${encodeURIComponent(msg)}`;
+    window.open(link, '_blank');
+  } 
+
+
   // COMPONENTE: Cartão de Evolução
   const CardEvolucao = ({ titulo, chaveDado, unidade = "", isInverso = false, chaveVisibilidade }) => {
     if (!podeExibir(chaveVisibilidade)) return null;
@@ -771,26 +790,6 @@ export default function EvolucaoPaciente() {
           </div>
         </div>
       )}
-
-        const handleWhatsApp = () => {
-    const telefoneLimpo = pacienteLocal?.telefone ? pacienteLocal.telefone.replace(/\D/g, '') : '';
-    if (!telefoneLimpo) {
-      alert('Este paciente não possui telefone cadastrado.');
-      return;
-    }
-    const primeiroNome = pacienteLocal?.nome_completo ? pacienteLocal.nome_completo.split(' ')[0] : 'Paciente';
-    const saudacao = avaliador?.nome_completo ? avaliador.nome_completo : 'seu Avaliador';
-
-    const tokenPublico = pacienteLocal?.token_publico;
-    const linkDaEvolucao = tokenPublico 
-        ? `${window.location.origin}/evolucao/${tokenPublico}`
-        : window.location.origin;
-
-    const msg = `Olá *${primeiroNome}*, tudo bem?\n\nAqui é ${saudacao}! Acabei de atualizar a sua *Evolução Antropométrica* com os dados da nossa última consulta.\n\nAcesse o link abaixo para visualizar seus resultados interativos e acompanhar sua evolução:\n\n${linkDaEvolucao}\n\nQualquer dúvida, estou à disposição!`;
-    const link = `https://wa.me/${telefoneLimpo.startsWith('55') ? telefoneLimpo : '55' + telefoneLimpo}?text=${encodeURIComponent(msg)}`;
-    window.open(link, '_blank');
-  }
-
 
       <div className="flex justify-end gap-2 w-full mt-6 no-print">
         <BotaoExportarEvolucaoPDF 
