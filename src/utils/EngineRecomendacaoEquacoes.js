@@ -1,7 +1,6 @@
 /**
- * EVALUAOS - Sistema Especialista em Cineantropometria (Motor TCC)
- * Baseado no Critério de Decisão Clínica na Avaliação da Composição Corporal (2026)
- * & Módulo de Muscularidade (ARGOREF / Campa 2025 / Lee 2000 / Kerr 1991 / Heath-Carter)
+ * EVALUAOS - Sistema Especialista em Cineantropometria Avançada (Motor TCC)
+ * Cruzamento Multicritério de 60+ Equações com Fracionamento Anatômico, Somatotipo e Trava de Kerr (Kg)
  */
 
 import * as Eq from './equacoes'
@@ -12,7 +11,6 @@ import {
   classificarMorrow 
 } from './escalasNormativas'
 
-// MAPEAMENTO GLOBAL DE TODAS AS EQUAÇÕES DISPONÍVEIS NO SISTEMA COM METADADOS CLÍNICOS
 const METADADOS_EQUACOES = [
   // --- FEMININAS ---
   { id: 'calcularFemDurnin1974', nome: 'Durnin et al. (1974) - 4skf', sexo: 'F', idadeMin: 16, idadeMax: 68, tipo: 'dobras', pop: 'geral', func: Eq.calcularFemDurnin1974 },
@@ -82,7 +80,7 @@ const METADADOS_EQUACOES = [
   { id: 'calcularMascDurnin1974_50a72anos', nome: 'Durnin et al. (1974) - 4skf (50 a 72 anos)', sexo: 'M', idadeMin: 50, idadeMax: 80, tipo: 'dobras', pop: 'idoso', func: Eq.calcularMascDurnin1974_50a72anos },
   { id: 'calcularMascDurnin1974_1skd', nome: 'Durnin et al. (1974) - 1skf (Só Tríceps)', sexo: 'M', idadeMin: 17, idadeMax: 72, tipo: 'dobras', pop: 'geral', func: Eq.calcularMascDurnin1974_1skd },
   { id: 'calcularMascDurninRahaman1967_4skd', nome: 'Durnin & Rahaman (1967) - 4skf (< 17 anos)', sexo: 'M', idadeMin: 10, idadeMax: 16, tipo: 'dobras', pop: 'crianca', func: Eq.calcularMascDurninRahaman1967_4skd },
-  { id: 'calcularMascForsythSinning1973_2skd', nome: 'Forsyth & Sinning (1973) - 2skf', sexo: 'M', idadeMin: 19, idadeMax: 22, tipo: 'dobras', pop: 'atleta', func: Eq.calcularMascForsythSinning1973_2skd },
+  { id: 'calcularMascForsythSinning1973_2skd', nome: 'Forsyth & Sinning (1973) - 2skd', sexo: 'M', idadeMin: 19, idadeMax: 22, tipo: 'dobras', pop: 'atleta', func: Eq.calcularMascForsythSinning1973_2skd },
   { id: 'calcularMascNagamineSuzuki1964_2skd', nome: 'Nagamine & Suzuki (1964) - 2skd', sexo: 'M', idadeMin: 18, idadeMax: 27, tipo: 'dobras', pop: 'asiatica', func: Eq.calcularMascNagamineSuzuki1964_2skd },
   { id: 'calcularMascSloan1967_2skd', nome: 'Sloan (1967) - 2skd', sexo: 'M', idadeMin: 18, idadeMax: 26, tipo: 'dobras', pop: 'universitaria', func: Eq.calcularMascSloan1967_2skd },
   { id: 'calcularMascHortobagyi1992', nome: 'Hortobagyi et al. (1992) - Massa/Estatura', sexo: 'M', idadeMin: 18, idadeMax: 30, tipo: 'mista', pop: 'atleta', func: Eq.calcularMascHortobagyi1992 },
@@ -103,7 +101,7 @@ export function recomendarEquacaoIdeal(medidas = {}, paciente = {}) {
   const esporte = paciente.pratica_esporte === true || paciente.pratica_esporte === 'true'
   const modalidade = (paciente.modalidade_esportiva || '').toLowerCase()
 
-  // 1. IDADE SEGURA
+  // 1. Dados Demográficos & Idade
   let idade = Number(paciente.idade || paciente.idade_anos || medidas.idade_anos) || 0
   if (!idade && (paciente.data_nascimento || paciente.data_nasc)) {
     const dataNascStr = paciente.data_nascimento || paciente.data_nasc
@@ -115,51 +113,40 @@ export function recomendarEquacaoIdeal(medidas = {}, paciente = {}) {
   }
   if (!idade || idade <= 0) idade = 25;
 
-  // 2. EXTRAÇÃO DE MEDIDAS
-  const tr = Number(medidas.dobra_cutanea_triceps || medidas.dobra_triceps) || 0
-  const sub = Number(medidas.dobra_cutanea_subescapular || medidas.dobra_subescapular) || 0
-  const bi = Number(medidas.dobra_cutanea_biceps || medidas.dobra_biceps) || 0
-  const si = Number(medidas.dobra_cutanea_crista_iliaca || medidas.dobra_crista_iliaca) || 0
-  const se = Number(medidas.dobra_cutanea_supraespinhal || medidas.dobra_supraespinhal) || 0
-  const ab = Number(medidas.dobra_cutanea_abdominal || medidas.dobra_abdominal) || 0
-  const cx = Number(medidas.dobra_cutanea_coxa_media || medidas.dobra_coxa) || 0
-  const pa = Number(medidas.dobra_cutanea_panturrilha || medidas.dobra_panturrilha_medial) || 0
-
-  const peso = Number(medidas.peso_paciente || medidas.massa_kg) || 0
-  const alturaCm = Number(medidas.altura_paciente || medidas.estatura_cm) || 0
+  // 2. Medidas Antropométricas & Fracionamento (Kerr, Lee, Rocha, Würch)
+  const peso = Number(medidas.peso_paciente || medidas.massa_kg || medidas.peso_kg) || 0
+  const alturaCm = Number(medidas.altura_paciente || medidas.estatura_cm || medidas.altura_cm) || 0
   const alturaM = alturaCm / 100
 
-  const dUmero = Number(medidas.diametro_umero) || 0
-  const dFemur = Number(medidas.diametro_femur) || 0
-  const dRadio = Number(medidas.diametro_punho) || 0
-  const dMaleolar = Number(medidas.diametro_maleolar) || 0
+  const tr = Number(medidas.dobra_cutanea_triceps) || 0
+  const sub = Number(medidas.dobra_cutanea_subescapular) || 0
+  const bi = Number(medidas.dobra_cutanea_biceps) || 0
+  const si = Number(medidas.dobra_cutanea_crista_iliaca || medidas.dobra_cutanea_supra_iliaca) || 0
+  const se = Number(medidas.dobra_cutanea_supraespinhal) || 0
+  const ab = Number(medidas.dobra_cutanea_abdominal) || 0
+  const cx = Number(medidas.dobra_cutanea_coxa_media) || 0
+  const pa = Number(medidas.dobra_cutanea_panturrilha) || 0
 
+  const soma6 = tr + sub + si + se + ab + cx
+  const soma8 = soma6 + bi + pa
+
+  // Trava de Kerr (1991) em Kg
+  let massaAdiposaKerr = 0
+  if (soma6 > 0 && alturaCm > 0) {
+    const zAdiposo = ((soma6 * (170.18 / alturaCm)) - 116.41) / 34.79
+    massaAdiposaKerr = Math.max(0, ((zAdiposo * 5.85) + 25.6) * Math.pow(alturaCm / 170.18, 3))
+  }
+  const pctAdiposoKerr = peso > 0 ? Number(((massaAdiposaKerr / peso) * 100).toFixed(2)) : 0
+
+  // Tecido Muscular (Lee 2000)
+  const dUmero = Number(medidas.diametro_umero) || 6.5
+  const dFemur = Number(medidas.diametro_femur) || 9.5
+  const dRadio = Number(medidas.diametro_punho) || 5.0
+  const dMaleolar = Number(medidas.diametro_maleolar) || 6.0
   const pBraco = Number(medidas.perimetro_braco_contraido || medidas.perimetro_braco_relaxado) || 0
   const cCoxa = Number(medidas.perimetro_coxa_media) || 0
   const cAntebraco = Number(medidas.perimetro_antibraco) || 0
   const cPant = Number(medidas.perimetro_panturrilha) || 0
-
-  // 3. Σ 6 DOBRAS & REFERÊNCIA NORMATIVA
-  const soma6 = tr + sub + si + se + ab + cx
-  let statusDobrasBrutas = '-'
-  let referenciaDobrasUsada = '-'
-
-  if (soma6 > 0) {
-    if (idade >= 20 && idade <= 30) {
-      statusDobrasBrutas = classificarArgoref(soma6, sexo).classificacao
-      referenciaDobrasUsada = 'ARGOREF (Holway, 2025)'
-    } else {
-      statusDobrasBrutas = classificarPercentilItaliano(soma6, sexo, idade)
-      referenciaDobrasUsada = `Percentil ISAK (Campa et al., 2025 - ${idade} anos)`
-    }
-  }
-
-  // 4. CÁLCULO DE MUSCULARIDADE & FALSO SOBREPESO
-  const parte1 = 0.6 * alturaCm * Math.pow(dUmero + dFemur + dRadio + dMaleolar, 2) * 0.0001
-  const tCoxa = cCoxa - (cx * 0.3141)
-  const tPant = cPant - (pa * 0.3141)
-  const parte2 = (alturaCm * (0.0553 * Math.pow(tCoxa, 2) + 0.0987 * Math.pow(cAntebraco, 2) + 0.0331 * Math.pow(tPant, 2)) - 2445) * 0.001
-  const imoKerr = (parte1 > 0 && parte2 > 0) ? (parte2 / parte1) : 0
 
   const bracoCorr = pBraco - (tr * 0.3141)
   const coxaCorr = cCoxa - (cx * 0.3141)
@@ -174,93 +161,105 @@ export function recomendarEquacaoIdeal(medidas = {}, paciente = {}) {
     massaMuscularLee = (alturaM * ((0.00744 * Math.pow(bracoCorr, 2)) + (0.00088 * Math.pow(coxaCorr, 2)) + (0.00441 * Math.pow(pantCorr, 2)))) + (2.4 * sexoNum) - (0.048 * idade) + racaNum + 7.8
   }
 
+  // Tecido Ósseo (Rocha 1975)
   let massaOsseaRocha = 0
   if (alturaM > 0 && dUmero > 0 && dFemur > 0) {
     massaOsseaRocha = 3.02 * Math.pow(Math.pow(alturaM, 2) * (dUmero / 100) * (dFemur / 100) * 400, 0.712)
   }
-  const imoLeeRocha = (massaMuscularLee > 0 && massaOsseaRocha > 0) ? (massaMuscularLee / massaOsseaRocha) : 0
-  const pctMuscularLee = peso > 0 ? (massaMuscularLee / peso) * 100 : 0
 
-  let mesoVal = 0
+  // Massa Residual (Würch 1973)
+  const pctResidualWurch = sexo === 'M' ? 0.24 : 0.21
+  const massaResidual4C = peso > 0 ? peso * pctResidualWurch : 0
+
+  // Índices IMO e IAM
+  const imoLeeRocha = (massaMuscularLee > 0 && massaOsseaRocha > 0) ? (massaMuscularLee / massaOsseaRocha) : 0
+  const iamVal = (massaMuscularLee > 0 && massaAdiposaKerr > 0) ? (massaAdiposaKerr / massaMuscularLee) : 0
+
+  // Somatotipo Heath-Carter (Endomorfia)
+  const somaDobrasEndo = (tr + sub + se) * (170.18 / (alturaCm || 1))
+  let endomorfia = 0
   if (alturaCm > 0) {
-    mesoVal = (0.858 * (dUmero || 6.5)) + (0.601 * (dFemur || 9.5)) + (0.188 * bracoCorr) + (0.161 * pantCorr) - (0.131 * alturaCm) + 4.5
+    endomorfia = -0.7182 + (0.1451 * somaDobrasEndo) - (0.00068 * Math.pow(somaDobrasEndo, 2)) + (0.0000014 * Math.pow(somaDobrasEndo, 3))
+  }
+  endomorfia = Math.max(0.1, Number(endomorfia.toFixed(1)))
+
+  let mesomorfia = 0
+  if (alturaCm > 0) {
+    mesomorfia = (0.858 * dUmero) + (0.601 * dFemur) + (0.188 * bracoCorr) + (0.161 * pantCorr) - (0.131 * alturaCm) + 4.5
   }
 
-  const ehHipertrofiado = (sexo === 'M' && (imoKerr >= 4.6 || imoLeeRocha >= 3.0 || pctMuscularLee >= 46.8 || mesoVal >= 5.5)) ||
-                         (sexo === 'F' && (imoKerr >= 3.7 || imoLeeRocha >= 2.6 || pctMuscularLee >= 40.8 || mesoVal >= 4.5))
-
+  // IMC & Classificações
   const imcVal = alturaM > 0 ? peso / (alturaM * alturaM) : 0
   const classImc = classificarImc(imcVal)?.classificacao || '-'
+  const statusMorrow = classificarMorrow(pctAdiposoKerr, sexo, idade)?.classificacao || '-'
+
+  let referenciaDobrasUsada = '-'
+  if (soma6 > 0) {
+    referenciaDobrasUsada = (idade >= 20 && idade <= 30) ? 'ARGOREF (Holway, 2025)' : `Percentil ISAK (Campa et al., 2025 - ${idade} anos)`
+  }
+
+  const ehHipertrofiado = (sexo === 'M' && (imoLeeRocha >= 3.0 || mesomorfia >= 5.5)) ||
+                         (sexo === 'F' && (imoLeeRocha >= 2.6 || mesomorfia >= 4.5))
   const ehFalsoSobrepeso = imcVal >= 25.0 && ehHipertrofiado
 
-  // 5. TRAVA DE KERR (1991)
-  let massaAdiposaKerr = 0
-  if (soma6 > 0 && alturaCm > 0) {
-    const zAdiposo = ((soma6 * (170.18 / alturaCm)) - 116.41) / 34.79
-    massaAdiposaKerr = Math.max(0, ((zAdiposo * 5.85) + 25.6) * Math.pow(alturaCm / 170.18, 3))
-  }
-  const pctAdiposoKerr = peso > 0 ? Number(((massaAdiposaKerr / peso) * 100).toFixed(2)) : 0
-
   // ============================================================
-  // 6. SISTEMA ESPECIALISTA DE PONTUAÇÃO DAS 60+ EQUAÇÕES
+  // 7. SISTEMA ESPECIALISTA: CRUZAMENTO DE TODAS AS EQUAÇÕES
   // ============================================================
   const listaCandidatas = sexo === 'F' ? METADADOS_EQUACOES.filter(e => e.sexo === 'F') : METADADOS_EQUACOES.filter(e => e.sexo === 'M')
 
   let equacoesPontuadas = listaCandidatas.map(eq => {
-    let score = 50 // Base
+    let score = 50
     let razoes = []
 
-    // A. ADEQUAÇÃO DE IDADE
+    // A. Compatibilidade Etária
     if (idade >= eq.idadeMin && idade <= eq.idadeMax) {
-      score += 25
-      razoes.push(`Faixa etária compatível com a amostra original (${eq.idadeMin}-${eq.idadeMax} anos).`)
+      score += 20
+      razoes.push(`Idade compatível (${idade} anos está dentro da faixa de validação de ${eq.idadeMin}-${eq.idadeMax} anos).`)
     } else {
       score -= 30
-      razoes.push(`Fora da faixa etária original da equação (${eq.idadeMin}-${eq.idadeMax} anos).`)
+      razoes.push(`Fora da faixa etária original (${eq.idadeMin}-${eq.idadeMax} anos).`)
     }
 
-    // B. PERFIL CLÍNICO / ESPORTIVO
+    // B. Perfil Demográfico e Atividade
     if (idade < 18 && eq.pop === 'crianca') {
       score += 30
-      razoes.push('Específica para o crescimento e maturação infantojuvenil.')
-    }
-    else if (idade >= 60 && eq.pop === 'idoso') {
+      razoes.push('Desenvolvida especificamente para o público infantojuvenil.')
+    } else if (idade >= 60 && eq.pop === 'idoso') {
       score += 30
-      razoes.push('Calibrada para alterações geriátricas da densidade tecidual.')
-    }
-    else if (ehFalsoSobrepeso && eq.tipo === 'dobras') {
+      razoes.push('Calibrada para as alterações teciduais e perda mineral da longevidade.')
+    } else if (ehFalsoSobrepeso && eq.tipo === 'dobras') {
       score += 35
-      razoes.push('Excelente controle para falso sobrepeso (isola peso bruto do tecido muscular).')
-    }
-    else if (esporte && eq.pop === 'atleta') {
-      score += 30
-      razoes.push('Validada em populações atléticas de alto rendimento.')
-    }
-    else if (!esporte && eq.pop === 'geral') {
-      score += 20
-      razoes.push('Indicada para a população adulta sedentária ou fisicamente ativa padrão.')
+      razoes.push(`Proteção contra Falso Sobrepeso (IMC: ${imcVal.toFixed(1)} com Mesomorfia ${mesomorfia.toFixed(1)}): Equação baseada em dobras isola o tecido adiposo da alta massa muscular.`)
+    } else if (esporte && eq.pop === 'atleta') {
+      score += 25
+      razoes.push('Validação direcionada para praticantes de atividade física regular ou atletas.')
+    } else if (!esporte && eq.pop === 'geral') {
+      score += 15
+      razoes.push('Indicada para o perfil populacional geral sedentário/ativo padrão.')
     }
 
-    // C. TESTE DE PLAUSIBILIDADE (Simulação rápida do %GC para cruzar com Kerr e Morrow)
+    // C. Validação Anatômica por Kerr (1991) em KG
     try {
       const resSimulado = eq.func(medidas, paciente)
       const pgcSimulado = typeof resSimulado === 'object' ? resSimulado.valor : resSimulado
-      
-      if (pgcSimulado > 0) {
-        const diffKerr = Math.abs(pgcSimulado - pctAdiposoKerr)
-        if (diffKerr <= 3.0) {
-          score += 30
-          razoes.push(`Convergência anatômica perfeita com o modelo de Kerr (1991) [Diferença de apenas ${diffKerr.toFixed(1)}%].`)
-        } else if (diffKerr <= 7.0) {
+
+      if (pgcSimulado > 0 && peso > 0) {
+        const massaGordaSimuladaKg = (pgcSimulado / 100) * peso
+        const diffKerrKg = Math.abs(massaGordaSimuladaKg - massaAdiposaKerr)
+
+        if (diffKerrKg <= 2.0) {
+          score += 40
+          razoes.push(`Excelente convergência biológica com o Fracionamento Anatômico de Kerr (Diferença de apenas ${diffKerrKg.toFixed(2)} kg em relação ao teto de tecido adiposo real).`)
+        } else if (diffKerrKg <= 5.0) {
           score += 15
-          razoes.push(`Boa compatibilidade biológica com a massa adiposa de Kerr.`)
+          razoes.push(`Boa compatibilidade com a massa adiposa tecidual de Kerr (${diffKerrKg.toFixed(2)} kg de desvio).`)
         } else {
-          score -= 20
-          razoes.push(`Divergência expressiva em relação ao teto anatômico de Kerr (${diffKerr.toFixed(1)}% de desvio).`)
+          score -= 30
+          razoes.push(`Elevada divergência geométrica com a massa adiposa de Kerr (${diffKerrKg.toFixed(2)} kg de diferença), sugerindo risco de superestimativa ou subestimativa.`)
         }
       }
     } catch (err) {
-      score -= 10
+      score -= 15
     }
 
     return {
@@ -270,11 +269,9 @@ export function recomendarEquacaoIdeal(medidas = {}, paciente = {}) {
     }
   })
 
-  // Ordena da maior pontuação para a menor
+  // Ordena por pontuação e extrai as 3 melhores opções para o Avaliador escolher
   equacoesPontuadas.sort((a, b) => b.score - a.score)
-
-  // Seleciona as 2 melhores opções para apresentar ao Avaliador
-  const melhoresOpcoes = equacoesPontuadas.slice(0, 2)
+  const melhoresOpcoes = equacoesPontuadas.slice(0, 3)
 
   return {
     nomeEquacaoRecomendada: melhoresOpcoes[0]?.nome || '',
@@ -285,15 +282,23 @@ export function recomendarEquacaoIdeal(medidas = {}, paciente = {}) {
       pctAdiposo: pctAdiposoKerr
     },
     indicadoresCruzados: {
-      soma6,
-      referenciaUsada: referenciaDobrasUsada,
-      statusDobras: statusDobrasBrutas,
-      imoKerr: imoKerr > 0 ? Number(imoKerr.toFixed(2)) : '-',
-      imoLeeRocha: imoLeeRocha > 0 ? Number(imoLeeRocha.toFixed(2)) : '-',
-      pctMuscularLee: pctMuscularLee > 0 ? Number(pctMuscularLee.toFixed(1)) : '-',
-      ehHipertrofiado,
+      peso,
+      alturaCm,
       imc: Number(imcVal.toFixed(1)),
-      classificacaoImc: classImc
+      classificacaoImc: classImc,
+      massaAdiposaKg: Number(massaAdiposaKerr.toFixed(2)),
+      massaMuscularLee: Number(massaMuscularLee.toFixed(2)),
+      massaOsseaRocha: Number(massaOsseaRocha.toFixed(2)),
+      massaResidual4C: Number(massaResidual4C.toFixed(2)),
+      soma6,
+      soma8,
+      endomorfia,
+      mesomorfia: Number(mesomorfia.toFixed(1)),
+      statusMorrow: statusMorrow.classificacao || statusMorrow,
+      iamVal: Number(iamVal.toFixed(2)),
+      imoVal: Number(imoLeeRocha.toFixed(3)),
+      referenciaUsada,
+      statusDobras: statusDobrasBrutas
     }
   }
 }
