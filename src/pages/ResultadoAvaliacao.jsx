@@ -348,7 +348,7 @@ export default function ResultadoAvaliacao() {
   }
 
   const imc = dados.imc || 0
-  const infoImc = classificarImc(imc)
+  const infoImc = classificarImc ? classificarImc(imc) : { label: '-', cor: 'gray' };
   const percentualGordura = aval.percentual_de_gordura || 0 
   const massaGorda = dados.massa_gorda || 0
   const massaMagra = dados.massa_magra || 0
@@ -358,25 +358,29 @@ export default function ResultadoAvaliacao() {
   const imoVal = dados.indice_massa_ossea_imo || 0
   const apvatVal = dados.area_previsao_visceral_apvat || 0
 
-  // Chamada de funções do Módulo de Escalas Normativas
-  const infoApVat = classificarApVat(apvatVal, pac.sexo);
+  // Chamada de funções do Módulo de Escalas Normativas com travas de segurança
+  const infoApVat = classificarApVat ? classificarApVat(apvatVal, pac.sexo) : { classificacao: '-', cor: 'gray' };
   const rcq = dados.relacao_cintura_quadril || 0;
-  const infoRcq = classificarRcq(rcq, pac.sexo);
+  const infoRcq = classificarRcq ? classificarRcq(rcq, pac.sexo) : { classificacao: '-', cor: 'gray' };
   const rce = dados.relacao_cintura_estatura || 0;
-  const infoRce = classificarRce(rce);
+  const infoRce = classificarRce ? classificarRce(rce) : { classificacao: '-', cor: 'gray' };
 
   const soma6 = dados.somatorio_6_dobras || 0;
   const soma8 = dados.somatorio_8_dobras || 0;
 
-  const infoArgoref = classificarArgoref(soma6, pac.sexo);
-  const infoMorrow = classificarMorrow(percentualGordura, pac.sexo, idade);
+  const infoArgoref = classificarArgoref ? classificarArgoref(soma6, pac.sexo) : { classificacao: '-', cor: 'gray' };
+  const infoMorrow = classificarMorrow ? classificarMorrow(percentualGordura, pac.sexo, idade) : { classificacao: '-', cor: 'gray' };
 
   // Mapeamento das descrições verbais do Somatotipo para leigos
-  const descricoesSomatotipo = classificarSomatotipoDetalhado({
+  const descricoesSomatotipo = classificarSomatotipoDetalhado ? classificarSomatotipoDetalhado({
     endomorfia: dados.somatotipo_endomorfia,
     mesomorfia: dados.somatotipo_mesomorfia,
     ectomorfia: dados.somatotipo_ectomorfia
-  });
+  }) : {
+    endomorfia: { descricao: '-' },
+    mesomorfia: { descricao: '-' },
+    ectomorfia: { descricao: '-' }
+  };
 
   const perimCorrigidoBraco = dados.perimetro_corrigido_braco || 0;
   const perimCorrigidoCoxa = dados.perimetro_corrigido_coxa || 0;
@@ -852,12 +856,12 @@ export default function ResultadoAvaliacao() {
                 {apvatVal > 0 && (
                   <div className="flex justify-end">
                     <span className={`text-[9px] font-bold px-2 py-0.5 rounded uppercase tracking-wider ${
-                      apvatCor === 'red' ? 'bg-red-100 text-red-800' :
-                      apvatCor === 'orange' ? 'bg-orange-100 text-orange-800' :
-                      apvatCor === 'amber' ? 'bg-amber-100 text-amber-800' :
+                      infoApVat.cor === 'red' ? 'bg-red-100 text-red-800' :
+                      infoApVat.cor === 'orange' ? 'bg-orange-100 text-orange-800' :
+                      infoApVat.cor === 'amber' ? 'bg-amber-100 text-amber-800' :
                       'bg-emerald-100 text-emerald-800'
                     }`}>
-                      {apvatClassificacao}
+                      {infoApVat.classificacao}
                     </span>
                   </div>
                 )}
