@@ -354,11 +354,12 @@ export default function ResultadoAvaliacao() {
   const infoImc = classificarImc ? classificarImc(imc) : { classificacao: '-', cor: 'gray' };
   const percentualGordura = aval.percentual_de_gordura || 0 
   const pesoTotal = aval.peso_paciente || 0
-  const alturaM = (aval.altura_paciente || 0) / 100
+  const alturaCm = aval.altura_paciente || 0
+  const alturaM = alturaCm / 100
   const dUmero = Number(aval.diametro_umero) || 0
   const dFemur = Number(aval.diametro_femur) || 0
 
-  // --- CÁLCULO DE 2 COMPONENTES (2C: EQUAÇÃO ESCOLHIDA) ---
+  // --- CÁLCULO DE 2 COMPONENTES (2C - EQUAÇÃO ESCOLHIDA) ---
   const pctGorduraRegressao = percentualGordura
   const pctMassaLivreGordura = pctGorduraRegressao > 0 ? (100 - pctGorduraRegressao) : 0
   const massaGorda2C = dados.massa_gorda || (pesoTotal * (pctGorduraRegressao / 100))
@@ -369,7 +370,25 @@ export default function ResultadoAvaliacao() {
     { name: 'Massa Livre de Gordura (MLG)', value: pctMassaLivreGordura, kg: massaMagra2C, color: '#3b82f6' }
   ]
 
-  // --- CÁLCULO DE 4 COMPONENTES (4C: DE ROSE ET AL.) ---
+  // --- CÁLCULO DO TECIDO ADIPOSO (MODELO PHANTOM DE KERR 1988 / 1991) ---
+  const dTri = aval.dobra_cutanea_triceps || 0
+  const dSub = aval.dobra_cutanea_subescapular || 0
+  const dSup = aval.dobra_cutanea_supraespinhal || 0
+  const dAbd = aval.dobra_cutanea_abdominal || 0
+  const dCoxa = aval.dobra_cutanea_coxa_media || 0
+  const dPant = aval.dobra_cutanea_panturrilha || 0
+
+  const soma6DobrasKerr = dTri + dSub + dSup + dAbd + dCoxa + dPant
+  
+  let massaAdiposaKerrKg = 0
+  if (soma6DobrasKerr > 0 && alturaCm > 0) {
+    const zAdiposo = ((soma6DobrasKerr * (170.18 / alturaCm)) - 116.41) / 34.79
+    massaAdiposaKerrKg = Math.max(0, ((zAdiposo * 5.85) + 25.6) / Math.pow(170.18 / alturaCm, 3))
+  } else {
+    massaAdiposaKerrKg = massaGorda2C
+  }
+
+  // --- CÁLCULO DE 4 COMPONENTES (4C - DE ROSE ET AL.) ---
   const massaMuscularLee = dados.massa_muscular || 0
 
   // 1. Tecido Ósseo (Rocha, 1975)
@@ -382,24 +401,21 @@ export default function ResultadoAvaliacao() {
   const pctResidualWurch = pac.sexo === 'M' ? 0.24 : 0.21
   const massaResidual4C = pesoTotal * pctResidualWurch
 
-  // 3. Tecido Adiposo (Kerr 1991 / De Rose)
-  const massaAdiposa4C = massaGorda2C
-
   // Percentuais de De Rose
-  const pctGorduraDeRose = pesoTotal > 0 ? (massaAdiposa4C / pesoTotal) * 100 : 0
+  const pctGorduraDeRose = pesoTotal > 0 ? (massaAdiposaKerrKg / pesoTotal) * 100 : 0
   const pctMusculoDeRose = pesoTotal > 0 ? (massaMuscularLee / pesoTotal) * 100 : 0
   const pctOssoDeRose = pesoTotal > 0 ? (massaOssea4C / pesoTotal) * 100 : 0
   const pctResidualDeRose = pesoTotal > 0 ? (massaResidual4C / pesoTotal) * 100 : 0
 
   // Dados para o Gráfico de Pizza de 4 Componentes
   const dadosPizza4Comp = [
-    { name: 'Tecido Adiposo (Kerr 1991)', value: pctGorduraDeRose, kg: massaAdiposa4C, color: '#f59e0b' },
+    { name: 'Tecido Adiposo (Kerr 1991)', value: pctGorduraDeRose, kg: massaAdiposaKerrKg, color: '#f59e0b' },
     { name: 'Tecido Muscular (Lee 2000)', value: pctMusculoDeRose, kg: massaMuscularLee, color: '#10b981' },
     { name: 'Tecido Ósseo (Rocha 1975)', value: pctOssoDeRose, kg: massaOssea4C, color: '#6366f1' },
     { name: 'Massa Residual (Würch 1973)', value: pctResidualDeRose, kg: massaResidual4C, color: '#64748b' }
   ]
 
-  const iamVal = dados.indice_adiposo_muscular || ((massaMuscularLee > 0 && massaAdiposa4C > 0) ? (massaAdiposa4C / massaMuscularLee) : 0)
+  const iamVal = dados.indice_adiposo_muscular || ((massaMuscularLee > 0 && massaAdiposaKerrKg > 0) ? (massaAdiposaKerrKg / massaMuscularLee) : 0)
   const imoVal = dados.indice_massa_ossea_imo || 0
   const apvatVal = dados.area_previsao_visceral_apvat || 0
 
@@ -999,13 +1015,13 @@ export default function ResultadoAvaliacao() {
         </>
       )}
 
-{/* 10. OUTROS INDICADORES & CLASSIFICAÇÕES */}
+      {/* 10. OUTROS INDICADORES & CLASSIFICAÇÕES */}
       {(podeExibir('laudo_iam') || podeExibir('laudo_imo') || podeExibir('laudo_apvat') || podeExibir('laudo_morrow')) && (
         <div className="bg-white p-6 rounded-xl border border-gray-100 shadow-sm space-y-4 mt-6">
           <h3 className="text-sm font-bold text-gray-800 uppercase tracking-wider border-b pb-2">🚀 10. Outros Indicadores & Classificações</h3>
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
             
-            {/* Área Visceral (apVAT) */}
+            {/* apVAT */}
             {podeExibir('laudo_apvat') && (
               <div className="flex flex-col justify-between p-3 border border-gray-100 rounded-lg bg-gray-50 space-y-1">
                 <div className="flex justify-between items-center">
@@ -1052,7 +1068,7 @@ export default function ResultadoAvaliacao() {
               </div>
             )}
 
-            {/* ÍNDICE ADIPOSO MUSCULAR (IAM) */}
+            {/* ÍNDICE ADIPOSO MUSCULAR (IAM) COM EXPLICAÇÃO PRÁTICA */}
             {podeExibir('laudo_iam') && (
               <div className="flex flex-col justify-between p-3 border border-gray-100 rounded-lg bg-gray-50 space-y-1">
                 <div className="flex justify-between items-center">
@@ -1082,8 +1098,6 @@ export default function ResultadoAvaliacao() {
             )}
 
           </div>
-        </div>
-      )}
 
           {videoEmbedUrl && (
             <div className="bg-white border border-slate-200 rounded-3xl p-5 sm:p-6 shadow-sm space-y-3 my-6">
