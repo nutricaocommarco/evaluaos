@@ -55,6 +55,17 @@ const calcularSomatotipo = (medidas) => {
   }
 }
 
+// --- FUNÇÃO AUXILIAR DE CLASSIFICAÇÃO DE IMC (OMS) ---
+const classificarImc = (imc) => {
+  if (!imc || imc <= 0) return { label: '-', cor: 'gray' };
+  if (imc < 18.5) return { label: 'Abaixo do Peso', cor: 'blue' };
+  if (imc < 25.0) return { label: 'Peso Normal', cor: 'emerald' };
+  if (imc < 30.0) return { label: 'Sobrepeso', cor: 'amber' };
+  if (imc < 35.0) return { label: 'Obesidade Grau I', cor: 'orange' };
+  if (imc < 40.0) return { label: 'Obesidade Grau II', cor: 'orange' };
+  return { label: 'Obesidade Grau III', cor: 'red' };
+}
+
 // --- FUNÇÕES DE CLASSIFICAÇÃO DAS NORMAS NORMATIVAS ---
 const classificarArgoref = (soma6, sexo) => {
   if (!soma6 || soma6 <= 0) return { classificacao: '-', cor: 'gray' };
@@ -263,7 +274,6 @@ export default function ResultadoAvaliacao() {
       const calcRcq = pQuadril > 0 ? pCintura / pQuadril : 0
       const calcRce = alturaCm > 0 ? pCintura / alturaCm : 0
 
-      // Cálculo do apVAT com Fallback Dinâmico
       let calcApVat = 0
       if (pCintura > 0 && pCoxaMax > 0) {
         if (pac.sexo === 'M') {
@@ -391,6 +401,7 @@ export default function ResultadoAvaliacao() {
   }
 
   const imc = dados.imc || 0
+  const infoImc = classificarImc(imc) // 🌟 CLASSIFICAÇÃO DO IMC
   const percentualGordura = aval.percentual_de_gordura || 0 
   const massaGorda = dados.massa_gorda || 0
   const massaMagra = dados.massa_magra || 0
@@ -400,7 +411,6 @@ export default function ResultadoAvaliacao() {
   const imoVal = dados.indice_massa_ossea_imo || 0
   const apvatVal = dados.area_previsao_visceral_apvat || 0
 
-  // Mapeamento da Classificação do apVAT (Ruiz-Castell et al., 2021)
   let apvatClassificacao = 'Baixo Risco'
   let apvatCor = 'emerald'
 
@@ -426,7 +436,6 @@ export default function ResultadoAvaliacao() {
   const soma6 = dados.somatorio_6_dobras || 0;
   const soma8 = dados.somatorio_8_dobras || 0;
 
-  // Mapeamentos das Normas Adicionais
   const infoArgoref = classificarArgoref(soma6, pac.sexo);
   const infoMorrow = classificarMorrow(percentualGordura, pac.sexo, idade);
 
@@ -571,12 +580,32 @@ export default function ResultadoAvaliacao() {
         <div>
           <h3 className="text-sm font-bold text-gray-800 uppercase tracking-wider mb-3 px-1 mt-6">📊 2. Composição Corporal</h3>
           <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+            
+            {/* 🌟 CARD DO IMC COM CLASSIFICAÇÃO EXPLICITA */}
             {podeExibir('laudo_imc') && (
-              <div className="bg-white p-5 rounded-xl border border-gray-100 shadow-sm flex flex-col justify-center">
-                <p className="text-xs font-semibold text-gray-500 uppercase">IMC</p>
-                <p className="text-2xl font-black text-gray-800 mt-1">{imc > 0 ? imc.toFixed(1) : '-'} <span className="text-xs font-normal text-gray-500">kg/m²</span></p>
+              <div className="bg-white p-5 rounded-xl border border-gray-100 shadow-sm flex flex-col justify-between">
+                <div>
+                  <p className="text-xs font-semibold text-gray-500 uppercase">IMC</p>
+                  <p className="text-2xl font-black text-gray-800 mt-1">
+                    {imc > 0 ? imc.toFixed(1) : '-'} <span className="text-xs font-normal text-gray-500">kg/m²</span>
+                  </p>
+                </div>
+                {imc > 0 && (
+                  <div className="pt-2 mt-2 border-t border-gray-50">
+                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded uppercase tracking-wider ${
+                      infoImc.cor === 'red' ? 'bg-red-100 text-red-800' :
+                      infoImc.cor === 'orange' ? 'bg-orange-100 text-orange-800' :
+                      infoImc.cor === 'amber' ? 'bg-amber-100 text-amber-800' :
+                      infoImc.cor === 'blue' ? 'bg-blue-100 text-blue-800' :
+                      'bg-emerald-100 text-emerald-800'
+                    }`}>
+                      {infoImc.label}
+                    </span>
+                  </div>
+                )}
               </div>
             )}
+
             {podeExibir('laudo_percentual_gordura') && (
               <div className="bg-white p-5 rounded-xl border border-gray-100 shadow-sm flex flex-col justify-center">
                 <p className="text-xs font-semibold text-gray-500 uppercase">% Gordura</p>
