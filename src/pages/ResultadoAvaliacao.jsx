@@ -11,6 +11,7 @@ import {
   classificarRce, 
   classificarRcq, 
   classificarArgoref, 
+  classificarPercentilItaliano,
   classificarMorrow, 
   classificarApVat, 
   classificarSomatotipoDetalhado 
@@ -383,7 +384,7 @@ export default function ResultadoAvaliacao() {
   let massaAdiposaKerrKg = 0
   if (soma6DobrasKerr > 0 && alturaCm > 0) {
     const zAdiposo = ((soma6DobrasKerr * (170.18 / alturaCm)) - 116.41) / 34.79
-    massaAdiposaKerrKg = Math.max(0, ((zAdiposo * 5.85) + 25.6) / Math.pow(170.18 / alturaCm, 3))
+    massaAdiposaKerrKg = Math.max(0, ((zAdiposo * 5.85) + 25.6) * Math.pow(alturaCm / 170.18, 3))
   } else {
     massaAdiposaKerrKg = massaGorda2C
   }
@@ -428,7 +429,13 @@ export default function ResultadoAvaliacao() {
   const soma6 = dados.somatorio_6_dobras || 0;
   const soma8 = dados.somatorio_8_dobras || 0;
 
-  const infoArgoref = classificarArgoref ? classificarArgoref(soma6, pac.sexo) : { classificacao: '-', cor: 'gray' };
+  // LÓGICA DINÂMICA DE CLASSIFICAÇÃO PARA O Σ 6 DOBRAS (ARGOREF VS PERCENTIL ISAK)
+  const ehIdadeArgoref = idade >= 20 && idade <= 30
+  const infoSoma6 = ehIdadeArgoref 
+    ? (classificarArgoref ? classificarArgoref(soma6, pac.sexo) : { classificacao: '-', cor: 'gray' })
+    : { classificacao: classificarPercentilItaliano ? classificarPercentilItaliano(soma6, pac.sexo, idade) : '-', cor: 'emerald' }
+  const rotuloSoma6 = ehIdadeArgoref ? 'ARGOREF (Holway):' : 'Percentil ISAK (Campa):'
+
   const infoMorrow = classificarMorrow ? classificarMorrow(percentualGordura, pac.sexo, idade) : { classificacao: '-', cor: 'gray' };
 
   const descricoesSomatotipo = classificarSomatotipoDetalhado ? classificarSomatotipoDetalhado({
@@ -841,7 +848,7 @@ export default function ResultadoAvaliacao() {
               </div>
             )}
             
-            {/* Σ 6 DOBRAS COM CLASSIFICAÇÃO ARGOREF LOGO ABAIXO */}
+            {/* Σ 6 DOBRAS COM LÓGICA DINÂMICA (ARGOREF VS ISAK) */}
             {podeExibir('laudo_soma_6') && (
               <div className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm space-y-2">
                 <div className="flex justify-between items-center">
@@ -850,14 +857,14 @@ export default function ResultadoAvaliacao() {
                 </div>
                 {soma6 > 0 && (
                   <div className="pt-2 border-t border-gray-50 flex justify-between items-center">
-                    <span className="text-[10px] text-gray-500 font-semibold">ARGOREF (Holway):</span>
+                    <span className="text-[10px] text-gray-500 font-semibold">{rotuloSoma6}</span>
                     <span className={`text-[9px] font-extrabold px-2 py-0.5 rounded uppercase tracking-wider ${
-                      infoArgoref.cor === 'red' ? 'bg-red-100 text-red-800' :
-                      infoArgoref.cor === 'amber' ? 'bg-amber-100 text-amber-800' :
-                      infoArgoref.cor === 'blue' ? 'bg-blue-100 text-blue-800' :
+                      infoSoma6.cor === 'red' ? 'bg-red-100 text-red-800' :
+                      infoSoma6.cor === 'amber' ? 'bg-amber-100 text-amber-800' :
+                      infoSoma6.cor === 'blue' ? 'bg-blue-100 text-blue-800' :
                       'bg-emerald-100 text-emerald-800'
                     }`}>
-                      {infoArgoref.classificacao}
+                      {infoSoma6.classificacao}
                     </span>
                   </div>
                 )}
