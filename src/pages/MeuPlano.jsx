@@ -10,11 +10,14 @@ export default function MeuPlano() {
   // Estado do FAQ (Acordeão)
   const [faqOpen, setFaqOpen] = useState(null)
 
-  // Links do Checkout da Kiwify / Stripe
+  // Links do Checkout da Hotmart
   const LINK_CHECKOUT_MENSAL = "https://pay.hotmart.com/R106982290A?off=jfqiilu6"
   const LINK_CHECKOUT_ANUAL = "https://pay.hotmart.com/R106982290A?off=1xmn7a6b"
 
-  // Número do WhatsApp de Suporte do EvaluaOS (Ajuste para o seu número)
+  // Link de Gerenciamento / Cancelamento Oficial da Hotmart
+  const LINK_CANCELAMENTO_HOTMART = "https://help.hotmart.com/pt-br/article/115002183968/como-cancelar-minha-assinatura-"
+
+  // Número do WhatsApp de Suporte do EvaluaOS
   const NUMERO_WHATSAPP_SUPORTE = "5521997704300"
 
   useEffect(() => {
@@ -65,15 +68,15 @@ export default function MeuPlano() {
     window.open(finalUrl, '_blank')
   }
 
-  // Ação de Cancelamento / Gerenciamento
+  // Ação de Cancelamento Direcionado para a Hotmart
   const handleCancelarAssinatura = () => {
-    const confirmar = window.confirm(
-      "Deseja solicitar o cancelamento ou gerenciamento da sua assinatura Pro?\n\nVocê será redirecionado para o atendimento oficial no WhatsApp para concluir sua solicitação."
-    )
-    if (confirmar) {
-      const mensagem = encodeURIComponent(`Olá! Gostaria de gerenciar/cancelar minha assinatura do EvaluaOS Pro.\nE-mail cadastrado: ${userEmail}`)
-      window.open(`https://wa.me/${NUMERO_WHATSAPP_SUPORTE}?text=${mensagem}`, '_blank')
-    }
+    window.open(LINK_CANCELAMENTO_HOTMART, '_blank')
+  }
+
+  // Ação de Suporte no WhatsApp
+  const handleFaleConosco = () => {
+    const mensagem = encodeURIComponent(`Olá! Preciso de suporte com minha conta/assinatura do EvaluaOS.\nE-mail cadastrado: ${userEmail}`)
+    window.open(`https://wa.me/${NUMERO_WHATSAPP_SUPORTE}?text=${mensagem}`, '_blank')
   }
 
   const toggleFaq = (index) => {
@@ -94,14 +97,24 @@ export default function MeuPlano() {
     <div className="max-w-4xl mx-auto space-y-8 pb-16">
       
       {/* CABEÇALHO DA PÁGINA */}
-      <div>
-        <h2 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
-          <span>Meu Plano & Assinatura</span>
-          <span className="text-xl">🌟</span>
-        </h2>
-        <p className="text-sm text-gray-500 mt-1">
-          Gerencie seu nível de acesso, vagas de pacientes e recursos de personalização.
-        </p>
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div>
+          <h2 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
+            <span>Meu Plano & Assinatura</span>
+            <span className="text-xl">🌟</span>
+          </h2>
+          <p className="text-sm text-gray-500 mt-1">
+            Gerencie seu nível de acesso, vagas de pacientes e recursos de personalização.
+          </p>
+        </div>
+
+        {/* BOTÃO FALE CONOSCO (SUPORTE) */}
+        <button
+          onClick={handleFaleConosco}
+          className="px-4 py-2 border border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 rounded-xl text-xs font-bold transition-all flex items-center gap-2 shrink-0"
+        >
+          <span>💬</span> Fale Conosco no WhatsApp
+        </button>
       </div>
 
       {/* 🟢 CARD DE STATUS DA CONTA */}
@@ -162,9 +175,9 @@ export default function MeuPlano() {
           /* GERENCIAMENTO E CANCELAMENTO DA ASSINATURA PRO */
           <div className="pt-2 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
             <div>
-              <span className="text-xs font-bold text-gray-700 block">Sua assinatura está ativa</span>
+              <span className="text-xs font-bold text-gray-700 block">Sua assinatura é gerida pela Hotmart</span>
               <p className="text-[11px] text-gray-400">
-                A renovação é automática. Você pode cancelar ou alterar seu plano a qualquer momento.
+                Você pode gerenciar pagamentos ou solicitar o cancelamento a qualquer momento diretamente pelo portal da Hotmart.
               </p>
             </div>
 
@@ -172,7 +185,7 @@ export default function MeuPlano() {
               onClick={handleCancelarAssinatura}
               className="text-xs font-bold text-gray-500 hover:text-red-600 underline transition-colors shrink-0"
             >
-              Cancelar ou Gerenciar Assinatura
+              Como Cancelar Assinatura (Hotmart)
             </button>
           </div>
         )}
@@ -275,7 +288,7 @@ export default function MeuPlano() {
           {[
             {
               q: "Posso cancelar a assinatura quando quiser?",
-              a: "Sim, sem nenhuma burocracia ou taxa de cancelamento. Você pode solicitar o cancelamento a qualquer momento diretamente nesta página ou pelo atendimento do suporte."
+              a: "Sim, sem nenhuma burocracia ou taxa de cancelamento. O gerenciamento de assinatura é feito diretamente pela Hotmart, onde você pode solicitar a interrupção da renovação a qualquer momento."
             },
             {
               q: "O que acontece com os meus dados se eu voltar para o Plano Grátis?",

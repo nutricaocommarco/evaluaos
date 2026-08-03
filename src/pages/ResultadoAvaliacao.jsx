@@ -72,6 +72,7 @@ export default function ResultadoAvaliacao() {
   const [videoUrlPadrao, setVideoUrlPadrao] = useState('')
   const [tokenPublico, setTokenPublico] = useState('')
   const [configVisibilidade, setConfigVisibilidade] = useState({})
+  const [equipamentos, setEquipamentos] = useState(null)
 
   if (!tokenUrl && !avaliacaoId) {
     return (
@@ -112,7 +113,7 @@ export default function ResultadoAvaliacao() {
       if (pac.id_avaliador) {
         const { data } = await supabase
           .from('avaliadores')
-          .select('auth_id, empresa, nome_completo, logomarca_url, video_url_padrao')
+          .select('id, auth_id, empresa, nome_completo, logomarca_url, video_url_padrao')
           .eq('auth_id', pac.id_avaliador)
           .maybeSingle();
         avalData = data;
@@ -123,7 +124,7 @@ export default function ResultadoAvaliacao() {
         if (authData?.user?.email) {
           const { data } = await supabase
             .from('avaliadores')
-            .select('auth_id, empresa, nome_completo, logomarca_url, video_url_padrao')
+            .select('id, auth_id, empresa, nome_completo, logomarca_url, video_url_padrao')
             .eq('email', authData.user.email)
             .maybeSingle();
           avalData = data;
@@ -135,6 +136,20 @@ export default function ResultadoAvaliacao() {
         setNomeAvaliador(avalData.nome_completo || '');
         setLogomarcaUrl(avalData.logomarca_url || '');
         setVideoUrlPadrao(avalData.video_url_padrao || '');
+
+        // 🛠️ BUSCA OS EQUIPAMENTOS DO AVALIADOR
+        const idParaEquipamento = avalData.id || avalData.auth_id;
+        if (idParaEquipamento) {
+          const { data: equipData } = await supabase
+            .from('equipamentos')
+            .select('*')
+            .eq('id_avaliador', idParaEquipamento)
+            .maybeSingle();
+
+          if (equipData) {
+            setEquipamentos(equipData);
+          }
+        }
 
         if (avalData.auth_id) {
           const { data: configData } = await supabase
@@ -268,11 +283,9 @@ export default function ResultadoAvaliacao() {
   const aval = dados.avaliacoes || {}
   const pac = dados.pacientes || {}
 
-  // 📹 TRATAMENTO CORRETO DA URL DO VÍDEO
   const urlVideoRaw = aval.video_url || videoUrlPadrao
   const videoEmbedUrl = obterUrlEmbedYouTube(urlVideoRaw)
 
-  // 🛡️ HELPER DE TRAVA DE VISIBILIDADE HIERÁRQUICO
   const podeExibir = (chave) => {
     if (!configVisibilidade) return true;
 
@@ -332,6 +345,15 @@ export default function ResultadoAvaliacao() {
   const rce = dados.relacao_cintura_estatura || 0;
   const soma6 = dados.somatorio_6_dobras || 0;
   const soma8 = dados.somatorio_8_dobras || 0;
+
+  const temEquipamentos = equipamentos && (
+    equipamentos.plicometro_adipometro || 
+    equipamentos.paquimetro || 
+    equipamentos.trena || 
+    equipamentos.balanca || 
+    equipamentos.estadiometro || 
+    equipamentos.banco
+  );
 
   const renderMedidaItem = (label, valor, unidade, chaveVisibilidade) => {
     if (!podeExibir(chaveVisibilidade)) return null;
@@ -414,6 +436,36 @@ export default function ResultadoAvaliacao() {
             </div>
           </div>
         </div>
+
+        {/* 🛠️ EQUIPAMENTOS UTILIZADOS (SÓ EXIBE SE PREENCHIDO) */}
+        {temEquipamentos && (
+          <div className="mt-4 bg-gray-50 p-4 rounded-lg border border-gray-100">
+            <p className="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-2">🛠️ Equipamentos Utilizados</p>
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-x-4 gap-y-2">
+              {equipamentos.plicometro_adipometro && (
+                <p className="text-xs text-gray-700"><span className="font-semibold">Adipômetro:</span> {equipamentos.plicometro_adipometro}</p>
+              )}
+              {equipamentos.paquimetro && (
+                <p className="text-xs text-gray-700"><span className="font-semibold">Paquímetro:</span> {equipamentos.paquimetro}</p>
+              )}
+              {equipamentos.trena && (
+                <p className="text-xs text-gray-700"><span className="font-semibold">Trena:</span> {equipamentos.trena}</p>
+              )}
+              {equipamentos.balanca && (
+                <p className="text-xs text-gray-700"><span className="font-semibold">Balança:</span> {equipamentos.balanca}</p>
+              )}
+              {equipamentos.estadiometro && (
+                <p className="text-xs text-gray-700"><span className="font-semibold">Estadiômetro:</span> {equipamentos.estadiometro}</p>
+              )}
+              {equipamentos.banco && (
+                <p className="text-xs text-gray-700">
+                  <span className="font-semibold">Banco:</span> {equipamentos.banco} 
+                  {equipamentos.altura_banco ? ` (${equipamentos.altura_banco} cm)` : ''}
+                </p>
+              )}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* 1. MEDIDAS BÁSICAS */}
