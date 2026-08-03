@@ -5,26 +5,8 @@ import { obterUrlEmbedYouTube } from '../utils/youtube'
 import {
   ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend
 } from 'recharts'
-import BotaoExportarEvolucaoPDF from '../components/BotaoExportarEvolucaoPDF';
-
-// --- FUNÇÃO AUXILIAR DA ESCALA ARGOREF (HOLWAY, 2025) ---
-const classificarArgoref = (soma6, sexo) => {
-  if (!soma6 || soma6 <= 0) return { classificacao: '-', cor: 'gray' };
-
-  if (sexo === 'M') {
-    if (soma6 < 33.6) return { classificacao: 'Muito Baixo', cor: 'blue' };
-    if (soma6 <= 47.1) return { classificacao: 'Baixo', cor: 'emerald' };
-    if (soma6 <= 84.2) return { classificacao: 'Normal', cor: 'emerald' };
-    if (soma6 <= 94.3) return { classificacao: 'Elevado', cor: 'amber' };
-    return { classificacao: 'Muito Elevado', cor: 'red' };
-  } else {
-    if (soma6 < 61.9) return { classificacao: 'Muito Baixo', cor: 'blue' };
-    if (soma6 <= 69.5) return { classificacao: 'Baixo', cor: 'emerald' };
-    if (soma6 <= 112.4) return { classificacao: 'Normal', cor: 'emerald' };
-    if (soma6 <= 121.6) return { classificacao: 'Elevado', cor: 'amber' };
-    return { classificacao: 'Muito Elevado', cor: 'red' };
-  }
-}
+import BotaoExportarEvolucaoPDF from '../components/BotaoExportarEvolucaoPDF'
+import { classificarArgoref, classificarApVat } from '../utils/escalasNormativas'
 
 export default function EvolucaoPaciente() {
   const location = useLocation()
@@ -298,24 +280,6 @@ export default function EvolucaoPaciente() {
   }
   const ultimaEstatura = historico[historico.length - 1]?.estatura || 0
 
-  const handleWhatsApp = () => {
-    const telefoneLimpo = pacienteLocal?.telefone ? pacienteLocal.telefone.replace(/\D/g, '') : '';
-    if (!telefoneLimpo) {
-      alert('Este paciente não possui telefone cadastrado.');
-      return;
-    }
-    const primeiroNome = pacienteLocal?.nome_completo ? pacienteLocal.nome_completo.split(' ')[0] : 'Paciente';
-    const saudacao = avaliador?.nome_completo ? avaliador.nome_completo : 'seu Avaliador';
-
-    const tokenPublico = pacienteLocal?.token_publico;
-    const linkDaEvolucao = tokenPublico
-        ? `${window.location.origin}/evolucao/${tokenPublico}`
-        : window.location.origin;
-    const msg = `Olá *${primeiroNome}*, tudo bem?\n\nAqui é ${saudacao}! Acabei de atualizar a sua *Evolução Antropométrica* com os dados da nossa última consulta.\n\nAcesse o link abaixo para visualizar seus resultados interativos e acompanhar sua evolução:\n\n${linkDaEvolucao}\n\nQualquer dúvida, estou à disposição!`;
-    const link = `https://wa.me/${telefoneLimpo.startsWith('55') ? telefoneLimpo : '55' + telefoneLimpo}?text=${encodeURIComponent(msg)}`;
-    window.open(link, '_blank');
-  }
-
   const CardEvolucao = ({ titulo, chaveDado, unidade = "", isInverso = false, chaveVisibilidade, casasDecimais = 1 }) => {
     if (!podeExibir(chaveVisibilidade)) return null;
 
@@ -449,9 +413,12 @@ export default function EvolucaoPaciente() {
   const exibeGraficoPerimetrosCriticos = podeExibir('evo_perim_cintura') || podeExibir('evo_perim_quadril') || podeExibir('evo_perim_braco_cont');
   const exibeGraficoSomatorios = podeExibir('evo_soma_6') || podeExibir('evo_soma_8');
 
-  // Pega último somatório de 6 dobras para classificação Argoref
+  // Pega dados da última avaliação para o resumo das classificações
   const ultimoSoma6 = Number(historico[historico.length - 1]?.soma_6 || 0);
   const infoArgorefEvolucao = classificarArgoref(ultimoSoma6, pacienteLocal?.sexo);
+
+  const ultimoApVat = Number(historico[historico.length - 1]?.apvat || 0);
+  const infoApVatEvolucao = classificarApVat(ultimoApVat, pacienteLocal?.sexo);
 
   return (
     <div className="w-full max-w-6xl mx-auto space-y-10 pb-12 px-4 sm:px-6 overflow-x-hidden animate-fade-in-up print:m-0 print:p-0 print:overflow-visible">
@@ -484,7 +451,7 @@ export default function EvolucaoPaciente() {
 
           <div className="flex items-center gap-4 w-full md:w-auto justify-between md:justify-end shrink-0">
             <span className="text-[10px] text-gray-400 font-medium tracking-wide">
-              Gerado via <span className="font-bold text-emerald-600">EvaluaOS</span>
+              Gerado via <a href="https://evaluaos.nutricaocommarco.com.br" target="_blank" rel="noopener noreferrer" className="font-bold text-emerald-600 hover:underline">EvaluaOS</a>
             </span>
 
             {!isPublicView && (
@@ -769,12 +736,12 @@ export default function EvolucaoPaciente() {
                 <div className="space-y-3">
                   <CardEvolucao titulo="Somatório 6 Dobras" chaveDado="soma_6" unidade="mm" isInverso={true} chaveVisibilidade="evo_soma_6" />
                   
-                  {/* 🌟 ESCALA ARGOREF (COMPONENTE NA EVOLUÇÃO) */}
+                  {/* ESCALA ARGOREF (COMPONENTE DE RESUMO NA EVOLUÇÃO) */}
                   {ultimoSoma6 > 0 && (
                     <div className="bg-emerald-50/60 p-3 rounded-xl border border-emerald-100 flex justify-between items-center">
                       <div>
                         <span className="text-xs font-bold text-gray-800">Classificação ARGOREF (Holway, 2025)</span>
-                        <p className="text-[10px] text-gray-500">Com base no último somatório de 6 dobras registrado ({ultimoSoma6} mm).</p>
+                        <p className="text-[10px] text-gray-500">Último somatório de 6 dobras registrado ({ultimoSoma6} mm).</p>
                       </div>
                       <span className={`text-[10px] font-extrabold px-2.5 py-1 rounded-md uppercase tracking-wider ${
                         infoArgorefEvolucao.cor === 'red' ? 'bg-red-100 text-red-800' :
@@ -816,7 +783,7 @@ export default function EvolucaoPaciente() {
 
       {/* BLOCO 5: Relações e Índices de Risco */}
       {exibeBlocoIndices && (
-        <div className="break-inside-avoid w-full">
+        <div className="break-inside-avoid w-full space-y-4">
           <div className="flex items-center gap-2 mb-4 px-1">
             <div className="w-8 h-8 rounded-full bg-purple-50 text-purple-600 flex items-center justify-center shrink-0">
               <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"></path></svg>
@@ -826,7 +793,29 @@ export default function EvolucaoPaciente() {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 w-full min-w-0">
             <CardEvolucao titulo="Cintura / Estatura" chaveDado="cintura_estatura" isInverso={true} chaveVisibilidade="evo_idx_cintura_estatura" />
             <CardEvolucao titulo="Cintura / Quadril (RCQ)" chaveDado="cintura_quadril" isInverso={true} chaveVisibilidade="evo_idx_rcq" />
-            <CardEvolucao titulo="Área Visceral (apVAT)" chaveDado="apvat" unidade="cm²" isInverso={true} chaveVisibilidade="evo_idx_apvat" casasDecimais={1} />
+            
+            <div className="space-y-3">
+              <CardEvolucao titulo="Área Visceral (apVAT)" chaveDado="apvat" unidade="cm²" isInverso={true} chaveVisibilidade="evo_idx_apvat" casasDecimais={1} />
+              
+              {/* CLASSIFICAÇÃO APVAT DA ÚLTIMA CONSULTA */}
+              {ultimoApVat > 0 && (
+                <div className="bg-emerald-50/60 p-3 rounded-xl border border-emerald-100 flex justify-between items-center">
+                  <div>
+                    <span className="text-xs font-bold text-gray-800">Risco apVAT (Samouda, 2013)</span>
+                    <p className="text-[10px] text-gray-500">Última avaliação ({ultimoApVat} cm²).</p>
+                  </div>
+                  <span className={`text-[10px] font-extrabold px-2.5 py-1 rounded-md uppercase tracking-wider ${
+                    infoApVatEvolucao.cor === 'red' ? 'bg-red-100 text-red-800' :
+                    infoApVatEvolucao.cor === 'orange' ? 'bg-orange-100 text-orange-800' :
+                    infoApVatEvolucao.cor === 'amber' ? 'bg-amber-100 text-amber-800' :
+                    'bg-emerald-100 text-emerald-800'
+                  }`}>
+                    {infoApVatEvolucao.classificacao}
+                  </span>
+                </div>
+              )}
+            </div>
+
             <CardEvolucao titulo="Índice Adiposo Muscular" chaveDado="iam" isInverso={true} chaveVisibilidade="evo_idx_iam" />
             <CardEvolucao titulo="Índice Massa Óssea (IMO)" chaveDado="imo" isInverso={false} chaveVisibilidade="evo_idx_imo" casasDecimais={3} />
           </div>

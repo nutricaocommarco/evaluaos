@@ -348,7 +348,7 @@ export default function ResultadoAvaliacao() {
   }
 
   const imc = dados.imc || 0
-  const infoImc = classificarImc ? classificarImc(imc) : { label: '-', cor: 'gray' };
+  const infoImc = classificarImc ? classificarImc(imc) : { classificacao: '-', cor: 'gray' };
   const percentualGordura = aval.percentual_de_gordura || 0 
   const massaGorda = dados.massa_gorda || 0
   const massaMagra = dados.massa_magra || 0
@@ -358,7 +358,6 @@ export default function ResultadoAvaliacao() {
   const imoVal = dados.indice_massa_ossea_imo || 0
   const apvatVal = dados.area_previsao_visceral_apvat || 0
 
-  // Chamada de funções do Módulo de Escalas Normativas com travas de segurança
   const infoApVat = classificarApVat ? classificarApVat(apvatVal, pac.sexo) : { classificacao: '-', cor: 'gray' };
   const rcq = dados.relacao_cintura_quadril || 0;
   const infoRcq = classificarRcq ? classificarRcq(rcq, pac.sexo) : { classificacao: '-', cor: 'gray' };
@@ -371,7 +370,6 @@ export default function ResultadoAvaliacao() {
   const infoArgoref = classificarArgoref ? classificarArgoref(soma6, pac.sexo) : { classificacao: '-', cor: 'gray' };
   const infoMorrow = classificarMorrow ? classificarMorrow(percentualGordura, pac.sexo, idade) : { classificacao: '-', cor: 'gray' };
 
-  // Mapeamento das descrições verbais do Somatotipo para leigos
   const descricoesSomatotipo = classificarSomatotipoDetalhado ? classificarSomatotipoDetalhado({
     endomorfia: dados.somatotipo_endomorfia,
     mesomorfia: dados.somatotipo_mesomorfia,
@@ -432,7 +430,7 @@ export default function ResultadoAvaliacao() {
 
           <div className="flex flex-col items-end mt-4 sm:mt-0">
             <span className="text-[10px] text-gray-400 font-medium tracking-wide">
-              Gerado via <span className="font-bold text-emerald-600">EvaluaOS</span>
+              Gerado via <a href="https://evaluaos.nutricaocommarco.com.br" target="_blank" rel="noopener noreferrer" className="font-bold text-emerald-600 hover:underline">EvaluaOS</a>
             </span>
             {!isPublicView && (
               <button onClick={() => navigate('/pacientes')} className="text-xs text-emerald-600 font-semibold hover:underline mt-2 inline-block">
@@ -532,32 +530,30 @@ export default function ResultadoAvaliacao() {
           <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
             
             {/* CARD DO IMC COM CLASSIFICAÇÃO */}
-{podeExibir('laudo_imc') && (
-  <div className="bg-white p-5 rounded-xl border border-gray-100 shadow-sm flex flex-col justify-between relative">
-    <div>
-      <p className="text-xs font-semibold text-gray-500 uppercase">IMC</p>
-      <p className="text-2xl font-black text-gray-800 mt-1">
-        {imc > 0 ? imc.toFixed(1) : '-'} <span className="text-xs font-normal text-gray-500">kg/m²</span>
-      </p>
-    </div>
-    
-    {imc > 0 && (
-      <div className="pt-2 mt-2 border-t border-gray-50 flex items-center justify-between">
-        <span className={`text-[10px] font-bold px-2 py-0.5 rounded uppercase tracking-wider ${
-          infoImc.cor === 'red' ? 'bg-red-100 text-red-800' :
-          infoImc.cor === 'orange' ? 'bg-orange-100 text-orange-800' :
-          infoImc.cor === 'amber' ? 'bg-amber-100 text-amber-800' :
-          infoImc.cor === 'blue' ? 'bg-blue-100 text-blue-800' :
-          'bg-emerald-100 text-emerald-800'
-        }`}>
-          {infoImc.classificacao || infoImc.label || '-'}
-        </span>
-      </div>
-    )}
-    
-    <span className="absolute bottom-2 right-3 text-[9px] font-medium text-gray-400">Ref: OMS 1998</span>
-  </div>
-)}
+            {podeExibir('laudo_imc') && (
+              <div className="bg-white p-5 rounded-xl border border-gray-100 shadow-sm flex flex-col justify-between relative">
+                <div>
+                  <p className="text-xs font-semibold text-gray-500 uppercase">IMC</p>
+                  <p className="text-2xl font-black text-gray-800 mt-1">
+                    {imc > 0 ? imc.toFixed(1) : '-'} <span className="text-xs font-normal text-gray-500">kg/m²</span>
+                  </p>
+                </div>
+                {imc > 0 && (
+                  <div className="pt-2 mt-2 border-t border-gray-50 flex items-center justify-between">
+                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded uppercase tracking-wider ${
+                      infoImc.cor === 'red' ? 'bg-red-100 text-red-800' :
+                      infoImc.cor === 'orange' ? 'bg-orange-100 text-orange-800' :
+                      infoImc.cor === 'amber' ? 'bg-amber-100 text-amber-800' :
+                      infoImc.cor === 'blue' ? 'bg-blue-100 text-blue-800' :
+                      'bg-emerald-100 text-emerald-800'
+                    }`}>
+                      {infoImc.classificacao}
+                    </span>
+                  </div>
+                )}
+                <span className="absolute bottom-2 right-3 text-[9px] font-medium text-gray-400">Ref: OMS 1998</span>
+              </div>
+            )}
 
             {podeExibir('laudo_percentual_gordura') && (
               <div className="bg-white p-5 rounded-xl border border-gray-100 shadow-sm flex flex-col justify-center">
