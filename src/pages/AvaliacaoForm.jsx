@@ -101,7 +101,6 @@ const MeasureRow = ({ label, field, categoryType, state, setter, isSingleMode, h
   if (!isSingleMode && !isNaN(v1) && !isNaN(v2) && v1 > 0 && v2 > 0) {
     diffPercent = (Math.abs(v1 - v2) / v1) * 100
     
-    // Tolerância dinâmica configurada pelo avaliador
     let threshold = 1.0
     if (categoryType === 'dobras') threshold = tolerancias?.tolerancia_dobras ?? 5.0
     else if (categoryType === 'perimetros') threshold = tolerancias?.tolerancia_perimetros ?? 1.0
@@ -170,13 +169,16 @@ export default function AvaliacaoForm() {
 
   const [dataAvaliacao, setDataAvaliacao] = useState(new Date().toISOString().split('T')[0])
   const [horaAvaliacao, setHoraAvaliacao] = useState(new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }))
+  
+  // 📹 Estado do Vídeo do YouTube para o Laudo
+  const [videoUrl, setVideoUrl] = useState('')
 
   const [basicas, setBasicas] = useState(initMeasures(basicaKeys))
   const [dobras, setDobras] = useState(initMeasures(dobraKeys))
   const [perimetros, setPerimetros] = useState(initMeasures(perimetroKeys))
   const [diametros, setDiametros] = useState(initMeasures(diametroKeys))
   
-useEffect(() => {
+  useEffect(() => {
     async function carregarDadosIniciais() {
       setLoading(true)
 
@@ -218,13 +220,15 @@ useEffect(() => {
 
         if (avaliacaoData) {
           if (avaliacaoData.data_avaliacao) {
-  // Corta a string diretamente para pegar os primeiros 10 caracteres (YYYY-MM-DD) sem conversão de fuso
-  setDataAvaliacao(avaliacaoData.data_avaliacao.split('T')[0])
-} else {
-  setDataAvaliacao(new Date().toLocaleDateString('en-CA')) // Formato YYYY-MM-DD local seguro
-}
+            setDataAvaliacao(avaliacaoData.data_avaliacao.split('T')[0])
+          } else {
+            setDataAvaliacao(new Date().toLocaleDateString('en-CA'))
+          }
 
           setHoraAvaliacao(avaliacaoData.hora_avaliacao || '')
+          
+          // Preenche a URL do vídeo se existir
+          setVideoUrl(avaliacaoData.video_url || '')
 
           const preencherEstado = (keys) => {
             return keys.reduce((acc, key) => {
@@ -310,6 +314,7 @@ useEffect(() => {
       id_paciente: paciente.id,
       data_avaliacao: dataAvaliacao,
       hora_avaliacao: horaAvaliacao,
+      video_url: videoUrl ? videoUrl.trim() : null, // 📹 Incluído no Payload
       ...resolvedBasicas,
       ...resolvedDobras,
       ...resolvedPerimetros,
@@ -423,7 +428,7 @@ useEffect(() => {
 
     if (calcError) {
       console.error('Erro ao salvar cálculos:', calcError)
-      alert('As medidas foram salvas, mas houve um erro ao gerar o relatório calculado.')
+      alert('As medidas foram salvas, mas houve um erro ao gerar o relatório calculated.')
     } else {
       alert('Medidas salvas! Indo para o cálculo de gordura...')
       navigate('/equacoes-de-regressao', { 
@@ -437,20 +442,18 @@ useEffect(() => {
     setLoading(false)
   }
 
-  // Função para checar se o campo está visível segundo as preferências do avaliador
   const campoVisivel = (categoria, key) => {
-    if (!configAvaliador.campos_visiveis) return true // Se não salvou nada ainda, exibe tudo por padrão
+    if (!configAvaliador.campos_visiveis) return true
     const lista = configAvaliador.campos_visiveis[categoria]
     if (!lista) return true
     return lista.includes(key)
   }
 
   const renderMeasureBlock = (title, keys, type, state, setter) => {
-    // Filtra apenas as chaves que estão visíveis nas configurações
     const keysFiltradas = keys.filter(key => campoVisivel(type, key))
-    if (keysFiltradas.length === 0) return null // Se desmarcou tudo na categoria, esconde o bloco inteiro
+    if (keysFiltradas.length === 0) return null
   
-return (
+    return (
       <div className="bg-white p-4 md:p-6 rounded-xl border border-gray-100 shadow-sm space-y-2">
         <h3 className="text-sm font-bold text-gray-800 uppercase tracking-wider mb-4 border-b pb-2">{title}</h3>
         <div className="w-full">
@@ -520,6 +523,25 @@ return (
               <input type="time" required tabIndex={11} value={horaAvaliacao} onChange={(e) => setHoraAvaliacao(e.target.value)} className="mt-1 w-full px-3 py-2 border rounded-md text-sm" />
             </div>
           </div>
+
+          {/* 🎥 CAMPO DE VÍDEO DO YOUTUBE PARA O LAUDO */}
+          <div className="pt-3 border-t border-gray-100">
+            <label className="block text-xs font-bold text-gray-700 mb-1">
+              🎥 Vídeo de Orientações do Laudo (YouTube - Opcional)
+            </label>
+            <input 
+              type="url" 
+              tabIndex={12} 
+              value={videoUrl} 
+              onChange={(e) => setVideoUrl(e.target.value)} 
+              placeholder="https://www.youtube.com/watch?v=... ou https://youtu.be/..." 
+              className="w-full px-3 py-2 border rounded-md text-sm bg-gray-50 focus:bg-white focus:ring-2 focus:ring-emerald-500 outline-none transition-all" 
+            />
+            <p className="text-[11px] text-gray-400 mt-1">
+              Cole o link de um vídeo do YouTube (público ou não listado) gravado para este paciente explicando os resultados deste laudo.
+            </p>
+          </div>
+
         </div>
 
         {renderMeasureBlock('2. Medidas Básicas', basicaKeys, 'basicas', basicas, setBasicas)}

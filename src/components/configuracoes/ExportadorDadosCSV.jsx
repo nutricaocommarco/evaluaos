@@ -1,8 +1,11 @@
 import React, { useState } from 'react'
 import { supabase } from '../../supabaseClient'
+import { useNavigate } from 'react-router-dom'
 
 export default function ExportadorDadosCSV() {
   const [exportando, setExportando] = useState(false)
+  const [modalUpgradeAberto, setModalUpgradeAberto] = useState(false)
+  const navigate = useNavigate()
 
   const exportarBackupCompletoCSV = async () => {
     setExportando(true)
@@ -14,7 +17,21 @@ export default function ExportadorDadosCSV() {
       }
       const userId = authData.user.id
 
-      // 2. Consulta unificada trazendo todas as colunas das 3 tabelas
+      // 2. Consulta o status do plano na tabela 'avaliadores'
+      const { data: avaliadorData, error: avaliadorError } = await supabase
+        .from('avaliadores')
+        .select('plano_status')
+        .eq('id', userId) // ou 'user_id', conforme sua chave primária
+        .single()
+
+      // 🔒 TRAVA PLANO PRO: Se não for 'pro', bloqueia a exportação e exibe o modal
+      if (avaliadorError || avaliadorData?.plano_status !== 'pro') {
+        setExportando(false)
+        setModalUpgradeAberto(true)
+        return
+      }
+
+      // 3. Consulta unificada trazendo todas as colunas das 3 tabelas
       const { data, error } = await supabase
         .from('avaliacoes')
         .select(`
@@ -33,7 +50,7 @@ export default function ExportadorDadosCSV() {
         return
       }
 
-      // 3. Cabeçalhos abrangendo Paciente, Avaliação e Dados Calculados
+      // 4. Cabeçalhos abrangendo Paciente, Avaliação e Dados Calculados
       const cabecalhos = [
         // Paciente
         'ID Paciente', 'Nome Completo', 'Data Nascimento', 'Sexo', 'Email', 'Telefone', 'Etnia', 'Nacionalidade', 'Pratica Esporte', 'Modalidade Esportiva', 'Nível Prática', 'Ocupação', 'Observações Paciente',
@@ -167,7 +184,12 @@ export default function ExportadorDadosCSV() {
             💾
           </div>
           <div>
-            <span className="text-xs font-bold text-gray-800 block">Exportar Backup Completo (Meus Dados)</span>
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-bold text-gray-800 block">Exportar Backup Completo (Meus Dados)</span>
+              <span className="px-2 py-0.5 bg-amber-100 text-amber-800 text-[10px] font-bold rounded-full uppercase">
+                Exclusivo Pro
+              </span>
+            </div>
             <span className="text-[11px] text-gray-400 block">Arquivo CSV estruturado para Excel, Google Planilhas e análises avançadas</span>
           </div>
         </div>
@@ -177,9 +199,49 @@ export default function ExportadorDadosCSV() {
           disabled={exportando}
           className="px-4 py-2.5 bg-gray-800 text-white rounded-lg text-xs font-semibold hover:bg-gray-900 disabled:opacity-50 transition-colors shadow-sm flex items-center gap-2 whitespace-nowrap"
         >
-          {exportando ? 'Gerando Backup...' : 'Baixar Backup Completo (CSV)'}
+          {exportando ? 'Verificando permissão...' : 'Baixar Backup Completo (CSV)'}
         </button>
       </div>
+
+      {/* 👑 MODAL DE UPGRADE PRO */}
+      {modalUpgradeAberto && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-gray-100 text-center space-y-4">
+            <div className="w-16 h-16 bg-amber-100 text-amber-600 rounded-full flex items-center justify-center text-2xl mx-auto">
+              👑
+            </div>
+
+            <div>
+              <h3 className="text-lg font-bold text-gray-900">Recurso Exclusivo do Plano Pro</h3>
+              <p className="text-xs text-gray-500 mt-2 leading-relaxed">
+                A exportação completa de backups em CSV é uma funcionalidade avançada reservada aos assinantes do **Plano Pro**.
+              </p>
+            </div>
+
+            <div className="bg-amber-50 rounded-xl p-3 border border-amber-100 text-left text-xs text-amber-900 space-y-1">
+              <p className="font-semibold">Vantagens de assinar o Pro:</p>
+              <p>• Backup ilimitado dos seus dados em CSV</p>
+              <p>• Cadastro ilimitado de alunos e avaliações</p>
+              <p>• Links de laudos e evolução sem limites</p>
+            </div>
+
+            <div className="flex flex-col gap-2 pt-2">
+              <button
+                onClick={() => navigate('/meu-plano')}
+                className="w-full py-3 bg-emerald-600 text-white font-bold rounded-xl text-xs hover:bg-emerald-700 transition-colors shadow-md"
+              >
+                Conhecer o Plano Pro
+              </button>
+              <button
+                onClick={() => setModalUpgradeAberto(false)}
+                className="w-full py-2 bg-transparent text-gray-400 font-semibold rounded-xl text-xs hover:text-gray-600 transition-colors"
+              >
+                Agora não
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

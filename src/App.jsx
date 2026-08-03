@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route, Navigate, useNavigate, useLocation } from
 import { supabase } from './supabaseClient'
 
 // Importando suas telas 
+import HomePublica from './pages/HomePublica'
 import Login from './pages/Login'
 import Pacientes from './pages/Pacientes'
 import EscolhaPercGordura from './pages/EscolhaPercGordura'
@@ -11,6 +12,11 @@ import ResultadoAvaliacao from './pages/ResultadoAvaliacao'
 import Avaliador from './pages/Avaliador'
 import EvolucaoPaciente from './pages/EvolucaoPaciente' 
 import Configuracoes from './pages/Configuracoes'
+import MeuPlano from './pages/MeuPlano'
+import Aprendizado from './pages/Aprendizado'
+import ArtigoDetalhe from './pages/ArtigoDetalhe'
+import Precos from './pages/Precos'
+import Contato from './pages/Contato'
 
 function MainApp() {
   const [session, setSession] = useState(null)
@@ -57,13 +63,16 @@ function MainApp() {
       icon: <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="20" x2="18" y2="10"></line><line x1="12" y1="20" x2="12" y2="4"></line><line x1="6" y1="20" x2="6" y2="14"></line></svg> 
     },
     { 
-      // ITEM ADICIONADO AQUI
       name: 'Evolução', path: '/evolucao',
       icon: <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"></polyline><polyline points="17 6 23 6 23 12"></polyline></svg> 
     },
     { 
       name: 'Avaliador', path: '/avaliador',
       icon: <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle><polyline points="16 11 18 13 22 9"></polyline></svg> 
+    },
+    { 
+      name: 'Meu Plano', path: '/meu-plano',
+      icon: <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>
     },
     { 
       name: 'Aprendizado', path: '/aprendizado',
@@ -83,20 +92,30 @@ function MainApp() {
     )
   }
 
+  // 🔴 USUÁRIO NÃO LOGADO: Acessa a Landing Page, Login, Preços, Contato e Aprendizado
   if (!session) {
     return (
       <Routes>
+        <Route path="/" element={<HomePublica />} />
         <Route path="/login" element={<Login />} />
         
-        {/* ROTA PÚBLICA: Liberada para o paciente acessar sem senha */}
+        {/* ROTAS PÚBLICAS DO PACIENTE (Acesso via Token) */}
         <Route path="/laudo/:tokenUrl" element={<ResultadoAvaliacao />} />
         <Route path="/evolucao/:tokenUrl" element={<EvolucaoPaciente />} />
+
+        {/* INSTITUCIONAL & SEO */}
+        <Route path="/aprendizado" element={<Aprendizado />} />
+        <Route path="/aprendizado/:artigoId" element={<ArtigoDetalhe />} />
+        <Route path="/precos" element={<Precos />} />
+        <Route path="/contato" element={<Contato />} />
         
-        <Route path="*" element={<Navigate to="/login" replace />} />
+        {/* Redireciona qualquer rota desconhecida de visitante para a Home */}
+        <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     )
   }
 
+  // 🟢 USUÁRIO LOGADO: Painel Interno Completo
   return (
     <div className="flex h-screen bg-gray-50 overflow-hidden">
       
@@ -171,7 +190,10 @@ function MainApp() {
               </svg>
             </button>
 
-            <div className="flex items-center gap-2">
+            <div 
+              className="flex items-center gap-2 cursor-pointer" 
+              onClick={() => navigate('/pacientes')}
+            >
               <img src="/Imagens/Logo_png.png" alt="EvaluaOS" className="h-[70px] w-auto object-contain" />
               <div className="hidden sm:flex flex-col">
                 <span className="text-sm font-black text-gray-800 tracking-tight">EvaluaOS</span>
@@ -202,11 +224,16 @@ function MainApp() {
             <Route path="/nova-avaliacao" element={<AvaliacaoForm />} />
             <Route path="/equacoes-de-regressao" element={<EscolhaPercGordura />} />
             <Route path="/laudo-antropometrico" element={<ResultadoAvaliacao />} />
-            <Route path="/evolucao" element={<EvolucaoPaciente />} /> {/* ROTA DA EVOLUÇÃO ADICIONADA AQUI */}
+            <Route path="/evolucao" element={<EvolucaoPaciente />} />
             <Route path="/avaliador" element={<Avaliador userId={session.user.id} />} />
+            <Route path="/meu-plano" element={<MeuPlano />} />
             <Route path="/laudo/:tokenUrl" element={<ResultadoAvaliacao />} />
             <Route path="/configuracoes" element={<Configuracoes />} />
             <Route path="/evolucao/:tokenUrl" element={<EvolucaoPaciente />} />
+            
+            {/* Central de Aprendizado acessível internamente */}
+            <Route path="/aprendizado" element={<Aprendizado />} />
+            <Route path="/aprendizado/:artigoId" element={<ArtigoDetalhe />} />
 
             <Route path="*" element={
               <div className="flex flex-col items-center justify-center h-full text-center p-6">

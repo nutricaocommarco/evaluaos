@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import { supabase } from '../supabaseClient'
-import BotaoExportarPDF from '../components/BotaoExportarPDF';
+import { obterUrlEmbedYouTube } from '../utils/youtube'
+import BotaoExportarPDF from '../components/BotaoExportarPDF'
 
 // --- HELPER CÁLCULO DE SOMATOTIPO HEATH-CARTER ---
 const calcularSomatotipo = (medidas) => {
@@ -68,6 +69,7 @@ export default function ResultadoAvaliacao() {
   const [nomeEmpresa, setNomeEmpresa] = useState('')
   const [nomeAvaliador, setNomeAvaliador] = useState('')
   const [logomarcaUrl, setLogomarcaUrl] = useState('')
+  const [videoUrlPadrao, setVideoUrlPadrao] = useState('')
   const [tokenPublico, setTokenPublico] = useState('')
   const [configVisibilidade, setConfigVisibilidade] = useState({})
 
@@ -110,7 +112,7 @@ export default function ResultadoAvaliacao() {
       if (pac.id_avaliador) {
         const { data } = await supabase
           .from('avaliadores')
-          .select('auth_id, empresa, nome_completo, logomarca_url')
+          .select('auth_id, empresa, nome_completo, logomarca_url, video_url_padrao')
           .eq('auth_id', pac.id_avaliador)
           .maybeSingle();
         avalData = data;
@@ -121,7 +123,7 @@ export default function ResultadoAvaliacao() {
         if (authData?.user?.email) {
           const { data } = await supabase
             .from('avaliadores')
-            .select('auth_id, empresa, nome_completo, logomarca_url')
+            .select('auth_id, empresa, nome_completo, logomarca_url, video_url_padrao')
             .eq('email', authData.user.email)
             .maybeSingle();
           avalData = data;
@@ -132,6 +134,7 @@ export default function ResultadoAvaliacao() {
         setNomeEmpresa(avalData.empresa || '');
         setNomeAvaliador(avalData.nome_completo || '');
         setLogomarcaUrl(avalData.logomarca_url || '');
+        setVideoUrlPadrao(avalData.video_url_padrao || '');
 
         if (avalData.auth_id) {
           const { data: configData } = await supabase
@@ -265,23 +268,24 @@ export default function ResultadoAvaliacao() {
   const aval = dados.avaliacoes || {}
   const pac = dados.pacientes || {}
 
+  // 📹 TRATAMENTO CORRETO DA URL DO VÍDEO
+  const urlVideoRaw = aval.video_url || videoUrlPadrao
+  const videoEmbedUrl = obterUrlEmbedYouTube(urlVideoRaw)
+
   // 🛡️ HELPER DE TRAVA DE VISIBILIDADE HIERÁRQUICO
   const podeExibir = (chave) => {
     if (!configVisibilidade) return true;
 
     const idPaciente = pac?.id;
 
-    // 1. Regra Individual do Paciente
     if (idPaciente && configVisibilidade.pacientes?.[idPaciente]?.[chave] !== undefined) {
       return configVisibilidade.pacientes[idPaciente][chave];
     }
 
-    // 2. Regra Global
     if (configVisibilidade[chave] !== undefined) {
       return configVisibilidade[chave] !== false;
     }
 
-    // 3. Padrão True
     return true;
   }
 
@@ -690,6 +694,32 @@ export default function ResultadoAvaliacao() {
               </div>
             ))}
           </div>
+
+          {/* 🎥 PLAYER DE VÍDEO DO LAUDO DO PACIENTE */}
+          {videoEmbedUrl && (
+            <div className="bg-white border border-slate-200 rounded-3xl p-5 sm:p-6 shadow-sm space-y-3 my-6">
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 bg-emerald-50 text-emerald-600 rounded-xl flex items-center justify-center font-bold text-base">
+                  📹
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-slate-900">Mensagem & Orientações em Vídeo</h3>
+                  <p className="text-xs text-slate-500">Assista às explicações do seu avaliador sobre os resultados.</p>
+                </div>
+              </div>
+
+              {/* Player Responsivo 16:9 */}
+              <div className="aspect-video w-full rounded-2xl overflow-hidden shadow-md bg-slate-900">
+                <iframe
+                  src={videoEmbedUrl}
+                  title="Orientações do Avaliador"
+                  className="w-full h-full"
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                  allowFullScreen
+                />
+              </div>
+            </div>
+          )}
 
           {dados && (
             <BotaoExportarPDF 

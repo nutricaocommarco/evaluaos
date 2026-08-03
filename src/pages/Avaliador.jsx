@@ -1,7 +1,10 @@
 import React, { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { supabase } from '../supabaseClient'
 
 export default function Avaliador() {
+  const navigate = useNavigate()
+
   const [loading, setLoading] = useState(true)
   const [savingPerfil, setSavingPerfil] = useState(false)
   const [savingEquip, setSavingEquip] = useState(false)
@@ -14,7 +17,8 @@ export default function Avaliador() {
   const [telefone, setTelefone] = useState('')
   const [instagram, setInstagram] = useState('')
   const [empresa, setEmpresa] = useState('')
-  const [planoStatus, setPlanoStatus] = useState('')
+  const [videoUrlPadrao, setVideoUrlPadrao] = useState('') // 📹 Novo estado
+  const [planoStatus, setPlanoStatus] = useState('gratis')
 
   // Estados dos Equipamentos
   const [equipId, setEquipId] = useState(null)
@@ -64,7 +68,8 @@ export default function Avaliador() {
         setTelefone(perfilData.telefone || '')
         setInstagram(perfilData.instagram || '')
         setEmpresa(perfilData.empresa || '')
-        setPlanoStatus(perfilData.plano_status || 'Ativo')
+        setVideoUrlPadrao(perfilData.video_url_padrao || '')
+        setPlanoStatus(perfilData.plano_status ? perfilData.plano_status.toLowerCase() : 'gratis')
         setLogoUrl(perfilData.logomarca_url || '')
 
         // 2. Busca equipamentos vinculados ao ID do avaliador
@@ -94,6 +99,8 @@ export default function Avaliador() {
     carregarDadosAvaliador()
   }, [])
 
+  const isPro = planoStatus === 'pro' || planoStatus === 'ativo'
+
   // Salvar Perfil
   const handleSalvarPerfil = async (e) => {
     e.preventDefault()
@@ -104,7 +111,8 @@ export default function Avaliador() {
       email,
       telefone,
       instagram,
-      empresa
+      empresa: isPro ? empresa : null,
+      video_url_padrao: videoUrlPadrao ? videoUrlPadrao.trim() : null
     }
 
     const { data: existente } = await supabase
@@ -229,6 +237,11 @@ export default function Avaliador() {
   // Upload de Logomarca
   const handleUploadLogo = async (event) => {
     try {
+      if (!isPro) {
+        alert('🔒 O envio de logomarca personalizada é um recurso exclusivo do Plano Pro.')
+        return
+      }
+
       if (!perfilId) {
         return alert('Por favor, salve suas Informações Profissionais primeiro para poder enviar a logomarca.')
       }
@@ -238,32 +251,27 @@ export default function Avaliador() {
       const file = event.target.files[0]
       if (!file) return
 
-      // Trava de segurança: 2MB
       if (file.size > 2 * 1024 * 1024) {
         alert('A imagem deve ter no máximo 2MB.')
         return
       }
 
-      // Nome único para evitar substituições indesejadas
       const fileExt = file.name.split('.').pop()
       const fileName = `${perfilId}_logo_${Date.now()}.${fileExt}`
       const filePath = `logomarcas/${fileName}`
 
-      // Upload para o Bucket
       const { error: uploadError } = await supabase.storage
         .from('avaliador_assets')
         .upload(filePath, file)
 
       if (uploadError) throw uploadError
 
-      // Captura o link público
       const { data: publicUrlData } = supabase.storage
         .from('avaliador_assets')
         .getPublicUrl(filePath)
 
       const urlFinal = publicUrlData.publicUrl
 
-      // Atualiza o banco de dados
       const { error: updateError } = await supabase
         .from('avaliadores')
         .update({ logomarca_url: urlFinal })
@@ -294,8 +302,15 @@ export default function Avaliador() {
 
       {/* SEÇÃO 1: DADOS PESSOAIS E PROFISSIONAIS */}
       <div className="bg-white p-6 rounded-xl border border-gray-100 shadow-sm space-y-6">
-        <div className="border-b pb-3">
+        <div className="border-b pb-3 flex justify-between items-center">
           <h3 className="text-sm font-bold text-gray-800 uppercase tracking-wider">1. Informações Profissionais</h3>
+          <span className={`text-xs font-bold px-2.5 py-0.5 rounded-full border ${
+            isPro 
+              ? 'bg-emerald-50 text-emerald-700 border-emerald-200' 
+              : 'bg-amber-50 text-amber-700 border-amber-200'
+          }`}>
+            {isPro ? '⭐ Plano Pro Ativo' : '🌱 Plano Gratuito (Até 7 Pacientes)'}
+          </span>
         </div>
 
         <form onSubmit={handleSalvarPerfil} className="space-y-4">
@@ -320,9 +335,39 @@ export default function Avaliador() {
               <input type="text" value={instagram} onChange={(e) => setInstagram(e.target.value)} className="mt-1 w-full px-3 py-2 border rounded-md text-sm focus:ring-emerald-500 focus:border-emerald-500" placeholder="@seuusuario" />
             </div>
             <div>
-              <label className="block text-xs font-semibold text-gray-700 uppercase">Empresa / Clínica</label>
-              <input type="text" value={empresa} onChange={(e) => setEmpresa(e.target.value)} className="mt-1 w-full px-3 py-2 border rounded-md text-sm focus:ring-emerald-500 focus:border-emerald-500" placeholder="Nome do espaço" />
+              <label className="block text-xs font-semibold text-gray-700 uppercase">
+                Empresa / Clínica {!isPro && <span className="text-amber-600 text-[10px] font-bold ml-1">(🔒 Exclusivo Pro)</span>}
+              </label>
+              <input 
+                type="text" 
+                disabled={!isPro}
+                value={empresa} 
+                onChange={(e) => setEmpresa(e.target.value)} 
+                className={`mt-1 w-full px-3 py-2 border rounded-md text-sm transition-colors ${
+                  !isPro 
+                    ? 'bg-gray-100 border-gray-200 text-gray-400 cursor-not-allowed' 
+                    : 'focus:ring-emerald-500 focus:border-emerald-500 bg-white'
+                }`} 
+                placeholder={isPro ? "Nome do espaço / consultório" : "🔒 Nome personalizado exclusivo do Plano Pro"} 
+              />
             </div>
+          </div>
+
+          {/* 🎬 VÍDEO PADRÃO DO CONSULTÓRIO */}
+          <div className="pt-2 border-t border-gray-100">
+            <label className="block text-xs font-semibold text-gray-700 uppercase mb-1">
+              🎬 Vídeo Padrão de Boas-Vindas / Apresentação do Consultório (YouTube - Opcional)
+            </label>
+            <input
+              type="url"
+              value={videoUrlPadrao}
+              onChange={(e) => setVideoUrlPadrao(e.target.value)}
+              placeholder="https://www.youtube.com/watch?v=... ou https://youtu.be/..."
+              className="w-full px-3 py-2 border rounded-md text-sm focus:ring-emerald-500 focus:border-emerald-500 bg-white"
+            />
+            <p className="text-[11px] text-gray-400 mt-1">
+              Este vídeo será exibido em todos os laudos públicos caso você não adicione um vídeo personalizado específico na avaliação do paciente.
+            </p>
           </div>
 
           <div className="flex justify-end pt-2">
@@ -415,26 +460,53 @@ export default function Avaliador() {
 
       {/* SEÇÃO 4: PERSONALIZAÇÃO */}
       <div className="bg-white p-6 rounded-xl border border-gray-100 shadow-sm space-y-6">
-        <div className="border-b pb-3">
+        <div className="border-b pb-3 flex justify-between items-center">
           <h3 className="text-sm font-bold text-gray-800 uppercase tracking-wider">4. Personalização do Relatório</h3>
-        </div>
-        
-        <div>
-          <label className="block text-xs font-semibold text-gray-700 uppercase mb-2">Logomarca do Consultório</label>
-          
-          {logoUrl && (
-            <img src={logoUrl} alt="Logo" className="h-20 w-auto mb-4 rounded border border-gray-200 p-1" />
+          {!isPro && (
+            <span className="text-xs font-bold text-amber-700 bg-amber-50 px-2.5 py-1 rounded-full border border-amber-200">
+              🔒 Recurso do Plano Pro
+            </span>
           )}
+        </div>
 
-          <input 
-            type="file" 
-            accept="image/png, image/jpeg" 
-            onChange={handleUploadLogo}
-            disabled={uploadingLogo}
-            className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-emerald-50 file:text-emerald-700 hover:file:bg-emerald-100"
-          />
-          {uploadingLogo && <p className="text-xs text-blue-500 mt-2 font-medium">Fazendo upload da imagem, aguarde...</p>}
-          <p className="text-xs text-gray-400 mt-2">Formato JPG ou PNG. O arquivo deve ter no máximo 2MB.</p>
+        <div>
+          <label className="block text-xs font-semibold text-gray-700 uppercase mb-2">Logomarca do Consultório (PDF e Web)</label>
+
+          {isPro ? (
+            <>
+              {logoUrl && (
+                <img src={logoUrl} alt="Logo" className="h-20 w-auto mb-4 rounded border border-gray-200 p-1 object-contain" />
+              )}
+
+              <input 
+                type="file" 
+                accept="image/png, image/jpeg" 
+                onChange={handleUploadLogo}
+                disabled={uploadingLogo}
+                className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-emerald-50 file:text-emerald-700 hover:file:bg-emerald-100 cursor-pointer"
+              />
+              {uploadingLogo && <p className="text-xs text-blue-500 mt-2 font-medium">Fazendo upload da imagem, aguarde...</p>}
+              <p className="text-xs text-gray-400 mt-2">Formato JPG ou PNG. O arquivo deve ter no máximo 2MB.</p>
+            </>
+          ) : (
+            <div className="p-5 bg-amber-50/60 border border-amber-200 rounded-xl flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+              <div className="space-y-1">
+                <span className="text-xs font-bold text-amber-900 flex items-center gap-1.5">
+                  <span>🔒</span> Envio de Logo Personalizada Bloqueado
+                </span>
+                <p className="text-xs text-amber-700 leading-relaxed">
+                  No Plano Gratuito, os relatórios utilizam o modelo padrão EvaluaOS. Assine o **Plano Pro** para incluir a marca do seu consultório nos laudos PDF e links interativos.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => navigate('/meu-plano')}
+                className="px-4 py-2 bg-amber-600 text-white rounded-lg text-xs font-bold hover:bg-amber-700 shadow-sm shrink-0 transition-colors"
+              >
+                Upgrade para Pro a partir de (R$ 29,90)
+              </button>
+            </div>
+          )}
         </div>
       </div>
 

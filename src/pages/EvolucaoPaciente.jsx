@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import { supabase } from '../supabaseClient'
+import { obterUrlEmbedYouTube } from '../utils/youtube'
 import {
   ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend
 } from 'recharts'
@@ -12,7 +13,7 @@ export default function EvolucaoPaciente() {
   const { tokenUrl } = useParams() // Pega o token se for link público
 
   const isPublicView = !!tokenUrl;
-
+  
   // Usa o paciente do state (se logado) ou null para buscar depois (se for link público)
   const [pacienteLocal, setPacienteLocal] = useState(location.state?.paciente || null)
 
@@ -58,7 +59,7 @@ export default function EvolucaoPaciente() {
       if (authData?.user?.email) {
         const { data } = await supabase
           .from('avaliadores')
-          .select('auth_id, nome_completo, instagram, empresa, logomarca_url')
+          .select('auth_id, nome_completo, instagram, empresa, logomarca_url, video_url_padrao')
           .eq('email', authData.user.email)
           .maybeSingle();
         avalData = data;
@@ -68,7 +69,7 @@ export default function EvolucaoPaciente() {
       if (!avalData && pacienteAtual.id_avaliador) {
         const { data } = await supabase
           .from('avaliadores')
-          .select('auth_id, nome_completo, instagram, empresa, logomarca_url')
+          .select('auth_id, nome_completo, instagram, empresa, logomarca_url, video_url_padrao')
           .eq('auth_id', pacienteAtual.id_avaliador)
           .maybeSingle();
         avalData = data;
@@ -120,6 +121,7 @@ export default function EvolucaoPaciente() {
 
         return {
           id: aval.id,
+          video_url: aval.video_url, // 📹 URL do vídeo individual da avaliação
           nome_avaliacao: `Av. ${index + 1}`,
           dataStr_curta: new Date(aval.data_avaliacao).toLocaleDateString('pt-BR', { timeZone: 'UTC', day: '2-digit', month: '2-digit', year: 'numeric' }),
           dataStr: new Date(aval.data_avaliacao).toLocaleDateString('pt-BR', { timeZone: 'UTC' }),
@@ -144,7 +146,6 @@ export default function EvolucaoPaciente() {
           coxa_med: Number(aval.perimetro_coxa_media || 0).toFixed(1),
           perim_panturrilha: Number(aval.perimetro_panturrilha || 0).toFixed(1),
 
-          // Perímetros Corrigidos por Dobras
           perim_corrigido_braco: Number(calc.perimetro_corrigido_braco || 0).toFixed(1),
           perim_corrigido_coxa: Number(calc.perimetro_corrigido_coxa || 0).toFixed(1),
           perim_corrigido_panturrilha: Number(calc.perimetro_corrigido_panturrilha || 0).toFixed(1),
@@ -218,27 +219,27 @@ export default function EvolucaoPaciente() {
     )
   }
 
-  // Helper de Trava de Visibilidade
-  // Substitua o helper podeExibir nas duas telas por esta implementação inteligente:
-const podeExibir = (chave) => {
-  if (!configVisibilidade) return true;
+  // 📹 PEGA O VÍDEO DA ÚLTIMA AVALIAÇÃO OU O VÍDEO PADRÃO DO CONSULTÓRIO
+  const ultimaAvaliacao = historico[historico.length - 1]
+  const urlVideoRaw = ultimaAvaliacao?.video_url || avaliador?.video_url_padrao
+  const videoEmbedUrl = obterUrlEmbedYouTube(urlVideoRaw)
 
-  const idPaciente = pacienteLocal?.id || pac?.id;
+  // Helper de Trava de Visibilidade Inteligente
+  const podeExibir = (chave) => {
+    if (!configVisibilidade) return true;
 
-  // 1. Checa se existe regra individual para ESTE paciente
-  if (idPaciente && configVisibilidade.pacientes?.[idPaciente]?.[chave] !== undefined) {
-    return configVisibilidade.pacientes[idPaciente][chave];
+    const idPaciente = pacienteLocal?.id;
+
+    if (idPaciente && configVisibilidade.pacientes?.[idPaciente]?.[chave] !== undefined) {
+      return configVisibilidade.pacientes[idPaciente][chave];
+    }
+
+    if (configVisibilidade[chave] !== undefined) {
+      return configVisibilidade[chave] !== false;
+    }
+
+    return true;
   }
-
-  // 2. Se não tem regra do paciente, usa a regra GLOBAL
-  if (configVisibilidade[chave] !== undefined) {
-    return configVisibilidade[chave] !== false;
-  }
-
-  // 3. Se nada foi configurado ainda, exibe por padrão
-  return true;
-}
-
 
   // Cálculos Demográficos
   let idade = '-'
@@ -251,7 +252,7 @@ const podeExibir = (chave) => {
   }
   const ultimaEstatura = historico[historico.length - 1]?.estatura || 0
 
-  const handleWhatsApp = () => {
+   const handleWhatsApp = () => {
     const telefoneLimpo = pacienteLocal?.telefone ? pacienteLocal.telefone.replace(/\D/g, '') : '';
     if (!telefoneLimpo) {
       alert('Este paciente não possui telefone cadastrado.');
@@ -261,16 +262,16 @@ const podeExibir = (chave) => {
     const saudacao = avaliador?.nome_completo ? avaliador.nome_completo : 'seu Avaliador';
 
     const tokenPublico = pacienteLocal?.token_publico;
-    const linkDaEvolucao = tokenPublico 
+    const linkDaEvolucao = tokenPublico
         ? `${window.location.origin}/evolucao/${tokenPublico}`
         : window.location.origin;
-
     const msg = `Olá *${primeiroNome}*, tudo bem?\n\nAqui é ${saudacao}! Acabei de atualizar a sua *Evolução Antropométrica* com os dados da nossa última consulta.\n\nAcesse o link abaixo para visualizar seus resultados interativos e acompanhar sua evolução:\n\n${linkDaEvolucao}\n\nQualquer dúvida, estou à disposição!`;
     const link = `https://wa.me/${telefoneLimpo.startsWith('55') ? telefoneLimpo : '55' + telefoneLimpo}?text=${encodeURIComponent(msg)}`;
     window.open(link, '_blank');
-  }
+  } 
 
-  // COMPONENTE: Cartão de Evolução (Híbrido - Horizontal para 2 / Vertical para 3+ / Com Trava Individual)
+
+  // COMPONENTE: Cartão de Evolução
   const CardEvolucao = ({ titulo, chaveDado, unidade = "", isInverso = false, chaveVisibilidade }) => {
     if (!podeExibir(chaveVisibilidade)) return null;
 
@@ -346,8 +347,8 @@ const podeExibir = (chave) => {
                 <div key={idx} className="flex items-center flex-1">
                   <div className="flex flex-col items-center justify-center p-2 rounded-lg bg-gray-50/50 border border-gray-50 w-full min-w-[70px]">
                     <div className="flex flex-col items-center mb-1">
-                        <span className="text-[9px] font-bold uppercase" style={{ color: av.cor }}>{av.nome_avaliacao}</span>
-                        <span className="text-[8px] text-gray-400 font-medium">{av.dataStr_curta}</span>
+                      <span className="text-[9px] font-bold uppercase" style={{ color: av.cor }}>{av.nome_avaliacao}</span>
+                      <span className="text-[8px] text-gray-400 font-medium">{av.dataStr_curta}</span>
                     </div>
                     <span className="text-lg font-black text-gray-800">{valorAtual.toFixed(1)}</span>
                   </div>
@@ -362,7 +363,7 @@ const podeExibir = (chave) => {
     )
   }
 
-  // COMPONENTE: Barras de Somatotipo Individuais
+  // COMPONENTE: Barras de Somatotipo
   const BarChartSomatotipo = () => {
     const maxVal = 12;
 
@@ -408,7 +409,6 @@ const podeExibir = (chave) => {
   return (
     <div className="w-full max-w-6xl mx-auto space-y-10 pb-12 px-4 sm:px-6 overflow-x-hidden animate-fade-in-up print:m-0 print:p-0 print:overflow-visible">
 
-      {/* CSS para Imprimir em PDF */}
       <style>{`
         @media print {
           .no-print { display: none !important; }
@@ -420,8 +420,6 @@ const podeExibir = (chave) => {
 
       {/* --- CABEÇALHO PROFISSIONAL --- */}
       <div className="bg-white p-5 sm:p-6 rounded-xl border border-gray-100 shadow-sm flex flex-col gap-6 w-full min-w-0 overflow-hidden">
-
-        {/* Topo: Avaliador, Logo e Botões */}
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center border-b border-gray-100 pb-4 gap-4 w-full">
           <div className="flex items-center gap-4">
             {avaliador?.logomarca_url ? (
@@ -450,7 +448,6 @@ const podeExibir = (chave) => {
           </div>
         </div>
 
-        {/* Dados Demográficos do Paciente */}
         <div className="w-full min-w-0">
           <h2 className="text-sm font-bold text-gray-500 uppercase tracking-wider mb-1">Evolução Antropométrica de</h2>
           <h2 className="text-2xl sm:text-3xl font-black text-gray-900 uppercase tracking-tight break-words break-all sm:break-normal">
@@ -512,10 +509,9 @@ const podeExibir = (chave) => {
         </div>
       )}
 
-      {/* BLOCO 2: Gráficos Visuais de Composição e Somatotipo */}
+      {/* BLOCO 2: Gráficos Visuais */}
       {(podeExibir('evo_grafico_massa') || podeExibir('evo_grafico_gordura') || podeExibir('evo_grafico_somatocarta')) && (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 break-inside-avoid w-full min-w-0">
-          {/* Gráfico 1: Peso, Músculo e Gordura em KG */}
           {podeExibir('evo_grafico_massa') && (
             <div className="bg-white p-4 sm:p-6 rounded-xl border border-gray-100 shadow-sm flex flex-col min-w-0 w-full overflow-hidden">
               <h3 className="text-sm font-black text-gray-800 uppercase tracking-wider mb-6">Composição (kg)</h3>
@@ -538,7 +534,6 @@ const podeExibir = (chave) => {
             </div>
           )}
 
-          {/* Gráfico 2: Exclusivo % de Gordura */}
           {podeExibir('evo_grafico_gordura') && (
             <div className="bg-white p-4 sm:p-6 rounded-xl border border-gray-100 shadow-sm flex flex-col min-w-0 w-full overflow-hidden">
               <h3 className="text-sm font-black text-gray-800 uppercase tracking-wider mb-6">Evolução % de Gordura</h3>
@@ -559,7 +554,6 @@ const podeExibir = (chave) => {
             </div>
           )}
 
-          {/* Gráfico 3: Somatocarta */}
           {podeExibir('evo_grafico_somatocarta') && (
             <div className="bg-white p-4 sm:p-6 rounded-xl border border-gray-100 shadow-sm flex flex-col items-center justify-between min-w-0 w-full overflow-hidden">
               <h3 className="text-sm font-black text-gray-800 uppercase tracking-wider w-full text-left mb-4">Trajetória do Somatotipo</h3>
@@ -634,7 +628,6 @@ const podeExibir = (chave) => {
             <CardEvolucao titulo="Panturrilha" chaveDado="perim_panturrilha" unidade="cm" isInverso={false} chaveVisibilidade="evo_perim_panturrilha" />
           </div>
 
-          {/* 🚀 GRÁFICO 1 NOVO: Comparativo em Linhas para Perímetros Críticos (Cintura, Quadril e Braço Contraído) */}
           {exibeGraficoPerimetrosCriticos && (
             <div className="bg-white p-4 sm:p-6 rounded-xl border border-gray-100 shadow-sm flex flex-col min-w-0 w-full overflow-hidden">
               <h3 className="text-sm font-black text-gray-800 uppercase tracking-wider mb-6">Comparativo de Perímetros Críticos (cm)</h3>
@@ -657,7 +650,6 @@ const podeExibir = (chave) => {
             </div>
           )}
 
-          {/* SUBSEÇÃO: Perímetros Corrigidos por Dobras Cutâneas */}
           {(podeExibir('evo_perim_braco_rel') || podeExibir('evo_perim_coxa_med') || podeExibir('evo_perim_panturrilha')) && (
             <div className="pt-4 space-y-4 border-t border-gray-100">
               <div className="flex items-center gap-2">
@@ -671,7 +663,6 @@ const podeExibir = (chave) => {
                 <CardEvolucao titulo="Panturrilha Corrigida" chaveDado="perim_corrigido_panturrilha" unidade="cm" isInverso={false} chaveVisibilidade="evo_perim_panturrilha" />
               </div>
 
-              {/* 🚀 GRÁFICO 3 NOVO: Evolução das Circunferências Corrigidas */}
               <div className="bg-white p-4 sm:p-6 rounded-xl border border-gray-100 shadow-sm flex flex-col min-w-0 w-full overflow-hidden">
                 <h3 className="text-sm font-black text-gray-800 uppercase tracking-wider mb-6">Evolução do Perímetro Corrigido / Muscular (cm)</h3>
                 <div className="w-full h-[280px] relative">
@@ -732,7 +723,6 @@ const podeExibir = (chave) => {
                 <CardEvolucao titulo="Somatório 8 Dobras" chaveDado="soma_8" unidade="mm" isInverso={true} chaveVisibilidade="evo_soma_8" />
               </div>
 
-              {/* 🚀 GRÁFICO 2 NOVO: Evolução do Somatório de Dobras (Σ 6 e Σ 8) */}
               <div className="bg-white p-4 sm:p-6 rounded-xl border border-gray-100 shadow-sm flex flex-col min-w-0 w-full overflow-hidden">
                 <h3 className="text-sm font-black text-gray-800 uppercase tracking-wider mb-6">Evolução do Somatório de Dobras (mm)</h3>
                 <div className="w-full h-[280px] relative">
@@ -775,13 +765,39 @@ const podeExibir = (chave) => {
         </div>
       )}
 
+      {/* 🎥 PLAYER DE VÍDEO DO LAUDO (ÚLTIMA AVALIAÇÃO OU VÍDEO PADRÃO) */}
+      {videoEmbedUrl && (
+        <div className="bg-white border border-slate-200 rounded-3xl p-5 sm:p-6 shadow-sm space-y-3 my-6">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 bg-emerald-50 text-emerald-600 rounded-xl flex items-center justify-center font-bold text-base">
+              📹
+            </div>
+            <div>
+              <h3 className="text-sm font-bold text-slate-900">Mensagem & Orientações em Vídeo</h3>
+              <p className="text-xs text-slate-500">Assista às explicações do seu avaliador sobre os seus resultados.</p>
+            </div>
+          </div>
+
+          {/* Player Responsivo 16:9 */}
+          <div className="aspect-video w-full rounded-2xl overflow-hidden shadow-md bg-slate-900">
+            <iframe
+              src={videoEmbedUrl}
+              title="Orientações do Avaliador"
+              className="w-full h-full"
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+              allowFullScreen
+            />
+          </div>
+        </div>
+      )}
+
       <div className="flex justify-end gap-2 w-full mt-6 no-print">
         <BotaoExportarEvolucaoPDF 
-            historico={historico} 
-            paciente={pacienteLocal} 
-            avaliador={avaliador} 
-            idade={idade}
-            isPublicView={isPublicView}
+          historico={historico} 
+          paciente={pacienteLocal} 
+          avaliador={avaliador} 
+          idade={idade}
+          isPublicView={isPublicView}
         />
       </div>
     </div>
