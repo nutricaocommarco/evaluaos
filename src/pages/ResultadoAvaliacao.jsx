@@ -66,6 +66,29 @@ const classificarImc = (imc) => {
   return { label: 'Obesidade Grau III', cor: 'red' };
 }
 
+// --- RELAÇÃO CINTURA-ESTATURA (RCE) ---
+const classificarRce = (rce) => {
+  if (!rce || rce <= 0) return { classificacao: '-', cor: 'gray' };
+  if (rce < 0.40) return { classificacao: 'Muito Baixo', cor: 'blue' };
+  if (rce <= 0.50) return { classificacao: 'Saudável', cor: 'emerald' };
+  if (rce <= 0.60) return { classificacao: 'Aumentado', cor: 'amber' };
+  return { classificacao: 'Muito Aumentado', cor: 'red' };
+}
+
+// --- RELAÇÃO CINTURA-QUADRIL (RCQ) ---
+const classificarRcq = (rcq, sexo) => {
+  if (!rcq || rcq <= 0) return { classificacao: '-', cor: 'gray' };
+  if (sexo === 'M') {
+    if (rcq < 0.90) return { classificacao: 'Baixo Risco', cor: 'emerald' };
+    if (rcq <= 0.99) return { classificacao: 'Risco Moderado', cor: 'amber' };
+    return { classificacao: 'Risco Alto', cor: 'red' };
+  } else {
+    if (rcq < 0.80) return { classificacao: 'Baixo Risco', cor: 'emerald' };
+    if (rcq <= 0.85) return { classificacao: 'Risco Moderado', cor: 'amber' };
+    return { classificacao: 'Risco Alto', cor: 'red' };
+  }
+}
+
 // --- FUNÇÕES DE CLASSIFICAÇÃO DAS NORMAS NORMATIVAS ---
 const classificarArgoref = (soma6, sexo) => {
   if (!soma6 || soma6 <= 0) return { classificacao: '-', cor: 'gray' };
@@ -401,7 +424,7 @@ export default function ResultadoAvaliacao() {
   }
 
   const imc = dados.imc || 0
-  const infoImc = classificarImc(imc) // 🌟 CLASSIFICAÇÃO DO IMC
+  const infoImc = classificarImc(imc)
   const percentualGordura = aval.percentual_de_gordura || 0 
   const massaGorda = dados.massa_gorda || 0
   const massaMagra = dados.massa_magra || 0
@@ -432,7 +455,11 @@ export default function ResultadoAvaliacao() {
   const coordY = 150 - ((dados.somatocarta_eixo_y || 0) * 11)
 
   const rcq = dados.relacao_cintura_quadril || 0;
+  const infoRcq = classificarRcq(rcq, pac.sexo);
+
   const rce = dados.relacao_cintura_estatura || 0;
+  const infoRce = classificarRce(rce);
+
   const soma6 = dados.somatorio_6_dobras || 0;
   const soma8 = dados.somatorio_8_dobras || 0;
 
@@ -581,7 +608,7 @@ export default function ResultadoAvaliacao() {
           <h3 className="text-sm font-bold text-gray-800 uppercase tracking-wider mb-3 px-1 mt-6">📊 2. Composição Corporal</h3>
           <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
             
-            {/* 🌟 CARD DO IMC COM CLASSIFICAÇÃO EXPLICITA */}
+            {/* CARD DO IMC COM CLASSIFICAÇÃO */}
             {podeExibir('laudo_imc') && (
               <div className="bg-white p-5 rounded-xl border border-gray-100 shadow-sm flex flex-col justify-between">
                 <div>
@@ -659,18 +686,52 @@ export default function ResultadoAvaliacao() {
         <div>
           <h3 className="text-sm font-bold text-gray-800 uppercase tracking-wider mb-3 px-1 mt-6">⚖️ 4. Indicadores de Saúde</h3>
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            
+            {/* RCQ COM BADGE DE CLASSIFICAÇÃO */}
             {podeExibir('laudo_rcq') && (
-              <div className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm flex justify-between items-center">
-                <span className="text-xs font-bold text-gray-600">Relação Cintura-Quadril</span>
-                <span className="text-lg font-black text-indigo-600">{rcq > 0 ? rcq.toFixed(2) : '-'}</span>
+              <div className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm space-y-2">
+                <div className="flex justify-between items-center">
+                  <span className="text-xs font-bold text-gray-600">Relação Cintura-Quadril</span>
+                  <span className="text-lg font-black text-indigo-600">{rcq > 0 ? rcq.toFixed(2) : '-'}</span>
+                </div>
+                {rcq > 0 && (
+                  <div className="pt-2 border-t border-gray-50 flex justify-between items-center">
+                    <span className="text-[10px] text-gray-400 font-medium">Classificação:</span>
+                    <span className={`text-[9px] font-extrabold px-2 py-0.5 rounded uppercase tracking-wider ${
+                      infoRcq.cor === 'red' ? 'bg-red-100 text-red-800' :
+                      infoRcq.cor === 'amber' ? 'bg-amber-100 text-amber-800' :
+                      'bg-emerald-100 text-emerald-800'
+                    }`}>
+                      {infoRcq.classificacao}
+                    </span>
+                  </div>
+                )}
               </div>
             )}
+
+            {/* RCE COM BADGE DE CLASSIFICAÇÃO */}
             {podeExibir('laudo_rce') && (
-              <div className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm flex justify-between items-center">
-                <span className="text-xs font-bold text-gray-600">Relação Cintura-Estatura</span>
-                <span className="text-lg font-black text-indigo-600">{rce > 0 ? rce.toFixed(2) : '-'}</span>
+              <div className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm space-y-2">
+                <div className="flex justify-between items-center">
+                  <span className="text-xs font-bold text-gray-600">Relação Cintura-Estatura</span>
+                  <span className="text-lg font-black text-indigo-600">{rce > 0 ? rce.toFixed(2) : '-'}</span>
+                </div>
+                {rce > 0 && (
+                  <div className="pt-2 border-t border-gray-50 flex justify-between items-center">
+                    <span className="text-[10px] text-gray-400 font-medium">Classificação:</span>
+                    <span className={`text-[9px] font-extrabold px-2 py-0.5 rounded uppercase tracking-wider ${
+                      infoRce.cor === 'red' ? 'bg-red-100 text-red-800' :
+                      infoRce.cor === 'amber' ? 'bg-amber-100 text-amber-800' :
+                      infoRce.cor === 'blue' ? 'bg-blue-100 text-blue-800' :
+                      'bg-emerald-100 text-emerald-800'
+                    }`}>
+                      {infoRce.classificacao}
+                    </span>
+                  </div>
+                )}
               </div>
             )}
+
             {podeExibir('laudo_status_cintura') && (
               <div className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm flex justify-between items-center">
                 <span className="text-xs font-semibold text-gray-700">Circunferência da Cintura (Status)</span>
@@ -891,13 +952,20 @@ export default function ResultadoAvaliacao() {
               )}
             </div>
 
-            {/* ÍNDICE ADIPOSO MUSCULAR (IAM) */}
+            {/* ÍNDICE ADIPOSO MUSCULAR (IAM) COM EXPLICAÇÃO PRÁTICA */}
             {podeExibir('laudo_iam') && (
-              <div className="flex justify-between items-center p-3 border border-gray-100 rounded-lg bg-gray-50">
-                <span className="text-xs font-semibold text-gray-700">Índice Adiposo Muscular (IAM)</span>
-                <span className="text-xs font-bold text-gray-800">
-                  {iamVal > 0 ? iamVal.toFixed(2) : '-'}
-                </span>
+              <div className="flex flex-col justify-between p-3 border border-gray-100 rounded-lg bg-gray-50 space-y-1">
+                <div className="flex justify-between items-center">
+                  <span className="text-xs font-semibold text-gray-700">Índice Adiposo Muscular (IAM)</span>
+                  <span className="text-xs font-bold text-gray-800">
+                    {iamVal > 0 ? iamVal.toFixed(2) : '-'}
+                  </span>
+                </div>
+                {iamVal > 0 && (
+                  <p className="text-[10px] text-gray-500 pt-1 border-t border-gray-100">
+                    Você possui <strong className="text-gray-700">{(iamVal * 1000).toFixed(0)}g de gordura</strong> para cada <strong className="text-emerald-700">1kg de músculo</strong>.
+                  </p>
+                )}
               </div>
             )}
 

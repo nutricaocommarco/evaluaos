@@ -1,9 +1,79 @@
 /**
  * MÚDULO DE TABELAS E ESCALAS NORMATIVAS - EVALUAOS
- * Referências: ARGOREF (Holway), Campa et al. (2025), Morrow et al. (2003), Lohman (1992)
+ * Referências: ARGOREF (Holway), Campa et al. (2025), Morrow et al. (2003), Lohman (1992), OMS, WHO, Carter & Heath (1990)
  */
 
-// 1. ESCALA ARGOREF (Holway, 2025) - Σ 6 Dobras para Adultos (20 a 30 anos)
+// 1. ESCALA DE IMC (Organização Mundial da Saúde)
+export function classificarImc(imc) {
+  if (!imc || imc <= 0) return { classificacao: '-', cor: 'gray' };
+
+  if (imc < 18.5) return { classificacao: 'Abaixo do Peso', cor: 'blue' };
+  if (imc < 25.0) return { classificacao: 'Peso Normal (Eutrofia)', cor: 'emerald' };
+  if (imc < 30.0) return { classificacao: 'Sobrepeso', cor: 'amber' };
+  if (imc < 35.0) return { classificacao: 'Obesidade Grau I', cor: 'orange' };
+  if (imc < 40.0) return { classificacao: 'Obesidade Grau II', cor: 'orange' };
+  return { classificacao: 'Obesidade Grau III', cor: 'red' };
+}
+
+// 2. RELAÇÃO CINTURA-ESTATURA (RCE) - Diretrizes de Saúde Geral
+export function classificarRce(rce) {
+  if (!rce || rce <= 0) return { classificacao: '-', cor: 'gray' };
+
+  if (rce < 0.40) return { classificacao: 'Risco (Muito Baixo)', cor: 'blue' };
+  if (rce <= 0.50) return { classificacao: 'Saudável (Baixo Risco)', cor: 'emerald' };
+  if (rce <= 0.60) return { classificacao: 'Risco Aumentado', cor: 'amber' };
+  return { classificacao: 'Risco Muito Aumentado', cor: 'red' };
+}
+
+// 3. RELAÇÃO CINTURA-QUADRIL (RCQ) - OMS (Risco Cardiometabólico)
+export function classificarRcq(rcq, sexo) {
+  if (!rcq || rcq <= 0) return { classificacao: '-', cor: 'gray' };
+
+  if (sexo === 'M') {
+    if (rcq < 0.90) return { classificacao: 'Baixo Risco', cor: 'emerald' };
+    if (rcq <= 0.99) return { classificacao: 'Risco Moderado', cor: 'amber' };
+    return { classificacao: 'Risco Alto', cor: 'red' };
+  } else {
+    if (rcq < 0.80) return { classificacao: 'Baixo Risco', cor: 'emerald' };
+    if (rcq <= 0.85) return { classificacao: 'Risco Moderado', cor: 'amber' };
+    return { classificacao: 'Risco Alto', cor: 'red' };
+  }
+}
+
+// PONTOS DE APOIO VERBAIS DO SOMATOTIPO (Carter & Heath, 1990) - VERSÃO LINGUAGEM PRÁTICA E LEIGA
+export function classificarSomatotipoDetalhado({ endomorfia, mesomorfia, ectomorfia }) {
+  const descreverEndo = (val) => {
+    if (!val || val <= 0) return '-';
+    if (val <= 2.5) return 'Baixo acúmulo de gordura corporal. A pele é fina e os contornos de ossos e músculos são bem visíveis.';
+    if (val <= 4.5) return 'Gordura corporal moderada. Uma camada suave cobre os músculos e ossos, dando um aspecto físico macio, mas equilibrado.';
+    if (val <= 6.5) return 'Acúmulo elevado de gordura corporal. Tronco e braços/pernas têm aspecto arredondado, com maior concentração de gordura na região abdominal.';
+    return 'Gordura corporal bastante elevada. Camada espessa de gordura subcutânea espalhada pelo corpo, principalmente na barriga e na parte alta dos braços e coxas.';
+  };
+
+  const descreverMeso = (val) => {
+    if (!val || val <= 0) return '-';
+    if (val <= 2.5) return 'Desenvolvimento muscular e ósseo discreto. Estrutura física mais fina, com articulações e ossos pequenos.';
+    if (val <= 4.5) return 'Desenvolvimento muscular e ósseo moderado. Estrutura física equilibrada, com bom volume muscular e ossos de tamanho médio.';
+    if (val <= 6.5) return 'Forte desenvolvimento muscular e ósseo. Músculos bem desenhados e volumosos, ombros largos e articulações firmes e grandes.';
+    return 'Desenvolvimento muscular e ósseo máximo. Fisico naturalmente muito forte, com massa muscular densa, volumosa e ossatura bem larga.';
+  };
+
+  const descreverEcto = (val) => {
+    if (!val || val <= 0) return '-';
+    if (val <= 2.5) return 'Estrutura mais compacta e densa. Menor sensação de comprimento em relação ao volume do corpo.';
+    if (val <= 4.5) return 'Estrutura física moderadamente alongada. Proporção equilibrada entre a altura e o volume do corpo.';
+    if (val <= 6.5) return 'Corpo magro e alongado. Estrutura fina, com poucos volumes de gordura ou músculo acumulados.';
+    return 'Estrutura física bastante alta e esguia. Braços e pernas longos, com perfil muito magro e pouca massa acumulada por altura.';
+  };
+
+  return {
+    endomorfia: { valor: endomorfia, descricao: descreverEndo(endomorfia) },
+    mesomorfia: { valor: mesomorfia, descricao: descreverMeso(mesomorfia) },
+    ectomorfia: { valor: ectomorfia, descricao: descreverEcto(ectomorfia) }
+  };
+}
+
+// 5. ESCALA ARGOREF (Holway, 2025) - Σ 6 Dobras para Adultos (20 a 30 anos)
 export function classificarArgoref(soma6, sexo) {
   if (!soma6 || soma6 <= 0) return { classificacao: '-', cor: 'gray' };
 
@@ -22,11 +92,10 @@ export function classificarArgoref(soma6, sexo) {
   }
 }
 
-// 2. PERCENTIS ITALIANOS / ISAK (Campa et al., 2025) - Σ 6 Dobras por Faixa Etária
+// 6. PERCENTIS ITALIANOS / ISAK (Campa et al., 2025) - Σ 6 Dobras por Faixa Etária
 export function classificarPercentilItaliano(soma6, sexo, idade) {
   if (!soma6 || soma6 <= 0 || !idade) return '-';
 
-  // Tabela de percentis
   const tabela = [
     { minIdade: 0, maxIdade: 19, M: [59.8, 68.3, 85.0, 111.0, 137.7, 163.8], H: [33.2, 39.7, 47.6, 67.0, 96.0, 119.7] },
     { minIdade: 20, maxIdade: 24, M: [54.6, 66.7, 80.5, 102.4, 129.8, 151.3], H: [36.0, 44.2, 53.4, 68.3, 92.0, 126.0] },
@@ -52,7 +121,7 @@ export function classificarPercentilItaliano(soma6, sexo, idade) {
   return 'Acima do P90';
 }
 
-// 3. CLASSIFICAÇÃO DE MORROW ET AL. (2003) - % Gordura por Idade
+// 7. CLASSIFICAÇÃO DE MORROW ET AL. (2003) - % Gordura por Idade
 export function classificarMorrow(percentualGordura, sexo, idade) {
   if (!percentualGordura || percentualGordura <= 0 || !idade) return { classificacao: '-', cor: 'gray' };
 
@@ -85,7 +154,7 @@ export function classificarMorrow(percentualGordura, sexo, idade) {
   return { classificacao: 'Muito Elevado', cor: 'red' };
 }
 
-// 4. CLASSIFICAÇÃO DE LOHMAN (1992) - Risco à Saúde por %Gordura
+// 8. CLASSIFICAÇÃO DE LOHMAN (1992) - Risco à Saúde por %Gordura
 export function classificarLohman(percentualGordura, sexo) {
   if (!percentualGordura || percentualGordura <= 0) return { classificacao: '-', cor: 'gray' };
 
