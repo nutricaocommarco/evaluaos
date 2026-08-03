@@ -101,7 +101,7 @@ export function recomendarEquacaoIdeal(medidas = {}, paciente = {}) {
   const esporte = paciente.pratica_esporte === true || paciente.pratica_esporte === 'true'
   const modalidade = (paciente.modalidade_esportiva || '').toLowerCase()
 
-  // 1. Dados Demográficos & Idade
+  // 1. Idade Segura
   let idade = Number(paciente.idade || paciente.idade_anos || medidas.idade_anos) || 0
   if (!idade && (paciente.data_nascimento || paciente.data_nasc)) {
     const dataNascStr = paciente.data_nascimento || paciente.data_nasc
@@ -113,7 +113,7 @@ export function recomendarEquacaoIdeal(medidas = {}, paciente = {}) {
   }
   if (!idade || idade <= 0) idade = 25;
 
-  // 2. Medidas Antropométricas & Fracionamento (Kerr, Lee, Rocha, Würch)
+  // 2. Extração de Parâmetros Anatômicos e Fracionamento Completo
   const peso = Number(medidas.peso_paciente || medidas.massa_kg || medidas.peso_kg) || 0
   const alturaCm = Number(medidas.altura_paciente || medidas.estatura_cm || medidas.altura_cm) || 0
   const alturaM = alturaCm / 100
@@ -130,7 +130,7 @@ export function recomendarEquacaoIdeal(medidas = {}, paciente = {}) {
   const soma6 = tr + sub + si + se + ab + cx
   const soma8 = soma6 + bi + pa
 
-  // Trava de Kerr (1991) em Kg
+  // Trava de Kerr (1991) em Kg (Massa Adiposa Anatômica)
   let massaAdiposaKerr = 0
   if (soma6 > 0 && alturaCm > 0) {
     const zAdiposo = ((soma6 * (170.18 / alturaCm)) - 116.41) / 34.79
@@ -203,7 +203,7 @@ export function recomendarEquacaoIdeal(medidas = {}, paciente = {}) {
   const ehFalsoSobrepeso = imcVal >= 25.0 && ehHipertrofiado
 
   // ============================================================
-  // 7. SISTEMA ESPECIALISTA: CRUZAMENTO DE TODAS AS EQUAÇÕES
+  // 7. SISTEMA ESPECIALISTA: PONTUAÇÃO DE TODAS AS EQUAÇÕES
   // ============================================================
   const listaCandidatas = sexo === 'F' ? METADADOS_EQUACOES.filter(e => e.sexo === 'F') : METADADOS_EQUACOES.filter(e => e.sexo === 'M')
 
@@ -211,34 +211,34 @@ export function recomendarEquacaoIdeal(medidas = {}, paciente = {}) {
     let score = 50
     let razoes = []
 
-    // A. Compatibilidade Etária
+    // A. Idade
     if (idade >= eq.idadeMin && idade <= eq.idadeMax) {
       score += 20
-      razoes.push(`Idade compatível (${idade} anos está dentro da faixa de validação de ${eq.idadeMin}-${eq.idadeMax} anos).`)
+      razoes.push(`Idade compatível (${idade} anos está dentro da faixa original de ${eq.idadeMin}-${eq.idadeMax} anos).`)
     } else {
       score -= 30
       razoes.push(`Fora da faixa etária original (${eq.idadeMin}-${eq.idadeMax} anos).`)
     }
 
-    // B. Perfil Demográfico e Atividade
+    // B. Perfil Demográfico / Esportivo
     if (idade < 18 && eq.pop === 'crianca') {
       score += 30
-      razoes.push('Desenvolvida especificamente para o público infantojuvenil.')
+      razoes.push('Específica para maturação e crescimento infantojuvenil.')
     } else if (idade >= 60 && eq.pop === 'idoso') {
       score += 30
-      razoes.push('Calibrada para as alterações teciduais e perda mineral da longevidade.')
+      razoes.push('Calibrada para alterações geriátricas e densidade tecidual avançada.')
     } else if (ehFalsoSobrepeso && eq.tipo === 'dobras') {
       score += 35
-      razoes.push(`Proteção contra Falso Sobrepeso (IMC: ${imcVal.toFixed(1)} com Mesomorfia ${mesomorfia.toFixed(1)}): Equação baseada em dobras isola o tecido adiposo da alta massa muscular.`)
+      razoes.push(`Proteção contra Falso Sobrepeso (IMC: ${imcVal.toFixed(1)} com Mesomorfia ${mesomorfia.toFixed(1)}): Equação por dobras isola a alta massa muscular.`)
     } else if (esporte && eq.pop === 'atleta') {
       score += 25
-      razoes.push('Validação direcionada para praticantes de atividade física regular ou atletas.')
+      razoes.push('Validada em populações atléticas e fisicamente ativas.')
     } else if (!esporte && eq.pop === 'geral') {
       score += 15
-      razoes.push('Indicada para o perfil populacional geral sedentário/ativo padrão.')
+      razoes.push('Indicada para a população adulta padrão.')
     }
 
-    // C. Validação Anatômica por Kerr (1991) em KG
+    // C. Validação Anatômica pela Trava de Kerr (em Kg)
     try {
       const resSimulado = eq.func(medidas, paciente)
       const pgcSimulado = typeof resSimulado === 'object' ? resSimulado.valor : resSimulado
@@ -249,13 +249,13 @@ export function recomendarEquacaoIdeal(medidas = {}, paciente = {}) {
 
         if (diffKerrKg <= 2.0) {
           score += 40
-          razoes.push(`Excelente convergência biológica com o Fracionamento Anatômico de Kerr (Diferença de apenas ${diffKerrKg.toFixed(2)} kg em relação ao teto de tecido adiposo real).`)
+          razoes.push(`Convergência anatômica excelente com o Fracionamento de Kerr (Desvio de apenas ${diffKerrKg.toFixed(2)} kg em relação ao teto adiposo tecidual).`)
         } else if (diffKerrKg <= 5.0) {
           score += 15
-          razoes.push(`Boa compatibilidade com a massa adiposa tecidual de Kerr (${diffKerrKg.toFixed(2)} kg de desvio).`)
+          razoes.push(`Boa compatibilidade biológica com a massa adiposa em kg de Kerr (${diffKerrKg.toFixed(2)} kg de desvio).`)
         } else {
-          score -= 30
-          razoes.push(`Elevada divergência geométrica com a massa adiposa de Kerr (${diffKerrKg.toFixed(2)} kg de diferença), sugerindo risco de superestimativa ou subestimativa.`)
+          score -= 25
+          razoes.push(`Divergência expressiva de massa gorda em kg em relação ao modelo de Kerr (${diffKerrKg.toFixed(2)} kg de diferença).`)
         }
       }
     } catch (err) {
@@ -269,7 +269,7 @@ export function recomendarEquacaoIdeal(medidas = {}, paciente = {}) {
     }
   })
 
-  // Ordena por pontuação e extrai as 3 melhores opções para o Avaliador escolher
+  // Ordena por pontuação decrescente e extrai as 3 melhores opções para o Avaliador
   equacoesPontuadas.sort((a, b) => b.score - a.score)
   const melhoresOpcoes = equacoesPontuadas.slice(0, 3)
 
@@ -294,7 +294,7 @@ export function recomendarEquacaoIdeal(medidas = {}, paciente = {}) {
       soma8,
       endomorfia,
       mesomorfia: Number(mesomorfia.toFixed(1)),
-      statusMorrow: statusMorrow.classificacao || statusMorrow,
+      statusMorrow,
       iamVal: Number(iamVal.toFixed(2)),
       imoVal: Number(imoLeeRocha.toFixed(3)),
       referenciaUsada,
