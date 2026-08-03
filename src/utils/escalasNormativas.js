@@ -1,9 +1,32 @@
 /**
  * MÚDULO DE TABELAS E ESCALAS NORMATIVAS - EVALUAOS
- * Referências: ARGOREF (Holway), Campa et al. (2025), Morrow et al. (2003), Lohman (1992), OMS, WHO, Carter & Heath (1990)
+ * Referências: 
+ * - ARGOREF: Holway (2025)
+ * - apVAT: Samouda et al. (2013); Validações de Brown et al. (2017, 2018) e Ruiz-Castell et al. (2021)
+ * - Percentis ISAK: Campa et al. (2025)
+ * - Gordura %: Morrow et al. (2003) e Lohman (1992)
+ * - Diretrizes Cardiometabólicas: OMS / WHO
+ * - Somatotipo: Carter & Heath (1990)
  */
 
-// 1. ESCALA DE IMC (Organização Mundial da Saúde)
+// 1. ESCALA DE ÁREA DE PREVISÃO VISCERAL - apVAT (Samouda et al., 2013; Ruiz-Castell et al., 2021)
+export function classificarApVat(apvat, sexo) {
+  if (!apvat || apvat <= 0) return { classificacao: '-', cor: 'gray' };
+
+  if (sexo === 'M') {
+    if (apvat < 113.8) return { classificacao: 'Baixo Risco (Q1)', cor: 'emerald' };
+    if (apvat <= 151.6) return { classificacao: 'Risco Moderado (Q2)', cor: 'amber' };
+    if (apvat <= 196.7) return { classificacao: 'Risco Elevado (Q3)', cor: 'orange' };
+    return { classificacao: 'Risco Muito Elevado (Q4)', cor: 'red' };
+  } else {
+    if (apvat < 58.8) return { classificacao: 'Baixo Risco (Q1)', cor: 'emerald' };
+    if (apvat <= 89.4) return { classificacao: 'Risco Moderado (Q2)', cor: 'amber' };
+    if (apvat <= 127.4) return { classificacao: 'Risco Elevado (Q3)', cor: 'orange' };
+    return { classificacao: 'Risco Muito Elevado (Q4)', cor: 'red' };
+  }
+}
+
+// 2. ESCALA DE IMC (Organização Mundial da Saúde - OMS)
 export function classificarImc(imc) {
   if (!imc || imc <= 0) return { classificacao: '-', cor: 'gray' };
 
@@ -15,7 +38,7 @@ export function classificarImc(imc) {
   return { classificacao: 'Obesidade Grau III', cor: 'red' };
 }
 
-// 2. RELAÇÃO CINTURA-ESTATURA (RCE) - Diretrizes de Saúde Geral
+// 3. RELAÇÃO CINTURA-ESTATURA (RCE) - Diretrizes de Saúde Geral
 export function classificarRce(rce) {
   if (!rce || rce <= 0) return { classificacao: '-', cor: 'gray' };
 
@@ -25,7 +48,7 @@ export function classificarRce(rce) {
   return { classificacao: 'Risco Muito Aumentado', cor: 'red' };
 }
 
-// 3. RELAÇÃO CINTURA-QUADRIL (RCQ) - OMS (Risco Cardiometabólico)
+// 4. RELAÇÃO CINTURA-QUADRIL (RCQ) - OMS (Risco Cardiometabólico)
 export function classificarRcq(rcq, sexo) {
   if (!rcq || rcq <= 0) return { classificacao: '-', cor: 'gray' };
 
@@ -40,7 +63,7 @@ export function classificarRcq(rcq, sexo) {
   }
 }
 
-// PONTOS DE APOIO VERBAIS DO SOMATOTIPO (Carter & Heath, 1990) - VERSÃO LINGUAGEM PRÁTICA E LEIGA
+// 5. PONTOS DE APOIO VERBAIS DO SOMATOTIPO (Carter & Heath, 1990)
 export function classificarSomatotipoDetalhado({ endomorfia, mesomorfia, ectomorfia }) {
   const descreverEndo = (val) => {
     if (!val || val <= 0) return '-';
@@ -55,7 +78,7 @@ export function classificarSomatotipoDetalhado({ endomorfia, mesomorfia, ectomor
     if (val <= 2.5) return 'Desenvolvimento muscular e ósseo discreto. Estrutura física mais fina, com articulações e ossos pequenos.';
     if (val <= 4.5) return 'Desenvolvimento muscular e ósseo moderado. Estrutura física equilibrada, com bom volume muscular e ossos de tamanho médio.';
     if (val <= 6.5) return 'Forte desenvolvimento muscular e ósseo. Músculos bem desenhados e volumosos, ombros largos e articulações firmes e grandes.';
-    return 'Desenvolvimento muscular e ósseo máximo. Fisico naturalmente muito forte, com massa muscular densa, volumosa e ossatura bem larga.';
+    return 'Desenvolvimento muscular e ósseo máximo. Fisico naturally muito forte, com massa muscular densa, volumosa e ossatura bem larga.';
   };
 
   const descreverEcto = (val) => {
@@ -73,7 +96,7 @@ export function classificarSomatotipoDetalhado({ endomorfia, mesomorfia, ectomor
   };
 }
 
-// 5. ESCALA ARGOREF (Holway, 2025) - Σ 6 Dobras para Adultos (20 a 30 anos)
+// 6. ESCALA ARGOREF (Holway, 2025) - Σ 6 Dobras para Adultos (20 a 30 anos)
 export function classificarArgoref(soma6, sexo) {
   if (!soma6 || soma6 <= 0) return { classificacao: '-', cor: 'gray' };
 
@@ -92,7 +115,7 @@ export function classificarArgoref(soma6, sexo) {
   }
 }
 
-// 6. PERCENTIS ITALIANOS / ISAK (Campa et al., 2025) - Σ 6 Dobras por Faixa Etária
+// 7. PERCENTIS ITALIANOS / ISAK (Campa et al., 2025) - Σ 6 Dobras por Faixa Etária
 export function classificarPercentilItaliano(soma6, sexo, idade) {
   if (!soma6 || soma6 <= 0 || !idade) return '-';
 
@@ -121,7 +144,7 @@ export function classificarPercentilItaliano(soma6, sexo, idade) {
   return 'Acima do P90';
 }
 
-// 7. CLASSIFICAÇÃO DE MORROW ET AL. (2003) - % Gordura por Idade
+// 8. CLASSIFICAÇÃO DE MORROW ET AL. (2003) - % Gordura por Idade
 export function classificarMorrow(percentualGordura, sexo, idade) {
   if (!percentualGordura || percentualGordura <= 0 || !idade) return { classificacao: '-', cor: 'gray' };
 
@@ -154,7 +177,7 @@ export function classificarMorrow(percentualGordura, sexo, idade) {
   return { classificacao: 'Muito Elevado', cor: 'red' };
 }
 
-// 8. CLASSIFICAÇÃO DE LOHMAN (1992) - Risco à Saúde por %Gordura
+// 9. CLASSIFICAÇÃO DE LOHMAN (1992) - Risco à Saúde por %Gordura
 export function classificarLohman(percentualGordura, sexo) {
   if (!percentualGordura || percentualGordura <= 0) return { classificacao: '-', cor: 'gray' };
 

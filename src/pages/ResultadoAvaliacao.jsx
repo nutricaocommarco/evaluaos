@@ -3,6 +3,15 @@ import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import { supabase } from '../supabaseClient'
 import { obterUrlEmbedYouTube } from '../utils/youtube'
 import BotaoExportarPDF from '../components/BotaoExportarPDF'
+import { 
+  classificarImc, 
+  classificarRce, 
+  classificarRcq, 
+  classificarArgoref, 
+  classificarMorrow, 
+  classificarApVat, 
+  classificarSomatotipoDetalhado 
+} from '../utils/escalasNormativas'
 
 // --- HELPER CÁLCULO DE SOMATOTIPO HEATH-CARTER ---
 const calcularSomatotipo = (medidas) => {
@@ -53,91 +62,6 @@ const calcularSomatotipo = (medidas) => {
     somatocarta_eixo_x: Number(eixoX.toFixed(1)),
     somatocarta_eixo_y: Number(eixoY.toFixed(1))
   }
-}
-
-// --- FUNÇÃO AUXILIAR DE CLASSIFICAÇÃO DE IMC (OMS) ---
-const classificarImc = (imc) => {
-  if (!imc || imc <= 0) return { label: '-', cor: 'gray' };
-  if (imc < 18.5) return { label: 'Abaixo do Peso', cor: 'blue' };
-  if (imc < 25.0) return { label: 'Peso Normal', cor: 'emerald' };
-  if (imc < 30.0) return { label: 'Sobrepeso', cor: 'amber' };
-  if (imc < 35.0) return { label: 'Obesidade Grau I', cor: 'orange' };
-  if (imc < 40.0) return { label: 'Obesidade Grau II', cor: 'orange' };
-  return { label: 'Obesidade Grau III', cor: 'red' };
-}
-
-// --- RELAÇÃO CINTURA-ESTATURA (RCE) ---
-const classificarRce = (rce) => {
-  if (!rce || rce <= 0) return { classificacao: '-', cor: 'gray' };
-  if (rce < 0.40) return { classificacao: 'Muito Baixo', cor: 'blue' };
-  if (rce <= 0.50) return { classificacao: 'Saudável', cor: 'emerald' };
-  if (rce <= 0.60) return { classificacao: 'Aumentado', cor: 'amber' };
-  return { classificacao: 'Muito Aumentado', cor: 'red' };
-}
-
-// --- RELAÇÃO CINTURA-QUADRIL (RCQ) ---
-const classificarRcq = (rcq, sexo) => {
-  if (!rcq || rcq <= 0) return { classificacao: '-', cor: 'gray' };
-  if (sexo === 'M') {
-    if (rcq < 0.90) return { classificacao: 'Baixo Risco', cor: 'emerald' };
-    if (rcq <= 0.99) return { classificacao: 'Risco Moderado', cor: 'amber' };
-    return { classificacao: 'Risco Alto', cor: 'red' };
-  } else {
-    if (rcq < 0.80) return { classificacao: 'Baixo Risco', cor: 'emerald' };
-    if (rcq <= 0.85) return { classificacao: 'Risco Moderado', cor: 'amber' };
-    return { classificacao: 'Risco Alto', cor: 'red' };
-  }
-}
-
-// --- FUNÇÕES DE CLASSIFICAÇÃO DAS NORMAS NORMATIVAS ---
-const classificarArgoref = (soma6, sexo) => {
-  if (!soma6 || soma6 <= 0) return { classificacao: '-', cor: 'gray' };
-
-  if (sexo === 'M') {
-    if (soma6 < 33.6) return { classificacao: 'Muito Baixo', cor: 'blue' };
-    if (soma6 <= 47.1) return { classificacao: 'Baixo', cor: 'emerald' };
-    if (soma6 <= 84.2) return { classificacao: 'Normal', cor: 'emerald' };
-    if (soma6 <= 94.3) return { classificacao: 'Elevado', cor: 'amber' };
-    return { classificacao: 'Muito Elevado', cor: 'red' };
-  } else {
-    if (soma6 < 61.9) return { classificacao: 'Muito Baixo', cor: 'blue' };
-    if (soma6 <= 69.5) return { classificacao: 'Baixo', cor: 'emerald' };
-    if (soma6 <= 112.4) return { classificacao: 'Normal', cor: 'emerald' };
-    if (soma6 <= 121.6) return { classificacao: 'Elevado', cor: 'amber' };
-    return { classificacao: 'Muito Elevado', cor: 'red' };
-  }
-}
-
-const classificarMorrow = (percentualGordura, sexo, idade) => {
-  if (!percentualGordura || percentualGordura <= 0 || !idade) return { classificacao: '-', cor: 'gray' };
-
-  const limitesHomens = [
-    { maxAge: 25, mb: 7, b: 10, bMedia: 13, m: 16, eMedia: 20, elev: 26 },
-    { maxAge: 35, mb: 12, b: 15, bMedia: 18, m: 21, eMedia: 24, elev: 28 },
-    { maxAge: 45, mb: 14, b: 18, bMedia: 21, m: 24, eMedia: 26, elev: 29 },
-    { maxAge: 55, mb: 16, b: 20, bMedia: 23, m: 25, eMedia: 28, elev: 31 },
-    { maxAge: 65, mb: 18, b: 21, bMedia: 24, m: 26, eMedia: 28, elev: 31 },
-    { maxAge: 120, mb: 18, b: 21, bMedia: 23, m: 25, eMedia: 27, elev: 30 }
-  ];
-
-  const limitesMulheres = [
-    { maxAge: 25, mb: 17, b: 20, bMedia: 23, m: 25, eMedia: 28, elev: 31 },
-    { maxAge: 35, mb: 18, b: 21, bMedia: 23, m: 26, eMedia: 30, elev: 35 },
-    { maxAge: 45, mb: 19, b: 23, bMedia: 26, m: 29, eMedia: 32, elev: 36 },
-    { maxAge: 55, mb: 22, b: 25, bMedia: 28, m: 31, eMedia: 34, elev: 38 },
-    { maxAge: 65, mb: 23, b: 26, bMedia: 30, m: 33, eMedia: 36, elev: 38 },
-    { maxAge: 120, mb: 18, b: 25, bMedia: 29, m: 32, eMedia: 35, elev: 38 }
-  ];
-
-  const regras = (sexo === 'M' ? limitesHomens : limitesMulheres).find(r => idade <= r.maxAge) || limitesHomens[limitesHomens.length - 1];
-
-  if (percentualGordura <= regras.mb) return { classificacao: 'Muito Baixo', cor: 'blue' };
-  if (percentualGordura <= regras.b) return { classificacao: 'Baixo', cor: 'emerald' };
-  if (percentualGordura <= regras.bMedia) return { classificacao: 'Abaixo da Média', cor: 'emerald' };
-  if (percentualGordura <= regras.m) return { classificacao: 'Média', cor: 'emerald' };
-  if (percentualGordura <= regras.eMedia) return { classificacao: 'Acima da Média', cor: 'amber' };
-  if (percentualGordura <= regras.elev) return { classificacao: 'Elevado', cor: 'orange' };
-  return { classificacao: 'Muito Elevado', cor: 'red' };
 }
 
 export default function ResultadoAvaliacao() {
@@ -434,29 +358,10 @@ export default function ResultadoAvaliacao() {
   const imoVal = dados.indice_massa_ossea_imo || 0
   const apvatVal = dados.area_previsao_visceral_apvat || 0
 
-  let apvatClassificacao = 'Baixo Risco'
-  let apvatCor = 'emerald'
-
-  if (pac.sexo === 'M') {
-    if (apvatVal >= 196.7) { apvatClassificacao = 'Risco Muito Elevado'; apvatCor = 'red'; }
-    else if (apvatVal >= 151.6) { apvatClassificacao = 'Risco Elevado'; apvatCor = 'orange'; }
-    else if (apvatVal >= 113.8) { apvatClassificacao = 'Risco Moderado'; apvatCor = 'amber'; }
-  } else {
-    if (apvatVal >= 127.4) { apvatClassificacao = 'Risco Muito Elevado'; apvatCor = 'red'; }
-    else if (apvatVal >= 89.4) { apvatClassificacao = 'Risco Elevado'; apvatCor = 'orange'; }
-    else if (apvatVal >= 58.8) { apvatClassificacao = 'Risco Moderado'; apvatCor = 'amber'; }
-  }
-
-  const perimCorrigidoBraco = dados.perimetro_corrigido_braco || 0;
-  const perimCorrigidoCoxa = dados.perimetro_corrigido_coxa || 0;
-  const perimCorrigidoPanturrilha = dados.perimetro_corrigido_panturrilha || 0;
-
-  const coordX = 150 + ((dados.somatocarta_eixo_x || 0) * 15)
-  const coordY = 150 - ((dados.somatocarta_eixo_y || 0) * 11)
-
+  // Chamada de funções do Módulo de Escalas Normativas
+  const infoApVat = classificarApVat(apvatVal, pac.sexo);
   const rcq = dados.relacao_cintura_quadril || 0;
   const infoRcq = classificarRcq(rcq, pac.sexo);
-
   const rce = dados.relacao_cintura_estatura || 0;
   const infoRce = classificarRce(rce);
 
@@ -465,6 +370,20 @@ export default function ResultadoAvaliacao() {
 
   const infoArgoref = classificarArgoref(soma6, pac.sexo);
   const infoMorrow = classificarMorrow(percentualGordura, pac.sexo, idade);
+
+  // Mapeamento das descrições verbais do Somatotipo para leigos
+  const descricoesSomatotipo = classificarSomatotipoDetalhado({
+    endomorfia: dados.somatotipo_endomorfia,
+    mesomorfia: dados.somatotipo_mesomorfia,
+    ectomorfia: dados.somatotipo_ectomorfia
+  });
+
+  const perimCorrigidoBraco = dados.perimetro_corrigido_braco || 0;
+  const perimCorrigidoCoxa = dados.perimetro_corrigido_coxa || 0;
+  const perimCorrigidoPanturrilha = dados.perimetro_corrigido_panturrilha || 0;
+
+  const coordX = 150 + ((dados.somatocarta_eixo_x || 0) * 15)
+  const coordY = 150 - ((dados.somatocarta_eixo_y || 0) * 11)
 
   const temEquipamentos = equipamentos && (
     equipamentos.plicometro_adipometro || 
@@ -836,7 +755,7 @@ export default function ResultadoAvaliacao() {
         </div>
       )}
 
-      {/* 8 e 9. SOMATOTIPO E SOMATOCARTA */}
+      {/* 8 e 9. SOMATOTIPO E SOMATOCARTA COM DESCRIÇÕES VERBAIS DEDICADAS */}
       {(podeExibir('laudo_somatotipo_barras') || podeExibir('laudo_somatocarta_grafico')) && (
         <>
           <h3 className="text-sm font-bold text-gray-800 uppercase tracking-wider mb-3 px-1 mt-6">🧬 8. Somatotipo (Heath-Carter)</h3>
@@ -844,35 +763,49 @@ export default function ResultadoAvaliacao() {
             {podeExibir('laudo_somatotipo_barras') && (
               <div className="bg-white p-6 rounded-xl border border-gray-100 shadow-sm space-y-4">
                 <div className="space-y-5 mt-2">
+                  
+                  {/* Endomorfia */}
                   <div>
                     <div className="flex justify-between text-sm font-semibold mb-1">
                       <span className="text-amber-700">Endomorfia (Adiposidade)</span>
                       <span>{dados.somatotipo_endomorfia || '-'}</span>
                     </div>
-                    <div className="w-full bg-gray-100 h-2.5 rounded-full">
+                    <div className="w-full bg-gray-100 h-2.5 rounded-full mb-1">
                       <div className="bg-amber-500 h-2.5 rounded-full" style={{ width: `${Math.min(100, (dados.somatotipo_endomorfia || 0) * 10)}%` }}></div>
                     </div>
+                    <p className="text-[11px] text-gray-500 leading-tight">
+                      {descricoesSomatotipo.endomorfia.descricao}
+                    </p>
                   </div>
 
+                  {/* Mesomorfia */}
                   <div>
                     <div className="flex justify-between text-sm font-semibold mb-1">
                       <span className="text-blue-700">Mesomorfia (Musculosidade)</span>
                       <span>{dados.somatotipo_mesomorfia || '-'}</span>
                     </div>
-                    <div className="w-full bg-gray-100 h-2.5 rounded-full">
+                    <div className="w-full bg-gray-100 h-2.5 rounded-full mb-1">
                       <div className="bg-blue-500 h-2.5 rounded-full" style={{ width: `${Math.min(100, (dados.somatotipo_mesomorfia || 0) * 10)}%` }}></div>
                     </div>
+                    <p className="text-[11px] text-gray-500 leading-tight">
+                      {descricoesSomatotipo.mesomorfia.descricao}
+                    </p>
                   </div>
 
+                  {/* Ectomorfia */}
                   <div>
                     <div className="flex justify-between text-sm font-semibold mb-1">
                       <span className="text-emerald-700">Ectomorfia (Magreza / Linearidade)</span>
                       <span>{dados.somatotipo_ectomorfia || '-'}</span>
                     </div>
-                    <div className="w-full bg-gray-100 h-2.5 rounded-full">
+                    <div className="w-full bg-gray-100 h-2.5 rounded-full mb-1">
                       <div className="bg-emerald-500 h-2.5 rounded-full" style={{ width: `${Math.min(100, (dados.somatotipo_ectomorfia || 0) * 10)}%` }}></div>
                     </div>
+                    <p className="text-[11px] text-gray-500 leading-tight">
+                      {descricoesSomatotipo.ectomorfia.descricao}
+                    </p>
                   </div>
+
                 </div>
               </div>
             )}
