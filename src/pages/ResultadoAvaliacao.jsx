@@ -378,7 +378,7 @@ export default function ResultadoAvaliacao() {
   const soma6 = dados.somatorio_6_dobras || 0;
   const soma8 = dados.somatorio_8_dobras || 0;
 
-  const infoArgoref = classificarArgoref ? classificarArgoref(soma6, pac.sexo);
+  const infoArgoref = classificarArgoref ? classificarArgoref(soma6, pac.sexo) : { classificacao: '-', cor: 'gray' };
   const infoMorrow = classificarMorrow ? classificarMorrow(percentualGordura, pac.sexo, idade) : { classificacao: '-', cor: 'gray' };
 
   const descricoesSomatotipo = classificarSomatotipoDetalhado ? classificarSomatotipoDetalhado({
