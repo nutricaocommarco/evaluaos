@@ -25,7 +25,7 @@ export default function Configuracoes() {
   })
 
   // 🔗 COLOQUE O SEU LINK DE AFILIADO DA HOTMART AQUI
-  const LINK_AFILIADO_HOTMART = "https://app.hotmart.com/affiliates" 
+  const LINK_AFILIADO_HOTMART = "https://affiliate.hotmart.com/affiliate-recruiting/view/2019E106982311" 
 
   useEffect(() => {
     async function carregarConfiguracoes() {
