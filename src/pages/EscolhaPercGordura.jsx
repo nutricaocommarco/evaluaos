@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { supabase } from '../supabaseClient'
 import * as Eq from '../utils/equacoes'
+import { recomendarEquacaoIdeal } from '../utils/EngineRecomendacaoEquacoes'
 
 const listaFeminina = [
   { nome: 'Durnin et al. (1974) - 4skf', func: Eq.calcularFemDurnin1974 },
@@ -91,22 +92,17 @@ export default function EscolhaPercGordura() {
   const [showDropdown, setShowDropdown] = useState(false)
   
   const [pacienteSelecionado, setPacienteSelecionado] = useState(pacienteInicial)
-  
-  // Histórico de avaliações do paciente selecionado
   const [historicoAvaliacoes, setHistoricoAvaliacoes] = useState([])
-  
   const [avaliacaoAtual, setAvaliacaoAtual] = useState(null)
   const [medidasBrutas, setMedidasBrutas] = useState({})
-  
-  // === NOVO ESTADO: Para buscar a Massa Muscular já salva ===
   const [dadosCalculados, setDadosCalculados] = useState({})
-  
   const [equacaoSelecionada, setEquacaoSelecionada] = useState('')
-  
   const [resultadoGordura, setResultadoGordura] = useState(0)
   const [metadados, setMetadados] = useState(null)
-  
   const [salvando, setSalvando] = useState(false)
+
+  // ESTADO DA RECOMENDAÇÃO AUTOMÁTICA DA ENGINE TCC
+  const [recomendacaoEngine, setRecomendacaoEngine] = useState(null)
 
   const dropdownRef = useRef(null)
 
@@ -126,19 +122,17 @@ export default function EscolhaPercGordura() {
         if (sexoPaciente === 'F') return conf.equacao_padrao_feminina || ''
       }
     } catch (err) {
-      console.error('Erro ao carregar equação padrão das configurações:', err)
+      console.error('Erro ao carregar equação padrão:', err)
     }
     return ''
   }
 
-  // 1. CARREGAMENTO INICIAL VINDO DO AVALIACAO_FORM
   useEffect(() => {
     if (pacienteInicial) {
       selecionarPacienteViaForm(pacienteInicial, avaliacaoIdInicial)
     }
   }, [pacienteInicial, avaliacaoIdInicial])
 
-  // 2. BUSCA DINÂMICA DE PACIENTES
   useEffect(() => {
     const buscarPacientes = async () => {
       if (busca.length < 1) {
@@ -147,7 +141,7 @@ export default function EscolhaPercGordura() {
       }
       const { data, error } = await supabase
         .from('pacientes')
-        .select('id, nome_completo, sexo, data_nascimento')
+        .select('id, nome_completo, sexo, data_nascimento, pratica_esporte, modalidade_esportiva')
         .ilike('nome_completo', `%${busca}%`)
         .limit(5)
 
@@ -168,13 +162,11 @@ export default function EscolhaPercGordura() {
     return () => document.removeEventListener('mousedown', handleClickFora)
   }, [])
 
-  // SELEÇÃO DIRETA DO FORMULÁRIO
   const selecionarPacienteViaForm = async (paciente, avaliacaoIdReq) => {
     setPacienteSelecionado(paciente)
     setBusca(paciente.nome_completo)
     setShowDropdown(false)
 
-    // Busca o histórico do paciente
     const { data: historico } = await supabase
       .from('avaliacoes')
       .select('id, data_avaliacao')
@@ -183,7 +175,6 @@ export default function EscolhaPercGordura() {
       
     if (historico) setHistoricoAvaliacoes(historico)
 
-    // Busca OS DADOS da avaliação requerida
     if (avaliacaoIdReq) {
       const { data: aval } = await supabase
         .from('avaliacoes')
@@ -191,20 +182,24 @@ export default function EscolhaPercGordura() {
         .eq('id', avaliacaoIdReq)
         .single()
 
-if (aval) {
+      if (aval) {
         setAvaliacaoAtual(aval)
         setMedidasBrutas(aval)
         
-        // TRAVA DE SEGURANÇA: Só busca da configuração se NÃO tiver equação E NÃO tiver %GC escolhido
+        // DISPARA A ENGINE DE RECOMENDAÇÃO CIENTÍFICA (TCC)
+        const rec = recomendarEquacaoIdeal(aval, paciente)
+        setRecomendacaoEngine(rec)
+
         if (aval.equacao_de_regressao_escolhida && aval.percentual_de_gordura != null && aval.percentual_de_gordura > 0) {
           setEquacaoSelecionada(aval.equacao_de_regressao_escolhida)
+        } else if (rec.nomeEquacaoRecomendada) {
+          setEquacaoSelecionada(rec.nomeEquacaoRecomendada)
         } else {
           const eqPadrao = await buscarEquacaoPadraoConfigurada(paciente.sexo)
           setEquacaoSelecionada(eqPadrao)
         }
       }
 
-      // === BUSCA OS CÁLCULOS SALVOS (Inclui Massa Muscular) ===
       const { data: calc } = await supabase
         .from('dados_calculados')
         .select('*')
@@ -215,7 +210,6 @@ if (aval) {
     }
   }
 
-  // SELEÇÃO PELA BARRA DE BUSCA
   const selecionarPacienteBusca = async (paciente) => {
     setPacienteSelecionado(paciente)
     setBusca(paciente.nome_completo)
@@ -223,7 +217,7 @@ if (aval) {
     setEquacaoSelecionada('')
     setResultadoGordura(0)
     setMetadados(null)
-    setDadosCalculados({}) // Reseta ao trocar
+    setDadosCalculados({})
 
     const { data: historico } = await supabase
       .from('avaliacoes')
@@ -233,7 +227,7 @@ if (aval) {
 
     if (historico && historico.length > 0) {
       setHistoricoAvaliacoes(historico)
-      selecionarAvaliacaoDoHistorico(historico[0].id, paciente.sexo)
+      selecionarAvaliacaoDoHistorico(historico[0].id, paciente)
     } else {
       setHistoricoAvaliacoes([])
       setAvaliacaoAtual(null)
@@ -242,30 +236,31 @@ if (aval) {
     }
   }
 
-  // TROCAR AVALIAÇÃO PELO DROPDOWN DE HISTÓRICO
-  const selecionarAvaliacaoDoHistorico = async (idAvaliacao, sexoPacienteOverride) => {
+  const selecionarAvaliacaoDoHistorico = async (idAvaliacao, pacienteOverride) => {
+    const pacObj = pacienteOverride || pacienteSelecionado
     const { data: aval } = await supabase
       .from('avaliacoes')
       .select('*')
       .eq('id', idAvaliacao)
       .single()
 
-      const sexoP = sexoPacienteOverride || pacienteSelecionado?.sexo
-
     if (aval) {
       setAvaliacaoAtual(aval)
       setMedidasBrutas(aval)
       
-      // TRAVA DE SEGURANÇA: Mantém o salvo se já tiver equação e %GC preenchidos
+      const rec = recomendarEquacaoIdeal(aval, pacObj)
+      setRecomendacaoEngine(rec)
+
       if (aval.equacao_de_regressao_escolhida && aval.percentual_de_gordura != null && aval.percentual_de_gordura > 0) {
         setEquacaoSelecionada(aval.equacao_de_regressao_escolhida)
+      } else if (rec.nomeEquacaoRecomendada) {
+        setEquacaoSelecionada(rec.nomeEquacaoRecomendada)
       } else {
-        const eqPadrao = await buscarEquacaoPadraoConfigurada(sexoP)
+        const eqPadrao = await buscarEquacaoPadraoConfigurada(pacObj?.sexo)
         setEquacaoSelecionada(eqPadrao)
       }
     }
 
-    // === BUSCA OS CÁLCULOS DESSA AVALIAÇÃO ===
     const { data: calc } = await supabase
       .from('dados_calculados')
       .select('*')
@@ -275,7 +270,6 @@ if (aval) {
     if (calc) setDadosCalculados(calc)
   }
 
-  // MÁQUINA DE CÁLCULO
   useEffect(() => {
     if (!pacienteSelecionado || !equacaoSelecionada || !medidasBrutas) return
 
@@ -315,25 +309,22 @@ if (aval) {
       })
       .eq('id', avaliacaoAtual.id)
 
-    // 1. Calcula Massa Gorda e Massa Magra
     const peso = Number(medidasBrutas.peso_paciente || 0)
     const massaGorda = peso > 0 ? (resultadoGordura * peso) / 100 : 0
     const massaMagra = peso > 0 ? peso - massaGorda : 0
 
-    // 2. Calcula o IAM (Índice Adiposo Muscular)
     const massaMuscular = Number(dadosCalculados.massa_muscular || 0)
     let iam = 0
     if (massaMuscular > 0) {
       iam = massaGorda / massaMuscular
     }
 
-    // 3. Atualiza tudo no banco
     const { error: calcError } = await supabase
       .from('dados_calculados')
       .update({
         massa_gorda: Number(massaGorda.toFixed(2)),
         massa_magra: Number(massaMagra.toFixed(2)),
-        indice_adiposo_muscular: Number(iam.toFixed(2)) // <-- SALVA O IAM AQUI!
+        indice_adiposo_muscular: Number(iam.toFixed(2))
       })
       .eq('id_avaliacao', avaliacaoAtual.id)
 
@@ -397,7 +388,6 @@ if (aval) {
               <p className="text-xs text-gray-500 mt-1">Peso Coletado: {medidasBrutas.peso_paciente || 0} kg</p>
             </div>
 
-            {/* SELETOR DE HISTÓRICO DE AVALIAÇÕES */}
             {historicoAvaliacoes.length > 0 && (
               <div className="w-full sm:w-auto">
                 <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">
@@ -417,6 +407,43 @@ if (aval) {
               </div>
             )}
           </div>
+
+          {/* 💎 A CEREJA DO BOLO: CARD DE RECOMENDAÇÃO AUTOMÁTICA DA ENGINE TCC */}
+          {recomendacaoEngine && (
+            <div className="bg-gradient-to-r from-emerald-50 to-teal-50 border-2 border-emerald-200 rounded-xl p-5 shadow-sm space-y-3 relative overflow-hidden">
+              <div className="flex justify-between items-start">
+                <div className="flex items-center gap-2">
+                  <span className="text-xl">💎</span>
+                  <h4 className="text-xs font-black text-emerald-900 uppercase tracking-wider">
+                    Recomendação Científica EvaluaOS
+                  </h4>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setEquacaoSelecionada(recomendacaoEngine.nomeEquacaoRecomendada)}
+                  className="text-[10px] font-extrabold bg-emerald-600 text-white px-3 py-1 rounded-md hover:bg-emerald-700 transition-colors shadow-2xs"
+                >
+                  Aplicar Esta Equação
+                </button>
+              </div>
+
+              <div className="space-y-1">
+                <p className="text-sm font-bold text-gray-800">
+                  {recomendacaoEngine.nomeEquacaoRecomendada}
+                </p>
+                <p className="text-xs text-gray-600 leading-relaxed">
+                  {recomendacaoEngine.motivo}
+                </p>
+              </div>
+
+              {recomendacaoEngine.travaKerr && (
+                <div className="pt-2 border-t border-emerald-100 flex flex-wrap gap-4 text-xs text-emerald-800 font-semibold">
+                  <span>🔒 Trava de Segurança (Kerr, 1991): {recomendacaoEngine.travaKerr.massaAdiposaKg} kg ({recomendacaoEngine.travaKerr.pctAdiposo}%)</span>
+                  <span>Σ 6 Dobras: {recomendacaoEngine.indicadoresBrutos.soma6} mm ({recomendacaoEngine.indicadoresBrutos.statusArgoref})</span>
+                </div>
+              )}
+            </div>
+          )}
 
           <div className="space-y-2 border-t border-gray-100 pt-6">
             <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wider">
