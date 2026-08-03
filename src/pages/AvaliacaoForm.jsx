@@ -39,6 +39,23 @@ const labels = {
   diametro_maleolar: 'Bimaleolar (Tornozelo)'
 }
 
+// HELPER apVAT (Samouda et al., 2013)
+const calcularApVAT = (sexo, idade, peso, alturaCm, cinturaCm, coxaMaxCm) => {
+  if (!cinturaCm || !coxaMaxCm || !idade || cinturaCm <= 0 || coxaMaxCm <= 0) {
+    return 0;
+  }
+  const alturaM = alturaCm / 100;
+  const imc = (peso > 0 && alturaM > 0) ? peso / (alturaM * alturaM) : 0;
+
+  let apvat = 0;
+  if (sexo === 'M') {
+    apvat = (6 * cinturaCm) - (4.41 * coxaMaxCm) + (1.19 * idade) - 213.65;
+  } else {
+    apvat = (2.15 * cinturaCm) - (3.63 * coxaMaxCm) + (1.46 * idade) + (6.22 * imc) - 92.713;
+  }
+  return Math.max(0, Number(apvat.toFixed(1)));
+}
+
 const calcularSomatotipo = (medidas) => {
   const triceps = medidas.dobra_cutanea_triceps || 0;
   const subescapular = medidas.dobra_cutanea_subescapular || 0;
@@ -156,7 +173,6 @@ export default function AvaliacaoForm() {
   const [loading, setLoading] = useState(false)
   const [isSingleMode, setIsSingleMode] = useState(false)
 
-  // Configurações do Avaliador vindas do banco
   const [configAvaliador, setConfigAvaliador] = useState({
     tolerancia_dobras: 5.0,
     tolerancia_perimetros: 1.0,
@@ -170,7 +186,6 @@ export default function AvaliacaoForm() {
   const [dataAvaliacao, setDataAvaliacao] = useState(new Date().toISOString().split('T')[0])
   const [horaAvaliacao, setHoraAvaliacao] = useState(new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }))
   
-  // 📹 Estado do Vídeo do YouTube para o Laudo
   const [videoUrl, setVideoUrl] = useState('')
 
   const [basicas, setBasicas] = useState(initMeasures(basicaKeys))
@@ -182,7 +197,6 @@ export default function AvaliacaoForm() {
     async function carregarDadosIniciais() {
       setLoading(true)
 
-      // 1. Carrega as configurações do avaliador
       const { data: authUser } = await supabase.auth.getUser()
       if (authUser?.user) {
         const { data: confData } = await supabase
@@ -196,7 +210,6 @@ export default function AvaliacaoForm() {
         }
       }
 
-      // 2. Se for edição, carrega a avaliação e os cálculos salvos
       if (avaliacaoIdParaEditar) {
         const { data: avaliacaoData, error: avaliacaoError } = await supabase
           .from('avaliacoes')
@@ -226,8 +239,6 @@ export default function AvaliacaoForm() {
           }
 
           setHoraAvaliacao(avaliacaoData.hora_avaliacao || '')
-          
-          // Preenche a URL do vídeo se existir
           setVideoUrl(avaliacaoData.video_url || '')
 
           const preencherEstado = (keys) => {
@@ -314,7 +325,7 @@ export default function AvaliacaoForm() {
       id_paciente: paciente.id,
       data_avaliacao: dataAvaliacao,
       hora_avaliacao: horaAvaliacao,
-      video_url: videoUrl ? videoUrl.trim() : null, // 📹 Incluído no Payload
+      video_url: videoUrl ? videoUrl.trim() : null,
       ...resolvedBasicas,
       ...resolvedDobras,
       ...resolvedPerimetros,
@@ -372,20 +383,21 @@ export default function AvaliacaoForm() {
     const termoCoxa = Math.pow(calcPerimCorrigidoCoxa, 2)
     const termoPant = Math.pow(calcPerimCorrigidoPanturrilha, 2)
 
+    let idade = 25
+    if (paciente.data_nascimento) {
+      const birthDate = new Date(paciente.data_nascimento + 'T12:00:00')
+      const evalDate = new Date(dataAvaliacao + 'T12:00:00')
+      idade = evalDate.getFullYear() - birthDate.getFullYear()
+      const m = evalDate.getMonth() - birthDate.getMonth()
+      if (m < 0 || (m === 0 && evalDate.getDate() < birthDate.getDate())) idade--
+    }
+
     let calcMuscular = 0
     if (alturaM > 0 && pBraco > 0 && pCoxa > 0 && pPant > 0) {
       const sexoNum = paciente.sexo === 'M' ? 1 : 0
       let racaNum = 0
       if (paciente.etnia === 'Afrodescendente') racaNum = 1.1
       if (paciente.etnia === 'Asiatico') racaNum = -2
-      let idade = 25
-      if (paciente.data_nascimento) {
-        const birthDate = new Date(paciente.data_nascimento + 'T12:00:00')
-        const evalDate = new Date(dataAvaliacao + 'T12:00:00')
-        idade = evalDate.getFullYear() - birthDate.getFullYear()
-        const m = evalDate.getMonth() - birthDate.getMonth()
-        if (m < 0 || (m === 0 && evalDate.getDate() < birthDate.getDate())) idade--
-      }
       calcMuscular = (alturaM * ((0.00744 * termoBraco) + (0.00088 * termoCoxa) + (0.00441 * termoPant))) + (2.4 * sexoNum) - (0.048 * idade) + racaNum + 7.8
     }
 
@@ -393,8 +405,13 @@ export default function AvaliacaoForm() {
 
     const pCintura = resolvedPerimetros.perimetro_cintura || 0
     const pQuadril = resolvedPerimetros.perimetro_quadril || 0
+    const pCoxaMaxima = resolvedPerimetros.perimetro_coxa_maxima || 0
+
     const calcRcq = pQuadril > 0 ? pCintura / pQuadril : 0
     const calcRce = alturaCm > 0 ? pCintura / alturaCm : 0
+
+    // 💡 CÁLCULO DO apVAT (Samouda et al., 2013)
+    const calcApVat = calcularApVAT(paciente.sexo, idade, pesoFinal, alturaCm, pCintura, pCoxaMaxima)
 
     const dSub = resolvedDobras.dobra_cutanea_subescapular || 0
     const dSup = resolvedDobras.dobra_cutanea_supraespinhal || 0
@@ -414,6 +431,7 @@ export default function AvaliacaoForm() {
       massa_muscular: Number(calcMuscular.toFixed(2)),
       relacao_cintura_quadril: Number(calcRcq.toFixed(2)),
       relacao_cintura_estatura: Number(calcRce.toFixed(2)),
+      area_previsao_visceral_apvat: Number(calcApVat.toFixed(1)), // 🌟 INCLUÍDO AQUI
       somatorio_6_dobras: Number(calcSoma6.toFixed(1)),
       somatorio_8_dobras: Number(calcSoma8.toFixed(1)),
       perimetro_corrigido_braco: Number(calcPerimCorrigidoBraco.toFixed(2)),
@@ -428,7 +446,7 @@ export default function AvaliacaoForm() {
 
     if (calcError) {
       console.error('Erro ao salvar cálculos:', calcError)
-      alert('As medidas foram salvas, mas houve um erro ao gerar o relatório calculated.')
+      alert('As medidas foram salvas, mas houve um erro ao gerar o relatório calculado.')
     } else {
       alert('Medidas salvas! Indo para o cálculo de gordura...')
       navigate('/equacoes-de-regressao', { 
@@ -524,7 +542,6 @@ export default function AvaliacaoForm() {
             </div>
           </div>
 
-          {/* 🎥 CAMPO DE VÍDEO DO YOUTUBE PARA O LAUDO */}
           <div className="pt-3 border-t border-gray-100">
             <label className="block text-xs font-bold text-gray-700 mb-1">
               🎥 Vídeo de Orientações do Laudo (YouTube - Opcional)
