@@ -358,8 +358,10 @@ export default function ResultadoAvaliacao() {
   const dUmero = Number(aval.diametro_umero) || 0
   const dFemur = Number(aval.diametro_femur) || 0
 
-  // --- CÁLCULO DAS MASSAS DO FRACIONAMENTO DE 4 COMPONENTES DE DE ROSE ET AL. ---
+  // --- COMPONENTES DA COMPOSIÇÃO CORPORAL ---
   const massaGorda = dados.massa_gorda || (pesoTotal * (percentualGordura / 100))
+  const massaMagra = dados.massa_magra || (pesoTotal - massaGorda)
+  const massaMuscular = dados.massa_muscular || 0
   
   // 1. Massa Óssea (Von Döbeln modificada por Rocha, 1975)
   let massaOssea = 0
@@ -371,7 +373,7 @@ export default function ResultadoAvaliacao() {
   const pctResidualWurch = pac.sexo === 'M' ? 0.24 : 0.21
   const massaResidual = pesoTotal * pctResidualWurch
 
-  // 3. Massa Muscular (Diferencial residual de 4C)
+  // 3. Massa Muscular De Rose
   const massaMuscularDeRose = Math.max(0, pesoTotal - (massaGorda + massaOssea + massaResidual))
 
   // Percentuais de De Rose
@@ -610,7 +612,7 @@ export default function ResultadoAvaliacao() {
             {podeExibir('laudo_massa_muscular') && (
               <div className="bg-white p-5 rounded-xl border border-gray-100 shadow-sm flex flex-col justify-center border-l-4 border-l-emerald-500 relative">
                 <p className="text-xs font-semibold text-gray-500 uppercase">Massa Muscular</p>
-                <p className="text-2xl font-black text-emerald-700 mt-1">{massaMuscularDeRose > 0 ? massaMuscularDeRose.toFixed(2) : '-'} <span className="text-xs font-normal text-gray-500">kg</span></p>
+                <p className="text-2xl font-black text-emerald-700 mt-1">{massaMuscularDeRose > 0 ? massaMuscularDeRose.toFixed(2) : (massaMuscular > 0 ? massaMuscular.toFixed(2) : '-')} <span className="text-xs font-normal text-gray-500">kg</span></p>
                 <span className="absolute bottom-2 right-3 text-[9px] font-medium text-gray-400">Ref: De Rose et al.</span>
               </div>
             )}
