@@ -3,6 +3,18 @@ import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import { supabase } from '../supabaseClient'
 import { obterUrlEmbedYouTube } from '../utils/youtube'
 import BotaoExportarPDF from '../components/BotaoExportarPDF'
+import { 
+  PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend 
+} from 'recharts'
+import { 
+  classificarImc, 
+  classificarRce, 
+  classificarRcq, 
+  classificarArgoref, 
+  classificarMorrow, 
+  classificarApVat, 
+  classificarSomatotipoDetalhado 
+} from '../utils/escalasNormativas'
 
 // --- HELPER CÁLCULO DE SOMATOTIPO HEATH-CARTER ---
 const calcularSomatotipo = (medidas) => {
@@ -137,7 +149,6 @@ export default function ResultadoAvaliacao() {
         setLogomarcaUrl(avalData.logomarca_url || '');
         setVideoUrlPadrao(avalData.video_url_padrao || '');
 
-        // 🛠️ BUSCA OS EQUIPAMENTOS DO AVALIADOR
         const idParaEquipamento = avalData.id || avalData.auth_id;
         if (idParaEquipamento) {
           const { data: equipData } = await supabase
@@ -188,27 +199,40 @@ export default function ResultadoAvaliacao() {
       const termoCoxa = Math.pow(calcPerimCorrigidoCoxa, 2)
       const termoPant = Math.pow(calcPerimCorrigidoPanturrilha, 2)
 
+      let calcIdade = 25
+      if (pac.data_nascimento) {
+        const birthDate = new Date(pac.data_nascimento + 'T12:00:00')
+        const evalDate = new Date((avalDados.data_avaliacao || '') + 'T12:00:00')
+        calcIdade = evalDate.getFullYear() - birthDate.getFullYear()
+        const m = evalDate.getMonth() - birthDate.getMonth()
+        if (m < 0 || (m === 0 && evalDate.getDate() < birthDate.getDate())) calcIdade--
+      }
+
       let calcMuscular = 0
       if (alturaM > 0 && pBraco > 0 && pCoxa > 0 && pPant > 0) {
         const sexoNum = pac.sexo === 'M' ? 1 : 0
         let racaNum = 0
         if (pac.etnia === 'Afrodescendente') racaNum = 1.1
         if (pac.etnia === 'Asiatico') racaNum = -2
-        let idade = 25
-        if (pac.data_nascimento) {
-          const birthDate = new Date(pac.data_nascimento + 'T12:00:00')
-          const evalDate = new Date((avalDados.data_avaliacao || '') + 'T12:00:00')
-          idade = evalDate.getFullYear() - birthDate.getFullYear()
-          const m = evalDate.getMonth() - birthDate.getMonth()
-          if (m < 0 || (m === 0 && evalDate.getDate() < birthDate.getDate())) idade--
-        }
-        calcMuscular = (alturaM * ((0.00744 * termoBraco) + (0.00088 * termoCoxa) + (0.00441 * termoPant))) + (2.4 * sexoNum) - (0.048 * idade) + racaNum + 7.8
+        calcMuscular = (alturaM * ((0.00744 * termoBraco) + (0.00088 * termoCoxa) + (0.00441 * termoPant))) + (2.4 * sexoNum) - (0.048 * calcIdade) + racaNum + 7.8
       }
 
       const pCintura = avalDados.perimetro_cintura || 0
       const pQuadril = avalDados.perimetro_quadril || 0
+      const pCoxaMax = avalDados.perimetro_coxa_maxima || 0
+
       const calcRcq = pQuadril > 0 ? pCintura / pQuadril : 0
       const calcRce = alturaCm > 0 ? pCintura / alturaCm : 0
+
+      let calcApVat = 0
+      if (pCintura > 0 && pCoxaMax > 0) {
+        if (pac.sexo === 'M') {
+          calcApVat = (6 * pCintura) - (4.41 * pCoxaMax) + (1.19 * calcIdade) - 213.65;
+        } else {
+          calcApVat = (2.15 * pCintura) - (3.63 * pCoxaMax) + (1.46 * calcIdade) + (6.22 * calcImc) - 92.713;
+        }
+        calcApVat = Math.max(0, calcApVat);
+      }
 
       const dSub = avalDados.dobra_cutanea_subescapular || 0
       const dSup = avalDados.dobra_cutanea_supraespinhal || 0
@@ -247,6 +271,7 @@ export default function ResultadoAvaliacao() {
         massa_muscular: Number(calcMuscular.toFixed(2)),
         relacao_cintura_quadril: Number(calcRcq.toFixed(2)),
         relacao_cintura_estatura: Number(calcRce.toFixed(2)),
+        area_previsao_visceral_apvat: Number(calcApVat.toFixed(1)),
         somatorio_6_dobras: Number(calcSoma6.toFixed(1)),
         somatorio_8_dobras: Number(calcSoma8.toFixed(1)),
         perimetro_corrigido_braco: Number(calcPerimCorrigidoBraco.toFixed(2)),
@@ -262,7 +287,7 @@ export default function ResultadoAvaliacao() {
           .from('dados_calculados')
           .upsert(payloadCalculado, { onConflict: 'id_avaliacao' })
 
-        if (upsertError) console.warn('Nota: Não foi possível sincronizar no banco.', upsertError)
+        if (upsertError) consolewarn('Nota: Não foi possível sincronizar no banco.', upsertError)
       }
 
       setDados({
@@ -326,13 +351,45 @@ export default function ResultadoAvaliacao() {
   }
 
   const imc = dados.imc || 0
+  const infoImc = classificarImc ? classificarImc(imc) : { classificacao: '-', cor: 'gray' };
   const percentualGordura = aval.percentual_de_gordura || 0 
   const massaGorda = dados.massa_gorda || 0
   const massaMagra = dados.massa_magra || 0
   const massaMuscular = dados.massa_muscular || 0
 
+  const percentualMassaLivre = percentualGordura > 0 ? (100 - percentualGordura) : 0;
+
+  // Dados para o Gráfico de Pizza (2 Componentes)
+  const dadosPizza2Comp = [
+    { name: 'Massa Gorda', value: percentualGordura, kg: massaGorda, color: '#f59e0b' },
+    { name: 'Massa Livre de Gordura', value: percentualMassaLivre, kg: massaMagra, color: '#3b82f6' }
+  ];
+
   const iamVal = dados.indice_adiposo_muscular || ((massaMuscular > 0 && massaGorda > 0) ? (massaGorda / massaMuscular) : 0)
   const imoVal = dados.indice_massa_ossea_imo || 0
+  const apvatVal = dados.area_previsao_visceral_apvat || 0
+
+  const infoApVat = classificarApVat ? classificarApVat(apvatVal, pac.sexo) : { classificacao: '-', cor: 'gray' };
+  const rcq = dados.relacao_cintura_quadril || 0;
+  const infoRcq = classificarRcq ? classificarRcq(rcq, pac.sexo) : { classificacao: '-', cor: 'gray' };
+  const rce = dados.relacao_cintura_estatura || 0;
+  const infoRce = classificarRce ? classificarRce(rce) : { classificacao: '-', cor: 'gray' };
+
+  const soma6 = dados.somatorio_6_dobras || 0;
+  const soma8 = dados.somatorio_8_dobras || 0;
+
+  const infoArgoref = classificarArgoref ? classificarArgoref(soma6, pac.sexo) : { classificacao: '-', cor: 'gray' };
+  const infoMorrow = classificarMorrow ? classificarMorrow(percentualGordura, pac.sexo, idade) : { classificacao: '-', cor: 'gray' };
+
+  const descricoesSomatotipo = classificarSomatotipoDetalhado ? classificarSomatotipoDetalhado({
+    endomorfia: dados.somatotipo_endomorfia,
+    mesomorfia: dados.somatotipo_mesomorfia,
+    ectomorfia: dados.somatotipo_ectomorfia
+  }) : {
+    endomorfia: { descricao: '-' },
+    mesomorfia: { descricao: '-' },
+    ectomorfia: { descricao: '-' }
+  };
 
   const perimCorrigidoBraco = dados.perimetro_corrigido_braco || 0;
   const perimCorrigidoCoxa = dados.perimetro_corrigido_coxa || 0;
@@ -340,11 +397,6 @@ export default function ResultadoAvaliacao() {
 
   const coordX = 150 + ((dados.somatocarta_eixo_x || 0) * 15)
   const coordY = 150 - ((dados.somatocarta_eixo_y || 0) * 11)
-
-  const rcq = dados.relacao_cintura_quadril || 0;
-  const rce = dados.relacao_cintura_estatura || 0;
-  const soma6 = dados.somatorio_6_dobras || 0;
-  const soma8 = dados.somatorio_8_dobras || 0;
 
   const temEquipamentos = equipamentos && (
     equipamentos.plicometro_adipometro || 
@@ -389,7 +441,7 @@ export default function ResultadoAvaliacao() {
 
           <div className="flex flex-col items-end mt-4 sm:mt-0">
             <span className="text-[10px] text-gray-400 font-medium tracking-wide">
-              Gerado via <span className="font-bold text-emerald-600">EvaluaOS</span>
+              Gerado via <a href="https://evaluaos.nutricaocommarco.com.br" target="_blank" rel="noopener noreferrer" className="font-bold text-emerald-600 hover:underline">EvaluaOS</a>
             </span>
             {!isPublicView && (
               <button onClick={() => navigate('/pacientes')} className="text-xs text-emerald-600 font-semibold hover:underline mt-2 inline-block">
@@ -437,7 +489,6 @@ export default function ResultadoAvaliacao() {
           </div>
         </div>
 
-        {/* 🛠️ EQUIPAMENTOS UTILIZADOS (SÓ EXIBE SE PREENCHIDO) */}
         {temEquipamentos && (
           <div className="mt-4 bg-gray-50 p-4 rounded-lg border border-gray-100">
             <p className="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-2">🛠️ Equipamentos Utilizados</p>
@@ -487,13 +538,34 @@ export default function ResultadoAvaliacao() {
       {(podeExibir('laudo_imc') || podeExibir('laudo_percentual_gordura') || podeExibir('laudo_massa_gorda') || podeExibir('laudo_massa_magra') || podeExibir('laudo_massa_muscular')) && (
         <div>
           <h3 className="text-sm font-bold text-gray-800 uppercase tracking-wider mb-3 px-1 mt-6">📊 2. Composição Corporal</h3>
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+          
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
+            {/* CARD DO IMC COM CLASSIFICAÇÃO */}
             {podeExibir('laudo_imc') && (
-              <div className="bg-white p-5 rounded-xl border border-gray-100 shadow-sm flex flex-col justify-center">
-                <p className="text-xs font-semibold text-gray-500 uppercase">IMC</p>
-                <p className="text-2xl font-black text-gray-800 mt-1">{imc > 0 ? imc.toFixed(1) : '-'} <span className="text-xs font-normal text-gray-500">kg/m²</span></p>
+              <div className="bg-white p-5 rounded-xl border border-gray-100 shadow-sm flex flex-col justify-between relative">
+                <div>
+                  <p className="text-xs font-semibold text-gray-500 uppercase">IMC</p>
+                  <p className="text-2xl font-black text-gray-800 mt-1">
+                    {imc > 0 ? imc.toFixed(1) : '-'} <span className="text-xs font-normal text-gray-500">kg/m²</span>
+                  </p>
+                </div>
+                {imc > 0 && (
+                  <div className="pt-2 mt-2 border-t border-gray-50 flex items-center justify-between">
+                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded uppercase tracking-wider ${
+                      infoImc.cor === 'red' ? 'bg-red-100 text-red-800' :
+                      infoImc.cor === 'orange' ? 'bg-orange-100 text-orange-800' :
+                      infoImc.cor === 'amber' ? 'bg-amber-100 text-amber-800' :
+                      infoImc.cor === 'blue' ? 'bg-blue-100 text-blue-800' :
+                      'bg-emerald-100 text-emerald-800'
+                    }`}>
+                      {infoImc.classificacao}
+                    </span>
+                  </div>
+                )}
+                <span className="absolute bottom-2 right-3 text-[9px] font-medium text-gray-400">Ref: OMS 1998</span>
               </div>
             )}
+
             {podeExibir('laudo_percentual_gordura') && (
               <div className="bg-white p-5 rounded-xl border border-gray-100 shadow-sm flex flex-col justify-center">
                 <p className="text-xs font-semibold text-gray-500 uppercase">% Gordura</p>
@@ -520,6 +592,67 @@ export default function ResultadoAvaliacao() {
               </div>
             )}
           </div>
+
+          {/* 🥧 GRÁFICO DE PIZZA (2 COMPONENTES: MASSA GORDA X MASSA LIVRE DE GORDURA) */}
+          {percentualGordura > 0 && (
+            <div className="bg-white p-6 rounded-xl border border-gray-100 shadow-sm flex flex-col md:flex-row items-center justify-around gap-6">
+              <div className="w-full md:w-1/2 h-[240px]">
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={dadosPizza2Comp}
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={60}
+                      outerRadius={85}
+                      paddingAngle={4}
+                      dataKey="value"
+                    >
+                      {dadosPizza2Comp.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={entry.color} />
+                      ))}
+                    </Pie>
+                    <Tooltip 
+                      formatter={(val, name, entry) => [
+                        `${val.toFixed(1)}% (${entry.payload.kg.toFixed(2)} kg)`, 
+                        name
+                      ]}
+                      contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
+                    />
+                    <Legend iconType="circle" wrapperStyle={{ fontSize: '12px' }} />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+
+              {/* Tabela Resumo em Valores Numéricos e Percentuais ao Lado do Gráfico */}
+              <div className="w-full md:w-1/2 space-y-3 bg-gray-50 p-4 rounded-xl border border-gray-100">
+                <h4 className="text-xs font-black text-gray-600 uppercase tracking-wider mb-2">Fracionamento em 2 Componentes</h4>
+                
+                <div className="flex justify-between items-center bg-white p-3 rounded-lg border border-gray-100">
+                  <div className="flex items-center gap-2">
+                    <div className="w-3 h-3 rounded-full bg-amber-500"></div>
+                    <span className="text-xs font-bold text-gray-700">Massa Gorda</span>
+                  </div>
+                  <div className="text-right">
+                    <span className="text-sm font-black text-amber-600">{massaGorda.toFixed(2)} kg</span>
+                    <span className="text-xs font-semibold text-gray-400 ml-2">({percentualGordura.toFixed(1)}%)</span>
+                  </div>
+                </div>
+
+                <div className="flex justify-between items-center bg-white p-3 rounded-lg border border-gray-100">
+                  <div className="flex items-center gap-2">
+                    <div className="w-3 h-3 rounded-full bg-blue-500"></div>
+                    <span className="text-xs font-bold text-gray-700">Massa Livre de Gordura</span>
+                  </div>
+                  <div className="text-right">
+                    <span className="text-sm font-black text-blue-600">{massaMagra.toFixed(2)} kg</span>
+                    <span className="text-xs font-semibold text-gray-400 ml-2">({percentualMassaLivre.toFixed(1)}%)</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
         </div>
       )}
 
@@ -547,18 +680,52 @@ export default function ResultadoAvaliacao() {
         <div>
           <h3 className="text-sm font-bold text-gray-800 uppercase tracking-wider mb-3 px-1 mt-6">⚖️ 4. Indicadores de Saúde</h3>
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            
+            {/* RCQ COM BADGE DE CLASSIFICAÇÃO */}
             {podeExibir('laudo_rcq') && (
-              <div className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm flex justify-between items-center">
-                <span className="text-xs font-bold text-gray-600">Relação Cintura-Quadril</span>
-                <span className="text-lg font-black text-indigo-600">{rcq > 0 ? rcq.toFixed(2) : '-'}</span>
+              <div className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm space-y-2">
+                <div className="flex justify-between items-center">
+                  <span className="text-xs font-bold text-gray-600">Relação Cintura-Quadril</span>
+                  <span className="text-lg font-black text-indigo-600">{rcq > 0 ? rcq.toFixed(2) : '-'}</span>
+                </div>
+                {rcq > 0 && (
+                  <div className="pt-2 border-t border-gray-50 flex justify-between items-center">
+                    <span className="text-[10px] text-gray-400 font-medium">Classificação:</span>
+                    <span className={`text-[9px] font-extrabold px-2 py-0.5 rounded uppercase tracking-wider ${
+                      infoRcq.cor === 'red' ? 'bg-red-100 text-red-800' :
+                      infoRcq.cor === 'amber' ? 'bg-amber-100 text-amber-800' :
+                      'bg-emerald-100 text-emerald-800'
+                    }`}>
+                      {infoRcq.classificacao}
+                    </span>
+                  </div>
+                )}
               </div>
             )}
+
+            {/* RCE COM BADGE DE CLASSIFICAÇÃO */}
             {podeExibir('laudo_rce') && (
-              <div className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm flex justify-between items-center">
-                <span className="text-xs font-bold text-gray-600">Relação Cintura-Estatura</span>
-                <span className="text-lg font-black text-indigo-600">{rce > 0 ? rce.toFixed(2) : '-'}</span>
+              <div className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm space-y-2">
+                <div className="flex justify-between items-center">
+                  <span className="text-xs font-bold text-gray-600">Relação Cintura-Estatura</span>
+                  <span className="text-lg font-black text-indigo-600">{rce > 0 ? rce.toFixed(2) : '-'}</span>
+                </div>
+                {rce > 0 && (
+                  <div className="pt-2 border-t border-gray-50 flex justify-between items-center">
+                    <span className="text-[10px] text-gray-400 font-medium">Classificação:</span>
+                    <span className={`text-[9px] font-extrabold px-2 py-0.5 rounded uppercase tracking-wider ${
+                      infoRce.cor === 'red' ? 'bg-red-100 text-red-800' :
+                      infoRce.cor === 'amber' ? 'bg-amber-100 text-amber-800' :
+                      infoRce.cor === 'blue' ? 'bg-blue-100 text-blue-800' :
+                      'bg-emerald-100 text-emerald-800'
+                    }`}>
+                      {infoRce.classificacao}
+                    </span>
+                  </div>
+                )}
               </div>
             )}
+
             {podeExibir('laudo_status_cintura') && (
               <div className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm flex justify-between items-center">
                 <span className="text-xs font-semibold text-gray-700">Circunferência da Cintura (Status)</span>
@@ -567,12 +734,30 @@ export default function ResultadoAvaliacao() {
                 </span>
               </div>
             )}
+            
+            {/* Σ 6 DOBRAS COM CLASSIFICAÇÃO ARGOREF LOGO ABAIXO */}
             {podeExibir('laudo_soma_6') && (
-              <div className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm flex justify-between items-center">
-                <span className="text-xs font-bold text-gray-600">Σ 6 Dobras</span>
-                <span className="text-lg font-black text-amber-600">{soma6 > 0 ? soma6.toFixed(1) : '-'} <span className="text-xs font-normal text-gray-400">mm</span></span>
+              <div className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm space-y-2">
+                <div className="flex justify-between items-center">
+                  <span className="text-xs font-bold text-gray-600">Σ 6 Dobras</span>
+                  <span className="text-lg font-black text-amber-600">{soma6 > 0 ? soma6.toFixed(1) : '-'} <span className="text-xs font-normal text-gray-400">mm</span></span>
+                </div>
+                {soma6 > 0 && (
+                  <div className="pt-2 border-t border-gray-50 flex justify-between items-center">
+                    <span className="text-[10px] text-gray-500 font-semibold">ARGOREF (Holway):</span>
+                    <span className={`text-[9px] font-extrabold px-2 py-0.5 rounded uppercase tracking-wider ${
+                      infoArgoref.cor === 'red' ? 'bg-red-100 text-red-800' :
+                      infoArgoref.cor === 'amber' ? 'bg-amber-100 text-amber-800' :
+                      infoArgoref.cor === 'blue' ? 'bg-blue-100 text-blue-800' :
+                      'bg-emerald-100 text-emerald-800'
+                    }`}>
+                      {infoArgoref.classificacao}
+                    </span>
+                  </div>
+                )}
               </div>
             )}
+
             {podeExibir('laudo_soma_8') && (
               <div className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm flex justify-between items-center">
                 <span className="text-xs font-bold text-gray-600">Σ 8 Dobras</span>
@@ -645,7 +830,7 @@ export default function ResultadoAvaliacao() {
         </div>
       )}
 
-      {/* 8 e 9. SOMATOTIPO E SOMATOCARTA */}
+      {/* 8 e 9. SOMATOTIPO E SOMATOCARTA COM DESCRIÇÕES VERBAIS DEDICADAS */}
       {(podeExibir('laudo_somatotipo_barras') || podeExibir('laudo_somatocarta_grafico')) && (
         <>
           <h3 className="text-sm font-bold text-gray-800 uppercase tracking-wider mb-3 px-1 mt-6">🧬 8. Somatotipo (Heath-Carter)</h3>
@@ -653,35 +838,49 @@ export default function ResultadoAvaliacao() {
             {podeExibir('laudo_somatotipo_barras') && (
               <div className="bg-white p-6 rounded-xl border border-gray-100 shadow-sm space-y-4">
                 <div className="space-y-5 mt-2">
+                  
+                  {/* Endomorfia */}
                   <div>
                     <div className="flex justify-between text-sm font-semibold mb-1">
                       <span className="text-amber-700">Endomorfia (Adiposidade)</span>
                       <span>{dados.somatotipo_endomorfia || '-'}</span>
                     </div>
-                    <div className="w-full bg-gray-100 h-2.5 rounded-full">
+                    <div className="w-full bg-gray-100 h-2.5 rounded-full mb-1">
                       <div className="bg-amber-500 h-2.5 rounded-full" style={{ width: `${Math.min(100, (dados.somatotipo_endomorfia || 0) * 10)}%` }}></div>
                     </div>
+                    <p className="text-[11px] text-gray-500 leading-tight">
+                      {descricoesSomatotipo.endomorfia.descricao}
+                    </p>
                   </div>
 
+                  {/* Mesomorfia */}
                   <div>
                     <div className="flex justify-between text-sm font-semibold mb-1">
                       <span className="text-blue-700">Mesomorfia (Musculosidade)</span>
                       <span>{dados.somatotipo_mesomorfia || '-'}</span>
                     </div>
-                    <div className="w-full bg-gray-100 h-2.5 rounded-full">
+                    <div className="w-full bg-gray-100 h-2.5 rounded-full mb-1">
                       <div className="bg-blue-500 h-2.5 rounded-full" style={{ width: `${Math.min(100, (dados.somatotipo_mesomorfia || 0) * 10)}%` }}></div>
                     </div>
+                    <p className="text-[11px] text-gray-500 leading-tight">
+                      {descricoesSomatotipo.mesomorfia.descricao}
+                    </p>
                   </div>
 
+                  {/* Ectomorfia */}
                   <div>
                     <div className="flex justify-between text-sm font-semibold mb-1">
                       <span className="text-emerald-700">Ectomorfia (Magreza / Linearidade)</span>
                       <span>{dados.somatotipo_ectomorfia || '-'}</span>
                     </div>
-                    <div className="w-full bg-gray-100 h-2.5 rounded-full">
+                    <div className="w-full bg-gray-100 h-2.5 rounded-full mb-1">
                       <div className="bg-emerald-500 h-2.5 rounded-full" style={{ width: `${Math.min(100, (dados.somatotipo_ectomorfia || 0) * 10)}%` }}></div>
                     </div>
+                    <p className="text-[11px] text-gray-500 leading-tight">
+                      {descricoesSomatotipo.ectomorfia.descricao}
+                    </p>
                   </div>
+
                 </div>
               </div>
             )}
@@ -710,24 +909,79 @@ export default function ResultadoAvaliacao() {
         </>
       )}
 
-      {/* 10. OUTROS INDICADORES */}
-      {(podeExibir('laudo_iam') || podeExibir('laudo_imo')) && (
+      {/* 10. OUTROS INDICADORES & CLASSIFICAÇÕES */}
+      {(podeExibir('laudo_iam') || podeExibir('laudo_imo') || podeExibir('laudo_apvat')) && (
         <div className="bg-white p-6 rounded-xl border border-gray-100 shadow-sm space-y-4 mt-6">
           <h3 className="text-sm font-bold text-gray-800 uppercase tracking-wider border-b pb-2">🚀 10. Outros Indicadores & Classificações</h3>
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
-            {podeExibir('laudo_iam') && (
-              <div className="flex justify-between items-center p-3 border border-gray-100 rounded-lg bg-gray-50">
-                <span className="text-xs font-semibold text-gray-700">Índice Adiposo Muscular (IAM)</span>
-                <span className="text-xs font-bold text-gray-800">
-                  {iamVal > 0 ? iamVal.toFixed(2) : '-'}
-                </span>
+            
+            {/* apVAT */}
+            {podeExibir('laudo_apvat') && (
+              <div className="flex flex-col justify-between p-3 border border-gray-100 rounded-lg bg-gray-50 space-y-1">
+                <div className="flex justify-between items-center">
+                  <span className="text-xs font-semibold text-gray-700">Área Visceral (apVAT)</span>
+                  <span className="text-xs font-bold text-gray-800">
+                    {apvatVal > 0 ? `${apvatVal.toFixed(1)} cm²` : '-'}
+                  </span>
+                </div>
+                {apvatVal > 0 && (
+                  <div className="flex justify-end">
+                    <span className={`text-[9px] font-bold px-2 py-0.5 rounded uppercase tracking-wider ${
+                      infoApVat.cor === 'red' ? 'bg-red-100 text-red-800' :
+                      infoApVat.cor === 'orange' ? 'bg-orange-100 text-orange-800' :
+                      infoApVat.cor === 'amber' ? 'bg-amber-100 text-amber-800' :
+                      'bg-emerald-100 text-emerald-800'
+                    }`}>
+                      {infoApVat.classificacao}
+                    </span>
+                  </div>
+                )}
               </div>
             )}
 
+            {/* Classificação Morrow et al. (2003) */}
+            <div className="flex flex-col justify-between p-3 border border-gray-100 rounded-lg bg-gray-50 space-y-1">
+              <div className="flex justify-between items-center">
+                <span className="text-xs font-semibold text-gray-700">Gordura (Morrow 2003)</span>
+                <span className="text-xs font-bold text-gray-800">{percentualGordura > 0 ? `${percentualGordura.toFixed(1)}%` : '-'}</span>
+              </div>
+              {percentualGordura > 0 && (
+                <div className="flex justify-end">
+                  <span className={`text-[9px] font-bold px-2 py-0.5 rounded uppercase tracking-wider ${
+                    infoMorrow.cor === 'red' ? 'bg-red-100 text-red-800' :
+                    infoMorrow.cor === 'orange' ? 'bg-orange-100 text-orange-800' :
+                    infoMorrow.cor === 'amber' ? 'bg-amber-100 text-amber-800' :
+                    infoMorrow.cor === 'blue' ? 'bg-blue-100 text-blue-800' :
+                    'bg-emerald-100 text-emerald-800'
+                  }`}>
+                    {infoMorrow.classificacao}
+                  </span>
+                </div>
+              )}
+            </div>
+
+            {/* ÍNDICE ADIPOSO MUSCULAR (IAM) COM EXPLICAÇÃO PRÁTICA */}
+            {podeExibir('laudo_iam') && (
+              <div className="flex flex-col justify-between p-3 border border-gray-100 rounded-lg bg-gray-50 space-y-1">
+                <div className="flex justify-between items-center">
+                  <span className="text-xs font-semibold text-gray-700">Índice Adiposo Muscular (IAM)</span>
+                  <span className="text-xs font-bold text-gray-800">
+                    {iamVal > 0 ? iamVal.toFixed(2) : '-'}
+                  </span>
+                </div>
+                {iamVal > 0 && (
+                  <p className="text-[10px] text-gray-500 pt-1 border-t border-gray-100">
+                    Você possui <strong className="text-gray-700">{(iamVal * 1000).toFixed(0)}g de gordura</strong> para cada <strong className="text-emerald-700">1kg de músculo</strong>.
+                  </p>
+                )}
+              </div>
+            )}
+
+            {/* ÍNDICE DE MÚSCULO ÓSSEO (IMO) */}
             {podeExibir('laudo_imo') && (
               <div className="flex flex-col p-3 border border-gray-100 rounded-lg bg-gray-50 space-y-1">
                 <div className="flex justify-between items-center">
-                  <span className="text-xs font-semibold text-gray-700">Índice de Músculo Ósseo (IMO)</span>
+                  <span className="text-xs font-semibold text-gray-700">Índice Músculo Ósseo (IMO)</span>
                   <span className="text-sm font-bold text-emerald-700">
                     {imoVal > 0 ? imoVal.toFixed(3) : '-'}
                   </span>
@@ -735,19 +989,8 @@ export default function ResultadoAvaliacao() {
               </div>
             )}
 
-            {[
-              'Área de Previsão Visceral (APVAT)', 
-              'Gordura (Escala Morrow)', 
-              'Gordura (Escala Argoref)'
-            ].map((item, index) => (
-              <div key={index} className="flex justify-between items-center p-3 border border-gray-100 rounded-lg bg-gray-50">
-                <span className="text-xs font-semibold text-gray-700">{item}</span>
-                <span className="text-[10px] font-bold bg-gray-200 text-gray-500 px-2 py-1 rounded-md uppercase tracking-wide">Em breve</span>
-              </div>
-            ))}
           </div>
 
-          {/* 🎥 PLAYER DE VÍDEO DO LAUDO DO PACIENTE */}
           {videoEmbedUrl && (
             <div className="bg-white border border-slate-200 rounded-3xl p-5 sm:p-6 shadow-sm space-y-3 my-6">
               <div className="flex items-center gap-3">
@@ -760,7 +1003,6 @@ export default function ResultadoAvaliacao() {
                 </div>
               </div>
 
-              {/* Player Responsivo 16:9 */}
               <div className="aspect-video w-full rounded-2xl overflow-hidden shadow-md bg-slate-900">
                 <iframe
                   src={videoEmbedUrl}

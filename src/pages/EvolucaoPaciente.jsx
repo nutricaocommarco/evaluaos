@@ -5,7 +5,8 @@ import { obterUrlEmbedYouTube } from '../utils/youtube'
 import {
   ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend
 } from 'recharts'
-import BotaoExportarEvolucaoPDF from '../components/BotaoExportarEvolucaoPDF';
+import BotaoExportarEvolucaoPDF from '../components/BotaoExportarEvolucaoPDF'
+import { classificarArgoref, classificarApVat } from '../utils/escalasNormativas'
 
 export default function EvolucaoPaciente() {
   const location = useLocation()
@@ -115,13 +116,43 @@ export default function EvolucaoPaciente() {
 
       if (errCalc) console.error(errCalc)
 
+      let calcIdade = 25
+      if (pacienteAtual?.data_nascimento) {
+        const birthDate = new Date(pacienteAtual.data_nascimento + 'T12:00:00')
+        const evalDate = new Date()
+        calcIdade = evalDate.getFullYear() - birthDate.getFullYear()
+        const m = evalDate.getMonth() - birthDate.getMonth()
+        if (m < 0 || (m === 0 && evalDate.getDate() < birthDate.getDate())) calcIdade--
+      }
+
       // 6. Mescla e Formata os Dados
       const dadosMesclados = (avaliacoes || []).map((aval, index) => {
         const calc = calculos?.find(c => c.id_avaliacao === aval.id) || {}
 
+        // Fallback dinâmico para apVAT
+        let apvatCalculado = 0
+        if (calc.area_previsao_visceral_apvat && Number(calc.area_previsao_visceral_apvat) > 0) {
+          apvatCalculado = Number(calc.area_previsao_visceral_apvat)
+        } else {
+          const pCintura = Number(aval.perimetro_cintura || 0)
+          const pCoxaMax = Number(aval.perimetro_coxa_maxima || 0)
+          const pesoVal = Number(aval.peso_paciente || 0)
+          const alturaVal = Number(aval.altura_paciente || 0)
+
+          if (pCintura > 0 && pCoxaMax > 0) {
+            if (pacienteAtual.sexo === 'M') {
+              apvatCalculado = (6 * pCintura) - (4.41 * pCoxaMax) + (1.19 * calcIdade) - 213.65
+            } else {
+              const imcVal = (alturaVal > 0) ? pesoVal / Math.pow(alturaVal / 100, 2) : 0
+              apvatCalculado = (2.15 * pCintura) - (3.63 * pCoxaMax) + (1.46 * calcIdade) + (6.22 * imcVal) - 92.713
+            }
+            apvatCalculado = Math.max(0, apvatCalculado)
+          }
+        }
+
         return {
           id: aval.id,
-          video_url: aval.video_url, // 📹 URL do vídeo individual da avaliação
+          video_url: aval.video_url,
           nome_avaliacao: `Av. ${index + 1}`,
           dataStr_curta: new Date(aval.data_avaliacao).toLocaleDateString('pt-BR', { timeZone: 'UTC', day: '2-digit', month: '2-digit', year: 'numeric' }),
           dataStr: new Date(aval.data_avaliacao).toLocaleDateString('pt-BR', { timeZone: 'UTC' }),
@@ -152,8 +183,8 @@ export default function EvolucaoPaciente() {
 
           cintura_estatura: Number(calc.relacao_cintura_estatura || 0).toFixed(2),
           cintura_quadril: Number(calc.relacao_cintura_quadril || 0).toFixed(2),
-          imo: Number(calc.indice_massa_ossea_imo || 0).toFixed(2),
-          apvat: Number(calc.area_previsao_visceral_apvat || 0).toFixed(2),
+          imo: Number(calc.indice_massa_ossea_imo || 0).toFixed(3),
+          apvat: Number(apvatCalculado).toFixed(1),
           iam: Number(calc.indice_adiposo_muscular || 0).toFixed(2),
 
           triceps: Number(aval.dobra_cutanea_triceps || 0).toFixed(1),
@@ -219,12 +250,10 @@ export default function EvolucaoPaciente() {
     )
   }
 
-  // 📹 PEGA O VÍDEO DA ÚLTIMA AVALIAÇÃO OU O VÍDEO PADRÃO DO CONSULTÓRIO
   const ultimaAvaliacao = historico[historico.length - 1]
   const urlVideoRaw = ultimaAvaliacao?.video_url || avaliador?.video_url_padrao
   const videoEmbedUrl = obterUrlEmbedYouTube(urlVideoRaw)
 
-  // Helper de Trava de Visibilidade Inteligente
   const podeExibir = (chave) => {
     if (!configVisibilidade) return true;
 
@@ -241,7 +270,6 @@ export default function EvolucaoPaciente() {
     return true;
   }
 
-  // Cálculos Demográficos
   let idade = '-'
   if (pacienteLocal?.data_nascimento) {
     const birthDate = new Date(pacienteLocal.data_nascimento + 'T12:00:00')
@@ -252,33 +280,13 @@ export default function EvolucaoPaciente() {
   }
   const ultimaEstatura = historico[historico.length - 1]?.estatura || 0
 
-   const handleWhatsApp = () => {
-    const telefoneLimpo = pacienteLocal?.telefone ? pacienteLocal.telefone.replace(/\D/g, '') : '';
-    if (!telefoneLimpo) {
-      alert('Este paciente não possui telefone cadastrado.');
-      return;
-    }
-    const primeiroNome = pacienteLocal?.nome_completo ? pacienteLocal.nome_completo.split(' ')[0] : 'Paciente';
-    const saudacao = avaliador?.nome_completo ? avaliador.nome_completo : 'seu Avaliador';
-
-    const tokenPublico = pacienteLocal?.token_publico;
-    const linkDaEvolucao = tokenPublico
-        ? `${window.location.origin}/evolucao/${tokenPublico}`
-        : window.location.origin;
-    const msg = `Olá *${primeiroNome}*, tudo bem?\n\nAqui é ${saudacao}! Acabei de atualizar a sua *Evolução Antropométrica* com os dados da nossa última consulta.\n\nAcesse o link abaixo para visualizar seus resultados interativos e acompanhar sua evolução:\n\n${linkDaEvolucao}\n\nQualquer dúvida, estou à disposição!`;
-    const link = `https://wa.me/${telefoneLimpo.startsWith('55') ? telefoneLimpo : '55' + telefoneLimpo}?text=${encodeURIComponent(msg)}`;
-    window.open(link, '_blank');
-  } 
-
-
-  // COMPONENTE: Cartão de Evolução
-  const CardEvolucao = ({ titulo, chaveDado, unidade = "", isInverso = false, chaveVisibilidade }) => {
+  const CardEvolucao = ({ titulo, chaveDado, unidade = "", isInverso = false, chaveVisibilidade, casasDecimais = 1 }) => {
     if (!podeExibir(chaveVisibilidade)) return null;
 
     const totalAvaliacoes = historico.length;
     const primeiraAv = Number(historico[0][chaveDado]);
     const ultimaAv = Number(historico[totalAvaliacoes - 1][chaveDado]);
-    const deltaTotal = (ultimaAv - primeiraAv).toFixed(1);
+    const deltaTotal = (ultimaAv - primeiraAv).toFixed(casasDecimais);
 
     const isVertical = totalAvaliacoes >= 3;
 
@@ -289,7 +297,7 @@ export default function EvolucaoPaciente() {
       const corBadge = isBom ? 'text-emerald-700 bg-emerald-50 border-emerald-100' : 'text-red-700 bg-red-50 border-red-100';
       return (
         <div className={`flex items-center justify-center px-1.5 py-0.5 rounded-md border text-[9px] font-bold ${corBadge} ${extraClasses}`}>
-          {isPositivo ? '↑' : '↓'} {Math.abs(diferenca).toFixed(1)}
+          {isPositivo ? '↑' : '↓'} {Math.abs(diferenca).toFixed(casasDecimais)}
         </div>
       );
     }
@@ -326,7 +334,7 @@ export default function EvolucaoPaciente() {
                       <span className="text-[9px] font-bold uppercase" style={{ color: av.cor }}>{av.nome_avaliacao}</span>
                       <span className="text-[8px] text-gray-400 font-medium">{av.dataStr_curta}</span>
                     </div>
-                    <span className="text-base font-black text-gray-800">{valorAtual.toFixed(1)}</span>
+                    <span className="text-base font-black text-gray-800">{valorAtual.toFixed(casasDecimais)}</span>
                   </div>
                   {deltaUI && <div>{deltaUI}</div>}
                 </div>
@@ -350,7 +358,7 @@ export default function EvolucaoPaciente() {
                       <span className="text-[9px] font-bold uppercase" style={{ color: av.cor }}>{av.nome_avaliacao}</span>
                       <span className="text-[8px] text-gray-400 font-medium">{av.dataStr_curta}</span>
                     </div>
-                    <span className="text-lg font-black text-gray-800">{valorAtual.toFixed(1)}</span>
+                    <span className="text-lg font-black text-gray-800">{valorAtual.toFixed(casasDecimais)}</span>
                   </div>
                   {deltaUI}
                   {idx < historico.length - 1 && <div className="w-4 h-[1px] bg-gray-200 mx-1 shrink-0"></div>}
@@ -363,7 +371,6 @@ export default function EvolucaoPaciente() {
     )
   }
 
-  // COMPONENTE: Barras de Somatotipo
   const BarChartSomatotipo = () => {
     const maxVal = 12;
 
@@ -406,6 +413,13 @@ export default function EvolucaoPaciente() {
   const exibeGraficoPerimetrosCriticos = podeExibir('evo_perim_cintura') || podeExibir('evo_perim_quadril') || podeExibir('evo_perim_braco_cont');
   const exibeGraficoSomatorios = podeExibir('evo_soma_6') || podeExibir('evo_soma_8');
 
+  // Pega dados da última avaliação para o resumo das classificações
+  const ultimoSoma6 = Number(historico[historico.length - 1]?.soma_6 || 0);
+  const infoArgorefEvolucao = classificarArgoref(ultimoSoma6, pacienteLocal?.sexo);
+
+  const ultimoApVat = Number(historico[historico.length - 1]?.apvat || 0);
+  const infoApVatEvolucao = classificarApVat(ultimoApVat, pacienteLocal?.sexo);
+
   return (
     <div className="w-full max-w-6xl mx-auto space-y-10 pb-12 px-4 sm:px-6 overflow-x-hidden animate-fade-in-up print:m-0 print:p-0 print:overflow-visible">
 
@@ -437,7 +451,7 @@ export default function EvolucaoPaciente() {
 
           <div className="flex items-center gap-4 w-full md:w-auto justify-between md:justify-end shrink-0">
             <span className="text-[10px] text-gray-400 font-medium tracking-wide">
-              Gerado via <span className="font-bold text-emerald-600">EvaluaOS</span>
+              Gerado via <a href="https://evaluaos.nutricaocommarco.com.br" target="_blank" rel="noopener noreferrer" className="font-bold text-emerald-600 hover:underline">EvaluaOS</a>
             </span>
 
             {!isPublicView && (
@@ -719,7 +733,28 @@ export default function EvolucaoPaciente() {
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 w-full min-w-0">
-                <CardEvolucao titulo="Somatório 6 Dobras" chaveDado="soma_6" unidade="mm" isInverso={true} chaveVisibilidade="evo_soma_6" />
+                <div className="space-y-3">
+                  <CardEvolucao titulo="Somatório 6 Dobras" chaveDado="soma_6" unidade="mm" isInverso={true} chaveVisibilidade="evo_soma_6" />
+                  
+                  {/* ESCALA ARGOREF (COMPONENTE DE RESUMO NA EVOLUÇÃO) */}
+                  {ultimoSoma6 > 0 && (
+                    <div className="bg-emerald-50/60 p-3 rounded-xl border border-emerald-100 flex justify-between items-center">
+                      <div>
+                        <span className="text-xs font-bold text-gray-800">Classificação ARGOREF (Holway, 2025)</span>
+                        <p className="text-[10px] text-gray-500">Último somatório de 6 dobras registrado ({ultimoSoma6} mm).</p>
+                      </div>
+                      <span className={`text-[10px] font-extrabold px-2.5 py-1 rounded-md uppercase tracking-wider ${
+                        infoArgorefEvolucao.cor === 'red' ? 'bg-red-100 text-red-800' :
+                        infoArgorefEvolucao.cor === 'amber' ? 'bg-amber-100 text-amber-800' :
+                        infoArgorefEvolucao.cor === 'blue' ? 'bg-blue-100 text-blue-800' :
+                        'bg-emerald-100 text-emerald-800'
+                      }`}>
+                        {infoArgorefEvolucao.classificacao}
+                      </span>
+                    </div>
+                  )}
+                </div>
+
                 <CardEvolucao titulo="Somatório 8 Dobras" chaveDado="soma_8" unidade="mm" isInverso={true} chaveVisibilidade="evo_soma_8" />
               </div>
 
@@ -748,7 +783,7 @@ export default function EvolucaoPaciente() {
 
       {/* BLOCO 5: Relações e Índices de Risco */}
       {exibeBlocoIndices && (
-        <div className="break-inside-avoid w-full">
+        <div className="break-inside-avoid w-full space-y-4">
           <div className="flex items-center gap-2 mb-4 px-1">
             <div className="w-8 h-8 rounded-full bg-purple-50 text-purple-600 flex items-center justify-center shrink-0">
               <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"></path></svg>
@@ -758,9 +793,31 @@ export default function EvolucaoPaciente() {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 w-full min-w-0">
             <CardEvolucao titulo="Cintura / Estatura" chaveDado="cintura_estatura" isInverso={true} chaveVisibilidade="evo_idx_cintura_estatura" />
             <CardEvolucao titulo="Cintura / Quadril (RCQ)" chaveDado="cintura_quadril" isInverso={true} chaveVisibilidade="evo_idx_rcq" />
-            <CardEvolucao titulo="Área Visceral (apVAT)" chaveDado="apvat" isInverso={true} chaveVisibilidade="evo_idx_apvat" />
+            
+            <div className="space-y-3">
+              <CardEvolucao titulo="Área Visceral (apVAT)" chaveDado="apvat" unidade="cm²" isInverso={true} chaveVisibilidade="evo_idx_apvat" casasDecimais={1} />
+              
+              {/* CLASSIFICAÇÃO APVAT DA ÚLTIMA CONSULTA */}
+              {ultimoApVat > 0 && (
+                <div className="bg-emerald-50/60 p-3 rounded-xl border border-emerald-100 flex justify-between items-center">
+                  <div>
+                    <span className="text-xs font-bold text-gray-800">Risco apVAT (Samouda, 2013)</span>
+                    <p className="text-[10px] text-gray-500">Última avaliação ({ultimoApVat} cm²).</p>
+                  </div>
+                  <span className={`text-[10px] font-extrabold px-2.5 py-1 rounded-md uppercase tracking-wider ${
+                    infoApVatEvolucao.cor === 'red' ? 'bg-red-100 text-red-800' :
+                    infoApVatEvolucao.cor === 'orange' ? 'bg-orange-100 text-orange-800' :
+                    infoApVatEvolucao.cor === 'amber' ? 'bg-amber-100 text-amber-800' :
+                    'bg-emerald-100 text-emerald-800'
+                  }`}>
+                    {infoApVatEvolucao.classificacao}
+                  </span>
+                </div>
+              )}
+            </div>
+
             <CardEvolucao titulo="Índice Adiposo Muscular" chaveDado="iam" isInverso={true} chaveVisibilidade="evo_idx_iam" />
-            <CardEvolucao titulo="Índice Massa Óssea (IMO)" chaveDado="imo" isInverso={false} chaveVisibilidade="evo_idx_imo" />
+            <CardEvolucao titulo="Índice Massa Óssea (IMO)" chaveDado="imo" isInverso={false} chaveVisibilidade="evo_idx_imo" casasDecimais={3} />
           </div>
         </div>
       )}
@@ -778,7 +835,6 @@ export default function EvolucaoPaciente() {
             </div>
           </div>
 
-          {/* Player Responsivo 16:9 */}
           <div className="aspect-video w-full rounded-2xl overflow-hidden shadow-md bg-slate-900">
             <iframe
               src={videoEmbedUrl}
