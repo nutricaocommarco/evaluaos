@@ -4,6 +4,7 @@ import { supabase } from '../supabaseClient'
 import { obterUrlEmbedYouTube } from '../utils/youtube'
 import BotaoExportarPDF from '../components/BotaoExportarPDF'
 
+// --- HELPER CÁLCULO DE SOMATOTIPO HEATH-CARTER ---
 const calcularSomatotipo = (medidas) => {
   const triceps = medidas.dobra_cutanea_triceps || 0;
   const subescapular = medidas.dobra_cutanea_subescapular || 0;
@@ -52,6 +53,57 @@ const calcularSomatotipo = (medidas) => {
     somatocarta_eixo_x: Number(eixoX.toFixed(1)),
     somatocarta_eixo_y: Number(eixoY.toFixed(1))
   }
+}
+
+// --- FUNÇÕES DE CLASSIFICAÇÃO DAS NORMAS NORMATIVAS ---
+const classificarArgoref = (soma6, sexo) => {
+  if (!soma6 || soma6 <= 0) return { classificacao: '-', cor: 'gray' };
+
+  if (sexo === 'M') {
+    if (soma6 < 33.6) return { classificacao: 'Muito Baixo', cor: 'blue' };
+    if (soma6 <= 47.1) return { classificacao: 'Baixo', cor: 'emerald' };
+    if (soma6 <= 84.2) return { classificacao: 'Normal', cor: 'emerald' };
+    if (soma6 <= 94.3) return { classificacao: 'Elevado', cor: 'amber' };
+    return { classificacao: 'Muito Elevado', cor: 'red' };
+  } else {
+    if (soma6 < 61.9) return { classificacao: 'Muito Baixo', cor: 'blue' };
+    if (soma6 <= 69.5) return { classificacao: 'Baixo', cor: 'emerald' };
+    if (soma6 <= 112.4) return { classificacao: 'Normal', cor: 'emerald' };
+    if (soma6 <= 121.6) return { classificacao: 'Elevado', cor: 'amber' };
+    return { classificacao: 'Muito Elevado', cor: 'red' };
+  }
+}
+
+const classificarMorrow = (percentualGordura, sexo, idade) => {
+  if (!percentualGordura || percentualGordura <= 0 || !idade) return { classificacao: '-', cor: 'gray' };
+
+  const limitesHomens = [
+    { maxAge: 25, mb: 7, b: 10, bMedia: 13, m: 16, eMedia: 20, elev: 26 },
+    { maxAge: 35, mb: 12, b: 15, bMedia: 18, m: 21, eMedia: 24, elev: 28 },
+    { maxAge: 45, mb: 14, b: 18, bMedia: 21, m: 24, eMedia: 26, elev: 29 },
+    { maxAge: 55, mb: 16, b: 20, bMedia: 23, m: 25, eMedia: 28, elev: 31 },
+    { maxAge: 65, mb: 18, b: 21, bMedia: 24, m: 26, eMedia: 28, elev: 31 },
+    { maxAge: 120, mb: 18, b: 21, bMedia: 23, m: 25, eMedia: 27, elev: 30 }
+  ];
+
+  const limitesMulheres = [
+    { maxAge: 25, mb: 17, b: 20, bMedia: 23, m: 25, eMedia: 28, elev: 31 },
+    { maxAge: 35, mb: 18, b: 21, bMedia: 23, m: 26, eMedia: 30, elev: 35 },
+    { maxAge: 45, mb: 19, b: 23, bMedia: 26, m: 29, eMedia: 32, elev: 36 },
+    { maxAge: 55, mb: 22, b: 25, bMedia: 28, m: 31, eMedia: 34, elev: 38 },
+    { maxAge: 65, mb: 23, b: 26, bMedia: 30, m: 33, eMedia: 36, elev: 38 },
+    { maxAge: 120, mb: 18, b: 25, bMedia: 29, m: 32, eMedia: 35, elev: 38 }
+  ];
+
+  const regras = (sexo === 'M' ? limitesHomens : limitesMulheres).find(r => idade <= r.maxAge) || limitesHomens[limitesHomens.length - 1];
+
+  if (percentualGordura <= regras.mb) return { classificacao: 'Muito Baixo', cor: 'blue' };
+  if (percentualGordura <= regras.b) return { classificacao: 'Baixo', cor: 'emerald' };
+  if (percentualGordura <= regras.bMedia) return { classificacao: 'Abaixo da Média', cor: 'emerald' };
+  if (percentualGordura <= regras.m) return { classificacao: 'Média', cor: 'emerald' };
+  if (percentualGordura <= regras.eMedia) return { classificacao: 'Acima da Média', cor: 'amber' };
+  if (percentualGordura <= regras.elev) return { classificacao: 'Elevado', cor: 'orange' };
+  return { classificacao: 'Muito Elevado', cor: 'red' };
 }
 
 export default function ResultadoAvaliacao() {
@@ -374,6 +426,10 @@ export default function ResultadoAvaliacao() {
   const soma6 = dados.somatorio_6_dobras || 0;
   const soma8 = dados.somatorio_8_dobras || 0;
 
+  // Mapeamentos das Normas Adicionais
+  const infoArgoref = classificarArgoref(soma6, pac.sexo);
+  const infoMorrow = classificarMorrow(percentualGordura, pac.sexo, idade);
+
   const temEquipamentos = equipamentos && (
     equipamentos.plicometro_adipometro || 
     equipamentos.paquimetro || 
@@ -594,12 +650,30 @@ export default function ResultadoAvaliacao() {
                 </span>
               </div>
             )}
+            
+            {/* Σ 6 DOBRAS COM CLASSIFICAÇÃO ARGOREF LOGO ABAIXO */}
             {podeExibir('laudo_soma_6') && (
-              <div className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm flex justify-between items-center">
-                <span className="text-xs font-bold text-gray-600">Σ 6 Dobras</span>
-                <span className="text-lg font-black text-amber-600">{soma6 > 0 ? soma6.toFixed(1) : '-'} <span className="text-xs font-normal text-gray-400">mm</span></span>
+              <div className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm space-y-2">
+                <div className="flex justify-between items-center">
+                  <span className="text-xs font-bold text-gray-600">Σ 6 Dobras</span>
+                  <span className="text-lg font-black text-amber-600">{soma6 > 0 ? soma6.toFixed(1) : '-'} <span className="text-xs font-normal text-gray-400">mm</span></span>
+                </div>
+                {soma6 > 0 && (
+                  <div className="pt-2 border-t border-gray-50 flex justify-between items-center">
+                    <span className="text-[10px] text-gray-500 font-semibold">ARGOREF (Holway):</span>
+                    <span className={`text-[9px] font-extrabold px-2 py-0.5 rounded uppercase tracking-wider ${
+                      infoArgoref.cor === 'red' ? 'bg-red-100 text-red-800' :
+                      infoArgoref.cor === 'amber' ? 'bg-amber-100 text-amber-800' :
+                      infoArgoref.cor === 'blue' ? 'bg-blue-100 text-blue-800' :
+                      'bg-emerald-100 text-emerald-800'
+                    }`}>
+                      {infoArgoref.classificacao}
+                    </span>
+                  </div>
+                )}
               </div>
             )}
+
             {podeExibir('laudo_soma_8') && (
               <div className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm flex justify-between items-center">
                 <span className="text-xs font-bold text-gray-600">Σ 8 Dobras</span>
@@ -737,17 +811,17 @@ export default function ResultadoAvaliacao() {
         </>
       )}
 
-      {/* 10. OUTROS INDICADORES */}
+      {/* 10. OUTROS INDICADORES & CLASSIFICAÇÕES */}
       {(podeExibir('laudo_iam') || podeExibir('laudo_imo') || podeExibir('laudo_apvat')) && (
         <div className="bg-white p-6 rounded-xl border border-gray-100 shadow-sm space-y-4 mt-6">
           <h3 className="text-sm font-bold text-gray-800 uppercase tracking-wider border-b pb-2">🚀 10. Outros Indicadores & Classificações</h3>
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
             
-            {/* 🌟 CARD ATUALIZADO DO apVAT NO LAUDO */}
+            {/* apVAT */}
             {podeExibir('laudo_apvat') && (
               <div className="flex flex-col justify-between p-3 border border-gray-100 rounded-lg bg-gray-50 space-y-1">
                 <div className="flex justify-between items-center">
-                  <span className="text-xs font-semibold text-gray-700">Área de Previsão Visceral (apVAT)</span>
+                  <span className="text-xs font-semibold text-gray-700">Área Visceral (apVAT)</span>
                   <span className="text-xs font-bold text-gray-800">
                     {apvatVal > 0 ? `${apvatVal.toFixed(1)} cm²` : '-'}
                   </span>
@@ -767,6 +841,28 @@ export default function ResultadoAvaliacao() {
               </div>
             )}
 
+            {/* Classificação Morrow et al. (2003) */}
+            <div className="flex flex-col justify-between p-3 border border-gray-100 rounded-lg bg-gray-50 space-y-1">
+              <div className="flex justify-between items-center">
+                <span className="text-xs font-semibold text-gray-700">Gordura (Morrow 2003)</span>
+                <span className="text-xs font-bold text-gray-800">{percentualGordura > 0 ? `${percentualGordura.toFixed(1)}%` : '-'}</span>
+              </div>
+              {percentualGordura > 0 && (
+                <div className="flex justify-end">
+                  <span className={`text-[9px] font-bold px-2 py-0.5 rounded uppercase tracking-wider ${
+                    infoMorrow.cor === 'red' ? 'bg-red-100 text-red-800' :
+                    infoMorrow.cor === 'orange' ? 'bg-orange-100 text-orange-800' :
+                    infoMorrow.cor === 'amber' ? 'bg-amber-100 text-amber-800' :
+                    infoMorrow.cor === 'blue' ? 'bg-blue-100 text-blue-800' :
+                    'bg-emerald-100 text-emerald-800'
+                  }`}>
+                    {infoMorrow.classificacao}
+                  </span>
+                </div>
+              )}
+            </div>
+
+            {/* ÍNDICE ADIPOSO MUSCULAR (IAM) */}
             {podeExibir('laudo_iam') && (
               <div className="flex justify-between items-center p-3 border border-gray-100 rounded-lg bg-gray-50">
                 <span className="text-xs font-semibold text-gray-700">Índice Adiposo Muscular (IAM)</span>
@@ -776,10 +872,11 @@ export default function ResultadoAvaliacao() {
               </div>
             )}
 
+            {/* ÍNDICE DE MÚSCULO ÓSSEO (IMO) */}
             {podeExibir('laudo_imo') && (
               <div className="flex flex-col p-3 border border-gray-100 rounded-lg bg-gray-50 space-y-1">
                 <div className="flex justify-between items-center">
-                  <span className="text-xs font-semibold text-gray-700">Índice de Músculo Ósseo (IMO)</span>
+                  <span className="text-xs font-semibold text-gray-700">Índice Músculo Ósseo (IMO)</span>
                   <span className="text-sm font-bold text-emerald-700">
                     {imoVal > 0 ? imoVal.toFixed(3) : '-'}
                   </span>
@@ -787,15 +884,6 @@ export default function ResultadoAvaliacao() {
               </div>
             )}
 
-            {[
-              'Gordura (Escala Morrow)', 
-              'Gordura (Escala Argoref)'
-            ].map((item, index) => (
-              <div key={index} className="flex justify-between items-center p-3 border border-gray-100 rounded-lg bg-gray-50">
-                <span className="text-xs font-semibold text-gray-700">{item}</span>
-                <span className="text-[10px] font-bold bg-gray-200 text-gray-500 px-2 py-1 rounded-md uppercase tracking-wide">Em breve</span>
-              </div>
-            ))}
           </div>
 
           {videoEmbedUrl && (

@@ -7,6 +7,25 @@ import {
 } from 'recharts'
 import BotaoExportarEvolucaoPDF from '../components/BotaoExportarEvolucaoPDF';
 
+// --- FUNÇÃO AUXILIAR DA ESCALA ARGOREF (HOLWAY, 2025) ---
+const classificarArgoref = (soma6, sexo) => {
+  if (!soma6 || soma6 <= 0) return { classificacao: '-', cor: 'gray' };
+
+  if (sexo === 'M') {
+    if (soma6 < 33.6) return { classificacao: 'Muito Baixo', cor: 'blue' };
+    if (soma6 <= 47.1) return { classificacao: 'Baixo', cor: 'emerald' };
+    if (soma6 <= 84.2) return { classificacao: 'Normal', cor: 'emerald' };
+    if (soma6 <= 94.3) return { classificacao: 'Elevado', cor: 'amber' };
+    return { classificacao: 'Muito Elevado', cor: 'red' };
+  } else {
+    if (soma6 < 61.9) return { classificacao: 'Muito Baixo', cor: 'blue' };
+    if (soma6 <= 69.5) return { classificacao: 'Baixo', cor: 'emerald' };
+    if (soma6 <= 112.4) return { classificacao: 'Normal', cor: 'emerald' };
+    if (soma6 <= 121.6) return { classificacao: 'Elevado', cor: 'amber' };
+    return { classificacao: 'Muito Elevado', cor: 'red' };
+  }
+}
+
 export default function EvolucaoPaciente() {
   const location = useLocation()
   const navigate = useNavigate()
@@ -115,13 +134,43 @@ export default function EvolucaoPaciente() {
 
       if (errCalc) console.error(errCalc)
 
+      let calcIdade = 25
+      if (pacienteAtual?.data_nascimento) {
+        const birthDate = new Date(pacienteAtual.data_nascimento + 'T12:00:00')
+        const evalDate = new Date()
+        calcIdade = evalDate.getFullYear() - birthDate.getFullYear()
+        const m = evalDate.getMonth() - birthDate.getMonth()
+        if (m < 0 || (m === 0 && evalDate.getDate() < birthDate.getDate())) calcIdade--
+      }
+
       // 6. Mescla e Formata os Dados
       const dadosMesclados = (avaliacoes || []).map((aval, index) => {
         const calc = calculos?.find(c => c.id_avaliacao === aval.id) || {}
 
+        // Fallback dinâmico para apVAT
+        let apvatCalculado = 0
+        if (calc.area_previsao_visceral_apvat && Number(calc.area_previsao_visceral_apvat) > 0) {
+          apvatCalculado = Number(calc.area_previsao_visceral_apvat)
+        } else {
+          const pCintura = Number(aval.perimetro_cintura || 0)
+          const pCoxaMax = Number(aval.perimetro_coxa_maxima || 0)
+          const pesoVal = Number(aval.peso_paciente || 0)
+          const alturaVal = Number(aval.altura_paciente || 0)
+
+          if (pCintura > 0 && pCoxaMax > 0) {
+            if (pacienteAtual.sexo === 'M') {
+              apvatCalculado = (6 * pCintura) - (4.41 * pCoxaMax) + (1.19 * calcIdade) - 213.65
+            } else {
+              const imcVal = (alturaVal > 0) ? pesoVal / Math.pow(alturaVal / 100, 2) : 0
+              apvatCalculado = (2.15 * pCintura) - (3.63 * pCoxaMax) + (1.46 * calcIdade) + (6.22 * imcVal) - 92.713
+            }
+            apvatCalculado = Math.max(0, apvatCalculado)
+          }
+        }
+
         return {
           id: aval.id,
-          video_url: aval.video_url, // 📹 URL do vídeo individual da avaliação
+          video_url: aval.video_url,
           nome_avaliacao: `Av. ${index + 1}`,
           dataStr_curta: new Date(aval.data_avaliacao).toLocaleDateString('pt-BR', { timeZone: 'UTC', day: '2-digit', month: '2-digit', year: 'numeric' }),
           dataStr: new Date(aval.data_avaliacao).toLocaleDateString('pt-BR', { timeZone: 'UTC' }),
@@ -153,7 +202,7 @@ export default function EvolucaoPaciente() {
           cintura_estatura: Number(calc.relacao_cintura_estatura || 0).toFixed(2),
           cintura_quadril: Number(calc.relacao_cintura_quadril || 0).toFixed(2),
           imo: Number(calc.indice_massa_ossea_imo || 0).toFixed(3),
-          apvat: Number(calc.area_previsao_visceral_apvat || 0).toFixed(1), // 🌟 AJUSTADO PARA apVAT (1 casa decimal)
+          apvat: Number(apvatCalculado).toFixed(1),
           iam: Number(calc.indice_adiposo_muscular || 0).toFixed(2),
 
           triceps: Number(aval.dobra_cutanea_triceps || 0).toFixed(1),
@@ -219,12 +268,10 @@ export default function EvolucaoPaciente() {
     )
   }
 
-  // 📹 PEGA O VÍDEO DA ÚLTIMA AVALIAÇÃO OU O VÍDEO PADRÃO DO CONSULTÓRIO
   const ultimaAvaliacao = historico[historico.length - 1]
   const urlVideoRaw = ultimaAvaliacao?.video_url || avaliador?.video_url_padrao
   const videoEmbedUrl = obterUrlEmbedYouTube(urlVideoRaw)
 
-  // Helper de Trava de Visibilidade Inteligente
   const podeExibir = (chave) => {
     if (!configVisibilidade) return true;
 
@@ -241,7 +288,6 @@ export default function EvolucaoPaciente() {
     return true;
   }
 
-  // Cálculos Demográficos
   let idade = '-'
   if (pacienteLocal?.data_nascimento) {
     const birthDate = new Date(pacienteLocal.data_nascimento + 'T12:00:00')
@@ -268,9 +314,8 @@ export default function EvolucaoPaciente() {
     const msg = `Olá *${primeiroNome}*, tudo bem?\n\nAqui é ${saudacao}! Acabei de atualizar a sua *Evolução Antropométrica* com os dados da nossa última consulta.\n\nAcesse o link abaixo para visualizar seus resultados interativos e acompanhar sua evolução:\n\n${linkDaEvolucao}\n\nQualquer dúvida, estou à disposição!`;
     const link = `https://wa.me/${telefoneLimpo.startsWith('55') ? telefoneLimpo : '55' + telefoneLimpo}?text=${encodeURIComponent(msg)}`;
     window.open(link, '_blank');
-  } 
+  }
 
-  // COMPONENTE: Cartão de Evolução
   const CardEvolucao = ({ titulo, chaveDado, unidade = "", isInverso = false, chaveVisibilidade, casasDecimais = 1 }) => {
     if (!podeExibir(chaveVisibilidade)) return null;
 
@@ -362,7 +407,6 @@ export default function EvolucaoPaciente() {
     )
   }
 
-  // COMPONENTE: Barras de Somatotipo
   const BarChartSomatotipo = () => {
     const maxVal = 12;
 
@@ -404,6 +448,10 @@ export default function EvolucaoPaciente() {
 
   const exibeGraficoPerimetrosCriticos = podeExibir('evo_perim_cintura') || podeExibir('evo_perim_quadril') || podeExibir('evo_perim_braco_cont');
   const exibeGraficoSomatorios = podeExibir('evo_soma_6') || podeExibir('evo_soma_8');
+
+  // Pega último somatório de 6 dobras para classificação Argoref
+  const ultimoSoma6 = Number(historico[historico.length - 1]?.soma_6 || 0);
+  const infoArgorefEvolucao = classificarArgoref(ultimoSoma6, pacienteLocal?.sexo);
 
   return (
     <div className="w-full max-w-6xl mx-auto space-y-10 pb-12 px-4 sm:px-6 overflow-x-hidden animate-fade-in-up print:m-0 print:p-0 print:overflow-visible">
@@ -718,7 +766,28 @@ export default function EvolucaoPaciente() {
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 w-full min-w-0">
-                <CardEvolucao titulo="Somatório 6 Dobras" chaveDado="soma_6" unidade="mm" isInverso={true} chaveVisibilidade="evo_soma_6" />
+                <div className="space-y-3">
+                  <CardEvolucao titulo="Somatório 6 Dobras" chaveDado="soma_6" unidade="mm" isInverso={true} chaveVisibilidade="evo_soma_6" />
+                  
+                  {/* 🌟 ESCALA ARGOREF (COMPONENTE NA EVOLUÇÃO) */}
+                  {ultimoSoma6 > 0 && (
+                    <div className="bg-emerald-50/60 p-3 rounded-xl border border-emerald-100 flex justify-between items-center">
+                      <div>
+                        <span className="text-xs font-bold text-gray-800">Classificação ARGOREF (Holway, 2025)</span>
+                        <p className="text-[10px] text-gray-500">Com base no último somatório de 6 dobras registrado ({ultimoSoma6} mm).</p>
+                      </div>
+                      <span className={`text-[10px] font-extrabold px-2.5 py-1 rounded-md uppercase tracking-wider ${
+                        infoArgorefEvolucao.cor === 'red' ? 'bg-red-100 text-red-800' :
+                        infoArgorefEvolucao.cor === 'amber' ? 'bg-amber-100 text-amber-800' :
+                        infoArgorefEvolucao.cor === 'blue' ? 'bg-blue-100 text-blue-800' :
+                        'bg-emerald-100 text-emerald-800'
+                      }`}>
+                        {infoArgorefEvolucao.classificacao}
+                      </span>
+                    </div>
+                  )}
+                </div>
+
                 <CardEvolucao titulo="Somatório 8 Dobras" chaveDado="soma_8" unidade="mm" isInverso={true} chaveVisibilidade="evo_soma_8" />
               </div>
 
@@ -777,7 +846,6 @@ export default function EvolucaoPaciente() {
             </div>
           </div>
 
-          {/* Player Responsivo 16:9 */}
           <div className="aspect-video w-full rounded-2xl overflow-hidden shadow-md bg-slate-900">
             <iframe
               src={videoEmbedUrl}
