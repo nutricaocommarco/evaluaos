@@ -287,7 +287,7 @@ export default function ResultadoAvaliacao() {
           .from('dados_calculados')
           .upsert(payloadCalculado, { onConflict: 'id_avaliacao' })
 
-        if (upsertError) consolewarn('Nota: Não foi possível sincronizar no banco.', upsertError)
+        if (upsertError) console.warn('Nota: Não foi possível sincronizar no banco.', upsertError)
       }
 
       setDados({
@@ -353,19 +353,42 @@ export default function ResultadoAvaliacao() {
   const imc = dados.imc || 0
   const infoImc = classificarImc ? classificarImc(imc) : { classificacao: '-', cor: 'gray' };
   const percentualGordura = aval.percentual_de_gordura || 0 
-  const massaGorda = dados.massa_gorda || 0
-  const massaMagra = dados.massa_magra || 0
-  const massaMuscular = dados.massa_muscular || 0
+  const pesoTotal = aval.peso_paciente || 0
+  const alturaM = (aval.altura_paciente || 0) / 100
+  const dUmero = Number(aval.diametro_umero) || 0
+  const dFemur = Number(aval.diametro_femur) || 0
 
-  const percentualMassaLivre = percentualGordura > 0 ? (100 - percentualGordura) : 0;
+  // --- CÁLCULO DAS MASSAS DO FRACIONAMENTO DE 4 COMPONENTES DE DE ROSE ET AL. ---
+  const massaGorda = dados.massa_gorda || (pesoTotal * (percentualGordura / 100))
+  
+  // 1. Massa Óssea (Von Döbeln modificada por Rocha, 1975)
+  let massaOssea = 0
+  if (alturaM > 0 && dUmero > 0 && dFemur > 0) {
+    massaOssea = 3.02 * Math.pow(Math.pow(alturaM, 2) * (dUmero / 100) * (dFemur / 100) * 400, 0.712)
+  }
 
-  // Dados para o Gráfico de Pizza (2 Componentes)
-  const dadosPizza2Comp = [
-    { name: 'Massa Gorda', value: percentualGordura, kg: massaGorda, color: '#f59e0b' },
-    { name: 'Massa Livre de Gordura', value: percentualMassaLivre, kg: massaMagra, color: '#3b82f6' }
-  ];
+  // 2. Massa Residual (Würch, 1973)
+  const pctResidualWurch = pac.sexo === 'M' ? 0.24 : 0.21
+  const massaResidual = pesoTotal * pctResidualWurch
 
-  const iamVal = dados.indice_adiposo_muscular || ((massaMuscular > 0 && massaGorda > 0) ? (massaGorda / massaMuscular) : 0)
+  // 3. Massa Muscular (Diferencial residual de 4C)
+  const massaMuscularDeRose = Math.max(0, pesoTotal - (massaGorda + massaOssea + massaResidual))
+
+  // Percentuais de De Rose
+  const pctGorduraDeRose = pesoTotal > 0 ? (massaGorda / pesoTotal) * 100 : 0
+  const pctMusculoDeRose = pesoTotal > 0 ? (massaMuscularDeRose / pesoTotal) * 100 : 0
+  const pctOssoDeRose = pesoTotal > 0 ? (massaOssea / pesoTotal) * 100 : 0
+  const pctResidualDeRose = pesoTotal > 0 ? (massaResidual / pesoTotal) * 100 : 0
+
+  // Dados para o Gráfico de Pizza de 4 Componentes
+  const dadosPizza4Comp = [
+    { name: 'Massa Adiposa', value: pctGorduraDeRose, kg: massaGorda, color: '#f59e0b' },
+    { name: 'Massa Muscular', value: pctMusculoDeRose, kg: massaMuscularDeRose, color: '#10b981' },
+    { name: 'Massa Óssea', value: pctOssoDeRose, kg: massaOssea, color: '#6366f1' },
+    { name: 'Massa Residual', value: pctResidualDeRose, kg: massaResidual, color: '#64748b' }
+  ]
+
+  const iamVal = dados.indice_adiposo_muscular || ((massaMuscularDeRose > 0 && massaGorda > 0) ? (massaGorda / massaMuscularDeRose) : 0)
   const imoVal = dados.indice_massa_ossea_imo || 0
   const apvatVal = dados.area_previsao_visceral_apvat || 0
 
@@ -587,67 +610,64 @@ export default function ResultadoAvaliacao() {
             {podeExibir('laudo_massa_muscular') && (
               <div className="bg-white p-5 rounded-xl border border-gray-100 shadow-sm flex flex-col justify-center border-l-4 border-l-emerald-500 relative">
                 <p className="text-xs font-semibold text-gray-500 uppercase">Massa Muscular</p>
-                <p className="text-2xl font-black text-emerald-700 mt-1">{massaMuscular > 0 ? massaMuscular.toFixed(2) : '-'} <span className="text-xs font-normal text-gray-500">kg</span></p>
-                <span className="absolute bottom-2 right-3 text-[9px] font-medium text-gray-400">Ref: Lee 2000</span>
+                <p className="text-2xl font-black text-emerald-700 mt-1">{massaMuscularDeRose > 0 ? massaMuscularDeRose.toFixed(2) : '-'} <span className="text-xs font-normal text-gray-500">kg</span></p>
+                <span className="absolute bottom-2 right-3 text-[9px] font-medium text-gray-400">Ref: De Rose et al.</span>
               </div>
             )}
           </div>
 
-          {/* 🥧 GRÁFICO DE PIZZA (2 COMPONENTES: MASSA GORDA X MASSA LIVRE DE GORDURA) */}
-          {percentualGordura > 0 && (
-            <div className="bg-white p-6 rounded-xl border border-gray-100 shadow-sm flex flex-col md:flex-row items-center justify-around gap-6">
-              <div className="w-full md:w-1/2 h-[240px]">
-                <ResponsiveContainer width="100%" height="100%">
-                  <PieChart>
-                    <Pie
-                      data={dadosPizza2Comp}
-                      cx="50%"
-                      cy="50%"
-                      innerRadius={60}
-                      outerRadius={85}
-                      paddingAngle={4}
-                      dataKey="value"
-                    >
-                      {dadosPizza2Comp.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={entry.color} />
-                      ))}
-                    </Pie>
-                    <Tooltip 
-                      formatter={(val, name, entry) => [
-                        `${val.toFixed(1)}% (${entry.payload.kg.toFixed(2)} kg)`, 
-                        name
-                      ]}
-                      contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
-                    />
-                    <Legend iconType="circle" wrapperStyle={{ fontSize: '12px' }} />
-                  </PieChart>
-                </ResponsiveContainer>
+          {/* 🥧 GRÁFICO DE PIZZA (4 COMPONENTES DE DE ROSE ET AL.) */}
+          {pesoTotal > 0 && (
+            <div className="bg-white p-6 rounded-xl border border-gray-100 shadow-sm space-y-4">
+              <div className="flex justify-between items-center border-b border-gray-100 pb-2">
+                <h3 className="text-sm font-black text-gray-800 uppercase tracking-wider">
+                  🧩 Fracionamento da Composição Corporal (De Rose et al.)
+                </h3>
+                <span className="text-[10px] text-gray-400 font-medium">Modelo de 4 C</span>
               </div>
 
-              {/* Tabela Resumo em Valores Numéricos e Percentuais ao Lado do Gráfico */}
-              <div className="w-full md:w-1/2 space-y-3 bg-gray-50 p-4 rounded-xl border border-gray-100">
-                <h4 className="text-xs font-black text-gray-600 uppercase tracking-wider mb-2">Fracionamento em 2 Componentes</h4>
-                
-                <div className="flex justify-between items-center bg-white p-3 rounded-lg border border-gray-100">
-                  <div className="flex items-center gap-2">
-                    <div className="w-3 h-3 rounded-full bg-amber-500"></div>
-                    <span className="text-xs font-bold text-gray-700">Massa Gorda</span>
-                  </div>
-                  <div className="text-right">
-                    <span className="text-sm font-black text-amber-600">{massaGorda.toFixed(2)} kg</span>
-                    <span className="text-xs font-semibold text-gray-400 ml-2">({percentualGordura.toFixed(1)}%)</span>
-                  </div>
+              <div className="flex flex-col md:flex-row items-center justify-around gap-6">
+                <div className="w-full md:w-1/2 h-[260px]">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={dadosPizza4Comp}
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={55}
+                        outerRadius={85}
+                        paddingAngle={4}
+                        dataKey="value"
+                      >
+                        {dadosPizza4Comp.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={entry.color} />
+                        ))}
+                      </Pie>
+                      <Tooltip 
+                        formatter={(val, name, entry) => [
+                          `${val.toFixed(1)}% (${entry.payload.kg.toFixed(2)} kg)`, 
+                          name
+                        ]}
+                        contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
+                      />
+                      <Legend iconType="circle" wrapperStyle={{ fontSize: '11px' }} />
+                    </PieChart>
+                  </ResponsiveContainer>
                 </div>
 
-                <div className="flex justify-between items-center bg-white p-3 rounded-lg border border-gray-100">
-                  <div className="flex items-center gap-2">
-                    <div className="w-3 h-3 rounded-full bg-blue-500"></div>
-                    <span className="text-xs font-bold text-gray-700">Massa Livre de Gordura</span>
-                  </div>
-                  <div className="text-right">
-                    <span className="text-sm font-black text-blue-600">{massaMagra.toFixed(2)} kg</span>
-                    <span className="text-xs font-semibold text-gray-400 ml-2">({percentualMassaLivre.toFixed(1)}%)</span>
-                  </div>
+                <div className="w-full md:w-1/2 space-y-2 bg-gray-50 p-4 rounded-xl border border-gray-100">
+                  {dadosPizza4Comp.map((item, idx) => (
+                    <div key={idx} className="flex justify-between items-center bg-white p-2.5 rounded-lg border border-gray-100">
+                      <div className="flex items-center gap-2">
+                        <div className="w-3 h-3 rounded-full" style={{ backgroundColor: item.color }}></div>
+                        <span className="text-xs font-bold text-gray-700">{item.name}</span>
+                      </div>
+                      <div className="text-right">
+                        <span className="text-xs font-black text-gray-800">{item.kg.toFixed(2)} kg</span>
+                        <span className="text-[10px] font-semibold text-gray-400 ml-1.5">({item.value.toFixed(1)}%)</span>
+                      </div>
+                    </div>
+                  ))}
                 </div>
               </div>
             </div>

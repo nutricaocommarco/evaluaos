@@ -1,7 +1,7 @@
 /**
  * Módulo de Cálculos Antropométricos - EvaluaOS
  * Arquivo: calculosAntropometricos.js
- * Protocolos: Petroski, Jackson & Pollock, Guedes, Faulkner, Somatotipo Heath-Carter e apVAT (Samouda 2013)
+ * Protocolos: Petroski, Jackson & Pollock, Guedes, Faulkner, Somatotipo Heath-Carter, apVAT (Samouda 2013) e Fracionamento 4C De Rose et al.
  */
 
 export function calcularResultadosAntropometricos(dados, sexo, idade = 25) {
@@ -70,9 +70,33 @@ export function calcularResultadosAntropometricos(dados, sexo, idade = 25) {
 
   percentualGordura = parseFloat(Math.max(3, Math.min(60, percentualGordura)).toFixed(2))
 
-  // 5. FRACIONAMENTO DE MASSA (kg)
+  // 5. FRACIONAMENTO DE MASSA EM 4 COMPONENTES (MÉTODO DE ROSE ET AL.)
+  const diamUmero = parseFloat(dados.diametro_umero || dados.diametro_biepicondilar_umero) || 0
+  const diamFemur = parseFloat(dados.diametro_femur || dados.diametro_bicondilar_femur) || 0
+
+  // A. Massa Adiposa / Gorda (kg)
   const massaGordaKg = parseFloat(((peso * percentualGordura) / 100).toFixed(2))
   const massaMagraKg = parseFloat((peso - massaGordaKg).toFixed(2))
+
+  // B. Massa Óssea (Von Döbeln modificada por Rocha, 1975)
+  let massaOsseaKg = 0
+  if (alturaM > 0 && diamUmero > 0 && diamFemur > 0) {
+    massaOsseaKg = 3.02 * Math.pow(Math.pow(alturaM, 2) * (diamUmero / 100) * (diamFemur / 100) * 400, 0.712)
+  }
+  massaOsseaKg = parseFloat(massaOsseaKg.toFixed(2))
+
+  // C. Massa Residual (Würch, 1973)
+  const pctResidualWurch = sexo === 'M' ? 0.24 : 0.21
+  const massaResidualKg = parseFloat((peso * pctResidualWurch).toFixed(2))
+
+  // D. Massa Muscular (Diferencial residual do modelo de 4C de De Rose)
+  const massaMuscularDeRoseKg = parseFloat(Math.max(0, peso - (massaGordaKg + massaOsseaKg + massaResidualKg)).toFixed(2))
+
+  // Percentuais Fracionados de De Rose (%)
+  const pctMassaGordaDeRose = peso > 0 ? parseFloat(((massaGordaKg / peso) * 100).toFixed(1)) : 0
+  const pctMassaMuscularDeRose = peso > 0 ? parseFloat(((massaMuscularDeRoseKg / peso) * 100).toFixed(1)) : 0
+  const pctMassaOsseaDeRose = peso > 0 ? parseFloat(((massaOsseaKg / peso) * 100).toFixed(1)) : 0
+  const pctMassaResidualDeRose = peso > 0 ? parseFloat(((massaResidualKg / peso) * 100).toFixed(1)) : 0
 
   // 6. PERÍMETROS CORRIGIDOS (cm)
   const perimBraco = parseFloat(dados.perimetro_braco_relaxado) || 0
@@ -87,9 +111,9 @@ export function calcularResultadosAntropometricos(dados, sexo, idade = 25) {
   const soma3Somato = (triceps + subescapular + supraespinal) * (170.18 / (alturaCm || 170))
   const endomorfia = (-0.7182 + (0.1451 * soma3Somato) - (0.00068 * Math.pow(soma3Somato, 2)) + (0.0000014 * Math.pow(soma3Somato, 3))).toFixed(2)
 
-  const diamUmero = parseFloat(dados.diametro_umero || dados.diametro_biepicondilar_umero) || 6.5
-  const diamFemur = parseFloat(dados.diametro_femur || dados.diametro_bicondilar_femur) || 9.5
-  const mesomorfia = ((0.858 * diamUmero) + (0.601 * diamFemur) + (0.188 * (perimBracoCorr || 25)) + (0.161 * (perimPantCorr || 30)) - (0.161 * alturaCm) + 1.601).toFixed(2)
+  const umeroSomato = diamUmero || 6.5
+  const femurSomato = diamFemur || 9.5
+  const mesomorfia = ((0.858 * umeroSomato) + (0.601 * femurSomato) + (0.188 * (perimBracoCorr || 25)) + (0.161 * (perimPantCorr || 30)) - (0.161 * alturaCm) + 1.601).toFixed(2)
 
   const hwr = alturaCm / Math.pow(peso || 1, 1 / 3)
   let ectomorfia = 0
@@ -109,7 +133,17 @@ export function calcularResultadosAntropometricos(dados, sexo, idade = 25) {
     imc: parseFloat(imc),
     massa_gorda: massaGordaKg,
     massa_magra: massaMagraKg,
-    area_previsao_visceral_apvat: apvat, // 🌟 CAMPO PARA O BANCO E LAUDO
+    
+    // 🌟 COMPONENTES DE DE ROSE ET AL. (4C)
+    massa_ossea_derose: massaOsseaKg,
+    massa_residual_derose: massaResidualKg,
+    massa_muscular_derose: massaMuscularDeRoseKg,
+    pct_massa_gorda_derose: pctMassaGordaDeRose,
+    pct_massa_muscular_derose: pctMassaMuscularDeRose,
+    pct_massa_ossea_derose: pctMassaOsseaDeRose,
+    pct_massa_residual_derose: pctMassaResidualDeRose,
+
+    area_previsao_visceral_apvat: apvat,
     somatorio_6_dobras: parseFloat(somatorio6),
     somatorio_8_dobras: parseFloat(somatorio8),
     perimetro_corrigido_braco: parseFloat(perimBracoCorr),
