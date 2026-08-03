@@ -11,7 +11,7 @@ import ExportadorDadosCSV from '../components/configuracoes/ExportadorDadosCSV'
 export default function Configuracoes() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
-  const [abaAtiva, setAbaAtiva] = useState('coleta') // 'coleta', 'preferencias', 'privacidade', 'backup'
+  const [abaAtiva, setAbaAtiva] = useState('coleta') // 'coleta', 'preferencias', 'privacidade', 'backup', 'afiliados'
   
   const [config, setConfig] = useState({
     tolerancia_dobras: 5.0,
@@ -23,6 +23,9 @@ export default function Configuracoes() {
     equacao_padrao_feminina: 'Durnin et al. (1974) - 4skf',
     visibilidade_publica: null
   })
+
+  // 🔗 COLOQUE O SEU LINK DE AFILIADO DA HOTMART AQUI
+  const LINK_AFILIADO_HOTMART = "https://affiliate.hotmart.com/affiliate-recruiting/view/2019E106982311" 
 
   useEffect(() => {
     async function carregarConfiguracoes() {
@@ -79,6 +82,7 @@ export default function Configuracoes() {
     { id: 'coleta', label: 'Formulário & Coleta', icon: '📝' },
     { id: 'preferencias', label: 'Protocolos & Margens', icon: '⚡' },
     { id: 'privacidade', label: 'Visibilidade', icon: '👁️' },
+    { id: 'afiliados', label: 'Indique & Ganhe', icon: '🤝' },
     { id: 'backup', label: 'Backup & Dados', icon: '💾' }
   ]
 
@@ -89,7 +93,7 @@ export default function Configuracoes() {
         <p className="text-sm text-gray-500">Personalize regras de medição, campos de formulário e a experiência do aluno.</p>
       </div>
 
-      {/* MENU DE ABAS - GRID 2x2 NO MOBILE E LINHA NO DESKTOP (PREVINE TRANSBORDAMENTO) */}
+      {/* MENU DE ABAS */}
       <div className="grid grid-cols-2 sm:flex sm:flex-wrap gap-2 border-b border-gray-200 pb-3 w-full min-w-0">
         {abas.map(aba => (
           <button
@@ -122,6 +126,58 @@ export default function Configuracoes() {
 
         {abaAtiva === 'privacidade' && (
           <VisibilidadePublicaForm config={config} setConfig={setConfig} onSave={handleSalvarTudo} saving={saving} />
+        )}
+
+        {/* 🤝 ABA: PROGRAMA DE INDICAÇÃO / AFILIADOS */}
+        {abaAtiva === 'afiliados' && (
+          <div className="bg-white p-6 rounded-xl border border-gray-100 shadow-sm space-y-6">
+            <div className="border-b pb-4">
+              <h3 className="text-base font-bold text-gray-800 flex items-center gap-2">
+                <span>🤝</span> Programa de Parceria & Indicação EvaluaOS
+              </h3>
+              <p className="text-xs text-gray-500 mt-1">
+                Indique o EvaluaOS para colegas nutricionistas, estudantes e antropometristas e receba comissões diretas a cada assinatura.
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="p-4 bg-emerald-50/60 border border-emerald-100 rounded-xl space-y-1">
+                <span className="text-2xl">💰</span>
+                <h4 className="text-xs font-bold text-emerald-900">Comissões Recorrentes</h4>
+                <p className="text-[11px] text-emerald-700">Ganhe por cada mensalidade ou anuidade gerada pelas suas indicações.</p>
+              </div>
+
+              <div className="p-4 bg-blue-50/60 border border-blue-100 rounded-xl space-y-1">
+                <span className="text-2xl">⚡</span>
+                <h4 className="text-xs font-bold text-blue-900">Gestão via Hotmart</h4>
+                <p className="text-[11px] text-blue-700">Acompanhamento transparente de cliques, conversões e pagamentos garantidos.</p>
+              </div>
+
+              <div className="p-4 bg-purple-50/60 border border-purple-100 rounded-xl space-y-1">
+                <span className="text-2xl">📊</span>
+                <h4 className="text-xs font-bold text-purple-900">Indicação Natural</h4>
+                <p className="text-[11px] text-purple-700">Mostre seus laudos interativos para colegas do consultório ou da faculdade.</p>
+              </div>
+            </div>
+
+            <div className="bg-gray-50 p-5 rounded-xl border border-gray-200 flex flex-col sm:flex-row justify-between items-center gap-4">
+              <div>
+                <h4 className="text-xs font-bold text-gray-800">Como se tornar um parceiro?</h4>
+                <p className="text-xs text-gray-500 mt-0.5">
+                  Ao se cadastrar no programa via Hotmart, você obtém seu link exclusivo de divulgação para indicar quando quiser.
+                </p>
+              </div>
+              
+              <a
+                href={LINK_AFILIADO_HOTMART}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="w-full sm:w-auto px-6 py-3 bg-emerald-600 text-white rounded-xl text-xs font-bold hover:bg-emerald-700 shadow-sm flex items-center justify-center gap-2 transition-all shrink-0"
+              >
+                <span>🚀</span> Quero me Tornar um Afiliado
+              </a>
+            </div>
+          </div>
         )}
 
         {abaAtiva === 'backup' && (
