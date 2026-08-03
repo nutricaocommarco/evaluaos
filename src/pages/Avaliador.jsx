@@ -17,6 +17,7 @@ export default function Avaliador() {
   const [telefone, setTelefone] = useState('')
   const [instagram, setInstagram] = useState('')
   const [empresa, setEmpresa] = useState('')
+  const [videoUrlPadrao, setVideoUrlPadrao] = useState('') // 📹 Novo estado
   const [planoStatus, setPlanoStatus] = useState('gratis')
 
   // Estados dos Equipamentos
@@ -67,6 +68,7 @@ export default function Avaliador() {
         setTelefone(perfilData.telefone || '')
         setInstagram(perfilData.instagram || '')
         setEmpresa(perfilData.empresa || '')
+        setVideoUrlPadrao(perfilData.video_url_padrao || '')
         setPlanoStatus(perfilData.plano_status ? perfilData.plano_status.toLowerCase() : 'gratis')
         setLogoUrl(perfilData.logomarca_url || '')
 
@@ -109,7 +111,8 @@ export default function Avaliador() {
       email,
       telefone,
       instagram,
-      empresa: isPro ? empresa : null // Apenas grava o nome da empresa se for assinante Pro
+      empresa: isPro ? empresa : null,
+      video_url_padrao: videoUrlPadrao ? videoUrlPadrao.trim() : null
     }
 
     const { data: existente } = await supabase
@@ -248,7 +251,6 @@ export default function Avaliador() {
       const file = event.target.files[0]
       if (!file) return
 
-      // Trava de segurança: 2MB
       if (file.size > 2 * 1024 * 1024) {
         alert('A imagem deve ter no máximo 2MB.')
         return
@@ -348,12 +350,24 @@ export default function Avaliador() {
                 }`} 
                 placeholder={isPro ? "Nome do espaço / consultório" : "🔒 Nome personalizado exclusivo do Plano Pro"} 
               />
-              {!isPro && (
-                <p className="text-[10px] text-amber-600 font-medium mt-1">
-                  No Plano Grátis, os laudos são gerados sem nome de empresa. Assine o Pro para personalizar seus relatórios.
-                </p>
-              )}
             </div>
+          </div>
+
+          {/* 🎬 VÍDEO PADRÃO DO CONSULTÓRIO */}
+          <div className="pt-2 border-t border-gray-100">
+            <label className="block text-xs font-semibold text-gray-700 uppercase mb-1">
+              🎬 Vídeo Padrão de Boas-Vindas / Apresentação do Consultório (YouTube - Opcional)
+            </label>
+            <input
+              type="url"
+              value={videoUrlPadrao}
+              onChange={(e) => setVideoUrlPadrao(e.target.value)}
+              placeholder="https://www.youtube.com/watch?v=... ou https://youtu.be/..."
+              className="w-full px-3 py-2 border rounded-md text-sm focus:ring-emerald-500 focus:border-emerald-500 bg-white"
+            />
+            <p className="text-[11px] text-gray-400 mt-1">
+              Este vídeo será exibido em todos os laudos públicos caso você não adicione um vídeo personalizado específico na avaliação do paciente.
+            </p>
           </div>
 
           <div className="flex justify-end pt-2">
@@ -363,20 +377,6 @@ export default function Avaliador() {
           </div>
         </form>
       </div>
-
-{/* SEÇÃO 2.2: Vídeo Padrão de Boas Vindas */}
-      <div>
-  <label className="block text-xs font-bold text-slate-700 mb-1">
-    🎬 Vídeo Padrão de Boas-Vindas / Apresentação do Consultório
-  </label>
-  <input
-    type="url"
-    value={perfil.video_url_padrao || ''}
-    onChange={(e) => setPerfil({ ...perfil, video_url_padrao: e.target.value })}
-    placeholder="https://www.youtube.com/watch?v=..."
-    className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:ring-2 focus:ring-emerald-500 outline-none"
-  />
-</div>
 
       {/* SEÇÃO 2: EQUIPAMENTOS */}
       <div className="bg-white p-6 rounded-xl border border-gray-100 shadow-sm space-y-6">
