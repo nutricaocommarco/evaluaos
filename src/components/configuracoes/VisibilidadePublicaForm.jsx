@@ -257,9 +257,11 @@ export default function VisibilidadePublicaForm({ config, setConfig, onSave, sav
         { key: 'laudo_somatocarta_grafico', label: 'Gráfico da Somatocarta' }
       ]
     },
-    {
-      titulo: 'Outros Indicadores',
+{
+      titulo: 'Outros Indicadores & Classificações',
       chaves: [
+        { key: 'laudo_apvat', label: 'Área Visceral (apVAT)' },
+        { key: 'laudo_morrow', label: 'Gordura (Morrow 2003)' },
         { key: 'laudo_iam', label: 'Índice Adiposo Muscular (IAM)' },
         { key: 'laudo_imo', label: 'Índice Músculo Ósseo (IMO)' }
       ]

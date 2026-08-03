@@ -999,13 +999,13 @@ export default function ResultadoAvaliacao() {
         </>
       )}
 
-      {/* 10. OUTROS INDICADORES & CLASSIFICAÇÕES */}
-      {(podeExibir('laudo_iam') || podeExibir('laudo_imo') || podeExibir('laudo_apvat')) && (
+{/* 10. OUTROS INDICADORES & CLASSIFICAÇÕES */}
+      {(podeExibir('laudo_iam') || podeExibir('laudo_imo') || podeExibir('laudo_apvat') || podeExibir('laudo_morrow')) && (
         <div className="bg-white p-6 rounded-xl border border-gray-100 shadow-sm space-y-4 mt-6">
           <h3 className="text-sm font-bold text-gray-800 uppercase tracking-wider border-b pb-2">🚀 10. Outros Indicadores & Classificações</h3>
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
             
-            {/* apVAT */}
+            {/* Área Visceral (apVAT) */}
             {podeExibir('laudo_apvat') && (
               <div className="flex flex-col justify-between p-3 border border-gray-100 rounded-lg bg-gray-50 space-y-1">
                 <div className="flex justify-between items-center">
@@ -1030,27 +1030,29 @@ export default function ResultadoAvaliacao() {
             )}
 
             {/* Classificação Morrow et al. (2003) */}
-            <div className="flex flex-col justify-between p-3 border border-gray-100 rounded-lg bg-gray-50 space-y-1">
-              <div className="flex justify-between items-center">
-                <span className="text-xs font-semibold text-gray-700">Gordura (Morrow 2003)</span>
-                <span className="text-xs font-bold text-gray-800">{percentualGordura > 0 ? `${percentualGordura.toFixed(1)}%` : '-'}</span>
-              </div>
-              {percentualGordura > 0 && (
-                <div className="flex justify-end">
-                  <span className={`text-[9px] font-bold px-2 py-0.5 rounded uppercase tracking-wider ${
-                    infoMorrow.cor === 'red' ? 'bg-red-100 text-red-800' :
-                    infoMorrow.cor === 'orange' ? 'bg-orange-100 text-orange-800' :
-                    infoMorrow.cor === 'amber' ? 'bg-amber-100 text-amber-800' :
-                    infoMorrow.cor === 'blue' ? 'bg-blue-100 text-blue-800' :
-                    'bg-emerald-100 text-emerald-800'
-                  }`}>
-                    {infoMorrow.classificacao}
-                  </span>
+            {podeExibir('laudo_morrow') && (
+              <div className="flex flex-col justify-between p-3 border border-gray-100 rounded-lg bg-gray-50 space-y-1">
+                <div className="flex justify-between items-center">
+                  <span className="text-xs font-semibold text-gray-700">Gordura (Morrow 2003)</span>
+                  <span className="text-xs font-bold text-gray-800">{percentualGordura > 0 ? `${percentualGordura.toFixed(1)}%` : '-'}</span>
                 </div>
-              )}
-            </div>
+                {percentualGordura > 0 && (
+                  <div className="flex justify-end">
+                    <span className={`text-[9px] font-bold px-2 py-0.5 rounded uppercase tracking-wider ${
+                      infoMorrow.cor === 'red' ? 'bg-red-100 text-red-800' :
+                      infoMorrow.cor === 'orange' ? 'bg-orange-100 text-orange-800' :
+                      infoMorrow.cor === 'amber' ? 'bg-amber-100 text-amber-800' :
+                      infoMorrow.cor === 'blue' ? 'bg-blue-100 text-blue-800' :
+                      'bg-emerald-100 text-emerald-800'
+                    }`}>
+                      {infoMorrow.classificacao}
+                    </span>
+                  </div>
+                )}
+              </div>
+            )}
 
-            {/* ÍNDICE ADIPOSO MUSCULAR (IAM) COM EXPLICAÇÃO PRÁTICA */}
+            {/* ÍNDICE ADIPOSO MUSCULAR (IAM) */}
             {podeExibir('laudo_iam') && (
               <div className="flex flex-col justify-between p-3 border border-gray-100 rounded-lg bg-gray-50 space-y-1">
                 <div className="flex justify-between items-center">
@@ -1080,6 +1082,8 @@ export default function ResultadoAvaliacao() {
             )}
 
           </div>
+        </div>
+      )}
 
           {videoEmbedUrl && (
             <div className="bg-white border border-slate-200 rounded-3xl p-5 sm:p-6 shadow-sm space-y-3 my-6">
