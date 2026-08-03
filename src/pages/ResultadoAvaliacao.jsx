@@ -4,6 +4,9 @@ import { supabase } from '../supabaseClient'
 import { obterUrlEmbedYouTube } from '../utils/youtube'
 import BotaoExportarPDF from '../components/BotaoExportarPDF'
 import { 
+  PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend 
+} from 'recharts'
+import { 
   classificarImc, 
   classificarRce, 
   classificarRcq, 
@@ -284,7 +287,7 @@ export default function ResultadoAvaliacao() {
           .from('dados_calculados')
           .upsert(payloadCalculado, { onConflict: 'id_avaliacao' })
 
-        if (upsertError) console.warn('Nota: Não foi possível sincronizar no banco.', upsertError)
+        if (upsertError) consolewarn('Nota: Não foi possível sincronizar no banco.', upsertError)
       }
 
       setDados({
@@ -354,6 +357,14 @@ export default function ResultadoAvaliacao() {
   const massaMagra = dados.massa_magra || 0
   const massaMuscular = dados.massa_muscular || 0
 
+  const percentualMassaLivre = percentualGordura > 0 ? (100 - percentualGordura) : 0;
+
+  // Dados para o Gráfico de Pizza (2 Componentes)
+  const dadosPizza2Comp = [
+    { name: 'Massa Gorda', value: percentualGordura, kg: massaGorda, color: '#f59e0b' },
+    { name: 'Massa Livre de Gordura', value: percentualMassaLivre, kg: massaMagra, color: '#3b82f6' }
+  ];
+
   const iamVal = dados.indice_adiposo_muscular || ((massaMuscular > 0 && massaGorda > 0) ? (massaGorda / massaMuscular) : 0)
   const imoVal = dados.indice_massa_ossea_imo || 0
   const apvatVal = dados.area_previsao_visceral_apvat || 0
@@ -367,7 +378,7 @@ export default function ResultadoAvaliacao() {
   const soma6 = dados.somatorio_6_dobras || 0;
   const soma8 = dados.somatorio_8_dobras || 0;
 
-  const infoArgoref = classificarArgoref ? classificarArgoref(soma6, pac.sexo) : { classificacao: '-', cor: 'gray' };
+  const infoArgoref = classificarArgoref ? classificarArgoref(soma6, pac.sexo);
   const infoMorrow = classificarMorrow ? classificarMorrow(percentualGordura, pac.sexo, idade) : { classificacao: '-', cor: 'gray' };
 
   const descricoesSomatotipo = classificarSomatotipoDetalhado ? classificarSomatotipoDetalhado({
@@ -527,8 +538,8 @@ export default function ResultadoAvaliacao() {
       {(podeExibir('laudo_imc') || podeExibir('laudo_percentual_gordura') || podeExibir('laudo_massa_gorda') || podeExibir('laudo_massa_magra') || podeExibir('laudo_massa_muscular')) && (
         <div>
           <h3 className="text-sm font-bold text-gray-800 uppercase tracking-wider mb-3 px-1 mt-6">📊 2. Composição Corporal</h3>
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-            
+          
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
             {/* CARD DO IMC COM CLASSIFICAÇÃO */}
             {podeExibir('laudo_imc') && (
               <div className="bg-white p-5 rounded-xl border border-gray-100 shadow-sm flex flex-col justify-between relative">
@@ -581,6 +592,67 @@ export default function ResultadoAvaliacao() {
               </div>
             )}
           </div>
+
+          {/* 🥧 GRÁFICO DE PIZZA (2 COMPONENTES: MASSA GORDA X MASSA LIVRE DE GORDURA) */}
+          {percentualGordura > 0 && (
+            <div className="bg-white p-6 rounded-xl border border-gray-100 shadow-sm flex flex-col md:flex-row items-center justify-around gap-6">
+              <div className="w-full md:w-1/2 h-[240px]">
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={dadosPizza2Comp}
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={60}
+                      outerRadius={85}
+                      paddingAngle={4}
+                      dataKey="value"
+                    >
+                      {dadosPizza2Comp.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={entry.color} />
+                      ))}
+                    </Pie>
+                    <Tooltip 
+                      formatter={(val, name, entry) => [
+                        `${val.toFixed(1)}% (${entry.payload.kg.toFixed(2)} kg)`, 
+                        name
+                      ]}
+                      contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
+                    />
+                    <Legend iconType="circle" wrapperStyle={{ fontSize: '12px' }} />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+
+              {/* Tabela Resumo em Valores Numéricos e Percentuais ao Lado do Gráfico */}
+              <div className="w-full md:w-1/2 space-y-3 bg-gray-50 p-4 rounded-xl border border-gray-100">
+                <h4 className="text-xs font-black text-gray-600 uppercase tracking-wider mb-2">Fracionamento em 2 Componentes</h4>
+                
+                <div className="flex justify-between items-center bg-white p-3 rounded-lg border border-gray-100">
+                  <div className="flex items-center gap-2">
+                    <div className="w-3 h-3 rounded-full bg-amber-500"></div>
+                    <span className="text-xs font-bold text-gray-700">Massa Gorda</span>
+                  </div>
+                  <div className="text-right">
+                    <span className="text-sm font-black text-amber-600">{massaGorda.toFixed(2)} kg</span>
+                    <span className="text-xs font-semibold text-gray-400 ml-2">({percentualGordura.toFixed(1)}%)</span>
+                  </div>
+                </div>
+
+                <div className="flex justify-between items-center bg-white p-3 rounded-lg border border-gray-100">
+                  <div className="flex items-center gap-2">
+                    <div className="w-3 h-3 rounded-full bg-blue-500"></div>
+                    <span className="text-xs font-bold text-gray-700">Massa Livre de Gordura</span>
+                  </div>
+                  <div className="text-right">
+                    <span className="text-sm font-black text-blue-600">{massaMagra.toFixed(2)} kg</span>
+                    <span className="text-xs font-semibold text-gray-400 ml-2">({percentualMassaLivre.toFixed(1)}%)</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
         </div>
       )}
 
