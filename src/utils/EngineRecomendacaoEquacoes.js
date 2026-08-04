@@ -1,6 +1,7 @@
 /**
  * EVALUAOS - Sistema Especialista em Cineantropometria Avançada
- * Cruzamento Multicritério de 60+ Equações com Fracionamento Anatômico, Somatotipo e Trava Factual de Kerr (Kg)
+ * Hierarquia de Decisão (TCC): 
+ * 1º Sexo -> 2º Endomorfia -> 3º Morrow -> 4º Argoref/ISAK -> 5º Kerr(kg) -> 6º Idade/Nac -> 7º Bônus
  */
 
 import * as Eq from './equacoes'
@@ -114,7 +115,7 @@ export function recomendarEquacaoIdeal(medidas = {}, paciente = {}) {
   }
   if (!idade || idade <= 0) idade = 25;
 
-  // 2. EXTRAÇÃO DE MEDIDAS E FRACIONAMENTO ANATÔMICO BASE
+  // 2. EXTRAÇÃO DE MEDIDAS E CÁLCULO DOS COMPONENTES
   const peso = Number(medidas.peso_paciente || medidas.massa_kg || medidas.peso_kg) || 0
   const alturaCm = Number(medidas.altura_paciente || medidas.estatura_cm || medidas.altura_cm) || 0
   const alturaM = alturaCm / 100
@@ -131,7 +132,7 @@ export function recomendarEquacaoIdeal(medidas = {}, paciente = {}) {
   const soma6 = tr + sub + si + se + ab + cx
   const soma8 = soma6 + bi + pa
 
-  // A. Trava Anatômica Adiposa de Kerr (1991) em KG
+  // A. Fracionamento Adiposo (Kerr 1991) em KG - TRAVA BIOLÓGICA
   let massaAdiposaKerr = 0
   if (soma6 > 0 && alturaCm > 0) {
     const zAdiposo = ((soma6 * (170.18 / alturaCm)) - 116.41) / 34.79
@@ -139,7 +140,7 @@ export function recomendarEquacaoIdeal(medidas = {}, paciente = {}) {
   }
   const pctAdiposoKerr = peso > 0 ? Number(((massaAdiposaKerr / peso) * 100).toFixed(2)) : 0
 
-  // B. Tecido Muscular de Lee (2000)
+  // B. Tecido Muscular (Lee 2000) e Ósseo (Rocha 1975)
   const dUmero = Number(medidas.diametro_umero) || 6.5
   const dFemur = Number(medidas.diametro_femur) || 9.5
   const dRadio = Number(medidas.diametro_punho) || 5.0
@@ -163,21 +164,18 @@ export function recomendarEquacaoIdeal(medidas = {}, paciente = {}) {
     massaMuscularLee = (alturaM * ((0.00744 * Math.pow(bracoCorr, 2)) + (0.00088 * Math.pow(coxaCorr, 2)) + (0.00441 * Math.pow(pantCorr, 2)))) + (2.4 * sexoNum) - (0.048 * idade) + racaNum + 7.8
   }
 
-  // C. Tecido Ósseo (Rocha 1975)
   let massaOsseaRocha = 0
   if (alturaM > 0 && dUmero > 0 && dFemur > 0) {
     massaOsseaRocha = 3.02 * Math.pow(Math.pow(alturaM, 2) * (dUmero / 100) * (dFemur / 100) * 400, 0.712)
   }
 
-  // D. Massa Residual (Würch 1973)
   const pctResidualWurch = sexo === 'M' ? 0.24 : 0.21
   const massaResidual4C = peso > 0 ? peso * pctResidualWurch : 0
 
-  // E. Índices IMO e IAM
   const imoLeeRocha = (massaMuscularLee > 0 && massaOsseaRocha > 0) ? (massaMuscularLee / massaOsseaRocha) : 0
   const iamVal = (massaMuscularLee > 0 && massaAdiposaKerr > 0) ? (massaAdiposaKerr / massaMuscularLee) : 0
 
-  // F. Somatotipo (Heath-Carter)
+  // C. Somatotipo (Endomorfia / Mesomorfia)
   const somaDobrasEndo = (tr + sub + se) * (170.18 / (alturaCm || 1))
   let endomorfia = 0
   if (alturaCm > 0) {
@@ -190,10 +188,12 @@ export function recomendarEquacaoIdeal(medidas = {}, paciente = {}) {
     mesomorfia = (0.858 * dUmero) + (0.601 * dFemur) + (0.188 * bracoCorr) + (0.161 * pantCorr) - (0.131 * alturaCm) + 4.5
   }
 
-  // G. IMC & Matrizes Normativas
   const imcVal = alturaM > 0 ? peso / (alturaM * alturaM) : 0
   const classImc = classificarImc(imcVal)?.classificacao || '-'
-  const statusMorrow = classificarMorrow(pctAdiposoKerr, sexo, idade)?.classificacao || '-'
+  
+  // A classificação Morrow BASE é extraída da estimativa física de Kerr
+  const statusMorrowObj = classificarMorrow(pctAdiposoKerr, sexo, idade)
+  const statusMorrow = typeof statusMorrowObj === 'object' ? statusMorrowObj.classificacao : statusMorrowObj
 
   let referenciaDobrasUsada = '-'
   let statusDobrasBrutas = '-'
@@ -212,14 +212,14 @@ export function recomendarEquacaoIdeal(medidas = {}, paciente = {}) {
   const ehFalsoSobrepeso = imcVal >= 25.0 && ehHipertrofiado
 
   // ============================================================
-  // 3. SISTEMA ESPECIALISTA: SIMULAÇÃO E PONTUAÇÃO DAS EQUAÇÕES
+  // 5. ENGINE DE RECOMENDAÇÃO (HIERARQUIA ESTRITA SOLICITADA)
   // ============================================================
   const listaCandidatas = sexo === 'F' ? METADADOS_EQUACOES.filter(e => e.sexo === 'F') : METADADOS_EQUACOES.filter(e => e.sexo === 'M')
 
   let equacoesPontuadas = []
 
   listaCandidatas.forEach(eq => {
-    let score = 50
+    let score = 1000 // Base alta para pontuação hierárquica
     let razoes = []
     let pgcSimulado = 0
 
@@ -234,56 +234,93 @@ export function recomendarEquacaoIdeal(medidas = {}, paciente = {}) {
 
     const massaGordaSimuladaKg = (pgcSimulado / 100) * peso
 
-    // ⛔ REGRA DE OURO (TRAVA FATAL DE KERR EM KG):
-    // O Tecido Adiposo Anatômico de Kerr é a estrutura física.
-    // A gordura química pura extraída JAMAIS pode ultrapassar a massa do próprio tecido adiposo real.
-    if (massaGordaSimuladaKg > massaAdiposaKerr) {
-      score -= 200 // Penalização fatal: elimina a equação do ranking primário
-      const excessoKg = (massaGordaSimuladaKg - massaAdiposaKerr).toFixed(2)
-      razoes.push(`Inviabilidade Biológica Fatal: A gordura calculada (${massaGordaSimuladaKg.toFixed(2)} kg) excede o teto anatômico do Tecido Adiposo de Kerr (${massaAdiposaKerr.toFixed(2)} kg) por ${excessoKg} kg. Esta equação superestima a gordura molecular.`)
+    // 🥇 HIERARQUIA 1: CLASSIFICAÇÃO DA ENDOMORFIA (Somatotipo)
+    if (endomorfia >= 6.0) {
+      if (eq.pop === 'obeso') {
+        score += 200
+        razoes.push(`Endomorfia Alta (${endomorfia}): Equação ideal para perfis de alta adiposidade.`)
+      } else if (eq.pop === 'geral') {
+        score += 50
+      } else {
+        score -= 100
+      }
+    } else if (endomorfia <= 3.5) {
+      if (eq.pop === 'atleta') {
+        score += 200
+        razoes.push(`Endomorfia Baixa (${endomorfia}): Equação ideal para perfis atléticos e magros.`)
+      } else {
+        score -= 50
+      }
     } else {
-      score += 25
-      const margemKg = (massaAdiposaKerr - massaGordaSimuladaKg).toFixed(2)
-      razoes.push(`Acurácia Biológica Confirmada: A massa gorda estimada (${massaGordaSimuladaKg.toFixed(2)} kg) respeita o teto físico do Tecido Adiposo de Kerr (${massaAdiposaKerr.toFixed(2)} kg) com margem real de ${margemKg} kg.`)
+      if (['geral', 'brasileira', 'universitaria'].includes(eq.pop)) {
+        score += 100
+        razoes.push(`Endomorfia Moderada (${endomorfia}): Recomendada para o perfil populacional padrão.`)
+      }
     }
 
-    // A. Compatibilidade Etária
+    // 🥈 HIERARQUIA 2: MORROW ET AL. (Adiposidade Molecular)
+    const morrowEqObj = classificarMorrow(pgcSimulado, sexo, idade)
+    const nomeMorrowEq = typeof morrowEqObj === 'object' ? morrowEqObj.classificacao : morrowEqObj
+    
+    if (nomeMorrowEq === statusMorrow && statusMorrow !== '-') {
+      score += 150
+      razoes.push(`Morrow (2003): O resultado (${pgcSimulado.toFixed(1)}%) mantém a classificação real de saúde do paciente ("${statusMorrow}").`)
+    }
+
+    // 🥉 HIERARQUIA 3: ARGOREF / ISAK (Adiposidade Subcutânea)
+    if (statusDobrasBrutas !== '-') {
+      if ((statusDobrasBrutas.includes('Elevado') || statusDobrasBrutas.includes('Acima')) && (eq.pop === 'obeso' || eq.tipo === 'perimetros')) {
+        score += 150
+        razoes.push(`Argoref/ISAK (${statusDobrasBrutas}): O perfil de dobras espessas prioriza esta equação.`)
+      } else if ((statusDobrasBrutas.includes('Baixo') || statusDobrasBrutas.includes('Abaixo')) && eq.pop === 'atleta') {
+        score += 150
+        razoes.push(`Argoref/ISAK (${statusDobrasBrutas}): O perfil de dobras finas prioriza este modelo atlético.`)
+      } else {
+        score += 50
+      }
+    }
+
+    // 🏅 HIERARQUIA 4: TRAVA DE KERR EM KG (O Limite Biológico)
+    const diffKerr = massaGordaSimuladaKg - massaAdiposaKerr
+    if (diffKerr <= 0) {
+      score += 200
+      razoes.push(`Trava de Kerr: A gordura estimada (${massaGordaSimuladaKg.toFixed(1)} kg) respeita perfeitamente o teto do Tecido Adiposo (${massaAdiposaKerr.toFixed(1)} kg).`)
+    } else if (diffKerr <= 10.0) {
+      score += 50
+      razoes.push(`Trava de Kerr (Tolerância): A gordura excede levemente o tecido adiposo em ${diffKerr.toFixed(1)} kg, sendo variação aceitável pela densidade muscular.`)
+    } else {
+      score -= 300 // Penalidade severa, mas não zera se os outros fatores justificarem em casos anômalos
+      razoes.push(`Aviso Biológico: Superestima a gordura molecular em ${diffKerr.toFixed(1)} kg além da estrutura adiposa palpável.`)
+    }
+
+    // 👤 HIERARQUIA 5: IDADE E NACIONALIDADE
     if (idade >= eq.idadeMin && idade <= eq.idadeMax) {
-      score += 20
-      razoes.push(`Compatível com a faixa etária original (${idade} anos está dentro de ${eq.idadeMin}-${eq.idadeMax} anos).`)
+      score += 100
+      razoes.push(`Idade compatível (${eq.idadeMin}-${eq.idadeMax} anos).`)
     } else {
-      score -= 30
-      razoes.push(`Fora da faixa etária original (${eq.idadeMin}-${eq.idadeMax} anos).`)
+      score -= 100
     }
 
-    // B. Perfil Demográfico, Etnia e Atividade
-    if (idade < 18 && eq.pop === 'crianca') {
-      score += 30
-      razoes.push('Específica para maturação e crescimento infantojuvenil.')
-    } else if (idade >= 60 && eq.pop === 'idoso') {
-      score += 30
-      razoes.push('Calibrada para alterações geriátricas e densidade tecidual avançada.')
-    } else if (ehFalsoSobrepeso && eq.tipo === 'dobras') {
-      score += 35
-      razoes.push(`Proteção contra Falso Sobrepeso (IMC: ${imcVal.toFixed(1)} com Mesomorfia ${mesomorfia.toFixed(1)}): Equação por dobras isola a alta massa muscular.`)
-    } else if (esporte && eq.pop === 'atleta') {
-      score += 25
-      razoes.push('Validada em populações atléticas e fisicamente ativas.')
-    } else if (nacionalidade.includes('brasil') && eq.pop === 'brasileira') {
-      score += 25
-      razoes.push('Validada na população brasileira com pesagem hidrostática.')
+    if (nacionalidade.includes('brasil') && eq.pop === 'brasileira') {
+      score += 80
+      razoes.push('Amostra populacional validada no Brasil.')
     } else if (etnia.includes('asiat') && eq.pop === 'asiatica') {
-      score += 25
-      razoes.push('Específica para a densidade corporal de populações asiáticas.')
-    } else if (!esporte && eq.pop === 'geral') {
-      score += 15
-      razoes.push('Indicada para a população adulta padrão.')
+      score += 80
+      razoes.push('Calibrada para proporções asiáticas.')
     }
 
-    // C. Ajuste por Compressibilidade em Dobras Elevadas
-    if (soma6 > 130 && eq.tipo === 'perimetros') {
+    // ⚡ BÔNUS DE AJUSTE FINO (Desempate)
+    if (esporte && eq.pop === 'atleta') {
       score += 30
-      razoes.push(`Dobras elevadas (Σ6D = ${soma6} mm). O protocolo por perímetros evita a deformação mecânica do adipômetro.`)
+      razoes.push('Bônus: Adequada ao perfil de prática esportiva.')
+    }
+    if (soma6 > 130 && eq.tipo === 'perimetros') {
+      score += 40
+      razoes.push('Bônus: Uso de perímetros evita a compressão do adipômetro em dobras extremas.')
+    }
+    if (ehFalsoSobrepeso && eq.tipo === 'dobras') {
+      score += 30
+      razoes.push('Bônus: Dobras isolam o falso sobrepeso gerado pelo alto IMC muscular.')
     }
 
     equacoesPontuadas.push({
