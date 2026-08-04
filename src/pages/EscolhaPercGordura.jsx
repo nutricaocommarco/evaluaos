@@ -1,474 +1,229 @@
-import React, { useState, useEffect, useRef } from 'react'
-import { useLocation, useNavigate } from 'react-router-dom'
-import { supabase } from '../supabaseClient'
-import * as Eq from '../utils/equacoes'
+/**
+ * EVALUAOS - Engine de Recomendação Automática de Equações Antropométricas (V2.0)
+ * Integrado com Simulação Paralela, Fracionamento 5C e Score de Aderência
+ */
 
-const listaFeminina = [
-  { nome: 'Durnin et al. (1974) - 4skf', func: Eq.calcularFemDurnin1974 },
-  { nome: 'Jackson et al. (1980) - 3skf', func: Eq.calcularFemJacksonPollock1980_3skf },
-  { nome: 'Petroski (1995) - 4skf', func: Eq.calcularFemPetroski1995_4skf },
-  { nome: 'Guedes (1985) - 3skf', func: Eq.calcularFemGuedes1985_3skf },
-  { nome: 'Withers et al. (1987) - 4skf', func: Eq.calcularFemWithers1987_4skf },
-  { nome: 'Withers et al. (1987) - 6skf', func: Eq.calcularFemWithers1987_6skf },
-  { nome: 'Slaughter et al. (1988) - 2skf', func: Eq.calcularFemSlaughter1988_2skf },
-  { nome: 'Yuhasz (1974) - 6skf', func: Eq.calcularFemYuhasz1974_6skf },
-  { nome: 'Katch & McArdle (1973) - 3skf', func: Eq.calcularFemKatchMcArdle1973_3skf },
-  { nome: 'Sloan et al. (1962) - 2skf', func: Eq.calcularFemSloan1962_2skf },
-  { nome: 'Wilmore & Behnke (1970) - 3skf', func: Eq.calcularFemWilmoreBehnke1970_3skf },
-  { nome: 'Thorland et al. (1984) - Generalizada', func: Eq.calcularFemThorlandGeneralizada1984 },
-  { nome: 'Lewis et al. (1978) - Dobras e Perímetros', func: Eq.calcularFemLewis1978 },
-  { nome: 'Jackson et al. (1980) - 4skf', func: Eq.calcularFemJacksonPollock1980_4skf },
-  { nome: 'Tran & Weltman (1989) - Perímetros', func: Eq.calcularFemTranWeltman1989_Perimetros },
-  { nome: 'Weltman et al. (1988) - Perímetros', func: Eq.calcularFemWeltman1988_Perimetros },
-  { nome: 'Woolcott & Bergman 2018', func: Eq.calcularFemWoolcottBergman2018 },
-  { nome: 'Deurenberg et al. (1991) - Por IMC', func: Eq.calcularFemDeurenberg1991_IMC },
-  { nome: 'Mitchell et al. 2020 7skd ISAK', func: Eq.calcularFemMitchell2020_7skf },
-  { nome: 'Eston et al. 2005 3skf ISAK', func: Eq.calcularFemEston2005_3skf },
-  { nome: 'Evans et al. 2005 3skf Brancas', func: Eq.calcularFemEvans2005_3skf_Brancas },
-  { nome: 'Evans et al. 2005 3skf Negras', func: Eq.calcularFemEvans2005_3skf_Negras },
-  { nome: 'Durnin 4skf (menor de 17 anos)', func: Eq.calcularFemDurnin1974_Menor17 },
-  { nome: 'Durnin 4skf (16-19 anos)', func: Eq.calcularFemDurnin1974_16a19anos },
-  { nome: 'Durnin 4skf (20-29 anos)', func: Eq.calcularFemDurnin1974_20a29anos },
-  { nome: 'Durnin 4skf (30-39 anos)', func: Eq.calcularFemDurnin1974_30a39anos },
-  { nome: 'Durnin 4skf (40-49 anos)', func: Eq.calcularFemDurnin1974_40a49anos },
-  { nome: 'Durnin 4skf - Variação F (50+ anos Alt)', func: Eq.calcularFemDurnin1974_50a58anos },
-  { nome: 'Durnin  et al. 1974 1skf', func: Eq.calcularFemDurnin1974_1skf },
-  { nome: 'Durnin  et al. 1974 2skf', func: Eq.calcularFemDurnin1974_2skf },
-  { nome: 'Nagamine & Suzuki, 1964 2skf', func: Eq.calcularFemNagamineSuzuki1964_2skf },
-  { nome: 'Deurenberg et al. 1990 pré-puberes', func: Eq.calcularFemDeurenberg1990_PrePuberes },
-  { nome: 'Deurenberg et al. 1990 púberes', func: Eq.calcularFemDeurenberg1990_Puberes },
-  { nome: 'Deurenberg et al. 1990 pós-puberes', func: Eq.calcularFemDeurenberg1990_PosPuberes },
-  { nome: 'Ortiz-Hernández et al. 2016', func: Eq.calcularFemOrtizHernandez2016 }
-];
+import { 
+  classificarArgoref, 
+  classificarPercentilItaliano, 
+  classificarImc 
+} from './escalasNormativas'
 
-const listaMasculina = [
-  { nome: 'Mitchell et al. (2020) - 7skf ISAK', func: Eq.calcularMascMitchell2020_7skd },
-  { nome: 'Woolcott & Bergman (2018) - RFM', func: Eq.calcularMascWoolcottBergman2018 },
-  { nome: 'Guedes (1985) - 3skf', func: Eq.calcularMascGuedes1985_3skd },
-  { nome: 'Deurenberg et al. (1991) - Por IMC', func: Eq.calcularMascDeurenberg1991_IMC },
-  { nome: 'Weltman et al. (1987) - Por Perímetros', func: Eq.calcularMascWeltman1987 },
-  { nome: 'Petroski (1995) - 4skf', func: Eq.calcularMascPetroski1995_4skd },
-  { nome: 'Stewart & Hannan (2000) - 2skf', func: Eq.calcularMascStewartHannan_2skd },
-  { nome: 'Faulkner (1968) - 4skf', func: Eq.calcularMascFaulkner1968_4skd },
-  { nome: 'Reilly et al. (2009) - 4skf ISAK', func: Eq.calcularMascReilly2009_4skd },
-  { nome: 'Evans et al. (2005) - 3skf (Brancos)', func: Eq.calcularMascEvans2005_3skd_White },
-  { nome: 'Evans et al. (2005) - 3skf (Negros)', func: Eq.calcularMascEvans2005_3skd_Black },
-  { nome: 'Katch & McArdle (1973) - 3skf', func: Eq.calcularMascKatchMcArdle1973_3skd },
-  { nome: 'Withers et al. (1987) - 7skf', func: Eq.calcularMascWithers1987_7skd },
-  { nome: 'Slaughter et al. (1988) - 2skf', func: Eq.calcularMascSlaughter1988_2skd },
-  { nome: 'Yuhasz (1974) - 6skf', func: Eq.calcularMascYuhasz1974_6skd },
-  { nome: 'Wilmore & Behnke (1969) - 2skf', func: Eq.calcularMascWilmoreBehnke1969_2skd },
-  { nome: 'Boileau et al. (1985) - 2skf', func: Eq.calcularMascBoileau1985_2skd },
-  { nome: 'Deurenberg et al. (1990) - Pré-Púberes', func: Eq.calcularMascDeurenberg1990_4skd_PrePuberes },
-  { nome: 'Deurenberg et al. (1990) - Púberes', func: Eq.calcularMascDeurenberg1990_4skd_Puberes },
-  { nome: 'Deurenberg et al. (1990) - Pós-Púberes', func: Eq.calcularMascDeurenberg1990_4skd_PosPuberes },
-  { nome: 'Eston et al. (2005) - 2skf ISAK', func: Eq.calcularMascEston2005_2skd },
-  { nome: 'Eston et al. (2005) - 6skf ISAK', func: Eq.calcularMascEston2005_6skd },
-  { nome: 'Durnin et al. (1974) - 4skf (17 a 72 anos)', func: Eq.calcularMascDurnin1974_17a72anos },
-  { nome: 'Durnin et al. (1974) - 4skf (17 a 19 anos)', func: Eq.calcularMascDurnin1974_17a19anos },
-  { nome: 'Durnin et al. (1974) - 4skf (20 a 29 anos)', func: Eq.calcularMascDurnin1974_20a29anos },
-  { nome: 'Durnin et al. (1974) - 4skf (30 a 39 anos)', func: Eq.calcularMascDurnin1974_30a39anos },
-  { nome: 'Durnin et al. (1974) - 4skf (40 a 49 anos)', func: Eq.calcularMascDurnin1974_40a49anos },
-  { nome: 'Durnin et al. (1974) - 4skf (50 a 72 anos)', func: Eq.calcularMascDurnin1974_50a72anos },
-  { nome: 'Durnin et al. (1974) - 1skf (Só Tríceps)', func: Eq.calcularMascDurnin1974_1skd },
-  { nome: 'Durnin & Rahaman (1967) - 4skf (< 17 anos)', func: Eq.calcularMascDurninRahaman1967_4skd },
-  { nome: 'Forsyth & Sinning (1973) - 2skf', func: Eq.calcularMascForsythSinning1973_2skd },
-  { nome: 'Nagamine & Suzuki (1964) - 2skf', func: Eq.calcularMascNagamineSuzuki1964_2skd },
-  { nome: 'Sloan (1967) - 2skf', func: Eq.calcularMascSloan1967_2skd },
-  { nome: 'Hortobagyi et al. (1992) - Massa/Estatura', func: Eq.calcularMascHortobagyi1992 },
-  { nome: 'Ortiz-Hernández et al. (2016) - Mista', func: Eq.calcularMascOrtizHernandez2016 }
-];
+// Importe as listas de equações exportadas do seu arquivo de equações
+import { listaFeminina, listaMasculina } from '../utils/listaEquacoes' 
 
-export default function EscolhaPercGordura() {
-  const location = useLocation()
-  const navigate = useNavigate()
-  
-  const pacienteInicial = location.state?.pacienteInicial || null
-  const avaliacaoIdInicial = location.state?.avaliacaoIdInicial || null
+export function recomendarEquacoesIdeais(medidas = {}, paciente = {}) {
+  if (!medidas || !paciente) {
+    return {
+      recomendacaoPrimaria: null,
+      recomendacoesSecundarias: [],
+      travaKerr: { massaAdiposaKg: 0, pctAdiposo: 0 },
+      indicadoresCruzados: {}
+    }
+  }
 
-  const [busca, setBusca] = useState('')
-  const [pacientesFiltrados, setPacientesFiltrados] = useState([])
-  const [showDropdown, setShowDropdown] = useState(false)
+  const sexo = paciente.sexo || 'M'
   
-  const [pacienteSelecionado, setPacienteSelecionado] = useState(pacienteInicial)
-  
-  // Histórico de avaliações do paciente selecionado
-  const [historicoAvaliacoes, setHistoricoAvaliacoes] = useState([])
-  
-  const [avaliacaoAtual, setAvaliacaoAtual] = useState(null)
-  const [medidasBrutas, setMedidasBrutas] = useState({})
-  
-  // === NOVO ESTADO: Para buscar a Massa Muscular já salva ===
-  const [dadosCalculados, setDadosCalculados] = useState({})
-  
-  const [equacaoSelecionada, setEquacaoSelecionada] = useState('')
-  
-  const [resultadoGordura, setResultadoGordura] = useState(0)
-  const [metadados, setMetadados] = useState(null)
-  
-  const [salvando, setSalvando] = useState(false)
+  // 1. DADOS DEMOGRÁFICOS E IDADE
+  let idade = Number(paciente.idade || paciente.idade_anos) || 0
+  if (!idade && (paciente.data_nascimento || paciente.data_nasc)) {
+    const dataNascStr = paciente.data_nascimento || paciente.data_nasc
+    const birthDate = new Date(dataNascStr + 'T12:00:00')
+    const evalDate = new Date()
+    idade = evalDate.getFullYear() - birthDate.getFullYear()
+    const m = evalDate.getMonth() - birthDate.getMonth()
+    if (m < 0 || (m === 0 && evalDate.getDate() < birthDate.getDate())) idade--
+  }
+  if (!idade || idade <= 0) idade = 25;
 
-  const dropdownRef = useRef(null)
+  const esporte = paciente.pratica_esporte === true || paciente.pratica_esporte === 'true'
+  const modalidade = (paciente.modalidade_esportiva || '').toLowerCase()
 
-  const buscarEquacaoPadraoConfigurada = async (sexoPaciente) => {
+  // 2. EXTRAÇÃO DAS MEDIDAS
+  const tr = Number(medidas.dobra_cutanea_triceps || medidas.dobra_triceps) || 0
+  const sub = Number(medidas.dobra_cutanea_subescapular || medidas.dobra_subescapular) || 0
+  const bi = Number(medidas.dobra_cutanea_biceps || medidas.dobra_biceps) || 0
+  const si = Number(medidas.dobra_cutanea_crista_iliaca || medidas.dobra_crista_iliaca) || 0
+  const se = Number(medidas.dobra_cutanea_supraespinhal || medidas.dobra_supraespinhal) || 0
+  const ab = Number(medidas.dobra_cutanea_abdominal || medidas.dobra_abdominal) || 0
+  const cx = Number(medidas.dobra_cutanea_coxa_media || medidas.dobra_coxa) || 0
+  const pa = Number(medidas.dobra_cutanea_panturrilha || medidas.dobra_panturrilha_medial) || 0
+
+  const peso = Number(medidas.peso_paciente || medidas.massa_kg) || 0
+  const alturaCm = Number(medidas.altura_paciente || medidas.estatura_cm) || 0
+  const alturaM = alturaCm / 100
+
+  const dUmero = Number(medidas.diametro_umero) || 0
+  const dFemur = Number(medidas.diametro_femur) || 0
+  const dRadio = Number(medidas.diametro_punho) || 0
+  const dMaleolar = Number(medidas.diametro_maleolar) || 0
+
+  const pBraco = Number(medidas.perimetro_braco_contraido || medidas.perimetro_braco_relaxado) || 0
+  const cCoxa = Number(medidas.perimetro_coxa_media) || 0
+  const cAntebraco = Number(medidas.perimetro_antibraco) || 0
+  const cPant = Number(medidas.perimetro_panturrilha) || 0
+
+  const perCintura = Number(medidas.perimetro_cintura) || 0;
+
+  // 3. ADIPOSIDADE SUBCUTÂNEA BRUTA (S6D) E S8D
+  const soma6 = tr + sub + si + se + ab + cx
+  const soma8 = soma6 + bi + pa
+
+  let statusDobrasBrutas = '-'
+  let referenciaDobrasUsada = '-'
+
+  if (soma6 > 0) {
+    if (idade >= 20 && idade <= 30) {
+      statusDobrasBrutas = classificarArgoref(soma6, sexo).classificacao
+      referenciaDobrasUsada = 'ARGOREF (Holway, 2025)'
+    } else {
+      statusDobrasBrutas = classificarPercentilItaliano(soma6, sexo, idade)
+      referenciaDobrasUsada = `Percentil ISAK (Campa et al., 2025 - ${idade} anos)`
+    }
+  }
+
+  // 4. FRACIONAMENTO TECIDUAL BASE E ÍNDICES (KERR, LEE, ROCHA)
+  // Massa Muscular (Lee 2000)
+  const bracoCorr = pBraco - (tr * 0.3141)
+  const coxaCorr = cCoxa - (cx * 0.3141)
+  const pantCorr = cPant - (pa * 0.3141)
+  let massaMuscularLee = 0
+  if (alturaM > 0 && pBraco > 0 && cCoxa > 0 && cPant > 0) {
+    const sexoNum = sexo === 'M' ? 1 : 0
+    let racaNum = 0
+    if (paciente.etnia === 'Afrodescendente') racaNum = 1.1
+    if (paciente.etnia === 'Asiatico') racaNum = -2
+    massaMuscularLee = (alturaM * ((0.00744 * Math.pow(bracoCorr, 2)) + (0.00088 * Math.pow(coxaCorr, 2)) + (0.00441 * Math.pow(pantCorr, 2)))) + (2.4 * sexoNum) - (0.048 * idade) + racaNum + 7.8
+  }
+
+  // Massa Óssea (Rocha 1975)
+  let massaOsseaRocha = 0
+  if (alturaM > 0 && dUmero > 0 && dFemur > 0) {
+    massaOsseaRocha = 3.02 * Math.pow(Math.pow(alturaM, 2) * (dUmero / 100) * (dFemur / 100) * 400, 0.712)
+  }
+
+  // Índices de Muscularidade
+  const imoLeeRocha = (massaMuscularLee > 0 && massaOsseaRocha > 0) ? (massaMuscularLee / massaOsseaRocha) : 0
+  const pctMuscularLee = peso > 0 ? (massaMuscularLee / peso) * 100 : 0
+
+  // Detecção Clínica de Muscularidade
+  const ehHipertrofiado = (sexo === 'M' && (imoLeeRocha >= 3.0 || pctMuscularLee >= 46.8)) || (sexo === 'F' && (imoLeeRocha >= 2.6 || pctMuscularLee >= 40.8))
+  const ehBaixaMuscularidade = (sexo === 'M' && pctMuscularLee < 32.0) || (sexo === 'F' && pctMuscularLee < 28.0)
+
+  // IMC
+  const imcVal = alturaM > 0 ? peso / (alturaM * alturaM) : 0
+
+  // 5. MASSA ADIPOSA DE KERR (A TRAVA BIOLÓGICA)
+  let massaAdiposaKerr = 0
+  if (soma6 > 0 && alturaCm > 0) {
+    const zAdiposo = ((soma6 * (170.18 / alturaCm)) - 116.41) / 34.79
+    massaAdiposaKerr = Math.max(0, ((zAdiposo * 5.85) + 25.6) * Math.pow(alturaCm / 170.18, 3))
+  }
+  const pctAdiposoKerr = peso > 0 ? (massaAdiposaKerr / peso) * 100 : 0
+
+  // 6. MOTOR DE SIMULAÇÃO PARALELA E SCORE
+  const equacoesAplicaveis = sexo === 'F' ? listaFeminina : listaMasculina;
+  let recomendacoes = [];
+
+  equacoesAplicaveis.forEach(eq => {
     try {
-      const { data: authData } = await supabase.auth.getUser()
-      if (!authData?.user) return ''
+      const resultado = eq.func(medidas, paciente);
+      const pctGorduraCalc = typeof resultado === 'object' ? resultado.valor : resultado;
+      const info = typeof resultado === 'object' ? resultado.info : null;
 
-      const { data: conf } = await supabase
-        .from('configuracoes_avaliador')
-        .select('equacao_padrao_masculina, equacao_padrao_feminina')
-        .eq('auth_id', authData.user.id)
-        .maybeSingle()
+      if (pctGorduraCalc > 0 && pctGorduraCalc < 60) {
+        let score = 0;
+        let motivosSelecao = [];
+        let massaGordaEstimada = (pctGorduraCalc / 100) * peso;
 
-      if (conf) {
-        if (sexoPaciente === 'M') return conf.equacao_padrao_masculina || ''
-        if (sexoPaciente === 'F') return conf.equacao_padrao_feminina || ''
-      }
-    } catch (err) {
-      console.error('Erro ao carregar equação padrão das configurações:', err)
-    }
-    return ''
-  }
-
-  // 1. CARREGAMENTO INICIAL VINDO DO AVALIACAO_FORM
-  useEffect(() => {
-    if (pacienteInicial) {
-      selecionarPacienteViaForm(pacienteInicial, avaliacaoIdInicial)
-    }
-  }, [pacienteInicial, avaliacaoIdInicial])
-
-  // 2. BUSCA DINÂMICA DE PACIENTES
-  useEffect(() => {
-    const buscarPacientes = async () => {
-      if (busca.length < 1) {
-        setPacientesFiltrados([])
-        return
-      }
-      const { data, error } = await supabase
-        .from('pacientes')
-        .select('id, nome_completo, sexo, data_nascimento')
-        .ilike('nome_completo', `%${busca}%`)
-        .limit(5)
-
-      if (!error && data) setPacientesFiltrados(data)
-    }
-    
-    const delayDebounce = setTimeout(() => buscarPacientes(), 300)
-    return () => clearTimeout(delayDebounce)
-  }, [busca])
-
-  useEffect(() => {
-    const handleClickFora = (e) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
-        setShowDropdown(false)
-      }
-    }
-    document.addEventListener('mousedown', handleClickFora)
-    return () => document.removeEventListener('mousedown', handleClickFora)
-  }, [])
-
-  // SELEÇÃO DIRETA DO FORMULÁRIO
-  const selecionarPacienteViaForm = async (paciente, avaliacaoIdReq) => {
-    setPacienteSelecionado(paciente)
-    setBusca(paciente.nome_completo)
-    setShowDropdown(false)
-
-    // Busca o histórico do paciente
-    const { data: historico } = await supabase
-      .from('avaliacoes')
-      .select('id, data_avaliacao')
-      .eq('id_paciente', paciente.id)
-      .order('data_avaliacao', { ascending: false })
-      
-    if (historico) setHistoricoAvaliacoes(historico)
-
-    // Busca OS DADOS da avaliação requerida
-    if (avaliacaoIdReq) {
-      const { data: aval } = await supabase
-        .from('avaliacoes')
-        .select('*')
-        .eq('id', avaliacaoIdReq)
-        .single()
-
-if (aval) {
-        setAvaliacaoAtual(aval)
-        setMedidasBrutas(aval)
-        
-        // TRAVA DE SEGURANÇA: Só busca da configuração se NÃO tiver equação E NÃO tiver %GC escolhido
-        if (aval.equacao_de_regressao_escolhida && aval.percentual_de_gordura != null && aval.percentual_de_gordura > 0) {
-          setEquacaoSelecionada(aval.equacao_de_regressao_escolhida)
+        // TRAVA DE KERR: A massa gorda estimada não deve ultrapassar a massa adiposa física
+        if (massaGordaEstimada > massaAdiposaKerr) {
+            score -= 50; // Penalidade grave por inviabilidade biológica
+            motivosSelecao.push(`Atenção: A gordura estimada (${massaGordaEstimada.toFixed(1)}kg) excede a Massa Adiposa física de Kerr (${massaAdiposaKerr.toFixed(1)}kg). Risco de viés matemático.`);
         } else {
-          const eqPadrao = await buscarEquacaoPadraoConfigurada(paciente.sexo)
-          setEquacaoSelecionada(eqPadrao)
+            score += 15;
+            motivosSelecao.push(`Resultado seguro: A massa de gordura calculada (${massaGordaEstimada.toFixed(1)}kg) respeita o teto biológico da Massa Adiposa anatômica de Kerr (${massaAdiposaKerr.toFixed(1)}kg).`);
+        }
+
+        // CRUZAMENTO 1: Idade
+        if (info && idade >= parseInt(info.idadeMin || 0) && idade <= parseInt(info.idadeMax || 99)) {
+          score += 20;
+          motivosSelecao.push(`Enquadramento perfeito na faixa etária do protocolo original (${info.faixaEtaria}).`);
+        }
+
+        // CRUZAMENTO 2: Perfil Hipertrofiado x Protocolo Atleta/Dobras
+        if (ehHipertrofiado) {
+          if (info && info.populacao.toLowerCase().includes('atleta')) {
+            score += 30;
+            motivosSelecao.push(`Alta Muscularidade (IMO: ${imoLeeRocha.toFixed(1)}). A equação compensa a alta densidade musculoesquelética para evitar superestimativa de gordura.`);
+          } else if (info && info.tipo === 'imc') {
+            score -= 40; // Penalidade para IMC em hipertrofiados
+            motivosSelecao.push(`Penalidade: Protocolos baseados em IMC subestimam massa magra em pacientes com elevada muscularidade.`);
+          }
+        }
+
+        // CRUZAMENTO 3: Sarcopenia / Baixa Muscularidade
+        if (ehBaixaMuscularidade && info && info.populacao.toLowerCase().includes('geral')) {
+          score += 15;
+          motivosSelecao.push(`Compatível com o perfil de Baixa Muscularidade (${pctMuscularLee.toFixed(1)}% de massa muscular calculada por Lee).`);
+        }
+
+        // CRUZAMENTO 4: Compressibilidade do Tecido Adiposo (Dobras Altas)
+        if (soma6 > 130) {
+          if (info && info.tipo === 'perimetros') {
+            score += 40;
+            motivosSelecao.push(`Dobras extremas (Σ6D = ${soma6} mm). Recomendação por perímetros evita o erro de compressibilidade do adipômetro comum em espessuras maiores.`);
+          } else if (info && info.protocolo.includes('4 Dobras') || info.protocolo.includes('7 Dobras')) {
+            score -= 20;
+          }
+        } else if (soma6 <= 130 && info && info.tipo === 'dobras') {
+            score += 20;
+            motivosSelecao.push(`Adiposidade subcutânea permite precisão ótima pela aferição mecânica das dobras cutâneas.`);
+        }
+
+        // CRUZAMENTO 5: Modalidade Esportiva
+        if (esporte && info) {
+            if ((modalidade.includes('futebol') || modalidade.includes('soccer')) && info.populacao.toLowerCase().includes('futebol')) score += 50;
+            if ((modalidade.includes('nadador') || modalidade.includes('natação')) && info.populacao.toLowerCase().includes('nadador')) score += 50;
+        }
+
+        // Adiciona à lista final se o score não for impeditivo
+        if (score > 0) {
+            recomendacoes.push({
+                nome: eq.nome,
+                resultado: pctGorduraCalc,
+                score: score,
+                motivoFormatado: motivosSelecao.join(' '),
+                info: info
+            });
         }
       }
+    } catch (e) {
+      console.error(`Erro ao simular equação ${eq.nome}`, e);
+    }
+  });
 
-      // === BUSCA OS CÁLCULOS SALVOS (Inclui Massa Muscular) ===
-      const { data: calc } = await supabase
-        .from('dados_calculados')
-        .select('*')
-        .eq('id_avaliacao', avaliacaoIdReq)
-        .maybeSingle()
-        
-      if (calc) setDadosCalculados(calc)
+  // 7. ORDENAÇÃO E PREPARAÇÃO DOS DADOS FINAIS
+  recomendacoes.sort((a, b) => b.score - a.score);
+
+  return {
+    recomendacaoPrimaria: recomendacoes.length > 0 ? recomendacoes[0] : null,
+    recomendacoesSecundarias: recomendacoes.length > 1 ? recomendacoes.slice(1, 4) : [],
+    travaKerr: {
+      massaAdiposaKg: Number(massaAdiposaKerr.toFixed(2)),
+      pctAdiposo: Number(pctAdiposoKerr.toFixed(2))
+    },
+    indicadoresCruzados: {
+      soma6,
+      soma8,
+      referenciaUsada: referenciaDobrasUsada,
+      statusDobras: statusDobrasBrutas,
+      imoLeeRocha: imoLeeRocha > 0 ? Number(imoLeeRocha.toFixed(2)) : '-',
+      pctMuscularLee: pctMuscularLee > 0 ? Number(pctMuscularLee.toFixed(1)) : '-',
+      ehHipertrofiado,
+      ehBaixaMuscularidade,
+      imc: Number(imcVal.toFixed(1)),
+      classificacaoImc: classImc
     }
   }
-
-  // SELEÇÃO PELA BARRA DE BUSCA
-  const selecionarPacienteBusca = async (paciente) => {
-    setPacienteSelecionado(paciente)
-    setBusca(paciente.nome_completo)
-    setShowDropdown(false)
-    setEquacaoSelecionada('')
-    setResultadoGordura(0)
-    setMetadados(null)
-    setDadosCalculados({}) // Reseta ao trocar
-
-    const { data: historico } = await supabase
-      .from('avaliacoes')
-      .select('id, data_avaliacao')
-      .eq('id_paciente', paciente.id)
-      .order('data_avaliacao', { ascending: false })
-
-    if (historico && historico.length > 0) {
-      setHistoricoAvaliacoes(historico)
-      selecionarAvaliacaoDoHistorico(historico[0].id, paciente.sexo)
-    } else {
-      setHistoricoAvaliacoes([])
-      setAvaliacaoAtual(null)
-      setMedidasBrutas({})
-      alert('Este paciente ainda não possui avaliações cadastradas.')
-    }
-  }
-
-  // TROCAR AVALIAÇÃO PELO DROPDOWN DE HISTÓRICO
-  const selecionarAvaliacaoDoHistorico = async (idAvaliacao, sexoPacienteOverride) => {
-    const { data: aval } = await supabase
-      .from('avaliacoes')
-      .select('*')
-      .eq('id', idAvaliacao)
-      .single()
-
-      const sexoP = sexoPacienteOverride || pacienteSelecionado?.sexo
-
-    if (aval) {
-      setAvaliacaoAtual(aval)
-      setMedidasBrutas(aval)
-      
-      // TRAVA DE SEGURANÇA: Mantém o salvo se já tiver equação e %GC preenchidos
-      if (aval.equacao_de_regressao_escolhida && aval.percentual_de_gordura != null && aval.percentual_de_gordura > 0) {
-        setEquacaoSelecionada(aval.equacao_de_regressao_escolhida)
-      } else {
-        const eqPadrao = await buscarEquacaoPadraoConfigurada(sexoP)
-        setEquacaoSelecionada(eqPadrao)
-      }
-    }
-
-    // === BUSCA OS CÁLCULOS DESSA AVALIAÇÃO ===
-    const { data: calc } = await supabase
-      .from('dados_calculados')
-      .select('*')
-      .eq('id_avaliacao', idAvaliacao)
-      .maybeSingle()
-      
-    if (calc) setDadosCalculados(calc)
-  }
-
-  // MÁQUINA DE CÁLCULO
-  useEffect(() => {
-    if (!pacienteSelecionado || !equacaoSelecionada || !medidasBrutas) return
-
-    const lista = pacienteSelecionado.sexo === 'F' ? listaFeminina : listaMasculina
-    const equacao = lista.find(eq => eq.nome === equacaoSelecionada)
-
-    if (equacao && typeof equacao.func === 'function') {
-      try {
-        const resultado = equacao.func(medidasBrutas, pacienteSelecionado)
-        
-        if (typeof resultado === 'object' && resultado !== null) {
-          setResultadoGordura(resultado.valor || 0)
-          setMetadados(resultado.info || null)
-        } else {
-          setResultadoGordura(resultado || 0)
-          setMetadados(null)
-        }
-      } catch (err) {
-        console.error("Erro no cálculo:", err)
-        setResultadoGordura(0)
-        setMetadados(null)
-      }
-    }
-  }, [equacaoSelecionada, medidasBrutas, pacienteSelecionado])
-
-  const handleSalvar = async () => {
-    if (!avaliacaoAtual) return alert('Nenhuma avaliação encontrada para atualizar.')
-    if (resultadoGordura <= 0) return alert('Calcule o percentual primeiro.')
-
-    setSalvando(true)
-
-    const { error: avalError } = await supabase
-      .from('avaliacoes')
-      .update({
-        equacao_de_regressao_escolhida: equacaoSelecionada,
-        percentual_de_gordura: resultadoGordura
-      })
-      .eq('id', avaliacaoAtual.id)
-
-    // 1. Calcula Massa Gorda e Massa Magra
-    const peso = Number(medidasBrutas.peso_paciente || 0)
-    const massaGorda = peso > 0 ? (resultadoGordura * peso) / 100 : 0
-    const massaMagra = peso > 0 ? peso - massaGorda : 0
-
-    // 2. Calcula o IAM (Índice Adiposo Muscular)
-    const massaMuscular = Number(dadosCalculados.massa_muscular || 0)
-    let iam = 0
-    if (massaMuscular > 0) {
-      iam = massaGorda / massaMuscular
-    }
-
-    // 3. Atualiza tudo no banco
-    const { error: calcError } = await supabase
-      .from('dados_calculados')
-      .update({
-        massa_gorda: Number(massaGorda.toFixed(2)),
-        massa_magra: Number(massaMagra.toFixed(2)),
-        indice_adiposo_muscular: Number(iam.toFixed(2)) // <-- SALVA O IAM AQUI!
-      })
-      .eq('id_avaliacao', avaliacaoAtual.id)
-
-    setSalvando(false)
-
-    if (avalError || calcError) {
-      alert('Erro ao salvar: ' + (avalError?.message || calcError?.message))
-    } else {
-      alert('Equação, % Gordura, Massas e IAM salvos com sucesso!')
-      navigate('/laudo-antropometrico', { state: { avaliacaoId: avaliacaoAtual.id } })
-    }
-  }
-
-  const listaParaExibir = pacienteSelecionado?.sexo === 'F' ? listaFeminina : listaMasculina
-
-  return (
-    <div className="max-w-3xl mx-auto space-y-8 bg-white p-6 sm:p-8 rounded-xl shadow border border-gray-100 pb-12">
-      
-      <div>
-        <h2 className="text-2xl font-bold text-gray-800">Laboratório de Equações</h2>
-        <p className="text-sm text-gray-500">Escolha a equação ideal para o paciente e valide os resultados.</p>
-      </div>
-
-      <div className="space-y-2 relative" ref={dropdownRef}>
-        <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wider">
-          Pesquisar Paciente
-        </label>
-        <input
-          type="text"
-          value={busca}
-          onChange={(e) => {
-            setBusca(e.target.value)
-            setShowDropdown(true)
-          }}
-          onFocus={() => setShowDropdown(true)}
-          placeholder="Digite o nome (Ex: Mar...)"
-          className="w-full px-4 py-3 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none transition-all"
-        />
-        
-        {showDropdown && pacientesFiltrados.length > 0 && (
-          <ul className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-y-auto">
-            {pacientesFiltrados.map(p => (
-              <li
-                key={p.id}
-                onClick={() => selecionarPacienteBusca(p)}
-                className="px-4 py-3 cursor-pointer hover:bg-emerald-50 hover:text-emerald-700 text-sm font-medium border-b border-gray-100 last:border-0"
-              >
-                {p.nome_completo} <span className="text-xs text-gray-400 font-normal ml-2">({p.sexo})</span>
-              </li>
-            ))}
-          </ul>
-        )}
-      </div>
-
-      {pacienteSelecionado && avaliacaoAtual && (
-        <div className="space-y-6 animate-fade-in-up">
-          
-          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center bg-gray-50 border border-gray-100 rounded-lg p-4 gap-4">
-            <div>
-              <p className="text-sm text-gray-700">Avaliando: <strong>{pacienteSelecionado.nome_completo}</strong></p>
-              <p className="text-xs text-gray-500 mt-1">Peso Coletado: {medidasBrutas.peso_paciente || 0} kg</p>
-            </div>
-
-            {/* SELETOR DE HISTÓRICO DE AVALIAÇÕES */}
-            {historicoAvaliacoes.length > 0 && (
-              <div className="w-full sm:w-auto">
-                <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">
-                  Avaliação Selecionada
-                </label>
-                <select
-                  value={avaliacaoAtual.id}
-                  onChange={(e) => selecionarAvaliacaoDoHistorico(e.target.value)}
-                  className="w-full sm:w-48 px-3 py-2 border border-gray-300 rounded-md text-sm outline-none focus:ring-2 focus:ring-emerald-500 bg-white"
-                >
-                  {historicoAvaliacoes.map(hist => (
-                    <option key={hist.id} value={hist.id}>
-                      {new Date(hist.data_avaliacao).toLocaleDateString('pt-BR')} (Ref: {String(hist.id).slice(0, 4)})
-                    </option>
-                  ))}
-                </select>
-              </div>
-            )}
-          </div>
-
-          <div className="space-y-2 border-t border-gray-100 pt-6">
-            <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wider">
-              Escolha a Equação de Regressão
-            </label>
-            <select
-              value={equacaoSelecionada}
-              onChange={(e) => setEquacaoSelecionada(e.target.value)}
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-emerald-500 bg-white shadow-sm"
-            >
-              <option value="">Selecione uma equação...</option>
-              {listaParaExibir.map((eq, i) => (
-                <option key={i} value={eq.nome}>{eq.nome}</option>
-              ))}
-            </select>
-          </div>
-
-          {metadados && (
-            <div className="bg-blue-50 border border-blue-100 rounded-lg p-4 transition-all">
-              <h4 className="text-xs font-bold text-blue-800 uppercase tracking-wider mb-3">Validação Científica</h4>
-              <ul className="text-sm text-blue-800 space-y-1.5">
-                <li><strong>Autor(es):</strong> {metadados.autor} ({metadados.ano})</li>
-                <li><strong>Protocolo:</strong> {metadados.protocolo}</li>
-                <li><strong>População Alvo:</strong> {metadados.populacao}</li>
-                <li><strong>Faixa Etária Padrão:</strong> {metadados.faixaEtaria}</li>
-                <li><strong>Padrão Ouro:</strong> {metadados.referencia}</li>
-              </ul>
-            </div>
-          )}
-
-          <div className="flex flex-col sm:flex-row gap-6 items-center bg-emerald-50 border border-emerald-100 p-6 rounded-xl">
-            <div className="flex-1 text-center sm:text-left">
-              <h4 className="text-emerald-800 text-sm font-semibold uppercase tracking-wider">Resultado Calculado</h4>
-              <p className="text-xs text-emerald-600 mt-1">Percentual de Gordura Corporal (%G)</p>
-            </div>
-            <div className="text-5xl font-black text-emerald-700">
-              {resultadoGordura > 0 ? resultadoGordura : '--'}
-              <span className="text-2xl ml-1">%</span>
-            </div>
-          </div>
-
-          <div className="flex justify-end pt-4">
-            <button
-              onClick={handleSalvar}
-              disabled={!equacaoSelecionada || resultadoGordura <= 0 || salvando}
-              className="px-6 py-3 bg-emerald-600 text-white font-semibold rounded-lg shadow-md hover:bg-emerald-700 disabled:opacity-50 transition-all w-full sm:w-auto"
-            >
-              {salvando ? 'Salvando...' : 'Salvar Resultado na Avaliação'}
-            </button>
-          </div>
-        </div>
-      )}
-    </div>
-  )
 }
