@@ -1,5 +1,5 @@
 import React from 'react'
-import { useNavigate, Link } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
 import PublicHeader from '../components/PublicHeader'
 import { CONTEUDOS_APRENDIZADO } from '../data/conteudosAprendizado'
 
@@ -35,7 +35,7 @@ export default function HomePublica() {
           </h1>
 
           <p className="text-sm sm:text-base md:text-lg text-slate-600 max-w-2xl mx-auto leading-relaxed">
-            Abandone equações genéricas sem critério. O EvaluaOS organiza suas avaliações físicas, acompanha a evolução real pelo <strong>Somatório de Dobras (mm)</strong> e entrega laudos profissionais e interativos para seus pacientes.
+            Abandone escolhas cegas de equações. O EvaluaOS utiliza um <strong>Sistema Especialista</strong> que cruza o Fracionamento de 4 Massas (Kerr), o Somatotipo e Baremos Regionais para recomendar a equação perfeita para o seu paciente.
           </p>
 
           <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-4">
@@ -54,10 +54,10 @@ export default function HomePublica() {
           </div>
 
           {/* Badges de Destaques */}
-          <div className="pt-10 grid grid-cols-2 md:grid-cols-4 gap-4 max-w-3xl mx-auto border-t border-slate-100">
+          <div className="pt-10 grid grid-cols-2 md:grid-cols-4 gap-4 max-w-4xl mx-auto border-t border-slate-100">
             <div className="p-3 bg-white border border-slate-100 rounded-xl shadow-sm">
-              <span className="block text-lg font-black text-emerald-600">∑ Dobras mm</span>
-              <span className="text-[10px] font-bold text-slate-400 uppercase">Kasper et al. (2021)</span>
+              <span className="block text-lg font-black text-emerald-600">Engine TCC</span>
+              <span className="text-[10px] font-bold text-slate-400 uppercase">Recomendação Guiada</span>
             </div>
             
             <div className="p-3 bg-white border border-slate-100 rounded-xl shadow-sm">
@@ -65,16 +65,14 @@ export default function HomePublica() {
               <span className="text-[10px] font-bold text-slate-400 uppercase">Homens & Mulheres</span>
             </div>
 
-            <div className="p-3 bg-white border border-slate-100 rounded-xl shadow-sm relative overflow-hidden">
-              <span className="absolute top-1 right-1 px-1.5 py-0.5 bg-amber-100 text-amber-800 text-[8px] font-black rounded uppercase">Em breve</span>
-              <span className="block text-lg font-black text-slate-700">4 Massas</span>
-              <span className="text-[10px] font-bold text-slate-400 uppercase">Kerr (1988)</span>
+            <div className="p-3 bg-white border border-slate-100 rounded-xl shadow-sm">
+              <span className="block text-lg font-black text-emerald-600">4 Massas kg</span>
+              <span className="text-[10px] font-bold text-slate-400 uppercase">Kerr / Lee / Rocha</span>
             </div>
 
-            <div className="p-3 bg-white border border-slate-100 rounded-xl shadow-sm relative overflow-hidden">
-              <span className="absolute top-1 right-1 px-1.5 py-0.5 bg-amber-100 text-amber-800 text-[8px] font-black rounded uppercase">Em breve</span>
-              <span className="block text-lg font-black text-slate-700">ETM & Argoref</span>
-              <span className="text-[10px] font-bold text-slate-400 uppercase">Perini / Holway</span>
+            <div className="p-3 bg-white border border-slate-100 rounded-xl shadow-sm">
+              <span className="block text-lg font-black text-emerald-600">ARGOREF & ISAK</span>
+              <span className="text-[10px] font-bold text-slate-400 uppercase">Baremos Regionais</span>
             </div>
           </div>
 
@@ -89,7 +87,7 @@ export default function HomePublica() {
             <span className="text-xs font-bold text-emerald-400 uppercase tracking-widest">A Mudança de Paradigma</span>
             <h2 className="text-2xl sm:text-4xl font-black">Por que parar de depender apenas de porcentagens de gordura?</h2>
             <p className="text-xs sm:text-sm text-slate-400 leading-relaxed">
-              Estudos recentes provam que alterações agudas de hidratação e glicocênio distorcem leituras de % de gordura no DXA e em equações preditivas.
+              Distorções de hidratação alteram leituras do DXA e de equações isoladas. O EvaluaOS combina o Somatório em milímetros a travas anatômicas em quilogramas.
             </p>
           </div>
 
@@ -97,11 +95,21 @@ export default function HomePublica() {
             
             <div className="bg-slate-800/80 border border-slate-700/60 p-6 rounded-2xl space-y-3">
               <div className="w-10 h-10 bg-emerald-500/10 text-emerald-400 rounded-xl flex items-center justify-center font-bold text-lg">
-                🎯
+                🧠
               </div>
-              <h3 className="text-base font-bold text-white">Somatório de Dobras em mm</h3>
+              <h3 className="text-base font-bold text-white">Engine de Recomendação Científica</h3>
               <p className="text-xs text-slate-300 leading-relaxed">
-                Monitore o paciente pelo somatório bruto milimétrico. Sem ilusões numéricas causadas por retenção hídrica ou oscilação de peso na balança.
+                O sistema testa as +60 equações em tempo real e entrega um ranking com as 3 fórmulas mais recomendadas e a justificativa clínica de cada uma.
+              </p>
+            </div>
+
+            <div className="bg-slate-800/80 border border-slate-700/60 p-6 rounded-2xl space-y-3">
+              <div className="w-10 h-10 bg-emerald-500/10 text-emerald-400 rounded-xl flex items-center justify-center font-bold text-lg">
+                🔒
+              </div>
+              <h3 className="text-base font-bold text-white">Fracionamento 4C & Trava de Kerr</h3>
+              <p className="text-xs text-slate-300 leading-relaxed">
+                Calcula o tecido adiposo (Kerr), muscular (Lee), ósseo (Rocha) e residual (Würch). A massa adiposa em kg atua como teto biológico contra falsos diagnósticos.
               </p>
             </div>
 
@@ -109,22 +117,9 @@ export default function HomePublica() {
               <div className="w-10 h-10 bg-emerald-500/10 text-emerald-400 rounded-xl flex items-center justify-center font-bold text-lg">
                 📊
               </div>
-              <h3 className="text-base font-bold text-white">Laudos e Comparativos de Evolução</h3>
+              <h3 className="text-base font-bold text-white">Índices de Saúde & Baremos</h3>
               <p className="text-xs text-slate-300 leading-relaxed">
-                Gere PDFs estilizados com sua marca e compartilhe o link de evolução diretamente no WhatsApp do seu paciente.
-              </p>
-            </div>
-
-            <div className="bg-slate-800/80 border border-slate-700/60 p-6 rounded-2xl space-y-3 relative">
-              <span className="absolute top-4 right-4 px-2 py-0.5 bg-amber-500/20 text-amber-300 border border-amber-500/30 text-[9px] font-extrabold rounded uppercase">
-                Em breve
-              </span>
-              <div className="w-10 h-10 bg-amber-500/10 text-amber-400 rounded-xl flex items-center justify-center font-bold text-lg">
-                📐
-              </div>
-              <h3 className="text-base font-bold text-white">ETM, 4 Massas & Baremos ARGOREF</h3>
-              <p className="text-xs text-slate-300 leading-relaxed">
-                Estamos desenvolvendo o cálculo automático do Erro Técnico (ETM), Fracionamento de 4 Massas e comparações normativas regionais.
+                Acompanhe o Índice Adiposo Muscular (IAM), Músculo Ósseo (IMO), Área Visceral (apVAT), Morrow (2003) e comparações automáticas com as tabelas ARGOREF e ISAK.
               </p>
             </div>
 
@@ -247,10 +242,12 @@ export default function HomePublica() {
               
               <ul className="space-y-2.5 text-xs text-slate-300 pt-2">
                 <li className="flex items-center gap-2"><span className="text-emerald-400 font-bold">✓</span> <strong>Pacientes e Avaliações Ilimitadas</strong></li>
-                <li className="flex items-center gap-2"><span className="text-emerald-400 font-bold">✓</span> Personalização de Laudo (Logo + Zap)</li>
-                <li className="flex items-center gap-2"><span className="text-emerald-400 font-bold">✓</span> Habilitar/Desabilitar Medidas</li>
-                <li className="flex items-center gap-2"><span className="text-emerald-400 font-bold">✓</span> Backup de Dados Automático</li>
-                <li className="flex items-center gap-2 text-amber-300"><span className="text-amber-400 font-bold">⏳</span> ETM, 4 Massas (Kerr) e ARGOREF <em>(Em breve)</em></li>
+                <li className="flex items-center gap-2"><span className="text-emerald-400 font-bold">✓</span> <strong>Engine Recomendadora de Equações</strong></li>
+                <li className="flex items-center gap-2"><span className="text-emerald-400 font-bold">✓</span> Fracionamento 4C (Kerr, Lee, Rocha, Würch)</li>
+                <li className="flex items-center gap-2"><span className="text-emerald-400 font-bold">✓</span> Índices IAM, IMO, apVAT e Morrow</li>
+                <li className="flex items-center gap-2"><span className="text-emerald-400 font-bold">✓</span> Baremos ARGOREF & ISAK (Campa)</li>
+                <li className="flex items-center gap-2"><span className="text-emerald-400 font-bold">✓</span> Vídeo de Orientações Personalizadas no Laudo</li>
+                <li className="flex items-center gap-2"><span className="text-emerald-400 font-bold">✓</span> Personalização de Laudo (Logo + WhatsApp/Web)</li>
               </ul>
             </div>
 

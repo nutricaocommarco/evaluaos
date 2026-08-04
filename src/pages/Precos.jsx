@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { useNavigate, Link } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
 import PublicHeader from '../components/PublicHeader'
 
 export default function Precos() {
@@ -25,7 +25,7 @@ export default function Precos() {
           </h1>
 
           <p className="text-sm sm:text-base text-slate-600 max-w-2xl mx-auto leading-relaxed">
-            Comece no plano gratuito ou assine a versão Pro para desbloquear todo o potencial de atendimento e personalização.
+            Comece no plano gratuito ou assine a versão Pro para desbloquear todo o potencial de atendimento, diagnóstico multicritério e laudos interativos.
           </p>
 
           {/* TOGGLE MENSAL / ANUAL */}
@@ -63,7 +63,7 @@ export default function Precos() {
                 Para Começar
               </span>
               <h2 className="text-2xl font-black text-slate-900">Plano Gratuito</h2>
-              <p className="text-xs text-slate-500">Ideal para estudantes e nutricionistas conhecerem o sistema na prática.</p>
+              <p className="text-xs text-slate-500">Ideal para estudantes e nutricionistas conhecerem a ferramenta na prática.</p>
               
               <div className="pt-2">
                 <div className="text-4xl font-black text-slate-900">R$ 0</div>
@@ -100,7 +100,7 @@ export default function Precos() {
                 Profissional Ilimitado
               </span>
               <h2 className="text-2xl font-black text-white">EvaluaOS Pro</h2>
-              <p className="text-xs text-slate-300">Para profissionais que buscam personalização, laudos estilizados e atendimento ilimitado.</p>
+              <p className="text-xs text-slate-300">Para nutricionistas e antropometristas que exigem diagnósticos avançados e personalização total.</p>
               
               <div className="pt-2">
                 <div className="flex items-baseline gap-2">
@@ -117,12 +117,14 @@ export default function Precos() {
               <div className="border-t border-slate-800 pt-4 space-y-2.5 text-xs text-slate-200">
                 <p className="font-bold text-emerald-400">Tudo do Plano Gratuito +</p>
                 <p className="flex items-center gap-2"><span className="text-emerald-400 font-black">✓</span> <strong>Pacientes e Avaliações Ilimitadas</strong></p>
-                <p className="flex items-center gap-2"><span className="text-emerald-400 font-black">✓</span> Laboratório de Equações (+60 equações)</p>
-                <p className="flex items-center gap-2"><span className="text-emerald-400 font-black">✓</span> Personalização do Laudo (Logo + cálculos do Zap)</p>
-                <p className="flex items-center gap-2"><span className="text-emerald-400 font-black">✓</span> Habilitar ou Desabilitar Medidas nas avaliações</p>
-                <p className="flex items-center gap-2"><span className="text-emerald-400 font-black">✓</span> Backup de Dados Automático</p>
-                <p className="flex items-center gap-2"><span className="text-emerald-400 font-black">✓</span> Suporte Técnico Prioritário</p>
-                <p className="flex items-center gap-2 text-amber-300 font-semibold"><span className="text-amber-400">⏳</span> ETM, Fracionamento 4 Massas (Kerr) e ARGOREF <em>(Em breve)</em></p>
+                <p className="flex items-center gap-2"><span className="text-emerald-400 font-black">✓</span> <strong>Engine de Recomendação Científica de Equações</strong></p>
+                <p className="flex items-center gap-2"><span className="text-emerald-400 font-black">✓</span> Fracionamento Anatômico 4C (Kerr, Lee, Rocha, Würch)</p>
+                <p className="flex items-center gap-2"><span className="text-emerald-400 font-black">✓</span> Índices de Saúde: IAM, IMO, apVAT e Morrow (2003)</p>
+                <p className="flex items-center gap-2"><span className="text-emerald-400 font-black">✓</span> Baremos Normativos ARGOREF & Campa (ISAK)</p>
+                <p className="flex items-center gap-2"><span className="text-emerald-400 font-black">✓</span> Vídeo de Orientações Personalizadas no Laudo</p>
+                <p className="flex items-center gap-2"><span className="text-emerald-400 font-black">✓</span> Personalização do Laudo (Logo + WhatsApp/Web)</p>
+                <p className="flex items-center gap-2"><span className="text-emerald-400 font-black">✓</span> Habilitar ou Desabilitar Medidas visíveis</p>
+                <p className="flex items-center gap-2"><span className="text-emerald-400 font-black">✓</span> Backup de Dados Automático & Suporte Prioritário</p>
               </div>
             </div>
 
@@ -182,7 +184,7 @@ export default function Precos() {
                     <td className="py-3.5 px-4 text-center font-bold text-emerald-600 bg-emerald-50/30">✓ Automático</td>
                   </tr>
 
-                  {/* Bloco 2: Equações e Ferramentas */}
+                  {/* Bloco 2: Equações e Ferramentas Especialistas */}
                   <tr className="bg-slate-50 font-bold text-slate-900 text-[11px]">
                     <td colSpan="3" className="py-2.5 px-6 uppercase tracking-wider text-emerald-700">
                       🧬 Algoritmos & Avaliação Antropométrica
@@ -194,41 +196,66 @@ export default function Precos() {
                     <td className="py-3.5 px-4 text-center font-bold text-emerald-600 bg-emerald-50/30">✓ Completo</td>
                   </tr>
                   <tr>
-                    <td className="py-3.5 px-6 font-semibold">Habilitar ou Desabilitar Medidas nas Avaliações</td>
+                    <td className="py-3.5 px-6 font-semibold">Engine de Recomendação Científica de Equações (Sistema Especialista)</td>
                     <td className="py-3.5 px-4 text-center text-slate-300 font-bold">✕</td>
                     <td className="py-3.5 px-4 text-center font-bold text-emerald-600 bg-emerald-50/30">✓ Habilitado</td>
                   </tr>
                   <tr>
-                    <td className="py-3.5 px-6 font-semibold">Somatório de Dobras Cutâneas (∑SF em mm)</td>
+                    <td className="py-3.5 px-6 font-semibold">Fracionamento Anatômico 4 Massas em kg (Kerr, Lee, Rocha, Würch)</td>
+                    <td className="py-3.5 px-4 text-center text-slate-300 font-bold">✕</td>
+                    <td className="py-3.5 px-4 text-center font-bold text-emerald-600 bg-emerald-50/30">✓ Habilitado</td>
+                  </tr>
+                  <tr>
+                    <td className="py-3.5 px-6 font-semibold">Fracionamento Molecular 2 Componentes (%GC e MLG)</td>
                     <td className="py-3.5 px-4 text-center font-bold text-emerald-600">✓</td>
                     <td className="py-3.5 px-4 text-center font-bold text-emerald-600 bg-emerald-50/30">✓</td>
                   </tr>
                   <tr>
-                    <td className="py-3.5 px-6 font-semibold">Erro Técnico de Medição (ETM) Intra-avaliador</td>
+                    <td className="py-3.5 px-6 font-semibold">Índice Adiposo Muscular (IAM) e Índice Músculo Ósseo (IMO)</td>
                     <td className="py-3.5 px-4 text-center text-slate-300 font-bold">✕</td>
-                    <td className="py-3.5 px-4 text-center font-bold text-amber-600 bg-emerald-50/30">⏳ Em Breve</td>
+                    <td className="py-3.5 px-4 text-center font-bold text-emerald-600 bg-emerald-50/30">✓ Habilitado</td>
                   </tr>
                   <tr>
-                    <td className="py-3.5 px-6 font-semibold">Fracionamento em 4 Massas em kg (Kerr, 1988)</td>
+                    <td className="py-3.5 px-6 font-semibold">Área de Gordura Visceral Estimada (apVAT) & Morrow (2003)</td>
                     <td className="py-3.5 px-4 text-center text-slate-300 font-bold">✕</td>
-                    <td className="py-3.5 px-4 text-center font-bold text-amber-600 bg-emerald-50/30">⏳ Em Breve</td>
+                    <td className="py-3.5 px-4 text-center font-bold text-emerald-600 bg-emerald-50/30">✓ Habilitado</td>
                   </tr>
                   <tr>
-                    <td className="py-3.5 px-6 font-semibold">Classificação ARGOREF Automática</td>
+                    <td className="py-3.5 px-6 font-semibold">Classificação ARGOREF & Percentis ISAK (Campa et al., 2025)</td>
                     <td className="py-3.5 px-4 text-center text-slate-300 font-bold">✕</td>
-                    <td className="py-3.5 px-4 text-center font-bold text-amber-600 bg-emerald-50/30">⏳ Em Breve</td>
+                    <td className="py-3.5 px-4 text-center font-bold text-emerald-600 bg-emerald-50/30">✓ Habilitado</td>
+                  </tr>
+                  <tr>
+                    <td className="py-3.5 px-6 font-semibold">Somatório de Dobras Cutâneas (∑6D e ∑8D em mm)</td>
+                    <td className="py-3.5 px-4 text-center font-bold text-emerald-600">✓</td>
+                    <td className="py-3.5 px-4 text-center font-bold text-emerald-600 bg-emerald-50/30">✓</td>
+                  </tr>
+                  <tr>
+                    <td className="py-3.5 px-6 font-semibold">Somatotipo Completo de Heath-Carter (Endo, Meso, Ecto)</td>
+                    <td className="py-3.5 px-4 text-center font-bold text-emerald-600">✓</td>
+                    <td className="py-3.5 px-4 text-center font-bold text-emerald-600 bg-emerald-50/30">✓</td>
+                  </tr>
+                  <tr>
+                    <td className="py-3.5 px-6 font-semibold">Habilitar ou Desabilitar Medidas nas Avaliações</td>
+                    <td className="py-3.5 px-4 text-center text-slate-300 font-bold">✕</td>
+                    <td className="py-3.5 px-4 text-center font-bold text-emerald-600 bg-emerald-50/30">✓ Habilitado</td>
                   </tr>
 
-                  {/* Bloco 3: Laudos */}
+                  {/* Bloco 3: Laudos e Mídia */}
                   <tr className="bg-slate-50 font-bold text-slate-900 text-[11px]">
                     <td colSpan="3" className="py-2.5 px-6 uppercase tracking-wider text-emerald-700">
-                      📄 Laudos & Personalização
+                      📄 Laudos & Mídia
                     </td>
                   </tr>
                   <tr>
-                    <td className="py-3.5 px-6 font-semibold">Geração de Laudos em PDF</td>
+                    <td className="py-3.5 px-6 font-semibold">Geração de Laudos em PDF e Link Interativo Web</td>
                     <td className="py-3.5 px-4 text-center font-bold text-emerald-600">✓ Sim</td>
                     <td className="py-3.5 px-4 text-center font-bold text-emerald-600 bg-emerald-50/30">✓ Sim</td>
+                  </tr>
+                  <tr>
+                    <td className="py-3.5 px-6 font-semibold">Incorporação de Vídeo Individual do Paciente ou Consultório</td>
+                    <td className="py-3.5 px-4 text-center text-slate-300 font-bold">✕</td>
+                    <td className="py-3.5 px-4 text-center font-bold text-emerald-600 bg-emerald-50/30">✓ Habilitado</td>
                   </tr>
                   <tr>
                     <td className="py-3.5 px-6 font-semibold">
