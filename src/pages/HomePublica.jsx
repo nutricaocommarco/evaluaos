@@ -35,7 +35,7 @@ export default function HomePublica() {
           </h1>
 
           <p className="text-sm sm:text-base md:text-lg text-slate-600 max-w-2xl mx-auto leading-relaxed">
-            Abandone escolhas cegas de equações. O EvaluaOS utiliza um <strong>Sistema Especialista</strong> que cruza o Fracionamento de 4 Massas (Kerr), o Somatotipo e Baremos Regionais para recomendar a equação perfeita para o seu paciente.
+            Abandone escolhas cegas de equações. O EvaluaOS utiliza uma <strong>Engine de Recomendação Científica</strong> que cruza o Fracionamento de 4 Componentes (Kerr), o Somatotipo e Tabelas de Referência para recomendar a equação perfeita para o seu paciente.
           </p>
 
           <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-4">
@@ -56,7 +56,7 @@ export default function HomePublica() {
           {/* Badges de Destaques */}
           <div className="pt-10 grid grid-cols-2 md:grid-cols-4 gap-4 max-w-4xl mx-auto border-t border-slate-100">
             <div className="p-3 bg-white border border-slate-100 rounded-xl shadow-sm">
-              <span className="block text-lg font-black text-emerald-600">Engine TCC</span>
+              <span className="block text-lg font-black text-emerald-600">Engine Científica</span>
               <span className="text-[10px] font-bold text-slate-400 uppercase">Recomendação Guiada</span>
             </div>
             
@@ -66,13 +66,13 @@ export default function HomePublica() {
             </div>
 
             <div className="p-3 bg-white border border-slate-100 rounded-xl shadow-sm">
-              <span className="block text-lg font-black text-emerald-600">4 Massas kg</span>
+              <span className="block text-lg font-black text-emerald-600">4 Componentes kg</span>
               <span className="text-[10px] font-bold text-slate-400 uppercase">Kerr / Lee / Rocha</span>
             </div>
 
             <div className="p-3 bg-white border border-slate-100 rounded-xl shadow-sm">
               <span className="block text-lg font-black text-emerald-600">ARGOREF & ISAK</span>
-              <span className="text-[10px] font-bold text-slate-400 uppercase">Baremos Regionais</span>
+              <span className="text-[10px] font-bold text-slate-400 uppercase">Tabelas de Referência</span>
             </div>
           </div>
 
@@ -117,7 +117,7 @@ export default function HomePublica() {
               <div className="w-10 h-10 bg-emerald-500/10 text-emerald-400 rounded-xl flex items-center justify-center font-bold text-lg">
                 📊
               </div>
-              <h3 className="text-base font-bold text-white">Índices de Saúde & Baremos</h3>
+              <h3 className="text-base font-bold text-white">Índices de Saúde & Tabelas Normativas</h3>
               <p className="text-xs text-slate-300 leading-relaxed">
                 Acompanhe o Índice Adiposo Muscular (IAM), Músculo Ósseo (IMO), Área Visceral (apVAT), Morrow (2003) e comparações automáticas com as tabelas ARGOREF e ISAK.
               </p>
@@ -192,7 +192,7 @@ export default function HomePublica() {
           <span className="text-xs font-bold text-emerald-600 uppercase tracking-widest">Acesso Transparente</span>
           <h2 className="text-2xl sm:text-4xl font-black text-slate-900">Escolha o seu Plano</h2>
           <p className="text-xs sm:text-sm text-slate-500">
-            Comece no plano gratuito para testar o sistema ou assine a versão Pro para atendimento ilimitado.
+            Comece no plano gratuito para testar o sistema ou assine a versão Pro para atendimento ilimitado e marca própria.
           </p>
         </div>
 
@@ -208,9 +208,12 @@ export default function HomePublica() {
               <ul className="space-y-2.5 text-xs text-slate-600 pt-2">
                 <li className="flex items-center gap-2"><span className="text-emerald-500 font-bold">✓</span> <strong>Até 7 Pacientes grátis</strong></li>
                 <li className="flex items-center gap-2"><span className="text-emerald-500 font-bold">✓</span> <strong>Até 3 Avaliações por paciente</strong></li>
+                <li className="flex items-center gap-2"><span className="text-emerald-500 font-bold">✓</span> Engine de Recomendação de Equações</li>
+                <li className="flex items-center gap-2"><span className="text-emerald-500 font-bold">✓</span> Fracionamento 4 Componentes (Kerr)</li>
+                <li className="flex items-center gap-2"><span className="text-emerald-500 font-bold">✓</span> Índices IAM, IMO, apVAT e Morrow</li>
+                <li className="flex items-center gap-2"><span className="text-emerald-500 font-bold">✓</span> Tabelas de Referência ARGOREF & ISAK</li>
+                <li className="flex items-center gap-2"><span className="text-emerald-500 font-bold">✓</span> Vídeo de Orientações no Laudo</li>
                 <li className="flex items-center gap-2"><span className="text-emerald-500 font-bold">✓</span> Laboratório de Equações (+60 equações)</li>
-                <li className="flex items-center gap-2"><span className="text-emerald-500 font-bold">✓</span> Geração de Laudos em PDF e Web</li>
-                <li className="flex items-center gap-2"><span className="text-emerald-500 font-bold">✓</span> Acesso livre à Central de Aprendizado</li>
               </ul>
             </div>
 
@@ -241,13 +244,12 @@ export default function HomePublica() {
               </div>
               
               <ul className="space-y-2.5 text-xs text-slate-300 pt-2">
+                <li className="flex items-center gap-2"><span className="text-emerald-400 font-bold">✓</span> <strong>Tudo do Plano Gratuito +</strong></li>
                 <li className="flex items-center gap-2"><span className="text-emerald-400 font-bold">✓</span> <strong>Pacientes e Avaliações Ilimitadas</strong></li>
-                <li className="flex items-center gap-2"><span className="text-emerald-400 font-bold">✓</span> <strong>Engine Recomendadora de Equações</strong></li>
-                <li className="flex items-center gap-2"><span className="text-emerald-400 font-bold">✓</span> Fracionamento 4C (Kerr, Lee, Rocha, Würch)</li>
-                <li className="flex items-center gap-2"><span className="text-emerald-400 font-bold">✓</span> Índices IAM, IMO, apVAT e Morrow</li>
-                <li className="flex items-center gap-2"><span className="text-emerald-400 font-bold">✓</span> Baremos ARGOREF & ISAK (Campa)</li>
-                <li className="flex items-center gap-2"><span className="text-emerald-400 font-bold">✓</span> Vídeo de Orientações Personalizadas no Laudo</li>
-                <li className="flex items-center gap-2"><span className="text-emerald-400 font-bold">✓</span> Personalização de Laudo (Logo + WhatsApp/Web)</li>
+                <li className="flex items-center gap-2"><span className="text-emerald-400 font-bold">✓</span> <strong>Personalização com sua Logomarca Própria</strong></li>
+                <li className="flex items-center gap-2"><span className="text-emerald-400 font-bold">✓</span> Configuração dos Cálculos visíveis no WhatsApp/Web</li>
+                <li className="flex items-center gap-2"><span className="text-emerald-400 font-bold">✓</span> Backup de Dados Automático na Nuvem</li>
+                <li className="flex items-center gap-2"><span className="text-emerald-400 font-bold">✓</span> Suporte Técnico Prioritário</li>
               </ul>
             </div>
 
