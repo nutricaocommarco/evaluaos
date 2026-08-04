@@ -13,7 +13,7 @@ export default function HomePublica() {
       <PublicHeader />
 
       {/* 🚀 2. HERO SECTION (Com Logo Grande) */}
-      <section className="relative overflow-hidden pt-10 pb-20 md:pt-16 md:pb-28 bg-gradient-to-b from-emerald-50/50 via-white to-white">
+      <section className="relative overflow-hidden pt-10 pb-16 md:pt-16 md:pb-24 bg-gradient-to-b from-emerald-50/50 via-white to-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 text-center space-y-6">
           
           {/* 🌟 LOGO GRANDE EM DESTAQUE NA HOME */}
@@ -79,7 +79,90 @@ export default function HomePublica() {
         </div>
       </section>
 
-      {/* 🧬 3. POR QUE O EVALUAOS É DIFERENTE? */}
+      {/* 📱 3. DEMONSTRAÇÃO INTERATIVA DO LAUDO E EVOLUÇÃO EM TEMPO REAL */}
+      <section className="py-16 bg-gradient-to-b from-white via-emerald-50/40 to-white border-y border-slate-100">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 space-y-10">
+          
+          <div className="text-center space-y-3 max-w-2xl mx-auto">
+            <span className="text-xs font-bold text-emerald-600 uppercase tracking-widest">
+              Experiência do Paciente
+            </span>
+            <h2 className="text-2xl sm:text-4xl font-black text-slate-900">
+              Veja como seu paciente visualiza o Laudo e a Evolução
+            </h2>
+            <p className="text-xs sm:text-sm text-slate-600 leading-relaxed">
+              Acesse os links reais de demonstração do sistema e confira a experiência interativa, limpa e profissional que seus pacientes receberão.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-4xl mx-auto">
+            
+            {/* Card 1: Laudo Antropométrico */}
+            <div className="bg-white border border-slate-200 rounded-3xl p-6 sm:p-8 shadow-sm hover:shadow-xl hover:border-emerald-300 transition-all flex flex-col justify-between space-y-6 group">
+              <div className="space-y-4">
+                <div className="w-12 h-12 bg-emerald-100 text-emerald-700 rounded-2xl flex items-center justify-center font-black text-2xl group-hover:scale-110 transition-transform">
+                  📄
+                </div>
+                <div>
+                  <span className="px-3 py-1 bg-emerald-50 text-emerald-700 text-[10px] font-bold uppercase rounded-lg border border-emerald-100">
+                    Demonstração Viva
+                  </span>
+                  <h3 className="text-xl font-black text-slate-900 mt-2">
+                    Laudo Antropométrico Interativo
+                  </h3>
+                </div>
+                <p className="text-xs text-slate-500 leading-relaxed">
+                  Relatório completo com composição corporal 4C/2C, Somatotipo, indicadores de saúde, fracionamento tecidual e orientações do avaliador.
+                </p>
+              </div>
+
+              <a
+                href="https://evaluaos.nutricaocommarco.com.br/laudo/e67fbcda-cbef-416e-9d39-33b052bcff0d"
+                target="_blank"
+                rel="noreferrer"
+                className="w-full py-3.5 bg-slate-900 hover:bg-emerald-600 text-white font-bold text-xs uppercase tracking-wider rounded-xl transition-all text-center flex items-center justify-center gap-2 shadow-md"
+              >
+                <span>Abrir Exemplo de Laudo</span>
+                <span>➔</span>
+              </a>
+            </div>
+
+            {/* Card 2: Evolução do Paciente */}
+            <div className="bg-white border border-slate-200 rounded-3xl p-6 sm:p-8 shadow-sm hover:shadow-xl hover:border-emerald-300 transition-all flex flex-col justify-between space-y-6 group">
+              <div className="space-y-4">
+                <div className="w-12 h-12 bg-teal-100 text-teal-700 rounded-2xl flex items-center justify-center font-black text-2xl group-hover:scale-110 transition-transform">
+                  📈
+                </div>
+                <div>
+                  <span className="px-3 py-1 bg-teal-50 text-teal-700 text-[10px] font-bold uppercase rounded-lg border border-teal-100">
+                    Acompanhamento Temporal
+                  </span>
+                  <h3 className="text-xl font-black text-slate-900 mt-2">
+                    Painel de Evolução do Paciente
+                  </h3>
+                </div>
+                <p className="text-xs text-slate-500 leading-relaxed">
+                  Gráficos comparativos de dobras cutâneas (mm), perímetros, alteração de massa muscular/adiposa e histórico completo de reavaliações.
+                </p>
+              </div>
+
+              <a
+                href="https://evaluaos.nutricaocommarco.com.br/evolucao/cf5f2d22dd728039c1d8d4a0364e893d"
+                target="_blank"
+                rel="noreferrer"
+                className="w-full py-3.5 bg-slate-900 hover:bg-teal-600 text-white font-bold text-xs uppercase tracking-wider rounded-xl transition-all text-center flex items-center justify-center gap-2 shadow-md"
+              >
+                <span>Abrir Exemplo de Evolução</span>
+                <span>➔</span>
+              </a>
+            </div>
+
+          </div>
+
+        </div>
+      </section>
+
+      {/* 🧬 4. POR QUE O EVALUAOS É DIFERENTE? */}
       <section className="py-16 bg-slate-900 text-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 space-y-12">
           
@@ -128,7 +211,7 @@ export default function HomePublica() {
         </div>
       </section>
 
-      {/* 📚 4. CENTRAL DE APRENDIZADO ABERTA */}
+      {/* 📚 5. CENTRAL DE APRENDIZADO ABERTA */}
       <section id="aprendizado" className="py-20 bg-slate-50 border-b border-slate-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 space-y-10">
           
@@ -185,7 +268,7 @@ export default function HomePublica() {
         </div>
       </section>
 
-      {/* 💰 5. SEÇÃO DE PREÇOS NA HOME */}
+      {/* 💰 6. SEÇÃO DE PREÇOS NA HOME */}
       <section id="precos" className="py-20 max-w-7xl mx-auto px-4 sm:px-6 space-y-12">
         
         <div className="text-center space-y-2 max-w-xl mx-auto">
@@ -273,7 +356,7 @@ export default function HomePublica() {
 
       </section>
 
-      {/* 🧲 6. BANNER FINAL DE CTA */}
+      {/* 🧲 7. BANNER FINAL DE CTA */}
       <section className="py-16 bg-gradient-to-r from-emerald-600 to-teal-700 text-white">
         <div className="max-w-5xl mx-auto px-4 text-center space-y-6">
           <h2 className="text-2xl sm:text-4xl font-black">
@@ -291,7 +374,7 @@ export default function HomePublica() {
         </div>
       </section>
 
-      {/* 📞 7. RODAPÉ INSTITUCIONAL */}
+      {/* 📞 8. RODAPÉ INSTITUCIONAL */}
       <footer className="bg-slate-950 text-slate-400 py-12 border-t border-slate-800 text-xs">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 flex flex-col md:flex-row justify-between items-center gap-6">
           
