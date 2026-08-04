@@ -1,6 +1,6 @@
 /**
- * EVALUAOS - Sistema Especialista em Cineantropometria Avançada (V2.1)
- * Hierarquia de Decisão: Sexo -> Endomorfia -> Morrow -> Argoref/ISAK -> Kerr (Kg) -> Idade -> Nacionalidade -> Bônus
+ * EVALUAOS - Sistema Especialista em Cineantropometria Avançada (V2.2)
+ * Hierarquia Ajustada: Sexo -> Endomorfia -> Morrow -> Argoref/ISAK -> Kerr (Kg com Tolerância Muscular) -> Idade -> Nacionalidade -> Bônus
  */
 
 import * as Eq from './equacoes'
@@ -204,14 +204,14 @@ export function recomendarEquacaoIdeal(medidas = {}, paciente = {}) {
   }
 
   // ============================================================
-  // 4. SISTEMA ESPECIALISTA: HIERARQUIA DE PONDERAÇÃO RIGOROSA
+  // 4. SISTEMA ESPECIALISTA: HIERARQUIA DE PONDERAÇÃO FLEXÍVEL
   // ============================================================
   const listaCandidatas = sexo === 'F' ? METADADOS_EQUACOES.filter(e => e.sexo === 'F') : METADADOS_EQUACOES.filter(e => e.sexo === 'M')
 
   let equacoesPontuadas = []
 
   listaCandidatas.forEach(eq => {
-    let score = 100 // Base neutra
+    let score = 100
     let razoes = []
     let pgcSimulado = 0
 
@@ -226,63 +226,66 @@ export function recomendarEquacaoIdeal(medidas = {}, paciente = {}) {
 
     const massaGordaSimuladaKg = (pgcSimulado / 100) * peso
 
-    // ⛔ PILAR 1: A TRAVA FATAL DE KERR EM KG (Teto Físico Absoluto)
-    // A gordura química pura (massa gorda em kg) JAMAIS pode ser maior do que a massa do próprio Tecido Adiposo Anatômico de Kerr.
-    if (massaGordaSimuladaKg > massaAdiposaKerr) {
-      score -= 500 // Penalidade severa / Eliminação imediata do topo
-      const excessoKg = (massaGordaSimuladaKg - massaAdiposaKerr).toFixed(2)
-      razoes.push(`Inviabilidade Biológica Fatal: A massa gorda estimada (${massaGordaSimuladaKg.toFixed(2)} kg) ultrapassa o teto do Tecido Adiposo de Kerr (${massaAdiposaKerr.toFixed(2)} kg) em ${excessoKg} kg. Equação descartada por violar a física do tecido adiposo.`)
+    // ⚖️ TOLERÂNCIA DA TRAVA DE KERR (COM ADEQUAÇÃO PARA ALTA MUSCULARIDADE)
+    // Se a gordura estimada for menor ou igual a Kerr, pontua positivamente.
+    // Se ultrapassar ligeiramente (até +10kg em razão de densidade musculoesquelética extrema), 
+    // a equação continua elegível, mas recebe um aviso informativo e penalidade leve.
+    const diffKerr = massaGordaSimuladaKg - massaAdiposaKerr
+    if (diffKerr <= 0) {
+      score += 40
+      razoes.push(`Respeito à Trava de Kerr: A gordura estimada (${massaGordaSimuladaKg.toFixed(2)} kg) está abaixo do Tecido Adiposo Anatômico (${massaAdiposaKerr.toFixed(2)} kg).`)
+    } else if (diffKerr <= 10.0) {
+      score += 10
+      razoes.push(`Compatibilidade com Tolerância Muscular: A massa gorda estimada (${massaGordaSimuladaKg.toFixed(2)} kg) superou o teto de Kerr (${massaAdiposaKerr.toFixed(2)} kg) em ${diffKerr.toFixed(2)} kg, mantendo-se na faixa aceitável para perfis de elevada mesomorfia.`)
     } else {
-      score += 50
-      const diferencaKg = (massaAdiposaKerr - massaGordaSimuladaKg).toFixed(2)
-      razoes.push(`Respeito à Trava de Kerr: A gordura estimada (${massaGordaSimuladaKg.toFixed(2)} kg) está contida dentro do Tecido Adiposo Anatômico (${massaAdiposaKerr.toFixed(2)} kg), com diferença de ${diferencaKg} kg.`)
+      score -= 100
+      razoes.push(`Divergência Crítica: A massa gorda estimada (${massaGordaSimuladaKg.toFixed(2)} kg) excede o teto de Kerr em mais de 10 kg (${diffKerr.toFixed(2)} kg), indicando superestimativa.`)
     }
 
-    // 🎯 PILAR 2: CLASSIFICAÇÃO DA ENDOMORFIA & MORROW
-    // Fórmulas que respeitam o perfil de adiposidade interna e somatotipo ganham prioridade máxima
+    // 🎯 HIERARQUIA PRINCIPAL: Endomorfia e Morrow
     if (endomorfia >= 6.0 && eq.pop === 'obeso') {
-      score += 40
-      razoes.push(`Endomorfia elevada (${endomorfia}): Alinhada com populações de sobrepeso/obesidade da amostra original.`)
+      score += 35
+      razoes.push(`Endomorfia elevada (${endomorfia}): Alinhada com amostras de sobrepeso.`)
     } else if (endomorfia <= 3.0 && eq.pop === 'atleta') {
-      score += 40
-      razoes.push(`Perfil magro/atlético (Endomorfia ${endomorfia}): Perfeito encaixe com a população de baixo percentual de gordura.`)
+      score += 35
+      razoes.push(`Perfil atlético (Endomorfia ${endomorfia}): Alinhado com amostras de baixo percentual de gordura.`)
     } else {
       score += 20
-      razoes.push(`Endomorfia (${endomorfia}) compatível com a predição da regressão.`)
+      razoes.push(`Endomorfia (${endomorfia}) compatível com a predição.`)
     }
 
-    // 📊 PILAR 3: ARGOREF / ISAK (Classificação de Subcutânea)
+    // 📊 BAREMOS / TABELAS DE REFERÊNCIA (ARGOREF / ISAK)
     if (statusDobrasBrutas !== '-') {
-      score += 25
-      razoes.push(`Alinhado com a referência de dobras (${referenciaDobrasUsada}: ${statusDobrasBrutas}).`)
+      score += 20
+      razoes.push(`Referência de dobras (${referenciaDobrasUsada}: ${statusDobrasBrutas}).`)
     }
 
-    // 👤 PILAR 4: IDADE E NACIONALIDADE
+    // 👤 DADOS DEMOGRÁFICOS (Idade e Nacionalidade)
     if (idade >= eq.idadeMin && idade <= eq.idadeMax) {
-      score += 30
-      razoes.push(`Idade do paciente (${idade} anos) encaixada perfeitamente na faixa etária original (${eq.idadeMin}-${eq.idadeMax} anos).`)
+      score += 25
+      razoes.push(`Faixa etária compatível (${idade} anos dentro de ${eq.idadeMin}-${eq.idadeMax} anos).`)
     } else {
-      score -= 40
-      razoes.push(`Fora da faixa etária original da amostra (${eq.idadeMin}-${eq.idadeMax} anos).`)
+      score -= 25
+      razoes.push(`Fora da faixa etária original (${eq.idadeMin}-${eq.idadeMax} anos).`)
     }
 
     if (nacionalidade.includes('brasil') && eq.pop === 'brasileira') {
-      score += 30
-      razoes.push('Validação específica para a população brasileira.')
+      score += 25
+      razoes.push('Validada na população brasileira.')
     } else if (etnia.includes('asiat') && eq.pop === 'asiatica') {
-      score += 30
-      razoes.push('Calibrada para características antropométricas de asiáticos.')
+      score += 25
+      razoes.push('Específica para asiáticos.')
     }
 
-    // ⚡ PILAR 5: BÔNUS DE AJUSTE FINO (Esporte, Hipertrofia, Compressibilidade)
+    // ⚡ AJUSTES FINOS (Esporte, Compressibilidade)
     if (esporte && eq.pop === 'atleta') {
       score += 15
-      razoes.push('Bônus: Adequado para rotina de treinamento físico.')
+      razoes.push('Adequado para rotina de treinamento físico.')
     }
 
     if (soma6 > 130 && eq.tipo === 'perimetros') {
       score += 20
-      razoes.push('Bônus: Uso de perímetros mitiga o erro de compressibilidade do adipômetro em dobras muito espessas.')
+      razoes.push('Uso de perímetros evita erro de compressibilidade do adipômetro em dobras espessas.')
     }
 
     equacoesPontuadas.push({
