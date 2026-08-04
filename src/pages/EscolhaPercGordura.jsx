@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { supabase } from '../supabaseClient'
 import * as Eq from '../utils/equacoes'
+import { recomendarEquacaoIdeal } from '../utils/EngineRecomendacaoEquacoes'
 
 const listaFeminina = [
   { nome: 'Durnin et al. (1974) - 4skf', func: Eq.calcularFemDurnin1974 },
@@ -91,22 +92,16 @@ export default function EscolhaPercGordura() {
   const [showDropdown, setShowDropdown] = useState(false)
   
   const [pacienteSelecionado, setPacienteSelecionado] = useState(pacienteInicial)
-  
-  // Histórico de avaliações do paciente selecionado
   const [historicoAvaliacoes, setHistoricoAvaliacoes] = useState([])
-  
   const [avaliacaoAtual, setAvaliacaoAtual] = useState(null)
   const [medidasBrutas, setMedidasBrutas] = useState({})
-  
-  // === NOVO ESTADO: Para buscar a Massa Muscular já salva ===
   const [dadosCalculados, setDadosCalculados] = useState({})
-  
   const [equacaoSelecionada, setEquacaoSelecionada] = useState('')
-  
   const [resultadoGordura, setResultadoGordura] = useState(0)
   const [metadados, setMetadados] = useState(null)
-  
   const [salvando, setSalvando] = useState(false)
+
+  const [recomendacaoEngine, setRecomendacaoEngine] = useState(null)
 
   const dropdownRef = useRef(null)
 
@@ -131,14 +126,12 @@ export default function EscolhaPercGordura() {
     return ''
   }
 
-  // 1. CARREGAMENTO INICIAL VINDO DO AVALIACAO_FORM
   useEffect(() => {
     if (pacienteInicial) {
       selecionarPacienteViaForm(pacienteInicial, avaliacaoIdInicial)
     }
   }, [pacienteInicial, avaliacaoIdInicial])
 
-  // 2. BUSCA DINÂMICA DE PACIENTES
   useEffect(() => {
     const buscarPacientes = async () => {
       if (busca.length < 1) {
@@ -147,7 +140,7 @@ export default function EscolhaPercGordura() {
       }
       const { data, error } = await supabase
         .from('pacientes')
-        .select('id, nome_completo, sexo, data_nascimento')
+        .select('id, nome_completo, sexo, data_nascimento, pratica_esporte, modalidade_esportiva, etnia, nacionalidade')
         .ilike('nome_completo', `%${busca}%`)
         .limit(5)
 
@@ -168,13 +161,11 @@ export default function EscolhaPercGordura() {
     return () => document.removeEventListener('mousedown', handleClickFora)
   }, [])
 
-  // SELEÇÃO DIRETA DO FORMULÁRIO
   const selecionarPacienteViaForm = async (paciente, avaliacaoIdReq) => {
     setPacienteSelecionado(paciente)
     setBusca(paciente.nome_completo)
     setShowDropdown(false)
 
-    // Busca o histórico do paciente
     const { data: historico } = await supabase
       .from('avaliacoes')
       .select('id, data_avaliacao')
@@ -183,7 +174,6 @@ export default function EscolhaPercGordura() {
       
     if (historico) setHistoricoAvaliacoes(historico)
 
-    // Busca OS DADOS da avaliação requerida
     if (avaliacaoIdReq) {
       const { data: aval } = await supabase
         .from('avaliacoes')
@@ -191,20 +181,23 @@ export default function EscolhaPercGordura() {
         .eq('id', avaliacaoIdReq)
         .single()
 
-if (aval) {
+      if (aval) {
         setAvaliacaoAtual(aval)
         setMedidasBrutas(aval)
         
-        // TRAVA DE SEGURANÇA: Só busca da configuração se NÃO tiver equação E NÃO tiver %GC escolhido
+        const rec = recomendarEquacaoIdeal(aval, paciente)
+        setRecomendacaoEngine(rec)
+
         if (aval.equacao_de_regressao_escolhida && aval.percentual_de_gordura != null && aval.percentual_de_gordura > 0) {
           setEquacaoSelecionada(aval.equacao_de_regressao_escolhida)
+        } else if (rec.nomeEquacaoRecomendada) {
+          setEquacaoSelecionada(rec.nomeEquacaoRecomendada)
         } else {
           const eqPadrao = await buscarEquacaoPadraoConfigurada(paciente.sexo)
           setEquacaoSelecionada(eqPadrao)
         }
       }
 
-      // === BUSCA OS CÁLCULOS SALVOS (Inclui Massa Muscular) ===
       const { data: calc } = await supabase
         .from('dados_calculados')
         .select('*')
@@ -215,7 +208,6 @@ if (aval) {
     }
   }
 
-  // SELEÇÃO PELA BARRA DE BUSCA
   const selecionarPacienteBusca = async (paciente) => {
     setPacienteSelecionado(paciente)
     setBusca(paciente.nome_completo)
@@ -223,7 +215,7 @@ if (aval) {
     setEquacaoSelecionada('')
     setResultadoGordura(0)
     setMetadados(null)
-    setDadosCalculados({}) // Reseta ao trocar
+    setDadosCalculados({})
 
     const { data: historico } = await supabase
       .from('avaliacoes')
@@ -233,7 +225,7 @@ if (aval) {
 
     if (historico && historico.length > 0) {
       setHistoricoAvaliacoes(historico)
-      selecionarAvaliacaoDoHistorico(historico[0].id, paciente.sexo)
+      selecionarAvaliacaoDoHistorico(historico[0].id, paciente)
     } else {
       setHistoricoAvaliacoes([])
       setAvaliacaoAtual(null)
@@ -242,30 +234,31 @@ if (aval) {
     }
   }
 
-  // TROCAR AVALIAÇÃO PELO DROPDOWN DE HISTÓRICO
-  const selecionarAvaliacaoDoHistorico = async (idAvaliacao, sexoPacienteOverride) => {
+  const selecionarAvaliacaoDoHistorico = async (idAvaliacao, pacienteOverride) => {
+    const pacObj = pacienteOverride || pacienteSelecionado
     const { data: aval } = await supabase
       .from('avaliacoes')
       .select('*')
       .eq('id', idAvaliacao)
       .single()
 
-      const sexoP = sexoPacienteOverride || pacienteSelecionado?.sexo
-
     if (aval) {
       setAvaliacaoAtual(aval)
       setMedidasBrutas(aval)
       
-      // TRAVA DE SEGURANÇA: Mantém o salvo se já tiver equação e %GC preenchidos
+      const rec = recomendarEquacaoIdeal(aval, pacObj)
+      setRecomendacaoEngine(rec)
+
       if (aval.equacao_de_regressao_escolhida && aval.percentual_de_gordura != null && aval.percentual_de_gordura > 0) {
         setEquacaoSelecionada(aval.equacao_de_regressao_escolhida)
+      } else if (rec.nomeEquacaoRecomendada) {
+        setEquacaoSelecionada(rec.nomeEquacaoRecomendada)
       } else {
-        const eqPadrao = await buscarEquacaoPadraoConfigurada(sexoP)
+        const eqPadrao = await buscarEquacaoPadraoConfigurada(pacObj?.sexo)
         setEquacaoSelecionada(eqPadrao)
       }
     }
 
-    // === BUSCA OS CÁLCULOS DESSA AVALIAÇÃO ===
     const { data: calc } = await supabase
       .from('dados_calculados')
       .select('*')
@@ -275,7 +268,6 @@ if (aval) {
     if (calc) setDadosCalculados(calc)
   }
 
-  // MÁQUINA DE CÁLCULO
   useEffect(() => {
     if (!pacienteSelecionado || !equacaoSelecionada || !medidasBrutas) return
 
@@ -315,25 +307,22 @@ if (aval) {
       })
       .eq('id', avaliacaoAtual.id)
 
-    // 1. Calcula Massa Gorda e Massa Magra
     const peso = Number(medidasBrutas.peso_paciente || 0)
     const massaGorda = peso > 0 ? (resultadoGordura * peso) / 100 : 0
     const massaMagra = peso > 0 ? peso - massaGorda : 0
 
-    // 2. Calcula o IAM (Índice Adiposo Muscular)
     const massaMuscular = Number(dadosCalculados.massa_muscular || 0)
     let iam = 0
     if (massaMuscular > 0) {
       iam = massaGorda / massaMuscular
     }
 
-    // 3. Atualiza tudo no banco
     const { error: calcError } = await supabase
       .from('dados_calculados')
       .update({
         massa_gorda: Number(massaGorda.toFixed(2)),
         massa_magra: Number(massaMagra.toFixed(2)),
-        indice_adiposo_muscular: Number(iam.toFixed(2)) // <-- SALVA O IAM AQUI!
+        indice_adiposo_muscular: Number(iam.toFixed(2))
       })
       .eq('id_avaliacao', avaliacaoAtual.id)
 
@@ -397,7 +386,6 @@ if (aval) {
               <p className="text-xs text-gray-500 mt-1">Peso Coletado: {medidasBrutas.peso_paciente || 0} kg</p>
             </div>
 
-            {/* SELETOR DE HISTÓRICO DE AVALIAÇÕES */}
             {historicoAvaliacoes.length > 0 && (
               <div className="w-full sm:w-auto">
                 <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">
@@ -418,9 +406,116 @@ if (aval) {
             )}
           </div>
 
+          {/* 💎 PAINEL DE INTELIGÊNCIA CIENTÍFICA: AVALIAÇÃO MULTICRITÉRIO */}
+          {recomendacaoEngine && recomendacaoEngine.indicadoresCruzados && (
+            <div className="bg-gradient-to-br from-emerald-50 to-teal-50 border-2 border-emerald-200 rounded-xl p-5 shadow-sm space-y-5">
+              
+              <div className="flex items-center gap-2 border-b border-emerald-200 pb-2">
+                <span className="text-xl">🧠</span>
+                <h4 className="text-xs font-black text-emerald-900 uppercase tracking-wider">
+                  Diagnóstico Clínico & Recomendações EvaluaOS
+                </h4>
+              </div>
+
+              {/* DASHBOARD DOS PARÂMETROS CRUZADOS */}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3 bg-white/60 p-4 rounded-lg border border-emerald-100/50">
+                <div className="flex flex-col">
+                  <span className="text-[10px] font-bold text-gray-500 uppercase">Peso / Estatura</span>
+                  <span className="text-sm font-black text-gray-800">{recomendacaoEngine.indicadoresCruzados.peso}kg / {recomendacaoEngine.indicadoresCruzados.alturaCm}cm</span>
+                </div>
+                <div className="flex flex-col">
+                  <span className="text-[10px] font-bold text-gray-500 uppercase">IMC</span>
+                  <span className="text-sm font-black text-gray-800">{recomendacaoEngine.indicadoresCruzados.imc} <span className="text-[10px] font-medium text-gray-500">({recomendacaoEngine.indicadoresCruzados.classificacaoImc})</span></span>
+                </div>
+                <div className="flex flex-col">
+                  <span className="text-[10px] font-bold text-gray-500 uppercase">Σ 6 Dobras</span>
+                  <span className="text-sm font-black text-amber-600">{recomendacaoEngine.indicadoresCruzados.soma6}mm</span>
+                </div>
+                <div className="flex flex-col">
+                  <span className="text-[10px] font-bold text-gray-500 uppercase">Σ 8 Dobras</span>
+                  <span className="text-sm font-black text-amber-600">{recomendacaoEngine.indicadoresCruzados.soma8}mm</span>
+                </div>
+
+                <div className="flex flex-col col-span-2 border-t border-emerald-100/50 pt-2 mt-1">
+                  <span className="text-[10px] font-bold text-gray-500 uppercase">Fracionamento 4C (Anatômico)</span>
+                  <div className="flex gap-4 mt-1">
+                    <div className="flex flex-col">
+                      <span className="text-[9px] font-semibold text-amber-600">Adiposo (Kerr)</span>
+                      <span className="text-xs font-black text-gray-800">{recomendacaoEngine.indicadoresCruzados.massaAdiposaKg} kg</span>
+                    </div>
+                    <div className="flex flex-col">
+                      <span className="text-[9px] font-semibold text-emerald-600">Muscular (Lee)</span>
+                      <span className="text-xs font-black text-gray-800">{recomendacaoEngine.indicadoresCruzados.massaMuscularLee} kg</span>
+                    </div>
+                    <div className="flex flex-col">
+                      <span className="text-[9px] font-semibold text-indigo-500">Ósseo (Rocha)</span>
+                      <span className="text-xs font-black text-gray-800">{recomendacaoEngine.indicadoresCruzados.massaOsseaRocha} kg</span>
+                    </div>
+                    <div className="flex flex-col">
+                      <span className="text-[9px] font-semibold text-gray-500">Residual (Würch)</span>
+                      <span className="text-xs font-black text-gray-800">{recomendacaoEngine.indicadoresCruzados.massaResidual4C} kg</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex flex-col col-span-2 border-t border-emerald-100/50 pt-2 mt-1">
+                  <span className="text-[10px] font-bold text-gray-500 uppercase">Índices e Somatotipo</span>
+                  <div className="flex gap-4 mt-1">
+                    <div className="flex flex-col">
+                      <span className="text-[9px] font-semibold text-gray-500">IMO</span>
+                      <span className="text-xs font-black text-gray-800">{recomendacaoEngine.indicadoresCruzados.imoVal}</span>
+                    </div>
+                    <div className="flex flex-col">
+                      <span className="text-[9px] font-semibold text-gray-500">IAM</span>
+                      <span className="text-xs font-black text-gray-800">{recomendacaoEngine.indicadoresCruzados.iamVal}</span>
+                    </div>
+                    <div className="flex flex-col">
+                      <span className="text-[9px] font-semibold text-gray-500">Endomorfia</span>
+                      <span className="text-xs font-black text-gray-800">{recomendacaoEngine.indicadoresCruzados.endomorfia}</span>
+                    </div>
+                    <div className="flex flex-col">
+                      <span className="text-[9px] font-semibold text-gray-500">Mesomorfia</span>
+                      <span className="text-xs font-black text-gray-800">{recomendacaoEngine.indicadoresCruzados.mesomorfia}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* LISTA DE EQUAÇÕES SUGERIDAS RANKED */}
+              {recomendacaoEngine.equacoesSugeridas && recomendacaoEngine.equacoesSugeridas.length > 0 && (
+                <div className="space-y-3 pt-2">
+                  <p className="text-[11px] font-bold text-emerald-800 uppercase tracking-wide">
+                    🏆 Ranking das Melhores Equações para este Perfil:
+                  </p>
+                  {recomendacaoEngine.equacoesSugeridas.map((eqSugg, idx) => (
+                    <div key={idx} className={`border p-3 rounded-lg flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 transition-all ${idx === 0 ? 'bg-white border-emerald-300 shadow-sm' : 'bg-white/60 border-emerald-100'}`}>
+                      <div className="space-y-1 flex-1">
+                        <div className="flex items-center gap-2">
+                          <span className={`text-xs font-black px-2 py-0.5 rounded ${idx === 0 ? 'bg-emerald-600 text-white' : 'bg-emerald-100 text-emerald-800'}`}>
+                            #{idx + 1}
+                          </span>
+                          <p className="text-sm font-bold text-gray-800">{eqSugg.nome}</p>
+                          <span className="text-[9px] font-bold text-gray-400 border border-gray-200 px-1 rounded hidden sm:inline-block">Score: {eqSugg.score}</span>
+                        </div>
+                        <p className="text-xs text-gray-600 leading-relaxed">{eqSugg.justificativa}</p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setEquacaoSelecionada(eqSugg.nome)}
+                        className={`text-[10px] font-extrabold px-4 py-2 rounded-md transition-colors shadow-2xs whitespace-nowrap ${idx === 0 ? 'bg-emerald-600 text-white hover:bg-emerald-700' : 'bg-gray-100 text-gray-600 hover:bg-emerald-600 hover:text-white'}`}
+                      >
+                        Aplicar Seleção
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
           <div className="space-y-2 border-t border-gray-100 pt-6">
             <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wider">
-              Escolha a Equação de Regressão
+              Ou Selecione Manualmente a Equação de Regressão
             </label>
             <select
               value={equacaoSelecionada}
@@ -436,7 +531,7 @@ if (aval) {
 
           {metadados && (
             <div className="bg-blue-50 border border-blue-100 rounded-lg p-4 transition-all">
-              <h4 className="text-xs font-bold text-blue-800 uppercase tracking-wider mb-3">Validação Científica</h4>
+              <h4 className="text-xs font-bold text-blue-800 uppercase tracking-wider mb-3">Validação Científica da Equação Ativa</h4>
               <ul className="text-sm text-blue-800 space-y-1.5">
                 <li><strong>Autor(es):</strong> {metadados.autor} ({metadados.ano})</li>
                 <li><strong>Protocolo:</strong> {metadados.protocolo}</li>
