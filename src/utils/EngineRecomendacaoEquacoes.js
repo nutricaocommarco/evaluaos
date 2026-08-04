@@ -1,7 +1,6 @@
 /**
- * EVALUAOS - Sistema Especialista em Cineantropometria Avançada
- * Hierarquia de Decisão (TCC): 
- * 1º Sexo -> 2º Endomorfia -> 3º Morrow -> 4º Argoref/ISAK -> 5º Kerr(kg) -> 6º Idade/Nac -> 7º Bônus
+ * EVALUAOS - Sistema Especialista em Cineantropometria Avançada (V2.4)
+ * Hierarquia Exata: Sexo -> Endomorfia -> Morrow et al. -> Argoref / ISAK -> Kerr (Kg Normalizado) -> Idade -> Nacionalidade -> Bônus
  */
 
 import * as Eq from './equacoes'
@@ -115,7 +114,7 @@ export function recomendarEquacaoIdeal(medidas = {}, paciente = {}) {
   }
   if (!idade || idade <= 0) idade = 25;
 
-  // 2. EXTRAÇÃO DE MEDIDAS E CÁLCULO DOS COMPONENTES
+  // 2. EXTRAÇÃO DE MEDIDAS
   const peso = Number(medidas.peso_paciente || medidas.massa_kg || medidas.peso_kg) || 0
   const alturaCm = Number(medidas.altura_paciente || medidas.estatura_cm || medidas.altura_cm) || 0
   const alturaM = alturaCm / 100
@@ -132,15 +131,25 @@ export function recomendarEquacaoIdeal(medidas = {}, paciente = {}) {
   const soma6 = tr + sub + si + se + ab + cx
   const soma8 = soma6 + bi + pa
 
-  // A. Fracionamento Adiposo (Kerr 1991) em KG - TRAVA BIOLÓGICA
+  // =================================================================
+  // 🔬 A. CÁLCULO EXATO DE KERR (1988) PARA O TECIDO ADIPOSO (Z-SCORES INDIVIDUAIS)
+  // Utilizando a matriz Phantom original de Ross & Wilson (1974)
+  // =================================================================
   let massaAdiposaKerr = 0
   if (soma6 > 0 && alturaCm > 0) {
-    const zAdiposo = ((soma6 * (170.18 / alturaCm)) - 116.41) / 34.79
-    massaAdiposaKerr = Math.max(0, ((zAdiposo * 5.85) + 25.6) * Math.pow(alturaCm / 170.18, 3))
+    const hC = 170.18 / alturaCm;
+    const zTri = ((tr * hC) - 15.4) / 4.47;
+    const zSub = ((sub * hC) - 15.2) / 5.10;
+    const zSup = ((se * hC) - 15.4) / 4.47;
+    const zAbd = ((ab * hC) - 25.4) / 7.78;
+    const zCox = ((cx * hC) - 26.9) / 8.33;
+    const zPan = ((pa * hC) - 16.0) / 4.64;
+    
+    const zAdiposoMedia = (zTri + zSub + zSup + zAbd + zCox + zPan) / 6;
+    massaAdiposaKerr = Math.max(0, ((zAdiposoMedia * 5.85) + 25.6) * Math.pow(alturaCm / 170.18, 3));
   }
-  const pctAdiposoKerr = peso > 0 ? Number(((massaAdiposaKerr / peso) * 100).toFixed(2)) : 0
 
-  // B. Tecido Muscular (Lee 2000) e Ósseo (Rocha 1975)
+  // B. Tecido Muscular de Lee (2000)
   const dUmero = Number(medidas.diametro_umero) || 6.5
   const dFemur = Number(medidas.diametro_femur) || 9.5
   const dRadio = Number(medidas.diametro_punho) || 5.0
@@ -164,18 +173,37 @@ export function recomendarEquacaoIdeal(medidas = {}, paciente = {}) {
     massaMuscularLee = (alturaM * ((0.00744 * Math.pow(bracoCorr, 2)) + (0.00088 * Math.pow(coxaCorr, 2)) + (0.00441 * Math.pow(pantCorr, 2)))) + (2.4 * sexoNum) - (0.048 * idade) + racaNum + 7.8
   }
 
+  // C. Tecido Ósseo (Rocha 1975)
   let massaOsseaRocha = 0
   if (alturaM > 0 && dUmero > 0 && dFemur > 0) {
     massaOsseaRocha = 3.02 * Math.pow(Math.pow(alturaM, 2) * (dUmero / 100) * (dFemur / 100) * 400, 0.712)
   }
 
+  // D. Massa Residual (Würch 1973)
   const pctResidualWurch = sexo === 'M' ? 0.24 : 0.21
-  const massaResidual4C = peso > 0 ? peso * pctResidualWurch : 0
+  let massaResidual4C = peso > 0 ? peso * pctResidualWurch : 0
 
+  // =================================================================
+  // ⚖️ NORMALIZAÇÃO PRÓ-RATA DOS 4 COMPONENTES
+  // Corrige o "Efeito Frankenstein" onde a soma de 4 modelos de regressão diferentes não bate com o peso da balança
+  // =================================================================
+  const somaBruta4C = massaAdiposaKerr + massaMuscularLee + massaOsseaRocha + massaResidual4C;
+  if (somaBruta4C > 0 && peso > 0) {
+    const fatorAjuste = peso / somaBruta4C;
+    massaAdiposaKerr *= fatorAjuste;
+    massaMuscularLee *= fatorAjuste;
+    massaOsseaRocha *= fatorAjuste;
+    massaResidual4C *= fatorAjuste;
+  }
+
+  // Após ajuste, tiramos o %Adiposo
+  const pctAdiposoKerr = peso > 0 ? Number(((massaAdiposaKerr / peso) * 100).toFixed(2)) : 0
+
+  // E. Índices IMO e IAM (Baseados nas massas já ajustadas)
   const imoLeeRocha = (massaMuscularLee > 0 && massaOsseaRocha > 0) ? (massaMuscularLee / massaOsseaRocha) : 0
   const iamVal = (massaMuscularLee > 0 && massaAdiposaKerr > 0) ? (massaAdiposaKerr / massaMuscularLee) : 0
 
-  // C. Somatotipo (Endomorfia / Mesomorfia)
+  // F. Somatotipo (Endomorfia / Mesomorfia)
   const somaDobrasEndo = (tr + sub + se) * (170.18 / (alturaCm || 1))
   let endomorfia = 0
   if (alturaCm > 0) {
@@ -191,7 +219,7 @@ export function recomendarEquacaoIdeal(medidas = {}, paciente = {}) {
   const imcVal = alturaM > 0 ? peso / (alturaM * alturaM) : 0
   const classImc = classificarImc(imcVal)?.classificacao || '-'
   
-  // A classificação Morrow BASE é extraída da estimativa física de Kerr
+  // Classificação Morrow BASE é extraída da estimativa física de Kerr ajustada
   const statusMorrowObj = classificarMorrow(pctAdiposoKerr, sexo, idade)
   const statusMorrow = typeof statusMorrowObj === 'object' ? statusMorrowObj.classificacao : statusMorrowObj
 
@@ -289,7 +317,7 @@ export function recomendarEquacaoIdeal(medidas = {}, paciente = {}) {
       score += 50
       razoes.push(`Trava de Kerr (Tolerância): A gordura excede levemente o tecido adiposo em ${diffKerr.toFixed(1)} kg, sendo variação aceitável pela densidade muscular.`)
     } else {
-      score -= 300 // Penalidade severa, mas não zera se os outros fatores justificarem em casos anômalos
+      score -= 300 // Penalidade severa
       razoes.push(`Aviso Biológico: Superestima a gordura molecular em ${diffKerr.toFixed(1)} kg além da estrutura adiposa palpável.`)
     }
 
@@ -301,6 +329,68 @@ export function recomendarEquacaoIdeal(medidas = {}, paciente = {}) {
       score -= 100
     }
 
+    if (nacionalidade.includes('brasil') && eq.pop === 'brasileira') {
+      score += 80
+      razoes.push('Amostra populacional validada no Brasil.')
+    } else if (etnia.includes('asiat') && eq.pop === 'asiatica') {
+      score += 80
+      razoes.push('Calibrada para asiáticas.')
+    }
+
+    // ⚡ BÔNUS DE AJUSTE FINO (Desempate)
+    if (esporte && eq.pop === 'atleta') {
+      score += 30
+      razoes.push('Bônus: Adequada ao perfil de prática esportiva.')
+    }
+    if (soma6 > 130 && eq.tipo === 'perimetros') {
+      score += 40
+      razoes.push('Bônus: Uso de perímetros evita a compressão do adipômetro em dobras extremas.')
+    }
+    if (ehFalsoSobrepeso && eq.tipo === 'dobras') {
+      score += 30
+      razoes.push('Bônus: Dobras isolam o falso sobrepeso gerado pelo alto IMC muscular.')
+    }
+
+    equacoesPontuadas.push({
+      nome: eq.nome,
+      score,
+      justificativa: razoes.join(' ')
+    })
+  })
+
+  // Ordena por pontuação decrescente e extrai as 3 melhores opções válidas
+  equacoesPontuadas.sort((a, b) => b.score - a.score)
+  const melhoresOpcoes = equacoesPontuadas.slice(0, 3)
+
+  return {
+    nomeEquacaoRecomendada: melhoresOpcoes[0]?.nome || '',
+    equacoesSugeridas: melhoresOpcoes,
+    motivo: melhoresOpcoes[0]?.justificativa || '',
+    travaKerr: {
+      massaAdiposaKg: Number(massaAdiposaKerr.toFixed(2)),
+      pctAdiposo: pctAdiposoKerr
+    },
+    indicadoresCruzados: {
+      peso,
+      alturaCm,
+      imc: Number(imcVal.toFixed(1)),
+      classificacaoImc: classImc,
+      massaAdiposaKg: Number(massaAdiposaKerr.toFixed(2)),
+      massaMuscularLee: Number(massaMuscularLee.toFixed(2)),
+      massaOsseaRocha: Number(massaOsseaRocha.toFixed(2)),
+      massaResidual4C: Number(massaResidual4C.toFixed(2)),
+      soma6,
+      soma8,
+      endomorfia,
+      mesomorfia: Number(mesomorfia.toFixed(1)),
+      statusMorrow,
+      iamVal: Number(iamVal.toFixed(2)),
+      imoVal: Number(imoLeeRocha.toFixed(3)),
+      referenciaUsada: referenciaDobrasUsada,
+      statusDobras: statusDobrasBrutas
+    }
+  }
+}
     if (nacionalidade.includes('brasil') && eq.pop === 'brasileira') {
       score += 80
       razoes.push('Amostra populacional validada no Brasil.')
