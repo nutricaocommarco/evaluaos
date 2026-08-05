@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { supabase } from '../../supabaseClient'
+import { supabase } from '../supabaseClient'
 
 export default function VisibilidadePublicaForm({ config, setConfig, onSave, saving }) {
   const [pacientes, setPacientes] = useState([])
@@ -257,13 +257,23 @@ export default function VisibilidadePublicaForm({ config, setConfig, onSave, sav
         { key: 'laudo_somatocarta_grafico', label: 'Gráfico da Somatocarta' }
       ]
     },
-{
+    {
       titulo: 'Outros Indicadores & Classificações',
       chaves: [
         { key: 'laudo_apvat', label: 'Área Visceral (apVAT)' },
         { key: 'laudo_morrow', label: 'Gordura (Morrow 2003)' },
         { key: 'laudo_iam', label: 'Índice Adiposo Muscular (IAM)' },
         { key: 'laudo_imo', label: 'Índice Músculo Ósseo (IMO)' }
+      ]
+    },
+    // ---- METAS INDIVIDUALIZADAS ----
+    {
+      titulo: 'Dietética & Metas (Predição Metabólica)',
+      chaves: [
+        { key: 'laudo_plan_dieta', label: 'Dieta Recomendada (Kcal de Mudança)' },
+        { key: 'laudo_plan_manutencao', label: 'Manutenção Futura (Kcal de Manutenção)' },
+        { key: 'laudo_plan_peso_alvo', label: 'Peso Alvo Projetado' },
+        { key: 'laudo_plan_bf_alvo', label: '% Gordura Projetado' }
       ]
     }
   ]
