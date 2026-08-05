@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { supabase } from '../supabaseClient';
-import ImagemOtimizada from '../components/ImagemOtimizada';
 import { 
   Calculator, Activity, Info, CheckCircle2, User, HeartPulse, 
   AlertTriangle, Settings, Zap, Dumbbell, Timer, Target, TrendingDown, Scale 
@@ -541,6 +540,41 @@ export default function CalculadoraGastoCalorico() {
       </div>
 
       <div className="bg-white p-6 sm:p-10 md:p-16 rounded-[2rem] md:rounded-[4rem] shadow-2xl border border-slate-100 flex flex-col gap-8 md:gap-12">
+
+        <article className="prose prose-base md:prose-lg max-w-none text-left w-full">
+          <span className="inline-block bg-emerald-50 text-emerald-700 px-4 py-1.5 rounded-full text-xs font-black uppercase tracking-widest mb-4 md:mb-6">
+            Calculadora de Gasto Calórico • Metabolismo
+          </span>
+
+          <h1 className="text-3xl sm:text-4xl md:text-5xl font-black mb-6 md:mb-10 uppercase italic leading-tight text-slate-900">
+            A Importância de Usar uma <span className="text-emerald-700">Calculadora de Gasto Calórico</span>
+          </h1>
+
+          <div className="space-y-4 md:space-y-6 text-base md:text-lg text-slate-600 font-medium leading-relaxed">
+            <p>Se você está se perguntando como calcular meu gasto calórico diário de forma precisa, a resposta mais eficiente e segura é utilizar uma <strong>Calculadora de Gasto Calórico</strong> desenvolvida com base científica rigorosa. Entender exatamente a quantidade de energia que o seu corpo consome todos os dias é o primeiro passo absoluto para qualquer objetivo estético ou de saúde.</p>
+
+            <figure className="my-12 rounded-[2rem] md:rounded-[3rem] overflow-hidden shadow-2xl border border-slate-100 group flex flex-col bg-slate-200">
+              <div className="relative w-full aspect-video overflow-hidden bg-slate-100 flex items-center justify-center">
+                {/* Substituído o componente ImagemOtimizada pela tag img nativa para evitar falhas no Vercel */}
+                <img 
+                  src={CalculatorImage}
+                  alt="Mascote Píngus vestido de nutricionista apontando para a Calculadora de Gasto Calórico."
+                  title="Calculadora de Gasto Calórico e Taxa Metabólica Basal"
+                  className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
+                  loading="eager"
+                />
+              </div>
+              <figcaption className="bg-slate-50 p-4 md:p-6 text-center border-t border-slate-200 relative z-10">
+                <p className="text-sm md:text-base text-slate-600 font-medium italic text-center m-0 max-w-lg mx-auto">
+                  Nossa Calculadora de Gasto Calórico analisa o seu perfil físico e nível de atividade para descobrir a sua necessidade energética exata.
+                </p>
+              </figcaption>
+            </figure>
+
+            <p>Noutra perspectiva, a nossa ferramenta age como uma verdadeira <strong>Calculadora de Gasto Calórico</strong> inteligente que se adapta à sua realidade biológica. Ao invés de exigir que você escolha multiplicadores confusos em tabelas genéricas, o nosso sistema cruza os seus dados básicos com o seu nível real de atividade física diária e o seu perfil corporal específico.</p>
+          </div>
+        </article>
+
         <div className="bg-slate-50 rounded-[2rem] md:rounded-[3.5rem] p-5 sm:p-8 md:p-12 border border-slate-200 shadow-inner mt-2 md:mt-4">
           <h2 className="text-2xl md:text-3xl font-black text-slate-800 uppercase italic mb-8 md:mb-10 border-b border-emerald-200 pb-4 flex items-center gap-3">
             <Calculator className="text-emerald-700 w-6 h-6 md:w-8 md:h-8 flex-shrink-0"/> Calculadora de Gasto Calórico
