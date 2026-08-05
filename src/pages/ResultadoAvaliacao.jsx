@@ -17,7 +17,6 @@ import {
   classificarSomatotipoDetalhado 
 } from '../utils/escalasNormativas'
 
-// --- HELPER CÁLCULO DE SOMATOTIPO HEATH-CARTER ---
 const calcularSomatotipo = (medidas) => {
   const triceps = medidas.dobra_cutanea_triceps || 0;
   const subescapular = medidas.dobra_cutanea_subescapular || 0;
@@ -189,16 +188,20 @@ export default function ResultadoAvaliacao() {
       const pCoxa = avalDados.perimetro_coxa_media || 0
       const pPant = avalDados.perimetro_panturrilha || 0
       const dTri = avalDados.dobra_cutanea_triceps || 0
+      const dSub = avalDados.dobra_cutanea_subescapular || 0
+      const dSup = avalDados.dobra_cutanea_supraespinhal || 0
+      const dAbd = avalDados.dobra_cutanea_abdominal || 0
       const dCoxa = avalDados.dobra_cutanea_coxa_media || 0
       const dPant = avalDados.dobra_cutanea_panturrilha || 0
+      const dBic = avalDados.dobra_cutanea_biceps || 0
+      const dIli = avalDados.dobra_cutanea_crista_iliaca || 0
+
+      const calcSoma6 = dTri + dSub + dSup + dAbd + dCoxa + dPant
+      const calcSoma8 = calcSoma6 + dBic + dIli
 
       const calcPerimCorrigidoBraco = pBraco > 0 ? pBraco - (dTri * 0.314) : 0;
       const calcPerimCorrigidoCoxa = pCoxa > 0 ? pCoxa - (dCoxa * 0.314) : 0;
       const calcPerimCorrigidoPanturrilha = pPant > 0 ? pPant - (dPant * 0.314) : 0;
-
-      const termoBraco = Math.pow(calcPerimCorrigidoBraco, 2)
-      const termoCoxa = Math.pow(calcPerimCorrigidoCoxa, 2)
-      const termoPant = Math.pow(calcPerimCorrigidoPanturrilha, 2)
 
       let calcIdade = 25
       if (pac.data_nascimento) {
@@ -209,13 +212,43 @@ export default function ResultadoAvaliacao() {
         if (m < 0 || (m === 0 && evalDate.getDate() < birthDate.getDate())) calcIdade--
       }
 
+      // 1. Kerr (1988)
+      let calcKerr = 0;
+      if (calcSoma6 > 0 && alturaCm > 0) {
+        const zAdiposo = ((calcSoma6 * (170.18 / alturaCm)) - 116.41) / 34.79;
+        calcKerr = Math.max(0, ((zAdiposo * 5.85) + 25.6) * Math.pow(alturaCm / 170.18, 3));
+      }
+
+      // 2. Lee (2000)
       let calcMuscular = 0
       if (alturaM > 0 && pBraco > 0 && pCoxa > 0 && pPant > 0) {
         const sexoNum = pac.sexo === 'M' ? 1 : 0
         let racaNum = 0
         if (pac.etnia === 'Afrodescendente') racaNum = 1.1
         if (pac.etnia === 'Asiatico') racaNum = -2
-        calcMuscular = (alturaM * ((0.00744 * termoBraco) + (0.00088 * termoCoxa) + (0.00441 * termoPant))) + (2.4 * sexoNum) - (0.048 * calcIdade) + racaNum + 7.8
+        calcMuscular = (alturaM * ((0.00744 * Math.pow(calcPerimCorrigidoBraco, 2)) + (0.00088 * Math.pow(calcPerimCorrigidoCoxa, 2)) + (0.00441 * Math.pow(calcPerimCorrigidoPanturrilha, 2)))) + (2.4 * sexoNum) - (0.048 * calcIdade) + racaNum + 7.8
+      }
+
+      // 3. Rocha (1975)
+      let calcRocha = 0;
+      const dUmero = Number(avalDados.diametro_umero) || 0;
+      const dFemur = Number(avalDados.diametro_femur) || 0;
+      if (alturaM > 0 && dUmero > 0 && dFemur > 0) {
+        calcRocha = 3.02 * Math.pow(Math.pow(alturaM, 2) * (dUmero / 100) * (dFemur / 100) * 400, 0.712)
+      }
+
+      // 4. Würch (1973)
+      const pctResidualWurch = pac.sexo === 'M' ? 0.24 : 0.21
+      let calcWurch = pesoFinal > 0 ? pesoFinal * pctResidualWurch : 0
+
+      // NORMALIZAÇÃO
+      const soma4C = calcKerr + calcMuscular + calcRocha + calcWurch;
+      if (soma4C > 0 && pesoFinal > 0) {
+        const fatorAjuste = pesoFinal / soma4C;
+        calcKerr *= fatorAjuste;
+        calcMuscular *= fatorAjuste;
+        calcRocha *= fatorAjuste;
+        calcWurch *= fatorAjuste;
       }
 
       const pCintura = avalDados.perimetro_cintura || 0
@@ -235,35 +268,19 @@ export default function ResultadoAvaliacao() {
         calcApVat = Math.max(0, calcApVat);
       }
 
-      const dSub = avalDados.dobra_cutanea_subescapular || 0
-      const dSup = avalDados.dobra_cutanea_supraespinhal || 0
-      const dAbd = avalDados.dobra_cutanea_abdominal || 0
-      const dBic = avalDados.dobra_cutanea_biceps || 0
-      const dIli = avalDados.dobra_cutanea_crista_iliaca || 0
-
-      const calcSoma6 = dTri + dSub + dSup + dAbd + dCoxa + dPant
-      const calcSoma8 = calcSoma6 + dBic + dIli
-
       const somatotipo = calcularSomatotipo(avalDados)
+      const iamVal = (calcMuscular > 0 && calcKerr > 0) ? (calcKerr / calcMuscular) : 0
+      const imoVal = (calcMuscular > 0 && calcRocha > 0) ? (calcMuscular / calcRocha) : 0
 
-      const iamVal = (calcMuscular > 0 && massaGordaCalc > 0) ? (massaGordaCalc / calcMuscular) : 0
-
-      const dUmero = Number(avalDados.diametro_umero) || 0;
-      const dFemur = Number(avalDados.diametro_femur) || 0;
-      const dRadio = Number(avalDados.diametro_punho) || 0; 
-      const dMaleolar = Number(avalDados.diametro_maleolar) || 0;
-      const parte1 = 0.6 * alturaCm * Math.pow(dUmero + dFemur + dRadio + dMaleolar, 2) * 0.0001;
-
-      const cCoxa = Number(avalDados.perimetro_coxa_media) || 0;
-      const cAntebraco = Number(avalDados.perimetro_antibraco) || 0;
-      const cPant = Number(avalDados.perimetro_panturrilha) || 0;
-
-      const tCoxa = cCoxa - (dCoxa * 0.3141);
-      const tPant = cPant - (dPant * 0.3141);
-      const parte2 = (alturaCm * (0.0553 * Math.pow(tCoxa, 2) + 0.0987 * Math.pow(cAntebraco, 2) + 0.0331 * Math.pow(tPant, 2)) - 2445) * 0.001;
-      const imoVal = (parte1 > 0 && parte2 > 0) ? (parte2 / parte1) : 0;
+      // BUSCAR DADOS DE PLANEJAMENTO DO BANCO DE DADOS
+      const { data: calcSalvoNoBanco } = await supabase
+        .from('dados_calculados')
+        .select('*')
+        .eq('id_avaliacao', avalDados.id)
+        .maybeSingle();
 
       const payloadCalculado = {
+        ...calcSalvoNoBanco, 
         id_paciente: pac.id || avalDados.id_paciente,
         id_avaliacao: avalDados.id,
         imc: Number(calcImc.toFixed(2)),
@@ -293,6 +310,9 @@ export default function ResultadoAvaliacao() {
 
       setDados({
         ...payloadCalculado,
+        calcKerr, 
+        calcRocha,
+        calcWurch,
         avaliacoes: avalDados,
         pacientes: pac
       })
@@ -314,17 +334,13 @@ export default function ResultadoAvaliacao() {
 
   const podeExibir = (chave) => {
     if (!configVisibilidade) return true;
-
     const idPaciente = pac?.id;
-
     if (idPaciente && configVisibilidade.pacientes?.[idPaciente]?.[chave] !== undefined) {
       return configVisibilidade.pacientes[idPaciente][chave];
     }
-
     if (configVisibilidade[chave] !== undefined) {
       return configVisibilidade[chave] !== false;
     }
-
     return true;
   }
 
@@ -355,12 +371,7 @@ export default function ResultadoAvaliacao() {
   const infoImc = classificarImc ? classificarImc(imc) : { classificacao: '-', cor: 'gray' };
   const percentualGordura = aval.percentual_de_gordura || 0 
   const pesoTotal = aval.peso_paciente || 0
-  const alturaCm = aval.altura_paciente || 0
-  const alturaM = alturaCm / 100
-  const dUmero = Number(aval.diametro_umero) || 0
-  const dFemur = Number(aval.diametro_femur) || 0
 
-  // --- CÁLCULO DE 2 COMPONENTES (2C - EQUAÇÃO ESCOLHIDA) ---
   const pctGorduraRegressao = percentualGordura
   const pctMassaLivreGordura = pctGorduraRegressao > 0 ? (100 - pctGorduraRegressao) : 0
   const massaGorda2C = dados.massa_gorda || (pesoTotal * (pctGorduraRegressao / 100))
@@ -371,44 +382,16 @@ export default function ResultadoAvaliacao() {
     { name: 'Massa Livre de Gordura (MLG)', value: pctMassaLivreGordura, kg: massaMagra2C, color: '#3b82f6' }
   ]
 
-  // --- CÁLCULO DO TECIDO ADIPOSO (MODELO PHANTOM DE KERR 1988 / 1991) ---
-  const dTri = aval.dobra_cutanea_triceps || 0
-  const dSub = aval.dobra_cutanea_subescapular || 0
-  const dSup = aval.dobra_cutanea_supraespinhal || 0
-  const dAbd = aval.dobra_cutanea_abdominal || 0
-  const dCoxa = aval.dobra_cutanea_coxa_media || 0
-  const dPant = aval.dobra_cutanea_panturrilha || 0
-
-  const soma6DobrasKerr = dTri + dSub + dSup + dAbd + dCoxa + dPant
-  
-  let massaAdiposaKerrKg = 0
-  if (soma6DobrasKerr > 0 && alturaCm > 0) {
-    const zAdiposo = ((soma6DobrasKerr * (170.18 / alturaCm)) - 116.41) / 34.79
-    massaAdiposaKerrKg = Math.max(0, ((zAdiposo * 5.85) + 25.6) * Math.pow(alturaCm / 170.18, 3))
-  } else {
-    massaAdiposaKerrKg = massaGorda2C
-  }
-
-  // --- CÁLCULO DE 4 COMPONENTES (4C - DE ROSE ET AL.) ---
   const massaMuscularLee = dados.massa_muscular || 0
+  const massaAdiposaKerrKg = dados.calcKerr || 0
+  const massaOssea4C = dados.calcRocha || 0
+  const massaResidual4C = dados.calcWurch || 0
 
-  // 1. Tecido Ósseo (Rocha, 1975)
-  let massaOssea4C = 0
-  if (alturaM > 0 && dUmero > 0 && dFemur > 0) {
-    massaOssea4C = 3.02 * Math.pow(Math.pow(alturaM, 2) * (dUmero / 100) * (dFemur / 100) * 400, 0.712)
-  }
-
-  // 2. Tecido Residual (Würch, 1973)
-  const pctResidualWurch = pac.sexo === 'M' ? 0.24 : 0.21
-  const massaResidual4C = pesoTotal * pctResidualWurch
-
-  // Percentuais de De Rose
   const pctGorduraDeRose = pesoTotal > 0 ? (massaAdiposaKerrKg / pesoTotal) * 100 : 0
   const pctMusculoDeRose = pesoTotal > 0 ? (massaMuscularLee / pesoTotal) * 100 : 0
   const pctOssoDeRose = pesoTotal > 0 ? (massaOssea4C / pesoTotal) * 100 : 0
   const pctResidualDeRose = pesoTotal > 0 ? (massaResidual4C / pesoTotal) * 100 : 0
 
-  // Dados para o Gráfico de Pizza de 4 Componentes
   const dadosPizza4Comp = [
     { name: 'Tecido Adiposo (Kerr 1991)', value: pctGorduraDeRose, kg: massaAdiposaKerrKg, color: '#f59e0b' },
     { name: 'Tecido Muscular (Lee 2000)', value: pctMusculoDeRose, kg: massaMuscularLee, color: '#10b981' },
@@ -416,7 +399,7 @@ export default function ResultadoAvaliacao() {
     { name: 'Massa Residual (Würch 1973)', value: pctResidualDeRose, kg: massaResidual4C, color: '#64748b' }
   ]
 
-  const iamVal = dados.indice_adiposo_muscular || ((massaMuscularLee > 0 && massaAdiposaKerrKg > 0) ? (massaAdiposaKerrKg / massaMuscularLee) : 0)
+  const iamVal = dados.indice_adiposo_muscular || 0
   const imoVal = dados.indice_massa_ossea_imo || 0
   const apvatVal = dados.area_previsao_visceral_apvat || 0
 
@@ -429,7 +412,6 @@ export default function ResultadoAvaliacao() {
   const soma6 = dados.somatorio_6_dobras || 0;
   const soma8 = dados.somatorio_8_dobras || 0;
 
-  // LÓGICA DINÂMICA DE CLASSIFICAÇÃO PARA O Σ 6 DOBRAS (ARGOREF VS PERCENTIL ISAK)
   const ehIdadeArgoref = idade >= 20 && idade <= 30
   const infoSoma6 = ehIdadeArgoref 
     ? (classificarArgoref ? classificarArgoref(soma6, pac.sexo) : { classificacao: '-', cor: 'gray' })
@@ -442,11 +424,7 @@ export default function ResultadoAvaliacao() {
     endomorfia: dados.somatotipo_endomorfia,
     mesomorfia: dados.somatotipo_mesomorfia,
     ectomorfia: dados.somatotipo_ectomorfia
-  }) : {
-    endomorfia: { descricao: '-' },
-    mesomorfia: { descricao: '-' },
-    ectomorfia: { descricao: '-' }
-  };
+  }) : { endomorfia: { descricao: '-' }, mesomorfia: { descricao: '-' }, ectomorfia: { descricao: '-' } };
 
   const perimCorrigidoBraco = dados.perimetro_corrigido_braco || 0;
   const perimCorrigidoCoxa = dados.perimetro_corrigido_coxa || 0;
@@ -475,6 +453,8 @@ export default function ResultadoAvaliacao() {
       </div>
     )
   }
+
+  const exibirBlocoPlanner = dados?.calorias_fase_mudanca && (podeExibir('laudo_plan_dieta') || podeExibir('laudo_plan_manutencao') || podeExibir('laudo_plan_peso_alvo') || podeExibir('laudo_plan_bf_alvo'));
 
   return (
     <div className={`space-y-6 pb-10 ${isPublicView ? 'max-w-4xl mx-auto p-4 sm:p-6' : ''}`}>
@@ -709,14 +689,14 @@ export default function ResultadoAvaliacao() {
             </div>
           )}
 
-          {/* 🥧 2. FRACIONAMENTO EM 4 COMPONENTES (DE ROSE ET AL.) */}
+          {/* 🥧 2. FRACIONAMENTO EM 4 COMPONENTES */}
           {podeExibir('laudo_fracionamento_4c') && pesoTotal > 0 && (
             <div className="bg-white p-6 rounded-xl border border-gray-100 shadow-sm space-y-4">
               <div className="flex justify-between items-center border-b border-gray-100 pb-2">
                 <h3 className="text-sm font-black text-gray-800 uppercase tracking-wider">
-                  🧩 Fracionamento Anatômico em 4 Componentes (Modelo 4C - De Rose et al.)
+                  🧩 Fracionamento Anatômico em 4 Componentes
                 </h3>
-                <span className="text-[10px] text-gray-400 font-medium">Modelo 4C</span>
+                <span className="text-[10px] text-gray-400 font-medium">Modelos 4C</span>
               </div>
 
               <div className="flex flex-col md:flex-row items-center justify-around gap-6">
@@ -794,7 +774,6 @@ export default function ResultadoAvaliacao() {
           <h3 className="text-sm font-bold text-gray-800 uppercase tracking-wider mb-3 px-1 mt-6">⚖️ 4. Indicadores de Saúde</h3>
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             
-            {/* RCQ COM BADGE DE CLASSIFICAÇÃO */}
             {podeExibir('laudo_rcq') && (
               <div className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm space-y-2">
                 <div className="flex justify-between items-center">
@@ -816,7 +795,6 @@ export default function ResultadoAvaliacao() {
               </div>
             )}
 
-            {/* RCE COM BADGE DE CLASSIFICAÇÃO */}
             {podeExibir('laudo_rce') && (
               <div className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm space-y-2">
                 <div className="flex justify-between items-center">
@@ -848,7 +826,6 @@ export default function ResultadoAvaliacao() {
               </div>
             )}
             
-            {/* Σ 6 DOBRAS COM LÓGICA DINÂMICA (ARGOREF VS ISAK) */}
             {podeExibir('laudo_soma_6') && (
               <div className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm space-y-2">
                 <div className="flex justify-between items-center">
@@ -943,7 +920,7 @@ export default function ResultadoAvaliacao() {
         </div>
       )}
 
-      {/* 8 e 9. SOMATOTIPO E SOMATOCARTA COM DESCRIÇÕES VERBAIS DEDICADAS */}
+      {/* 8 e 9. SOMATOTIPO E SOMATOCARTA */}
       {(podeExibir('laudo_somatotipo_barras') || podeExibir('laudo_somatocarta_grafico')) && (
         <>
           <h3 className="text-sm font-bold text-gray-800 uppercase tracking-wider mb-3 px-1 mt-6">🧬 8. Somatotipo (Heath-Carter)</h3>
@@ -1075,7 +1052,7 @@ export default function ResultadoAvaliacao() {
               </div>
             )}
 
-            {/* ÍNDICE ADIPOSO MUSCULAR (IAM) COM EXPLICAÇÃO PRÁTICA */}
+            {/* ÍNDICE ADIPOSO MUSCULAR (IAM) */}
             {podeExibir('laudo_iam') && (
               <div className="flex flex-col justify-between p-3 border border-gray-100 rounded-lg bg-gray-50 space-y-1">
                 <div className="flex justify-between items-center">
@@ -1103,50 +1080,128 @@ export default function ResultadoAvaliacao() {
                 </div>
               </div>
             )}
-
           </div>
-
-          {videoEmbedUrl && (
-            <div className="bg-white border border-slate-200 rounded-3xl p-5 sm:p-6 shadow-sm space-y-3 my-6">
-              <div className="flex items-center gap-3">
-                <div className="w-9 h-9 bg-emerald-50 text-emerald-600 rounded-xl flex items-center justify-center font-bold text-base">
-                  📹
-                </div>
-                <div>
-                  <h3 className="text-sm font-bold text-slate-900">Mensagem & Orientações em Vídeo</h3>
-                  <p className="text-xs text-slate-500">Assista às explicações do seu avaliador sobre os resultados.</p>
-                </div>
-              </div>
-
-              <div className="aspect-video w-full rounded-2xl overflow-hidden shadow-md bg-slate-900">
-                <iframe
-                  src={videoEmbedUrl}
-                  title="Orientações do Avaliador"
-                  className="w-full h-full"
-                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                  allowFullScreen
-                />
-              </div>
-            </div>
-          )}
-
-          {dados && (
-            <BotaoExportarPDF 
-              dados={dados} 
-              idade={idade} 
-              statusCintura={statusCintura} 
-              iamVal={iamVal} 
-              imoVal={imoVal} 
-              nomeEmpresa={nomeEmpresa}
-              nomeAvaliador={nomeAvaliador}
-              logomarcaUrl={logomarcaUrl}
-              tokenPublico={tokenPublico}
-              isPublicView={isPublicView}
-            />
-          )}
         </div>
       )}
 
+      {/* ========================================================================= */}
+      {/* 11. PLANEJAMENTO DIETÉTICO E METAS (BODY WEIGHT PLANNER) */}
+      {/* ========================================================================= */}
+      {dados?.calorias_fase_mudanca && (podeExibir('laudo_plan_dieta') || podeExibir('laudo_plan_manutencao') || podeExibir('laudo_plan_peso_alvo') || podeExibir('laudo_plan_bf_alvo')) && (
+        <div className="bg-white p-6 rounded-xl border border-blue-100 shadow-sm space-y-6 mt-6 relative overflow-hidden">
+          <div className="absolute top-0 left-0 w-1 bg-blue-500 h-full"></div>
+          
+          <div className="border-b border-slate-100 pb-3">
+            <h3 className="text-sm font-black text-slate-800 uppercase tracking-wider flex items-center gap-2">
+              🎯 11. Planejamento Metabólico & Metas
+            </h3>
+            <p className="text-[10px] text-slate-500 mt-1 pl-6">Projeção estimada considerando a adaptação metabólica em {dados.dias_alvo || '-'} dias.</p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            
+            {/* Bloco de Calorias */}
+            {(podeExibir('laudo_plan_dieta') || podeExibir('laudo_plan_manutencao')) && (
+              <div className="space-y-3">
+                {podeExibir('laudo_plan_dieta') && (
+                  <div className="bg-blue-50 border border-blue-100 p-4 rounded-xl flex justify-between items-center">
+                    <div>
+                      <p className="text-[10px] font-bold text-blue-800 uppercase tracking-wider">Dieta Recomendada</p>
+                      <p className="text-xs text-blue-600/80 font-medium">Calorias para Fase de Mudança</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-2xl font-black text-blue-700">{dados.calorias_fase_mudanca}</p>
+                      <p className="text-[9px] text-blue-500 uppercase font-bold">Kcal / Dia</p>
+                    </div>
+                  </div>
+                )}
+                
+                {podeExibir('laudo_plan_manutencao') && (
+                  <div className="bg-slate-50 border border-slate-200 p-4 rounded-xl flex justify-between items-center">
+                    <div>
+                      <p className="text-[10px] font-bold text-slate-600 uppercase tracking-wider">Manutenção Futura</p>
+                      <p className="text-xs text-slate-400 font-medium">Após bater a meta</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-xl font-black text-slate-700">{dados.calorias_manutencao_futura}</p>
+                      <p className="text-[9px] text-slate-400 uppercase font-bold">Kcal / Dia</p>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Bloco de Metas Corporais Fracionadas */}
+            {(podeExibir('laudo_plan_peso_alvo') || podeExibir('laudo_plan_bf_alvo')) && (
+              <div className="grid grid-cols-2 gap-3">
+                {podeExibir('laudo_plan_peso_alvo') && (
+                  <div className={`bg-white border border-slate-200 p-3 rounded-xl flex flex-col justify-center text-center ${!podeExibir('laudo_plan_bf_alvo') ? 'col-span-2' : ''}`}>
+                    <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-1">Peso Alvo Projetado</span>
+                    <span className="text-2xl font-black text-slate-800">{dados.peso_alvo} <span className="text-sm font-normal text-slate-400">kg</span></span>
+                    {dados.perda_peso_total_kg && (
+                      <span className="text-[10px] font-bold text-emerald-500 mt-1 bg-emerald-50 rounded-md py-0.5 px-2 w-fit mx-auto">
+                        {dados.perda_peso_total_kg > 0 ? `-${dados.perda_peso_total_kg} kg` : `+${Math.abs(dados.perda_peso_total_kg)} kg`}
+                      </span>
+                    )}
+                  </div>
+                )}
+
+                {podeExibir('laudo_plan_bf_alvo') && (
+                  <div className={`bg-white border border-slate-200 p-3 rounded-xl flex flex-col justify-center text-center ${!podeExibir('laudo_plan_peso_alvo') ? 'col-span-2' : ''}`}>
+                    <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-1">% Gordura Projetado</span>
+                    <span className="text-2xl font-black text-slate-800">{dados.meta_bf_percentual || '-'} <span className="text-sm font-normal text-slate-400">%</span></span>
+                    {dados.perda_massa_gorda_kg && (
+                      <span className="text-[10px] font-bold text-amber-500 mt-1 bg-amber-50 rounded-md py-0.5 px-2 w-fit mx-auto">
+                        {dados.perda_massa_gorda_kg > 0 ? `-${dados.perda_massa_gorda_kg} kg Gordura` : `+${Math.abs(dados.perda_massa_gorda_kg)} kg Gordura`}
+                      </span>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+
+          </div>
+        </div>
+      )}
+
+      {videoEmbedUrl && (
+        <div className="bg-white border border-slate-200 rounded-3xl p-5 sm:p-6 shadow-sm space-y-3 my-6">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 bg-emerald-50 text-emerald-600 rounded-xl flex items-center justify-center font-bold text-base">
+              📹
+            </div>
+            <div>
+              <h3 className="text-sm font-bold text-slate-900">Mensagem & Orientações em Vídeo</h3>
+              <p className="text-xs text-slate-500">Assista às explicações do seu avaliador sobre os resultados.</p>
+            </div>
+          </div>
+
+          <div className="aspect-video w-full rounded-2xl overflow-hidden shadow-md bg-slate-900">
+            <iframe
+              src={videoEmbedUrl}
+              title="Orientações do Avaliador"
+              className="w-full h-full"
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+              allowFullScreen
+            />
+          </div>
+        </div>
+      )}
+
+      {dados && (
+        <BotaoExportarPDF 
+          dados={dados} 
+          idade={idade} 
+          statusCintura={statusCintura} 
+          iamVal={iamVal} 
+          imoVal={imoVal} 
+          nomeEmpresa={nomeEmpresa}
+          nomeAvaliador={nomeAvaliador}
+          logomarcaUrl={logomarcaUrl}
+          tokenPublico={tokenPublico}
+          isPublicView={isPublicView}
+        />
+      )}
     </div>
   )
 }
