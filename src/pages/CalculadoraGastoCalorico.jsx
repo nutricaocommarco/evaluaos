@@ -10,8 +10,6 @@ import {
   ResponsiveContainer, Area, ComposedChart 
 } from 'recharts';
 
-const CalculatorImage = "https://raw.githubusercontent.com/nutricaocommarco/nutricaocommarco/main/Imagens/Calculadora-de-Gasto-Calorico.webp";
-
 const metOptions = [
   { label: "Selecione a atividade...", value: "0" },
   { label: "🏋️ Musculação (Pesada / Intensa)", value: "6.0" },
@@ -108,6 +106,13 @@ export default function CalculadoraGastoCalorico() {
   });
   const [plannerResults, setPlannerResults] = useState(null);
   const [plannerWarning, setPlannerWarning] = useState('');
+
+  // ==========================================
+  // CÁLCULO GORDURA ATUAL EM KG (PARA UI)
+  // ==========================================
+  const pesoAtualBase = parseFloat(formData.weight) || 0;
+  const bfAtualBase = parseFloat(formData.bf) || 0;
+  const massaGordaAtualKg = pesoAtualBase > 0 && bfAtualBase > 0 ? (pesoAtualBase * (bfAtualBase / 100)).toFixed(1) : 0;
 
   // ==========================================
   // EFEITOS DO SUPABASE
@@ -393,7 +398,6 @@ export default function CalculadoraGastoCalorico() {
         bfEstimado: Number(currentBf.toFixed(1))
       });
 
-      // Se houver Override de RMR, ele ajusta proporcionalmente ao peso atual
       let dailyBMR = rmrOverride 
         ? rmrOverride * (currentWeight / initialWeight) 
         : getBMR(currentWeight, height, age, isMale, currentBf, formula);
@@ -405,13 +409,13 @@ export default function CalculadoraGastoCalorico() {
       
       currentWeight -= weightChange;
       
-      // Proporção de perda: Regra de Forbes simplificada (75% Gordura, 25% FFM no déficit / 50-50 superávit)
+      // Proporção de perda: Regra de Forbes simplificada
       if (weightChange > 0) {
         currentFM -= (weightChange * 0.75); 
       } else {
         currentFM -= (weightChange * 0.50); 
       }
-      if (currentFM < (currentWeight * 0.03)) currentFM = currentWeight * 0.03; // Limite essencial
+      if (currentFM < (currentWeight * 0.03)) currentFM = currentWeight * 0.03; 
     }
     
     return { finalWeight: currentWeight, finalFM: currentFM, data };
@@ -466,10 +470,8 @@ export default function CalculadoraGastoCalorico() {
         let sim = simulateWeightTrajectory(midIntake, days, w, h, a, isMale, bf, pal, form, getAtual, rmrOverride);
         let finalBf = (sim.finalFM / sim.finalWeight) * 100;
         if (targetBF < bf) {
-            // Quer perder BF -> se finalBF ta maior que o alvo, precisa comer menos -> max = mid
             if (finalBf > targetBF) maxIntake = midIntake; else minIntake = midIntake;
         } else {
-            // Quer ganhar BF
             if (finalBf < targetBF) minIntake = midIntake; else maxIntake = midIntake;
         }
         appliedIntake = midIntake;
@@ -485,7 +487,6 @@ export default function CalculadoraGastoCalorico() {
         let midIntake = (minIntake + maxIntake) / 2;
         let sim = simulateWeightTrajectory(midIntake, days, w, h, a, isMale, bf, pal, form, getAtual, rmrOverride);
         let fatLost = initialFM - sim.finalFM;
-        // Quer perder gordura -> se perdeu menos que a meta, precisa comer menos -> max = mid
         if (fatLost < targetFatLoss) maxIntake = midIntake; else minIntake = midIntake;
         appliedIntake = midIntake;
         finalChartData = sim.data;
@@ -1100,10 +1101,10 @@ export default function CalculadoraGastoCalorico() {
                           type="number" 
                           value={plannerData.targetFatLoss} 
                           onChange={(e) => setPlannerData({...plannerData, targetFatLoss: e.target.value})} 
-                          placeholder="Ex: 5" 
+                          placeholder={massaGordaAtualKg > 0 ? `Atual: ${massaGordaAtualKg} kg` : "Ex: 5"} 
                           className="w-full p-4 border-2 border-slate-300 rounded-2xl focus:ring-2 focus:ring-orange-500 font-black text-2xl text-slate-800 outline-none" 
                         />
-                        <span className="absolute right-4 top-1/2 -translate-y-1/2 font-bold text-slate-400">kg de banha</span>
+                        <span className="absolute right-4 top-1/2 -translate-y-1/2 font-bold text-slate-400">kg</span>
                       </div>
                     </div>
                   )}
