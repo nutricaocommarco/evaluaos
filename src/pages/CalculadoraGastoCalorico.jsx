@@ -375,7 +375,7 @@ export default function CalculadoraGastoCalorico() {
   };
 
   // ==========================================
-  // LÓGICA DO BODY WEIGHT PLANNER (SIMULADOR DO NIH COM %GC)
+  // LÓGICA DO BODY WEIGHT PLANNER (SIMULADOR COM %GC)
   // ==========================================
   const simulateWeightTrajectory = (intake, days, initialWeight, height, age, isMale, bf, pal, formula, baselineTDEE, rmrOverride) => {
     let currentWeight = initialWeight;
@@ -409,13 +409,13 @@ export default function CalculadoraGastoCalorico() {
       
       currentWeight -= weightChange;
       
-      // Proporção de perda: Regra de Forbes simplificada
+      // Proporção de perda: Regra de Forbes simplificada (75% Gordura, 25% FFM no déficit / 50-50 superávit)
       if (weightChange > 0) {
         currentFM -= (weightChange * 0.75); 
       } else {
         currentFM -= (weightChange * 0.50); 
       }
-      if (currentFM < (currentWeight * 0.03)) currentFM = currentWeight * 0.03; 
+      if (currentFM < (currentWeight * 0.03)) currentFM = currentWeight * 0.03; // Limite essencial
     }
     
     return { finalWeight: currentWeight, finalFM: currentFM, data };
@@ -681,6 +681,7 @@ export default function CalculadoraGastoCalorico() {
       </div>
 
       <div className="bg-white p-6 sm:p-10 md:p-16 rounded-[2rem] md:rounded-[4rem] shadow-2xl border border-slate-100 flex flex-col gap-8 md:gap-12">
+
         <div className="bg-slate-50 rounded-[2rem] md:rounded-[3.5rem] p-5 sm:p-8 md:p-12 border border-slate-200 shadow-inner">
           <h2 className="text-2xl md:text-3xl font-black text-slate-800 uppercase italic mb-8 md:mb-10 border-b border-emerald-200 pb-4 flex items-center gap-3">
             <Calculator className="text-emerald-700 w-6 h-6 md:w-8 md:h-8 flex-shrink-0"/> Calculadora de Gasto Calórico
@@ -970,9 +971,6 @@ export default function CalculadoraGastoCalorico() {
             
             <div className="flex flex-col md:flex-row justify-between items-center gap-4">
               <div className="text-center md:text-left space-y-2">
-                <span className="inline-block bg-blue-50 text-blue-700 px-4 py-1.5 rounded-full text-xs font-black uppercase tracking-widest">
-                  Body Weight Planner (NIH)
-                </span>
                 <h2 className="text-2xl md:text-4xl font-black text-slate-900 uppercase italic">
                   Simulador de <span className="text-blue-600">Recomposição</span>
                 </h2>
