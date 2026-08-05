@@ -3,14 +3,12 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { supabase } from '../supabaseClient';
 import { 
   Calculator, Activity, Info, CheckCircle2, User, HeartPulse, 
-  AlertTriangle, Settings, Zap, Dumbbell, Timer, Target, TrendingDown, Scale 
+  AlertTriangle, Settings, Zap, Dumbbell, Timer, Target, TrendingDown, Scale, Utensils
 } from 'lucide-react';
 import { 
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, 
   ResponsiveContainer, Area, ComposedChart 
 } from 'recharts';
-
-const CalculatorImage = "https://raw.githubusercontent.com/nutricaocommarco/nutricaocommarco/main/Imagens/Calculadora-de-Gasto-Calorico.webp";
 
 const metOptions = [
   { label: "Selecione a atividade...", value: "0" },
@@ -97,7 +95,12 @@ export default function CalculadoraGastoCalorico() {
   });
 
   const [results, setResults] = useState(null);
-  const [plannerData, setPlannerData] = useState({ targetWeight: '', timeframeDays: 90 });
+  const [plannerData, setPlannerData] = useState({ 
+    simulationMode: 'target_weight', // 'target_weight' ou 'target_calories'
+    targetWeight: '', 
+    targetCalories: '',
+    timeframeDays: 90 
+  });
   const [plannerResults, setPlannerResults] = useState(null);
   const [plannerWarning, setPlannerWarning] = useState('');
 
@@ -191,7 +194,7 @@ export default function CalculadoraGastoCalorico() {
         bfSalvo = ((calc.massa_gorda / aval.peso_paciente) * 100).toFixed(1);
       }
 
-      // Alimentar o Form da Calculadora automaticamente
+      // Alimentar o Form da Calculadora
       setFormData(prev => ({
         ...prev,
         gender: pac.sexo || 'M',
@@ -368,49 +371,65 @@ export default function CalculadoraGastoCalorico() {
     const h = parseFloat(formData.height);
     const a = parseInt(formData.age);
     const bf = parseFloat(formData.bf);
-    const targetW = parseFloat(plannerData.targetWeight);
     const days = parseInt(plannerData.timeframeDays);
     const pal = parseFloat(results.activityFactor);
     const isMale = formData.gender === 'M';
     const form = results.internalFormulaKey;
+    const mode = plannerData.simulationMode;
 
-    if (!targetW || !days || days <= 0) return;
+    if (!days || days <= 0) return;
 
     const getAtual = results.tdee;
-    const bmrFuturo = getBMR(targetW, h, a + (days/365), isMale, bf ? (bf * (targetW/w)) : 0, form);
-    const getFuturo = bmrFuturo * pal;
-
-    let minIntake = 500;
-    let maxIntake = 6000;
-    let requiredIntake = 0;
+    let targetW = w;
+    let appliedIntake = 0;
     let finalChartData = [];
-    let achievedWeight = 0;
+    let achievedWeight = w;
 
-    // Busca Binária
-    for (let iter = 0; iter < 40; iter++) {
-      let midIntake = (minIntake + maxIntake) / 2;
-      let sim = simulateWeightTrajectory(midIntake, days, w, h, a, isMale, bf, pal, form);
-      
-      if (sim.finalWeight > targetW) maxIntake = midIntake; 
-      else minIntake = midIntake; 
-      
-      requiredIntake = midIntake;
+    if (mode === 'target_weight') {
+      targetW = parseFloat(plannerData.targetWeight);
+      if (!targetW) return;
+
+      // Busca Binária
+      let minIntake = 500;
+      let maxIntake = 6000;
+      for (let iter = 0; iter < 40; iter++) {
+        let midIntake = (minIntake + maxIntake) / 2;
+        let sim = simulateWeightTrajectory(midIntake, days, w, h, a, isMale, bf, pal, form);
+        
+        if (sim.finalWeight > targetW) maxIntake = midIntake; 
+        else minIntake = midIntake; 
+        
+        appliedIntake = midIntake;
+        finalChartData = sim.data;
+        achievedWeight = sim.finalWeight;
+      }
+    } else {
+      // MODO DIETA ESPECÍFICA (KCAL)
+      appliedIntake = parseFloat(plannerData.targetCalories);
+      if (!appliedIntake) return;
+
+      let sim = simulateWeightTrajectory(appliedIntake, days, w, h, a, isMale, bf, pal, form);
       finalChartData = sim.data;
       achievedWeight = sim.finalWeight;
+      targetW = achievedWeight;
     }
+
+    const bmrFuturo = getBMR(achievedWeight, h, a + (days/365), isMale, bf ? (bf * (achievedWeight/w)) : 0, form);
+    const getFuturo = bmrFuturo * pal;
 
     let currentWarning = '';
     const safeMin = isMale ? 1200 : 1000;
-    let appliedIntake = requiredIntake;
 
-    if (targetW < w && requiredIntake < safeMin) {
-      currentWarning = `Objetivo agressivo! A predição original exigiria apenas ${Math.round(requiredIntake)} kcal/dia. Ajustamos a simulação para o limite seguro clínico de ${safeMin} kcal/dia. O peso alcançado no período será diferente do alvo original.`;
+    if (mode === 'target_weight' && targetW < w && appliedIntake < safeMin) {
+      currentWarning = `Objetivo agressivo! A predição original exigiria apenas ${Math.round(appliedIntake)} kcal/dia. Ajustamos a simulação para o limite seguro clínico de ${safeMin} kcal/dia. O peso alcançado no período será diferente do alvo original.`;
       appliedIntake = safeMin;
       const safeSim = simulateWeightTrajectory(safeMin, days, w, h, a, isMale, bf, pal, form);
       finalChartData = safeSim.data;
       achievedWeight = safeSim.finalWeight;
-    } else if (targetW > w && requiredIntake > getAtual + 1500) {
-      currentWarning = `Ganho de peso muito rápido! O consumo sugerido de ${Math.round(requiredIntake)} kcal/dia é elevado e pode resultar em alto acúmulo de gordura.`;
+    } else if (mode === 'target_calories' && appliedIntake < safeMin) {
+      currentWarning = `Atenção: A dieta programada de ${appliedIntake} kcal/dia está abaixo do limite basal de segurança recomendado (${safeMin} kcal/dia). Isso pode causar perda agressiva de massa magra e deficiências nutricionais.`;
+    } else if (targetW > w && appliedIntake > getAtual + 1500) {
+      currentWarning = `Ganho de peso rápido projetado! O consumo simulado de ${Math.round(appliedIntake)} kcal/dia é bastante elevado e resultará num acúmulo agressivo de gordura corporal.`;
     }
 
     setPlannerWarning(currentWarning);
@@ -436,7 +455,7 @@ export default function CalculadoraGastoCalorico() {
       gasto_energetico_total: results.tdee,
       fator_atividade: Number(results.activityFactor),
       equacao_metabolica: results.formulaUsed,
-      peso_alvo: plannerResults ? Number(plannerData.targetWeight) : null,
+      peso_alvo: plannerResults ? Number(plannerResults.pesoAlcancado) : null,
       dias_alvo: plannerResults ? Number(plannerData.timeframeDays) : null,
       calorias_fase_mudanca: plannerResults ? plannerResults.caloriasFaseMudanca : null,
       calorias_manutencao_futura: plannerResults ? plannerResults.getFuturo : null
@@ -459,10 +478,13 @@ export default function CalculadoraGastoCalorico() {
 
   const CustomTooltip = ({ active, payload, label }) => {
     if (active && payload && payload.length) {
+      const data = payload[0].payload;
       return (
-        <div className="bg-slate-900 text-white p-3 rounded-lg shadow-xl border border-slate-700 text-xs">
-          <p className="font-bold mb-2 border-b border-slate-700 pb-1">Dia {label}</p>
-          <p className="text-emerald-400">Peso Estimado: <span className="font-bold">{payload[0].value} kg</span></p>
+        <div className="bg-slate-900 text-white p-3 rounded-lg shadow-xl border border-slate-700 text-xs space-y-1">
+          <p className="font-bold mb-2 border-b border-slate-700 pb-1 text-slate-300">Dia {label}</p>
+          <p className="text-emerald-400">Peso Médio Estimado: <span className="font-bold">{data.pesoEstimado} kg</span></p>
+          <p className="text-blue-300">Peso Mínimo Esperado: <span className="font-bold">{data.pesoBaixo} kg</span></p>
+          <p className="text-blue-300">Peso Máximo Esperado: <span className="font-bold">{data.pesoAlto} kg</span></p>
         </div>
       );
     }
@@ -540,42 +562,7 @@ export default function CalculadoraGastoCalorico() {
       </div>
 
       <div className="bg-white p-6 sm:p-10 md:p-16 rounded-[2rem] md:rounded-[4rem] shadow-2xl border border-slate-100 flex flex-col gap-8 md:gap-12">
-
-        <article className="prose prose-base md:prose-lg max-w-none text-left w-full">
-          <span className="inline-block bg-emerald-50 text-emerald-700 px-4 py-1.5 rounded-full text-xs font-black uppercase tracking-widest mb-4 md:mb-6">
-            Calculadora de Gasto Calórico • Metabolismo
-          </span>
-
-          <h1 className="text-3xl sm:text-4xl md:text-5xl font-black mb-6 md:mb-10 uppercase italic leading-tight text-slate-900">
-            A Importância de Usar uma <span className="text-emerald-700">Calculadora de Gasto Calórico</span>
-          </h1>
-
-          <div className="space-y-4 md:space-y-6 text-base md:text-lg text-slate-600 font-medium leading-relaxed">
-            <p>Se você está se perguntando como calcular meu gasto calórico diário de forma precisa, a resposta mais eficiente e segura é utilizar uma <strong>Calculadora de Gasto Calórico</strong> desenvolvida com base científica rigorosa. Entender exatamente a quantidade de energia que o seu corpo consome todos os dias é o primeiro passo absoluto para qualquer objetivo estético ou de saúde.</p>
-
-            <figure className="my-12 rounded-[2rem] md:rounded-[3rem] overflow-hidden shadow-2xl border border-slate-100 group flex flex-col bg-slate-200">
-              <div className="relative w-full aspect-video overflow-hidden bg-slate-100 flex items-center justify-center">
-                {/* Substituído o componente ImagemOtimizada pela tag img nativa para evitar falhas no Vercel */}
-                <img 
-                  src={CalculatorImage}
-                  alt="Mascote Píngus vestido de nutricionista apontando para a Calculadora de Gasto Calórico."
-                  title="Calculadora de Gasto Calórico e Taxa Metabólica Basal"
-                  className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
-                  loading="eager"
-                />
-              </div>
-              <figcaption className="bg-slate-50 p-4 md:p-6 text-center border-t border-slate-200 relative z-10">
-                <p className="text-sm md:text-base text-slate-600 font-medium italic text-center m-0 max-w-lg mx-auto">
-                  Nossa Calculadora de Gasto Calórico analisa o seu perfil físico e nível de atividade para descobrir a sua necessidade energética exata.
-                </p>
-              </figcaption>
-            </figure>
-
-            <p>Noutra perspectiva, a nossa ferramenta age como uma verdadeira <strong>Calculadora de Gasto Calórico</strong> inteligente que se adapta à sua realidade biológica. Ao invés de exigir que você escolha multiplicadores confusos em tabelas genéricas, o nosso sistema cruza os seus dados básicos com o seu nível real de atividade física diária e o seu perfil corporal específico.</p>
-          </div>
-        </article>
-
-        <div className="bg-slate-50 rounded-[2rem] md:rounded-[3.5rem] p-5 sm:p-8 md:p-12 border border-slate-200 shadow-inner mt-2 md:mt-4">
+        <div className="bg-slate-50 rounded-[2rem] md:rounded-[3.5rem] p-5 sm:p-8 md:p-12 border border-slate-200 shadow-inner">
           <h2 className="text-2xl md:text-3xl font-black text-slate-800 uppercase italic mb-8 md:mb-10 border-b border-emerald-200 pb-4 flex items-center gap-3">
             <Calculator className="text-emerald-700 w-6 h-6 md:w-8 md:h-8 flex-shrink-0"/> Calculadora de Gasto Calórico
           </h2>
@@ -863,36 +850,68 @@ export default function CalculadoraGastoCalorico() {
           <div className="bg-white p-6 sm:p-10 md:p-16 rounded-[2rem] md:rounded-[4rem] shadow-2xl border border-blue-100 flex flex-col gap-8 md:gap-12 mt-12 animate-in slide-in-from-bottom-10">
             
             <div className="text-center max-w-2xl mx-auto space-y-4">
-              <span className="inline-block bg-blue-50 text-blue-700 px-4 py-1.5 rounded-full text-xs font-black uppercase tracking-widest">
-                Body Weight Planner (NIH)
-              </span>
               <h2 className="text-2xl md:text-4xl font-black text-slate-900 uppercase italic">
                 Simulador de <span className="text-blue-600">Adaptação Metabólica</span>
               </h2>
               <p className="text-slate-600 font-medium text-sm md:text-base">
-                O corpo humano adapta-se à perda de peso. Configure o objetivo abaixo para descobrir o valor calórico dinâmico capaz de vencer o platô e atingir a meta no tempo desejado.
+                O corpo humano adapta-se à mudança de peso. Configure o objetivo abaixo para simular a trajetória real na balança, seja estipulando um peso alvo ou testando o impacto de uma dieta fixa.
               </p>
             </div>
 
             <div className="bg-slate-50 p-6 md:p-10 rounded-[2rem] border border-slate-200">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-center">
+              
+              {/* TABS DE MODO DE SIMULAÇÃO */}
+              <div className="flex flex-col sm:flex-row gap-4 justify-center mb-8 border-b border-slate-200 pb-6">
+                <button 
+                  onClick={() => setPlannerData({...plannerData, simulationMode: 'target_weight', targetCalories: ''})}
+                  className={`px-6 py-3 font-black text-xs md:text-sm uppercase tracking-wide rounded-xl flex items-center justify-center gap-2 transition-all ${plannerData.simulationMode === 'target_weight' ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/30' : 'bg-white text-slate-500 border border-slate-200 hover:bg-blue-50'}`}
+                >
+                  <Target className="w-4 h-4"/> Atingir um Peso Alvo
+                </button>
+                <button 
+                  onClick={() => setPlannerData({...plannerData, simulationMode: 'target_calories', targetWeight: ''})}
+                  className={`px-6 py-3 font-black text-xs md:text-sm uppercase tracking-wide rounded-xl flex items-center justify-center gap-2 transition-all ${plannerData.simulationMode === 'target_calories' ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/30' : 'bg-white text-slate-500 border border-slate-200 hover:bg-blue-50'}`}
+                >
+                  <Utensils className="w-4 h-4"/> Testar Valor da Dieta (Kcal)
+                </button>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-start">
                 
                 <div className="space-y-6">
-                  <div>
-                    <label className="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-2 flex items-center gap-2">
-                      <Target className="w-4 h-4 text-blue-600" /> Objetivo de Peso (kg)
-                    </label>
-                    <div className="relative">
-                      <input 
-                        type="number" 
-                        value={plannerData.targetWeight} 
-                        onChange={(e) => setPlannerData({...plannerData, targetWeight: e.target.value})} 
-                        placeholder="Ex: 70" 
-                        className="w-full p-4 border-2 border-slate-300 rounded-2xl focus:ring-2 focus:ring-blue-500 font-black text-2xl text-slate-800 outline-none" 
-                      />
-                      <span className="absolute right-4 top-1/2 -translate-y-1/2 font-bold text-slate-400">kg</span>
+                  {plannerData.simulationMode === 'target_weight' ? (
+                    <div className="animate-in fade-in">
+                      <label className="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-2 flex items-center gap-2">
+                        <Target className="w-4 h-4 text-blue-600" /> Quero pesar (kg)
+                      </label>
+                      <div className="relative">
+                        <input 
+                          type="number" 
+                          value={plannerData.targetWeight} 
+                          onChange={(e) => setPlannerData({...plannerData, targetWeight: e.target.value})} 
+                          placeholder="Ex: 70" 
+                          className="w-full p-4 border-2 border-slate-300 rounded-2xl focus:ring-2 focus:ring-blue-500 font-black text-2xl text-slate-800 outline-none" 
+                        />
+                        <span className="absolute right-4 top-1/2 -translate-y-1/2 font-bold text-slate-400">kg</span>
+                      </div>
                     </div>
-                  </div>
+                  ) : (
+                    <div className="animate-in fade-in">
+                      <label className="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-2 flex items-center gap-2">
+                        <Utensils className="w-4 h-4 text-blue-600" /> Prescrição da Dieta (kcal/dia)
+                      </label>
+                      <div className="relative">
+                        <input 
+                          type="number" 
+                          value={plannerData.targetCalories} 
+                          onChange={(e) => setPlannerData({...plannerData, targetCalories: e.target.value})} 
+                          placeholder="Ex: 1300" 
+                          className="w-full p-4 border-2 border-slate-300 rounded-2xl focus:ring-2 focus:ring-blue-500 font-black text-2xl text-slate-800 outline-none" 
+                        />
+                        <span className="absolute right-4 top-1/2 -translate-y-1/2 font-bold text-slate-400">Kcal</span>
+                      </div>
+                    </div>
+                  )}
                   
                   <div>
                     <label className="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-2 flex items-center gap-2">
@@ -908,12 +927,12 @@ export default function CalculadoraGastoCalorico() {
                       />
                       <span className="absolute right-4 top-1/2 -translate-y-1/2 font-bold text-slate-400">Dias</span>
                     </div>
-                    <div className="flex gap-2 mt-3 justify-start">
-                      {[30, 90, 180].map(d => (
+                    <div className="flex gap-2 mt-3 flex-wrap">
+                      {[30, 90, 180, 365].map(d => (
                         <button 
                           key={d} 
                           onClick={() => setPlannerData({...plannerData, timeframeDays: d})} 
-                          className={`text-xs px-4 py-1.5 font-bold rounded-lg transition-colors ${plannerData.timeframeDays == d ? 'bg-blue-600 text-white shadow-md' : 'bg-white border border-slate-300 text-slate-600 hover:bg-slate-100'}`}
+                          className={`text-xs px-3 py-1.5 font-bold rounded-lg transition-colors ${plannerData.timeframeDays == d ? 'bg-blue-600 text-white shadow-md' : 'bg-white border border-slate-300 text-slate-600 hover:bg-slate-100'}`}
                         >
                           {d} dias
                         </button>
@@ -923,15 +942,19 @@ export default function CalculadoraGastoCalorico() {
 
                   <button 
                     onClick={runPlanner}
-                    disabled={!plannerData.targetWeight || !plannerData.timeframeDays}
-                    className="w-full bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-black py-4 rounded-2xl uppercase tracking-widest shadow-lg transition-all"
+                    disabled={
+                      (plannerData.simulationMode === 'target_weight' && !plannerData.targetWeight) ||
+                      (plannerData.simulationMode === 'target_calories' && !plannerData.targetCalories) || 
+                      !plannerData.timeframeDays
+                    }
+                    className="w-full bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-black py-4 rounded-2xl uppercase tracking-widest shadow-lg transition-all mt-4"
                   >
                     Processar Simulação Iterativa
                   </button>
                 </div>
 
                 {plannerResults ? (
-                  <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-500">
+                  <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-500 h-full flex flex-col justify-center">
                     {plannerWarning && (
                       <div className="bg-orange-50 border-l-4 border-orange-500 p-4 rounded-xl flex gap-3 items-start">
                         <AlertTriangle className="w-5 h-5 text-orange-600 flex-shrink-0" />
@@ -939,22 +962,30 @@ export default function CalculadoraGastoCalorico() {
                       </div>
                     )}
                     
-                    <div className="bg-white border-2 border-blue-100 p-6 rounded-3xl shadow-sm text-center">
-                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Para bater a meta na fase de mudança, a Dieta deve ser de:</span>
-                      <div className="text-5xl font-black text-blue-600 mt-2 mb-1">{plannerResults.caloriasFaseMudanca}</div>
-                      <span className="text-xs font-bold text-slate-500">Kcal / dia</span>
-                    </div>
+                    {plannerData.simulationMode === 'target_weight' ? (
+                      <div className="bg-white border-2 border-blue-100 p-6 rounded-3xl shadow-sm text-center">
+                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Para bater a meta na fase de mudança, a Dieta deve ser de:</span>
+                        <div className="text-5xl font-black text-blue-600 mt-2 mb-1">{plannerResults.caloriasFaseMudanca}</div>
+                        <span className="text-xs font-bold text-slate-500">Kcal / dia</span>
+                      </div>
+                    ) : (
+                      <div className="bg-white border-2 border-blue-100 p-6 rounded-3xl shadow-sm text-center">
+                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">O peso projetado ao final de {plannerData.timeframeDays} dias de dieta será de:</span>
+                        <div className="text-5xl font-black text-blue-600 mt-2 mb-1">{plannerResults.pesoAlcancado}</div>
+                        <span className="text-xs font-bold text-slate-500">kg</span>
+                      </div>
+                    )}
 
                     <div className="bg-white border-2 border-slate-100 p-6 rounded-3xl shadow-sm text-center">
-                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Para manter o novo peso ({plannerResults.pesoAlcancado}kg) futuro, a Dieta deve subir para:</span>
+                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Para manter o novo peso ({plannerResults.pesoAlcancado}kg) futuro, a Dieta deve ser:</span>
                       <div className="text-4xl font-black text-slate-800 mt-2 mb-1">{plannerResults.getFuturo}</div>
                       <span className="text-xs font-bold text-slate-500">Kcal / dia</span>
                     </div>
                   </div>
                 ) : (
-                  <div className="h-full flex flex-col items-center justify-center p-8 border-2 border-dashed border-slate-300 rounded-3xl text-slate-400">
+                  <div className="h-full flex flex-col items-center justify-center p-8 border-2 border-dashed border-slate-300 rounded-3xl text-slate-400 min-h-[250px]">
                     <TrendingDown className="w-12 h-12 mb-3 opacity-50" />
-                    <p className="text-center font-bold text-sm">Preencha o peso alvo e o tempo limite para desenhar a curva preditiva.</p>
+                    <p className="text-center font-bold text-sm">Configure sua meta ou dieta ao lado para visualizar a predição clínica.</p>
                   </div>
                 )}
 
@@ -1023,9 +1054,9 @@ export default function CalculadoraGastoCalorico() {
 
                 <div className="flex items-center gap-2 justify-center pt-2">
                   <div className="w-3 h-3 bg-blue-600 rounded-sm"></div>
-                  <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mr-4">Trajetória do Peso</span>
+                  <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mr-4">Peso Médio Estimado</span>
                   <div className="w-3 h-3 bg-blue-100 rounded-sm border border-blue-200"></div>
-                  <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Zona de Flutuação Fisiológica</span>
+                  <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Peso Máximo / Peso Mínimo (Variação Fisiológica)</span>
                 </div>
               </div>
             )}
