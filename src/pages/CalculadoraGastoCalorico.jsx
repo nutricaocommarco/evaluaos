@@ -3,12 +3,14 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { supabase } from '../supabaseClient';
 import { 
   Calculator, Activity, Info, CheckCircle2, User, HeartPulse, 
-  AlertTriangle, Settings, Zap, Dumbbell, Timer, Target, TrendingDown, Utensils
+  AlertTriangle, Settings, Zap, Dumbbell, Timer, Target, TrendingDown, Scale, Utensils, CalendarDays
 } from 'lucide-react';
 import { 
-  Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, 
+  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, 
   ResponsiveContainer, Area, ComposedChart 
 } from 'recharts';
+
+const CalculatorImage = "https://raw.githubusercontent.com/nutricaocommarco/nutricaocommarco/main/Imagens/Calculadora-de-Gasto-Calorico.webp";
 
 const metOptions = [
   { label: "Selecione a atividade...", value: "0" },
@@ -57,6 +59,9 @@ export default function CalculadoraGastoCalorico() {
     window.scrollTo(0, 0);
   }, [pathname]);
 
+  // ==========================================
+  // ESTADOS DO SUPABASE (BUSCA DE PACIENTE)
+  // ==========================================
   const [busca, setBusca] = useState('');
   const [pacientesFiltrados, setPacientesFiltrados] = useState([]);
   const [showDropdown, setShowDropdown] = useState(false);
@@ -65,34 +70,68 @@ export default function CalculadoraGastoCalorico() {
   const [avaliacaoAtual, setAvaliacaoAtual] = useState(null);
   const [salvando, setSalvando] = useState(false);
 
+  // ==========================================
+  // ESTADOS DA CALCULADORA E SIMULADOR
+  // ==========================================
   const [formData, setFormData] = useState({
-    gender: 'M', age: '', weight: '', height: '', bf: '',
-    calculationMode: 'auto', manualFormula: 'mifflin', bodyType: 'average',
-    activityCalcMethod: 'auto', routine: 'sedentary', exerciseCardio: 'none',
-    exerciseStrength: 'none', manualFA: '1.55',
-    metActivities: [{ id: 1, met: '0', minutes: '' }, { id: 2, met: '0', minutes: '' }, { id: 3, met: '0', minutes: '' }, { id: 4, met: '0', minutes: '' }]
+    gender: 'M',
+    age: '',
+    weight: '',
+    height: '',
+    bf: '',
+    calculationMode: 'auto',
+    manualFormula: 'mifflin',
+    bodyType: 'average',
+    activityCalcMethod: 'auto',
+    routine: 'sedentary',
+    exerciseCardio: 'none',
+    exerciseStrength: 'none',
+    manualFA: '1.55',
+    metActivities: [
+      { id: 1, met: '0', minutes: '' },
+      { id: 2, met: '0', minutes: '' },
+      { id: 3, met: '0', minutes: '' },
+      { id: 4, met: '0', minutes: '' }
+    ]
   });
 
   const [results, setResults] = useState(null);
   const [plannerData, setPlannerData] = useState({ 
-    simulationMode: 'target_weight', targetWeight: '', targetCalories: '', timeframeDays: 90 
+    simulationMode: 'target_weight', // 'target_weight' ou 'target_calories'
+    targetWeight: '', 
+    targetCalories: '',
+    timeframeDays: 180 
   });
   const [plannerResults, setPlannerResults] = useState(null);
   const [plannerWarning, setPlannerWarning] = useState('');
 
+  // ==========================================
+  // EFEITOS DO SUPABASE
+  // ==========================================
   useEffect(() => {
     const buscarPacientes = async () => {
-      if (busca.length < 1) { setPacientesFiltrados([]); return; }
-      const { data, error } = await supabase.from('pacientes').select('id, nome_completo, sexo, data_nascimento').ilike('nome_completo', `%${busca}%`).limit(5);
+      if (busca.length < 1) {
+        setPacientesFiltrados([]);
+        return;
+      }
+      const { data, error } = await supabase
+        .from('pacientes')
+        .select('id, nome_completo, sexo, data_nascimento')
+        .ilike('nome_completo', `%${busca}%`)
+        .limit(5);
+
       if (!error && data) setPacientesFiltrados(data);
     };
+    
     const delayDebounce = setTimeout(() => buscarPacientes(), 300);
     return () => clearTimeout(delayDebounce);
   }, [busca]);
 
   useEffect(() => {
     const handleClickFora = (e) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(e.target)) setShowDropdown(false);
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
+        setShowDropdown(false);
+      }
     };
     document.addEventListener('mousedown', handleClickFora);
     return () => document.removeEventListener('mousedown', handleClickFora);
@@ -105,24 +144,40 @@ export default function CalculadoraGastoCalorico() {
     setResults(null);
     setPlannerResults(null);
 
-    const { data: historico } = await supabase.from('avaliacoes').select('id, data_avaliacao').eq('id_paciente', paciente.id).order('data_avaliacao', { ascending: false });
+    const { data: historico } = await supabase
+      .from('avaliacoes')
+      .select('id, data_avaliacao, peso_paciente')
+      .eq('id_paciente', paciente.id)
+      .order('data_avaliacao', { ascending: false });
 
     if (historico && historico.length > 0) {
       setHistoricoAvaliacoes(historico);
       selecionarAvaliacaoDoHistorico(historico[0].id, paciente);
     } else {
-      setHistoricoAvaliacoes([]); setAvaliacaoAtual(null);
+      setHistoricoAvaliacoes([]);
+      setAvaliacaoAtual(null);
       alert('Este paciente ainda não possui avaliações cadastradas.');
     }
   };
 
   const selecionarAvaliacaoDoHistorico = async (idAvaliacao, pacienteOverride) => {
     const pac = pacienteOverride || pacienteSelecionado;
-    const { data: aval } = await supabase.from('avaliacoes').select('*').eq('id', idAvaliacao).single();
-    const { data: calc } = await supabase.from('dados_calculados').select('*').eq('id_avaliacao', idAvaliacao).maybeSingle();
+    const { data: aval } = await supabase
+      .from('avaliacoes')
+      .select('*')
+      .eq('id', idAvaliacao)
+      .single();
+
+    const { data: calc } = await supabase
+      .from('dados_calculados')
+      .select('*')
+      .eq('id_avaliacao', idAvaliacao)
+      .maybeSingle();
 
     if (aval) {
       setAvaliacaoAtual(aval);
+
+      // Calcular Idade
       let idade = 25;
       if (pac.data_nascimento) {
         const birthDate = new Date(pac.data_nascimento + 'T12:00:00');
@@ -131,16 +186,57 @@ export default function CalculadoraGastoCalorico() {
         const m = evalDate.getMonth() - birthDate.getMonth();
         if (m < 0 || (m === 0 && evalDate.getDate() < birthDate.getDate())) idade--;
       }
+
+      // Puxar BF (Se existir)
       let bfSalvo = aval.percentual_de_gordura || '';
       if (!bfSalvo && calc && calc.massa_gorda && aval.peso_paciente) {
         bfSalvo = ((calc.massa_gorda / aval.peso_paciente) * 100).toFixed(1);
       }
+
+      // Alimentar o Form da Calculadora automaticamente
       setFormData(prev => ({
-        ...prev, gender: pac.sexo || 'M', age: idade, weight: aval.peso_paciente || '', height: aval.altura_paciente || '', bf: bfSalvo
+        ...prev,
+        gender: pac.sexo || 'M',
+        age: idade,
+        weight: aval.peso_paciente || '',
+        height: aval.altura_paciente || '',
+        bf: bfSalvo
       }));
     }
   };
 
+  // ==========================================
+  // FUNÇÕES DA DATA DO PLANNER
+  // ==========================================
+  const getFormattedDate = (daysToAdd) => {
+    const d = new Date();
+    d.setDate(d.getDate() + (parseInt(daysToAdd) || 0));
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
+  const handleDateChange = (e) => {
+    if (!e.target.value) return;
+    const [year, month, day] = e.target.value.split('-').map(Number);
+    const selected = new Date(year, month - 1, day);
+    const today = new Date();
+    today.setHours(0,0,0,0);
+    
+    const diffTime = selected.getTime() - today.getTime();
+    const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
+    
+    if (diffDays > 0) {
+      setPlannerData({...plannerData, timeframeDays: diffDays});
+    } else {
+      setPlannerData({...plannerData, timeframeDays: 1}); 
+    }
+  };
+
+  // ==========================================
+  // FUNÇÕES DA CALCULADORA (BMR & TDEE)
+  // ==========================================
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
@@ -156,41 +252,59 @@ export default function CalculadoraGastoCalorico() {
     let base = 1.2; 
     if (formData.routine === 'standing') base = 1.35;
     if (formData.routine === 'physical') base = 1.50;
+
     let cardioBonus = 0;
     if (formData.exerciseCardio === 'light') cardioBonus = 0.15; 
     if (formData.exerciseCardio === 'moderate') cardioBonus = 0.25; 
     if (formData.exerciseCardio === 'intense') cardioBonus = 0.40; 
     if (formData.exerciseCardio === 'endurance') cardioBonus = 0.60; 
+
     let strengthBonus = 0;
     if (formData.exerciseStrength === 'light') strengthBonus = 0.05; 
     if (formData.exerciseStrength === 'moderate') strengthBonus = 0.10; 
     if (formData.exerciseStrength === 'intense') strengthBonus = 0.15; 
+
     return base + cardioBonus + strengthBonus;
   };
 
   const determineBestFormula = (hasBF, bfValue, isMale, userSelectedBodyType) => {
     let bodyType = userSelectedBodyType;
+
     if (hasBF) {
       const isActuallyObese = (isMale && bfValue > 25) || (!isMale && bfValue > 32);
+
       if (isActuallyObese) return 'mifflin';
       if (bodyType === 'obese') bodyType = 'average';
       if (bodyType === 'endurance') return 'tinsley';
+
       return 'cunningham';
     }
+
     if (bodyType === 'obese') return 'mifflin';
     if (bodyType === 'bodybuilder' || bodyType === 'endurance') return 'tinsley'; 
+
     return 'harris'; 
   };
 
   const getBMR = (weight, height, age, isMale, bf, activeFormula) => {
     let lbm = weight;
     if (bf && bf > 0) lbm = weight * (1 - (bf / 100));
+
     switch (activeFormula) {
-      case 'mifflin': return isMale ? (10 * weight) + (6.25 * height) - (5 * age) + 5 : (10 * weight) + (6.25 * height) - (5 * age) - 161;
-      case 'harris': return isMale ? 88.362 + (13.397 * weight) + (4.799 * height) - (5.677 * age) : 447.593 + (9.247 * weight) + (3.098 * height) - (4.330 * age);
-      case 'cunningham': return 500 + (22 * lbm);
-      case 'tinsley': return (bf && bf > 0) ? (25.9 * lbm + 284) : (24.8 * weight + 10);
-      default: return 0;
+      case 'mifflin':
+        return isMale
+          ? (10 * weight) + (6.25 * height) - (5 * age) + 5
+          : (10 * weight) + (6.25 * height) - (5 * age) - 161;
+      case 'harris':
+        return isMale
+          ? 88.362 + (13.397 * weight) + (4.799 * height) - (5.677 * age)
+          : 447.593 + (9.247 * weight) + (3.098 * height) - (4.330 * age);
+      case 'cunningham':
+        return 500 + (22 * lbm);
+      case 'tinsley':
+        return (bf && bf > 0) ? (25.9 * lbm + 284) : (24.8 * weight + 10);
+      default:
+        return 0;
     }
   };
 
@@ -204,7 +318,10 @@ export default function CalculadoraGastoCalorico() {
     if (!weight || !height || !age) return;
 
     let hasBF = (bf && bf > 0);
-    let activeFormula = formData.calculationMode === 'manual' ? formData.manualFormula : determineBestFormula(hasBF, bf, isMale, formData.bodyType);
+
+    let activeFormula = formData.calculationMode === 'manual' 
+      ? formData.manualFormula 
+      : determineBestFormula(hasBF, bf, isMale, formData.bodyType);
 
     let selectedFormulaName = '';
     if (activeFormula === 'mifflin') selectedFormulaName = 'Mifflin-St Jeor';
@@ -220,15 +337,19 @@ export default function CalculadoraGastoCalorico() {
     if (formData.activityCalcMethod === 'auto') {
       finalFA = calculateAutoActivityFactor();
       tdee = bmr * finalFA;
-    } else if (formData.activityCalcMethod === 'manual') {
+    } 
+    else if (formData.activityCalcMethod === 'manual') {
       finalFA = parseFloat(formData.manualFA) || 1.2;
       tdee = bmr * finalFA;
-    } else if (formData.activityCalcMethod === 'mets') {
+    } 
+    else if (formData.activityCalcMethod === 'mets') {
       let metCalories = 0;
       formData.metActivities.forEach(act => {
         const metVal = parseFloat(act.met);
         const mins = parseFloat(act.minutes);
-        if (metVal > 0 && mins > 0) metCalories += metVal * weight * (mins / 60);
+        if (metVal > 0 && mins > 0) {
+          metCalories += metVal * weight * (mins / 60);
+        }
       });
       const baselineTdee = bmr * 1.2; 
       tdee = baselineTdee + metCalories;
@@ -236,8 +357,11 @@ export default function CalculadoraGastoCalorico() {
     }
 
     setResults({
-      bmr: Math.round(bmr), tdee: Math.round(tdee), activityFactor: finalFA.toFixed(2),
-      formulaUsed: selectedFormulaName, internalFormulaKey: activeFormula
+      bmr: Math.round(bmr),
+      tdee: Math.round(tdee),
+      activityFactor: finalFA.toFixed(2),
+      formulaUsed: selectedFormulaName,
+      internalFormulaKey: activeFormula 
     });
     setPlannerResults(null); 
   };
@@ -248,14 +372,20 @@ export default function CalculadoraGastoCalorico() {
   };
 
   // ==========================================
-  // FUNÇÕES DO SIMULADOR (BODY WEIGHT PLANNER)
+  // LÓGICA DO BODY WEIGHT PLANNER (SIMULADOR DO NIH)
   // ==========================================
-  const simulateWeightTrajectory = (intake, days, initialWeight, height, age, isMale, bf, pal, formula) => {
+  const simulateWeightTrajectory = (intake, days, initialWeight, height, age, isMale, bf, pal, formula, baselineTDEE) => {
     let currentWeight = initialWeight;
     let data = [];
     
+    // O modelo do NIH aplica uma queda de TEF e Termogênese Adaptativa. Na prática, aprox 14% de barreira do déficit
+    const metabolicAdaptation = intake < baselineTDEE ? (baselineTDEE - intake) * 0.14 : 0;
+    const energyDensity = 7300; // Densidade média da perda (músculo + gordura)
+    
     for (let i = 0; i <= days; i++) {
-      const uncertainty = (i / days) * 1.5; 
+      // Cone de incerteza da predição: +- 7.5% da massa atual
+      const uncertainty = (i / days) * currentWeight * 0.075; 
+      
       data.push({ 
         dia: i, 
         pesoEstimado: Number(currentWeight.toFixed(1)),
@@ -265,9 +395,12 @@ export default function CalculadoraGastoCalorico() {
 
       let currentBf = bf ? (bf * (currentWeight / initialWeight)) : 0; 
       const dailyBMR = getBMR(currentWeight, height, age, isMale, currentBf, formula);
-      const dailyTDEE = dailyBMR * pal;
-      const dailyBalance = dailyTDEE - intake;
-      const weightChange = dailyBalance / 7700; 
+      const theoreticalTDEE = dailyBMR * pal;
+      
+      const actualTDEE = theoreticalTDEE - metabolicAdaptation;
+      const dailyBalance = actualTDEE - intake;
+      const weightChange = dailyBalance / energyDensity; 
+      
       currentWeight -= weightChange;
     }
     return { finalWeight: currentWeight, data };
@@ -285,10 +418,10 @@ export default function CalculadoraGastoCalorico() {
     const isMale = formData.gender === 'M';
     const form = results.internalFormulaKey;
     const mode = plannerData.simulationMode;
+    const getAtual = results.tdee;
 
     if (!days || days <= 0) return;
 
-    const getAtual = results.tdee;
     let targetW = w;
     let appliedIntake = 0;
     let finalChartData = [];
@@ -297,21 +430,27 @@ export default function CalculadoraGastoCalorico() {
     if (mode === 'target_weight') {
       targetW = parseFloat(plannerData.targetWeight);
       if (!targetW) return;
+
+      // Busca Binária para achar a kcal exata
       let minIntake = 500;
       let maxIntake = 6000;
       for (let iter = 0; iter < 40; iter++) {
         let midIntake = (minIntake + maxIntake) / 2;
-        let sim = simulateWeightTrajectory(midIntake, days, w, h, a, isMale, bf, pal, form);
+        let sim = simulateWeightTrajectory(midIntake, days, w, h, a, isMale, bf, pal, form, getAtual);
+        
         if (sim.finalWeight > targetW) maxIntake = midIntake; 
         else minIntake = midIntake; 
+        
         appliedIntake = midIntake;
         finalChartData = sim.data;
         achievedWeight = sim.finalWeight;
       }
     } else {
+      // MODO DIETA (Kcal fixa)
       appliedIntake = parseFloat(plannerData.targetCalories);
       if (!appliedIntake) return;
-      let sim = simulateWeightTrajectory(appliedIntake, days, w, h, a, isMale, bf, pal, form);
+
+      let sim = simulateWeightTrajectory(appliedIntake, days, w, h, a, isMale, bf, pal, form, getAtual);
       finalChartData = sim.data;
       achievedWeight = sim.finalWeight;
       targetW = achievedWeight;
@@ -324,15 +463,15 @@ export default function CalculadoraGastoCalorico() {
     const safeMin = isMale ? 1200 : 1000;
 
     if (mode === 'target_weight' && targetW < w && appliedIntake < safeMin) {
-      currentWarning = `Objetivo agressivo! A predição original exigiria apenas ${Math.round(appliedIntake)} kcal/dia. Ajustamos a simulação para o limite seguro clínico de ${safeMin} kcal/dia.`;
+      currentWarning = `Objetivo agressivo! A predição original exigiria apenas ${Math.round(appliedIntake)} kcal/dia. Ajustamos a simulação para o limite seguro clínico de ${safeMin} kcal/dia. O peso alcançado no período será diferente do alvo original.`;
       appliedIntake = safeMin;
-      const safeSim = simulateWeightTrajectory(safeMin, days, w, h, a, isMale, bf, pal, form);
+      const safeSim = simulateWeightTrajectory(safeMin, days, w, h, a, isMale, bf, pal, form, getAtual);
       finalChartData = safeSim.data;
       achievedWeight = safeSim.finalWeight;
     } else if (mode === 'target_calories' && appliedIntake < safeMin) {
       currentWarning = `Atenção: A dieta programada de ${appliedIntake} kcal/dia está abaixo do limite basal de segurança recomendado (${safeMin} kcal/dia). Isso pode causar perda agressiva de massa magra.`;
     } else if (targetW > w && appliedIntake > getAtual + 1500) {
-      currentWarning = `Ganho de peso rápido projetado! O consumo simulado de ${Math.round(appliedIntake)} kcal/dia é bastante elevado e resultará num acúmulo agressivo de gordura.`;
+      currentWarning = `Ganho de peso rápido projetado! O consumo simulado de ${Math.round(appliedIntake)} kcal/dia é bastante elevado e resultará num acúmulo agressivo de gordura corporal.`;
     }
 
     // CÁLCULO FISIOLÓGICO DA COMPOSIÇÃO CORPORAL (75% Gordura / 25% Magra)
@@ -344,17 +483,14 @@ export default function CalculadoraGastoCalorico() {
     if (bf && bf > 0) {
       pesoPerdidoKg = w - achievedWeight;
       if (pesoPerdidoKg > 0) {
-        // Déficit: 75% da perda costuma ser gordura, 25% massa livre
         massaGordaPerdidaKg = pesoPerdidoKg * 0.75;
       } else if (pesoPerdidoKg < 0) {
-        // Superávit: Assume 50% / 50% de ganho de gordura / magra (moderado)
-        massaGordaPerdidaKg = pesoPerdidoKg * 0.50; // Negativo pois é ganho
+        massaGordaPerdidaKg = pesoPerdidoKg * 0.50; 
       }
       
       const massaGordaInicial = w * (bf / 100);
       let massaGordaFinal = massaGordaInicial - massaGordaPerdidaKg;
       
-      // Trava de segurança (Impedir que gordura fique menor que 3% essencial)
       const minimumEssentialFat = achievedWeight * 0.03;
       if (massaGordaFinal < minimumEssentialFat) massaGordaFinal = minimumEssentialFat;
 
@@ -377,9 +513,6 @@ export default function CalculadoraGastoCalorico() {
     });
   };
 
-  // ==========================================
-  // SALVAMENTO NO SUPABASE
-  // ==========================================
   const handleSalvarNoBanco = async () => {
     if (!avaliacaoAtual) return alert('Nenhuma avaliação selecionada.');
     if (!results) return alert('Por favor, calcule os resultados primeiro.');
@@ -422,9 +555,7 @@ export default function CalculadoraGastoCalorico() {
       return (
         <div className="bg-slate-900 text-white p-3 rounded-lg shadow-xl border border-slate-700 text-xs space-y-1">
           <p className="font-bold mb-2 border-b border-slate-700 pb-1 text-slate-300">Dia {label}</p>
-          <p className="text-emerald-400">Peso Médio: <span className="font-bold">{data.pesoEstimado} kg</span></p>
-          <p className="text-blue-300">Margem Mínima: <span className="font-bold">{data.pesoBaixo} kg</span></p>
-          <p className="text-blue-300">Margem Máxima: <span className="font-bold">{data.pesoAlto} kg</span></p>
+          <p className="text-white font-medium">Peso Estimado: <span className="font-bold text-emerald-400">{data.pesoEstimado} kg</span> <span className="text-slate-400 font-normal ml-1">[{data.pesoBaixo}, {data.pesoAlto}]</span></p>
         </div>
       );
     }
@@ -437,7 +568,7 @@ export default function CalculadoraGastoCalorico() {
       {/* 🟢 SEÇÃO DE PESQUISA DE PACIENTE (SUPABASE) */}
       <div className="bg-white p-6 sm:p-8 rounded-[2rem] shadow-sm border border-emerald-100 mb-8 z-50 relative">
         <div>
-          <h2 className="text-xl font-bold text-slate-800">Planejamento Dietético</h2>
+          <h2 className="text-xl font-bold text-slate-800">Planejamento Dietético e Metas</h2>
           <p className="text-sm text-slate-500 mb-4">Selecione o paciente e a avaliação para importar os dados e salvar o plano.</p>
         </div>
 
@@ -502,7 +633,7 @@ export default function CalculadoraGastoCalorico() {
       </div>
 
       <div className="bg-white p-6 sm:p-10 md:p-16 rounded-[2rem] md:rounded-[4rem] shadow-2xl border border-slate-100 flex flex-col gap-8 md:gap-12">
-        <div className="bg-slate-50 rounded-[2rem] md:rounded-[3.5rem] p-5 sm:p-8 md:p-12 border border-slate-200 shadow-inner mt-2 md:mt-4">
+        <div className="bg-slate-50 rounded-[2rem] md:rounded-[3.5rem] p-5 sm:p-8 md:p-12 border border-slate-200 shadow-inner">
           <h2 className="text-2xl md:text-3xl font-black text-slate-800 uppercase italic mb-8 md:mb-10 border-b border-emerald-200 pb-4 flex items-center gap-3">
             <Calculator className="text-emerald-700 w-6 h-6 md:w-8 md:h-8 flex-shrink-0"/> Calculadora de Gasto Calórico
           </h2>
@@ -853,30 +984,46 @@ export default function CalculadoraGastoCalorico() {
                     </div>
                   )}
                   
-                  <div>
+                  <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm">
                     <label className="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-2 flex items-center gap-2">
                       <Timer className="w-4 h-4 text-blue-600" /> Em quanto tempo?
                     </label>
-                    <div className="relative">
+                    
+                    <div className="flex items-center gap-2 mb-3">
                       <input 
                         type="number" 
                         value={plannerData.timeframeDays} 
                         onChange={(e) => setPlannerData({...plannerData, timeframeDays: e.target.value})} 
-                        placeholder="Ex: 90" 
-                        className="w-full p-4 border-2 border-slate-300 rounded-2xl focus:ring-2 focus:ring-blue-500 font-black text-2xl text-slate-800 outline-none" 
+                        className="w-full p-3 border-2 border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 font-black text-xl text-slate-800 outline-none text-center" 
                       />
-                      <span className="absolute right-4 top-1/2 -translate-y-1/2 font-bold text-slate-400">Dias</span>
+                      <span className="font-bold text-slate-500 uppercase text-xs">Dias</span>
                     </div>
-                    <div className="flex gap-2 mt-3 flex-wrap">
+
+                    <div className="flex gap-2 justify-center flex-wrap mb-4">
                       {[30, 90, 180, 365].map(d => (
                         <button 
                           key={d} 
                           onClick={() => setPlannerData({...plannerData, timeframeDays: d})} 
-                          className={`text-xs px-3 py-1.5 font-bold rounded-lg transition-colors ${plannerData.timeframeDays == d ? 'bg-blue-600 text-white shadow-md' : 'bg-white border border-slate-300 text-slate-600 hover:bg-slate-100'}`}
+                          className={`text-xs px-3 py-1.5 font-bold rounded-lg transition-colors ${plannerData.timeframeDays == d ? 'bg-blue-600 text-white shadow-md' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
                         >
                           {d} dias
                         </button>
                       ))}
+                    </div>
+
+                    <div className="relative text-center mb-3">
+                      <span className="bg-white px-2 text-[9px] font-bold text-slate-400 uppercase tracking-widest relative z-10">Ou selecione uma data</span>
+                      <div className="absolute top-1/2 left-0 w-full h-px bg-slate-100 z-0"></div>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <CalendarDays className="w-5 h-5 text-slate-400" />
+                      <input 
+                        type="date"
+                        value={getFormattedDate(plannerData.timeframeDays)}
+                        onChange={handleDateChange}
+                        className="w-full p-3 border-2 border-slate-200 rounded-xl text-slate-700 font-bold focus:ring-2 focus:ring-blue-500 outline-none"
+                      />
                     </div>
                   </div>
 
@@ -921,21 +1068,6 @@ export default function CalculadoraGastoCalorico() {
                       <div className="text-4xl font-black text-slate-800 mt-2 mb-1">{plannerResults.getFuturo}</div>
                       <span className="text-xs font-bold text-slate-500">Kcal / dia</span>
                     </div>
-
-                    {/* PAINEL DE PERDAS FISIOLÓGICAS ESTIMADAS */}
-                    {plannerResults.bfFinal !== null && (
-                      <div className="grid grid-cols-2 gap-3 mt-4 pt-4 border-t border-slate-200">
-                        <div className="bg-white border border-slate-200 p-3 rounded-xl text-center">
-                          <span className="text-[9px] font-bold text-slate-400 uppercase block mb-1">Gordura Perdida</span>
-                          <span className="text-xl font-black text-amber-500">{plannerResults.massaGordaPerdidaKg}kg</span>
-                        </div>
-                        <div className="bg-white border border-slate-200 p-3 rounded-xl text-center">
-                          <span className="text-[9px] font-bold text-slate-400 uppercase block mb-1">Novo % de Gordura</span>
-                          <span className="text-xl font-black text-emerald-600">{plannerResults.bfFinal}%</span>
-                        </div>
-                      </div>
-                    )}
-
                   </div>
                 ) : (
                   <div className="h-full flex flex-col items-center justify-center p-8 border-2 border-dashed border-slate-300 rounded-3xl text-slate-400 min-h-[250px]">
