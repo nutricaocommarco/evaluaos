@@ -3,7 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { supabase } from '../supabaseClient';
 import { 
   Calculator, Activity, Info, CheckCircle2, User, HeartPulse, 
-  AlertTriangle, Settings, Zap, Dumbbell, Timer, Target, TrendingDown, Scale, Utensils, CalendarDays
+  AlertTriangle, Settings, Zap, Dumbbell, Timer, Target, TrendingDown, Scale, Utensils, CalendarDays, Droplet
 } from 'lucide-react';
 import { 
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, 
@@ -96,9 +96,13 @@ export default function CalculadoraGastoCalorico() {
   });
 
   const [results, setResults] = useState(null);
+  const [advancedControls, setAdvancedControls] = useState({ enabled: false, rmrOverride: '' });
+  
   const [plannerData, setPlannerData] = useState({ 
-    simulationMode: 'target_weight', // 'target_weight' ou 'target_calories'
+    simulationMode: 'target_weight', // 'target_weight', 'target_bf', 'target_fat_loss', 'target_calories'
     targetWeight: '', 
+    targetBF: '',
+    targetFatLoss: '',
     targetCalories: '',
     timeframeDays: 180 
   });
@@ -177,7 +181,6 @@ export default function CalculadoraGastoCalorico() {
     if (aval) {
       setAvaliacaoAtual(aval);
 
-      // Calcular Idade
       let idade = 25;
       if (pac.data_nascimento) {
         const birthDate = new Date(pac.data_nascimento + 'T12:00:00');
@@ -187,13 +190,11 @@ export default function CalculadoraGastoCalorico() {
         if (m < 0 || (m === 0 && evalDate.getDate() < birthDate.getDate())) idade--;
       }
 
-      // Puxar BF (Se existir)
       let bfSalvo = aval.percentual_de_gordura || '';
       if (!bfSalvo && calc && calc.massa_gorda && aval.peso_paciente) {
         bfSalvo = ((calc.massa_gorda / aval.peso_paciente) * 100).toFixed(1);
       }
 
-      // Alimentar o Form da Calculadora automaticamente
       setFormData(prev => ({
         ...prev,
         gender: pac.sexo || 'M',
@@ -272,17 +273,14 @@ export default function CalculadoraGastoCalorico() {
 
     if (hasBF) {
       const isActuallyObese = (isMale && bfValue > 25) || (!isMale && bfValue > 32);
-
       if (isActuallyObese) return 'mifflin';
       if (bodyType === 'obese') bodyType = 'average';
       if (bodyType === 'endurance') return 'tinsley';
-
       return 'cunningham';
     }
 
     if (bodyType === 'obese') return 'mifflin';
     if (bodyType === 'bodybuilder' || bodyType === 'endurance') return 'tinsley'; 
-
     return 'harris'; 
   };
 
@@ -372,38 +370,51 @@ export default function CalculadoraGastoCalorico() {
   };
 
   // ==========================================
-  // LÓGICA DO BODY WEIGHT PLANNER (SIMULADOR DO NIH)
+  // LÓGICA DO BODY WEIGHT PLANNER (SIMULADOR DO NIH COM %GC)
   // ==========================================
-  const simulateWeightTrajectory = (intake, days, initialWeight, height, age, isMale, bf, pal, formula, baselineTDEE) => {
+  const simulateWeightTrajectory = (intake, days, initialWeight, height, age, isMale, bf, pal, formula, baselineTDEE, rmrOverride) => {
     let currentWeight = initialWeight;
+    let initialFM = bf ? initialWeight * (bf / 100) : 0;
+    let currentFM = initialFM;
     let data = [];
     
-    // O modelo do NIH aplica uma queda de TEF e Termogênese Adaptativa. Na prática, aprox 14% de barreira do déficit
     const metabolicAdaptation = intake < baselineTDEE ? (baselineTDEE - intake) * 0.14 : 0;
-    const energyDensity = 7300; // Densidade média da perda (músculo + gordura)
+    const energyDensity = 7300; 
     
     for (let i = 0; i <= days; i++) {
-      // Cone de incerteza da predição: +- 7.5% da massa atual
       const uncertainty = (i / days) * currentWeight * 0.075; 
+      let currentBf = currentWeight > 0 ? (currentFM / currentWeight) * 100 : 0;
       
       data.push({ 
         dia: i, 
         pesoEstimado: Number(currentWeight.toFixed(1)),
         pesoAlto: Number((currentWeight + uncertainty).toFixed(1)),
-        pesoBaixo: Number((currentWeight - uncertainty).toFixed(1))
+        pesoBaixo: Number((currentWeight - uncertainty).toFixed(1)),
+        bfEstimado: Number(currentBf.toFixed(1))
       });
 
-      let currentBf = bf ? (bf * (currentWeight / initialWeight)) : 0; 
-      const dailyBMR = getBMR(currentWeight, height, age, isMale, currentBf, formula);
+      // Se houver Override de RMR, ele ajusta proporcionalmente ao peso atual
+      let dailyBMR = rmrOverride 
+        ? rmrOverride * (currentWeight / initialWeight) 
+        : getBMR(currentWeight, height, age, isMale, currentBf, formula);
+        
       const theoreticalTDEE = dailyBMR * pal;
-      
       const actualTDEE = theoreticalTDEE - metabolicAdaptation;
       const dailyBalance = actualTDEE - intake;
       const weightChange = dailyBalance / energyDensity; 
       
       currentWeight -= weightChange;
+      
+      // Proporção de perda: Regra de Forbes simplificada (75% Gordura, 25% FFM no déficit / 50-50 superávit)
+      if (weightChange > 0) {
+        currentFM -= (weightChange * 0.75); 
+      } else {
+        currentFM -= (weightChange * 0.50); 
+      }
+      if (currentFM < (currentWeight * 0.03)) currentFM = currentWeight * 0.03; // Limite essencial
     }
-    return { finalWeight: currentWeight, data };
+    
+    return { finalWeight: currentWeight, finalFM: currentFM, data };
   };
 
   const runPlanner = () => {
@@ -419,62 +430,102 @@ export default function CalculadoraGastoCalorico() {
     const form = results.internalFormulaKey;
     const mode = plannerData.simulationMode;
     const getAtual = results.tdee;
+    const rmrOverride = advancedControls.enabled && advancedControls.rmrOverride ? parseFloat(advancedControls.rmrOverride) : null;
 
     if (!days || days <= 0) return;
 
     let targetW = w;
+    let targetBF = parseFloat(plannerData.targetBF);
+    let targetFatLoss = parseFloat(plannerData.targetFatLoss);
+    
     let appliedIntake = 0;
     let finalChartData = [];
     let achievedWeight = w;
+    let achievedFM = bf ? w * (bf / 100) : 0;
+
+    let minIntake = 500;
+    let maxIntake = 6000;
 
     if (mode === 'target_weight') {
       targetW = parseFloat(plannerData.targetWeight);
       if (!targetW) return;
-
-      // Busca Binária para achar a kcal exata
-      let minIntake = 500;
-      let maxIntake = 6000;
       for (let iter = 0; iter < 40; iter++) {
         let midIntake = (minIntake + maxIntake) / 2;
-        let sim = simulateWeightTrajectory(midIntake, days, w, h, a, isMale, bf, pal, form, getAtual);
-        
-        if (sim.finalWeight > targetW) maxIntake = midIntake; 
-        else minIntake = midIntake; 
-        
+        let sim = simulateWeightTrajectory(midIntake, days, w, h, a, isMale, bf, pal, form, getAtual, rmrOverride);
+        if (sim.finalWeight > targetW) maxIntake = midIntake; else minIntake = midIntake; 
         appliedIntake = midIntake;
         finalChartData = sim.data;
         achievedWeight = sim.finalWeight;
+        achievedFM = sim.finalFM;
       }
-    } else {
+    } 
+    else if (mode === 'target_bf') {
+      if (!targetBF || !bf) return;
+      for (let iter = 0; iter < 40; iter++) {
+        let midIntake = (minIntake + maxIntake) / 2;
+        let sim = simulateWeightTrajectory(midIntake, days, w, h, a, isMale, bf, pal, form, getAtual, rmrOverride);
+        let finalBf = (sim.finalFM / sim.finalWeight) * 100;
+        if (targetBF < bf) {
+            // Quer perder BF -> se finalBF ta maior que o alvo, precisa comer menos -> max = mid
+            if (finalBf > targetBF) maxIntake = midIntake; else minIntake = midIntake;
+        } else {
+            // Quer ganhar BF
+            if (finalBf < targetBF) minIntake = midIntake; else maxIntake = midIntake;
+        }
+        appliedIntake = midIntake;
+        finalChartData = sim.data;
+        achievedWeight = sim.finalWeight;
+        achievedFM = sim.finalFM;
+      }
+    }
+    else if (mode === 'target_fat_loss') {
+      if (!targetFatLoss || !bf) return;
+      let initialFM = w * (bf / 100);
+      for (let iter = 0; iter < 40; iter++) {
+        let midIntake = (minIntake + maxIntake) / 2;
+        let sim = simulateWeightTrajectory(midIntake, days, w, h, a, isMale, bf, pal, form, getAtual, rmrOverride);
+        let fatLost = initialFM - sim.finalFM;
+        // Quer perder gordura -> se perdeu menos que a meta, precisa comer menos -> max = mid
+        if (fatLost < targetFatLoss) maxIntake = midIntake; else minIntake = midIntake;
+        appliedIntake = midIntake;
+        finalChartData = sim.data;
+        achievedWeight = sim.finalWeight;
+        achievedFM = sim.finalFM;
+      }
+    }
+    else {
       // MODO DIETA (Kcal fixa)
       appliedIntake = parseFloat(plannerData.targetCalories);
       if (!appliedIntake) return;
-
-      let sim = simulateWeightTrajectory(appliedIntake, days, w, h, a, isMale, bf, pal, form, getAtual);
+      let sim = simulateWeightTrajectory(appliedIntake, days, w, h, a, isMale, bf, pal, form, getAtual, rmrOverride);
       finalChartData = sim.data;
       achievedWeight = sim.finalWeight;
+      achievedFM = sim.finalFM;
       targetW = achievedWeight;
     }
 
-    const bmrFuturo = getBMR(achievedWeight, h, a + (days/365), isMale, bf ? (bf * (achievedWeight/w)) : 0, form);
+    // Calcular novo metabolismo no final da jornada
+    let bmrFuturo = rmrOverride 
+      ? rmrOverride * (achievedWeight / w) 
+      : getBMR(achievedWeight, h, a + (days/365), isMale, bf ? ((achievedFM/achievedWeight)*100) : 0, form);
     const getFuturo = bmrFuturo * pal;
 
     let currentWarning = '';
     const safeMin = isMale ? 1200 : 1000;
 
-    if (mode === 'target_weight' && targetW < w && appliedIntake < safeMin) {
-      currentWarning = `Objetivo agressivo! A predição original exigiria apenas ${Math.round(appliedIntake)} kcal/dia. Ajustamos a simulação para o limite seguro clínico de ${safeMin} kcal/dia. O peso alcançado no período será diferente do alvo original.`;
+    if (mode !== 'target_calories' && appliedIntake < safeMin) {
+      currentWarning = `Objetivo agressivo! A predição original exigiria apenas ${Math.round(appliedIntake)} kcal/dia. Ajustamos a simulação para o limite seguro clínico de ${safeMin} kcal/dia. O resultado ao longo do período será diferente do alvo original.`;
       appliedIntake = safeMin;
-      const safeSim = simulateWeightTrajectory(safeMin, days, w, h, a, isMale, bf, pal, form, getAtual);
+      const safeSim = simulateWeightTrajectory(safeMin, days, w, h, a, isMale, bf, pal, form, getAtual, rmrOverride);
       finalChartData = safeSim.data;
       achievedWeight = safeSim.finalWeight;
+      achievedFM = safeSim.finalFM;
     } else if (mode === 'target_calories' && appliedIntake < safeMin) {
       currentWarning = `Atenção: A dieta programada de ${appliedIntake} kcal/dia está abaixo do limite basal de segurança recomendado (${safeMin} kcal/dia). Isso pode causar perda agressiva de massa magra.`;
     } else if (targetW > w && appliedIntake > getAtual + 1500) {
       currentWarning = `Ganho de peso rápido projetado! O consumo simulado de ${Math.round(appliedIntake)} kcal/dia é bastante elevado e resultará num acúmulo agressivo de gordura corporal.`;
     }
 
-    // CÁLCULO FISIOLÓGICO DA COMPOSIÇÃO CORPORAL (75% Gordura / 25% Magra)
     let pesoPerdidoKg = 0;
     let massaGordaPerdidaKg = 0;
     let bfFinal = null;
@@ -482,19 +533,9 @@ export default function CalculadoraGastoCalorico() {
 
     if (bf && bf > 0) {
       pesoPerdidoKg = w - achievedWeight;
-      if (pesoPerdidoKg > 0) {
-        massaGordaPerdidaKg = pesoPerdidoKg * 0.75;
-      } else if (pesoPerdidoKg < 0) {
-        massaGordaPerdidaKg = pesoPerdidoKg * 0.50; 
-      }
-      
-      const massaGordaInicial = w * (bf / 100);
-      let massaGordaFinal = massaGordaInicial - massaGordaPerdidaKg;
-      
-      const minimumEssentialFat = achievedWeight * 0.03;
-      if (massaGordaFinal < minimumEssentialFat) massaGordaFinal = minimumEssentialFat;
-
-      bfFinal = (massaGordaFinal / achievedWeight) * 100;
+      let initialFM = w * (bf / 100);
+      massaGordaPerdidaKg = initialFM - achievedFM;
+      bfFinal = (achievedFM / achievedWeight) * 100;
       bfPerdido = bf - bfFinal;
     } else {
       pesoPerdidoKg = w - achievedWeight;
@@ -556,11 +597,17 @@ export default function CalculadoraGastoCalorico() {
         <div className="bg-slate-900 text-white p-3 rounded-lg shadow-xl border border-slate-700 text-xs space-y-1">
           <p className="font-bold mb-2 border-b border-slate-700 pb-1 text-slate-300">Dia {label}</p>
           <p className="text-white font-medium">Peso Estimado: <span className="font-bold text-emerald-400">{data.pesoEstimado} kg</span> <span className="text-slate-400 font-normal ml-1">[{data.pesoBaixo}, {data.pesoAlto}]</span></p>
+          {data.bfEstimado > 0 && (
+            <p className="text-white font-medium pt-1">Gordura Corporal: <span className="font-bold text-amber-400">{data.bfEstimado}%</span></p>
+          )}
         </div>
       );
     }
     return null;
   };
+
+  const precisaBF = plannerData.simulationMode === 'target_bf' || plannerData.simulationMode === 'target_fat_loss';
+  const faltaBF = precisaBF && (!formData.bf || formData.bf <= 0);
 
   return (
     <section className="py-16 md:py-24 bg-slate-50 px-4 sm:px-6 container mx-auto max-w-5xl text-left">
@@ -920,37 +967,94 @@ export default function CalculadoraGastoCalorico() {
         {results && (
           <div className="bg-white p-6 sm:p-10 md:p-16 rounded-[2rem] md:rounded-[4rem] shadow-2xl border border-blue-100 flex flex-col gap-8 md:gap-12 mt-12 animate-in slide-in-from-bottom-10">
             
-            <div className="text-center max-w-2xl mx-auto space-y-4">
-              <h2 className="text-2xl md:text-4xl font-black text-slate-900 uppercase italic">
-                Simulador de <span className="text-blue-600">Adaptação Metabólica</span>
-              </h2>
-              <p className="text-slate-600 font-medium text-sm md:text-base">
-                O corpo humano adapta-se à mudança de peso. Configure o objetivo abaixo para simular a trajetória real na balança, seja estipulando um peso alvo ou testando o impacto de uma dieta fixa.
-              </p>
+            <div className="flex flex-col md:flex-row justify-between items-center gap-4">
+              <div className="text-center md:text-left space-y-2">
+                <span className="inline-block bg-blue-50 text-blue-700 px-4 py-1.5 rounded-full text-xs font-black uppercase tracking-widest">
+                  Body Weight Planner (NIH)
+                </span>
+                <h2 className="text-2xl md:text-4xl font-black text-slate-900 uppercase italic">
+                  Simulador de <span className="text-blue-600">Recomposição</span>
+                </h2>
+                <p className="text-slate-600 font-medium text-sm md:text-base max-w-2xl">
+                  Configure o objetivo abaixo para simular a trajetória real na balança e fracionamento de gordura, considerando a adaptação metabólica.
+                </p>
+              </div>
+
+              {/* Botão de Controles Avançados */}
+              <button 
+                onClick={() => setAdvancedControls({...advancedControls, enabled: !advancedControls.enabled})}
+                className={`px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-2 border transition-all ${advancedControls.enabled ? 'bg-blue-600 text-white border-blue-600 shadow-md' : 'bg-white text-slate-500 border-slate-200 hover:bg-slate-50'}`}
+              >
+                <Settings className="w-4 h-4" /> Controles Avançados {advancedControls.enabled ? 'ON' : 'OFF'}
+              </button>
             </div>
+
+            {/* Painel de Controles Avançados */}
+            {advancedControls.enabled && (
+              <div className="bg-blue-50/50 p-6 rounded-2xl border border-blue-100 flex flex-col sm:flex-row items-center gap-4 animate-in fade-in slide-in-from-top-2">
+                <Info className="w-8 h-8 text-blue-500 flex-shrink-0" />
+                <div className="flex-1">
+                  <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">Sobrescrever Taxa Metabólica Basal (GEB)</label>
+                  <div className="flex items-center gap-3">
+                    <input 
+                      type="number" 
+                      value={advancedControls.rmrOverride}
+                      onChange={(e) => setAdvancedControls({...advancedControls, rmrOverride: e.target.value})}
+                      placeholder={`Estimativa atual: ${results.bmr} kcal`}
+                      className="w-full sm:w-64 p-3 border-2 border-blue-200 rounded-xl focus:ring-2 focus:ring-blue-500 font-medium text-slate-800 outline-none" 
+                    />
+                    <span className="text-sm font-bold text-slate-500">kcal/dia</span>
+                  </div>
+                  <p className="text-xs text-slate-500 mt-2">Use esta opção caso tenha os dados exatos de um exame de <strong>Calorimetria Indireta</strong>.</p>
+                </div>
+              </div>
+            )}
 
             <div className="bg-slate-50 p-6 md:p-10 rounded-[2rem] border border-slate-200">
               
               {/* TABS DE MODO DE SIMULAÇÃO */}
-              <div className="flex flex-col sm:flex-row gap-4 justify-center mb-8 border-b border-slate-200 pb-6">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3 justify-center mb-8 border-b border-slate-200 pb-6">
                 <button 
-                  onClick={() => setPlannerData({...plannerData, simulationMode: 'target_weight', targetCalories: ''})}
-                  className={`px-6 py-3 font-black text-xs md:text-sm uppercase tracking-wide rounded-xl flex items-center justify-center gap-2 transition-all ${plannerData.simulationMode === 'target_weight' ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/30' : 'bg-white text-slate-500 border border-slate-200 hover:bg-blue-50'}`}
+                  onClick={() => setPlannerData({...plannerData, simulationMode: 'target_weight', targetCalories: '', targetBF: '', targetFatLoss: ''})}
+                  className={`px-4 py-3 font-black text-[10px] sm:text-xs uppercase tracking-wide rounded-xl flex items-center justify-center gap-2 transition-all ${plannerData.simulationMode === 'target_weight' ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/30' : 'bg-white text-slate-500 border border-slate-200 hover:bg-blue-50'}`}
                 >
-                  <Target className="w-4 h-4"/> Atingir um Peso Alvo
+                  <Target className="w-4 h-4 hidden sm:block"/> Peso Alvo
                 </button>
                 <button 
-                  onClick={() => setPlannerData({...plannerData, simulationMode: 'target_calories', targetWeight: ''})}
-                  className={`px-6 py-3 font-black text-xs md:text-sm uppercase tracking-wide rounded-xl flex items-center justify-center gap-2 transition-all ${plannerData.simulationMode === 'target_calories' ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/30' : 'bg-white text-slate-500 border border-slate-200 hover:bg-blue-50'}`}
+                  onClick={() => setPlannerData({...plannerData, simulationMode: 'target_bf', targetCalories: '', targetWeight: '', targetFatLoss: ''})}
+                  className={`px-4 py-3 font-black text-[10px] sm:text-xs uppercase tracking-wide rounded-xl flex items-center justify-center gap-2 transition-all ${plannerData.simulationMode === 'target_bf' ? 'bg-amber-500 text-white shadow-lg shadow-amber-500/30' : 'bg-white text-slate-500 border border-slate-200 hover:bg-amber-50'}`}
                 >
-                  <Utensils className="w-4 h-4"/> Testar Valor da Dieta (Kcal)
+                  <Droplet className="w-4 h-4 hidden sm:block"/> Meta %GC
+                </button>
+                <button 
+                  onClick={() => setPlannerData({...plannerData, simulationMode: 'target_fat_loss', targetCalories: '', targetWeight: '', targetBF: ''})}
+                  className={`px-4 py-3 font-black text-[10px] sm:text-xs uppercase tracking-wide rounded-xl flex items-center justify-center gap-2 transition-all ${plannerData.simulationMode === 'target_fat_loss' ? 'bg-orange-600 text-white shadow-lg shadow-orange-600/30' : 'bg-white text-slate-500 border border-slate-200 hover:bg-orange-50'}`}
+                >
+                  <TrendingDown className="w-4 h-4 hidden sm:block"/> Kg Gordura
+                </button>
+                <button 
+                  onClick={() => setPlannerData({...plannerData, simulationMode: 'target_calories', targetWeight: '', targetBF: '', targetFatLoss: ''})}
+                  className={`px-4 py-3 font-black text-[10px] sm:text-xs uppercase tracking-wide rounded-xl flex items-center justify-center gap-2 transition-all ${plannerData.simulationMode === 'target_calories' ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-600/30' : 'bg-white text-slate-500 border border-slate-200 hover:bg-emerald-50'}`}
+                >
+                  <Utensils className="w-4 h-4 hidden sm:block"/> Fixar Dieta
                 </button>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-start">
                 
                 <div className="space-y-6">
-                  {plannerData.simulationMode === 'target_weight' ? (
+                  {/* ALERTA SE NÃO TIVER BF */}
+                  {faltaBF && (
+                    <div className="bg-red-50 border-l-4 border-red-500 p-4 rounded-xl flex gap-3 items-start animate-in fade-in">
+                      <AlertTriangle className="w-5 h-5 text-red-600 flex-shrink-0" />
+                      <p className="text-xs font-bold text-red-800 leading-relaxed">
+                        Para simular metas de gordura ou composição corporal, você precisa preencher o <strong>Percentual de Gordura (%)</strong> do paciente lá no Passo 1.
+                      </p>
+                    </div>
+                  )}
+
+                  {/* INPUTS DINÂMICOS */}
+                  {!faltaBF && plannerData.simulationMode === 'target_weight' && (
                     <div className="animate-in fade-in">
                       <label className="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-2 flex items-center gap-2">
                         <Target className="w-4 h-4 text-blue-600" /> Quero pesar (kg)
@@ -966,10 +1070,48 @@ export default function CalculadoraGastoCalorico() {
                         <span className="absolute right-4 top-1/2 -translate-y-1/2 font-bold text-slate-400">kg</span>
                       </div>
                     </div>
-                  ) : (
+                  )}
+
+                  {!faltaBF && plannerData.simulationMode === 'target_bf' && (
                     <div className="animate-in fade-in">
                       <label className="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-2 flex items-center gap-2">
-                        <Utensils className="w-4 h-4 text-blue-600" /> Prescrição da Dieta (kcal/dia)
+                        <Droplet className="w-4 h-4 text-amber-500" /> Meta de Percentual de Gordura
+                      </label>
+                      <div className="relative">
+                        <input 
+                          type="number" 
+                          value={plannerData.targetBF} 
+                          onChange={(e) => setPlannerData({...plannerData, targetBF: e.target.value})} 
+                          placeholder={`Atual: ${formData.bf}%`} 
+                          className="w-full p-4 border-2 border-slate-300 rounded-2xl focus:ring-2 focus:ring-amber-500 font-black text-2xl text-slate-800 outline-none" 
+                        />
+                        <span className="absolute right-4 top-1/2 -translate-y-1/2 font-bold text-slate-400">%GC</span>
+                      </div>
+                    </div>
+                  )}
+
+                  {!faltaBF && plannerData.simulationMode === 'target_fat_loss' && (
+                    <div className="animate-in fade-in">
+                      <label className="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-2 flex items-center gap-2">
+                        <TrendingDown className="w-4 h-4 text-orange-600" /> Quantos Kg de gordura quer perder?
+                      </label>
+                      <div className="relative">
+                        <input 
+                          type="number" 
+                          value={plannerData.targetFatLoss} 
+                          onChange={(e) => setPlannerData({...plannerData, targetFatLoss: e.target.value})} 
+                          placeholder="Ex: 5" 
+                          className="w-full p-4 border-2 border-slate-300 rounded-2xl focus:ring-2 focus:ring-orange-500 font-black text-2xl text-slate-800 outline-none" 
+                        />
+                        <span className="absolute right-4 top-1/2 -translate-y-1/2 font-bold text-slate-400">kg de banha</span>
+                      </div>
+                    </div>
+                  )}
+
+                  {!faltaBF && plannerData.simulationMode === 'target_calories' && (
+                    <div className="animate-in fade-in">
+                      <label className="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-2 flex items-center gap-2">
+                        <Utensils className="w-4 h-4 text-emerald-600" /> Prescrição da Dieta Fixa
                       </label>
                       <div className="relative">
                         <input 
@@ -977,14 +1119,14 @@ export default function CalculadoraGastoCalorico() {
                           value={plannerData.targetCalories} 
                           onChange={(e) => setPlannerData({...plannerData, targetCalories: e.target.value})} 
                           placeholder="Ex: 1300" 
-                          className="w-full p-4 border-2 border-slate-300 rounded-2xl focus:ring-2 focus:ring-blue-500 font-black text-2xl text-slate-800 outline-none" 
+                          className="w-full p-4 border-2 border-slate-300 rounded-2xl focus:ring-2 focus:ring-emerald-500 font-black text-2xl text-slate-800 outline-none" 
                         />
-                        <span className="absolute right-4 top-1/2 -translate-y-1/2 font-bold text-slate-400">Kcal</span>
+                        <span className="absolute right-4 top-1/2 -translate-y-1/2 font-bold text-slate-400">Kcal / dia</span>
                       </div>
                     </div>
                   )}
                   
-                  <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm">
+                  <div>
                     <label className="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-2 flex items-center gap-2">
                       <Timer className="w-4 h-4 text-blue-600" /> Em quanto tempo?
                     </label>
@@ -1003,8 +1145,8 @@ export default function CalculadoraGastoCalorico() {
                       {[30, 90, 180, 365].map(d => (
                         <button 
                           key={d} 
-                          onClick={() => setPlannerData({...plannerData, timeframeDays: d})} 
-                          className={`text-xs px-3 py-1.5 font-bold rounded-lg transition-colors ${plannerData.timeframeDays == d ? 'bg-blue-600 text-white shadow-md' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
+                          onClick={(e) => { e.preventDefault(); setPlannerData({...plannerData, timeframeDays: d})}} 
+                          className={`text-xs px-3 py-1.5 font-bold rounded-lg transition-colors ${plannerData.timeframeDays == d ? 'bg-blue-600 text-white shadow-md' : 'bg-white border border-slate-300 text-slate-600 hover:bg-slate-100'}`}
                         >
                           {d} dias
                         </button>
@@ -1012,8 +1154,8 @@ export default function CalculadoraGastoCalorico() {
                     </div>
 
                     <div className="relative text-center mb-3">
-                      <span className="bg-white px-2 text-[9px] font-bold text-slate-400 uppercase tracking-widest relative z-10">Ou selecione uma data</span>
-                      <div className="absolute top-1/2 left-0 w-full h-px bg-slate-100 z-0"></div>
+                      <span className="bg-slate-50 px-2 text-[9px] font-bold text-slate-400 uppercase tracking-widest relative z-10">Ou selecione uma data</span>
+                      <div className="absolute top-1/2 left-0 w-full h-px bg-slate-200 z-0"></div>
                     </div>
 
                     <div className="flex items-center gap-2">
@@ -1030,11 +1172,14 @@ export default function CalculadoraGastoCalorico() {
                   <button 
                     onClick={runPlanner}
                     disabled={
+                      faltaBF ||
                       (plannerData.simulationMode === 'target_weight' && !plannerData.targetWeight) ||
+                      (plannerData.simulationMode === 'target_bf' && !plannerData.targetBF) ||
+                      (plannerData.simulationMode === 'target_fat_loss' && !plannerData.targetFatLoss) ||
                       (plannerData.simulationMode === 'target_calories' && !plannerData.targetCalories) || 
                       !plannerData.timeframeDays
                     }
-                    className="w-full bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-black py-4 rounded-2xl uppercase tracking-widest shadow-lg transition-all mt-4"
+                    className="w-full bg-slate-900 hover:bg-blue-700 disabled:opacity-50 text-white font-black py-4 rounded-2xl uppercase tracking-widest shadow-lg transition-all mt-4"
                   >
                     Processar Simulação Iterativa
                   </button>
@@ -1049,17 +1194,17 @@ export default function CalculadoraGastoCalorico() {
                       </div>
                     )}
                     
-                    {plannerData.simulationMode === 'target_weight' ? (
+                    {plannerData.simulationMode === 'target_calories' ? (
+                      <div className="bg-white border-2 border-emerald-100 p-6 rounded-3xl shadow-sm text-center">
+                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">O peso projetado ao final de {plannerData.timeframeDays} dias de dieta será de:</span>
+                        <div className="text-5xl font-black text-emerald-600 mt-2 mb-1">{plannerResults.pesoAlcancado}</div>
+                        <span className="text-xs font-bold text-slate-500">kg na balança</span>
+                      </div>
+                    ) : (
                       <div className="bg-white border-2 border-blue-100 p-6 rounded-3xl shadow-sm text-center">
                         <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Para bater a meta na fase de mudança, a Dieta deve ser de:</span>
                         <div className="text-5xl font-black text-blue-600 mt-2 mb-1">{plannerResults.caloriasFaseMudanca}</div>
                         <span className="text-xs font-bold text-slate-500">Kcal / dia</span>
-                      </div>
-                    ) : (
-                      <div className="bg-white border-2 border-blue-100 p-6 rounded-3xl shadow-sm text-center">
-                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">O peso projetado ao final de {plannerData.timeframeDays} dias de dieta será de:</span>
-                        <div className="text-5xl font-black text-blue-600 mt-2 mb-1">{plannerResults.pesoAlcancado}</div>
-                        <span className="text-xs font-bold text-slate-500">kg</span>
                       </div>
                     )}
 
@@ -1068,11 +1213,25 @@ export default function CalculadoraGastoCalorico() {
                       <div className="text-4xl font-black text-slate-800 mt-2 mb-1">{plannerResults.getFuturo}</div>
                       <span className="text-xs font-bold text-slate-500">Kcal / dia</span>
                     </div>
+
+                    {/* PAINEL DE PERDAS FISIOLÓGICAS ESTIMADAS */}
+                    {plannerResults.bfFinal !== null && (
+                      <div className="grid grid-cols-2 gap-3 mt-4 pt-4 border-t border-slate-200">
+                        <div className="bg-white border border-slate-200 p-3 rounded-xl text-center">
+                          <span className="text-[9px] font-bold text-slate-400 uppercase block mb-1">Gordura Perdida</span>
+                          <span className="text-xl font-black text-amber-500">{plannerResults.massaGordaPerdidaKg}kg</span>
+                        </div>
+                        <div className="bg-white border border-slate-200 p-3 rounded-xl text-center">
+                          <span className="text-[9px] font-bold text-slate-400 uppercase block mb-1">Novo % de Gordura</span>
+                          <span className="text-xl font-black text-emerald-600">{plannerResults.bfFinal}%</span>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 ) : (
                   <div className="h-full flex flex-col items-center justify-center p-8 border-2 border-dashed border-slate-300 rounded-3xl text-slate-400 min-h-[250px]">
                     <TrendingDown className="w-12 h-12 mb-3 opacity-50" />
-                    <p className="text-center font-bold text-sm">Configure sua meta ou dieta ao lado para visualizar a predição clínica.</p>
+                    <p className="text-center font-bold text-sm">Configure sua meta ou dieta ao lado para visualizar a predição clínica de recomposição corporal.</p>
                   </div>
                 )}
 
@@ -1139,11 +1298,11 @@ export default function CalculadoraGastoCalorico() {
                   </ResponsiveContainer>
                 </div>
 
-                <div className="flex items-center gap-2 justify-center pt-2">
+                <div className="flex items-center gap-2 justify-center pt-2 flex-wrap">
                   <div className="w-3 h-3 bg-blue-600 rounded-sm"></div>
                   <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mr-4">Peso Médio Estimado</span>
                   <div className="w-3 h-3 bg-blue-100 rounded-sm border border-blue-200"></div>
-                  <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Peso Máximo / Peso Mínimo (Variação Fisiológica)</span>
+                  <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Peso Máximo / Mínimo (Incerteza)</span>
                 </div>
               </div>
             )}
