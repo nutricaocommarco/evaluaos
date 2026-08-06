@@ -162,10 +162,10 @@ export default function CalculadoraGastoCalorico() {
   const faltaBF_Save = (objetivoPlano === 'hipertrofia' || (objetivoPlano === 'emagrecimento' && precisaBF)) && (!formData.bf || formData.bf <= 0);
 
   return (
-    <section className="py-16 md:py-24 bg-slate-50 px-4 sm:px-6 container mx-auto max-w-5xl text-left">
+    <section className="py-6 md:py-24 bg-slate-50 px-2 sm:px-6 container mx-auto max-w-5xl text-left">
       
       {/* SEÇÃO DE PESQUISA DE PACIENTE */}
-      <div className="bg-white p-6 sm:p-8 rounded-[2rem] shadow-sm border border-emerald-100 mb-8 z-50 relative">
+      <div className="bg-white p-4 sm:p-8 rounded-[1.5rem] md:rounded-[2rem] shadow-sm border border-emerald-100 mb-6 sm:mb-8 z-50 relative">
         <div>
           <h2 className="text-xl font-bold text-slate-800">Planejamento Dietético e Metas</h2>
           <p className="text-sm text-slate-500 mb-4">Selecione o paciente e a avaliação para importar os dados e salvar o plano.</p>
@@ -201,7 +201,7 @@ export default function CalculadoraGastoCalorico() {
         )}
       </div>
 
-      <div className="bg-white p-6 sm:p-10 md:p-16 rounded-[2rem] md:rounded-[4rem] shadow-2xl border border-slate-100 flex flex-col gap-8 md:gap-12">
+      <div className="bg-white p-2 sm:p-10 md:p-16 rounded-[1.5rem] sm:rounded-[2.5rem] md:rounded-[4rem] shadow-2xl border border-slate-100 flex flex-col gap-6 md:gap-12">
         
         {/* COMPONENTE 1: CALCULADORA BÁSICA E TDEE */}
         <CalculadoraGET 
@@ -214,30 +214,30 @@ export default function CalculadoraGastoCalorico() {
 
         {/* HUB DE PLANEJAMENTO METABÓLICO (SÓ APARECE APÓS CALCULAR O TDEE) */}
         {results && (
-          <div className="bg-white p-6 sm:p-10 md:p-16 rounded-[2rem] md:rounded-[4rem] shadow-2xl border border-slate-200 flex flex-col gap-8 mt-12 animate-in slide-in-from-bottom-10">
+          <div className="bg-white p-2 sm:p-10 md:p-16 rounded-[1.5rem] sm:rounded-[2.5rem] md:rounded-[4rem] shadow-2xl border border-slate-200 flex flex-col gap-6 md:gap-8 mt-6 md:mt-12 animate-in slide-in-from-bottom-10">
             
-            <div className="text-center mb-4">
+            <div className="text-center mb-2 md:mb-4 px-2">
               <h2 className="text-2xl md:text-4xl font-black text-slate-900 uppercase italic">
                 Hub de Planejamento <span className="text-blue-600">Metabólico</span>
               </h2>
-              <p className="text-slate-500 font-medium text-sm mt-2 max-w-2xl mx-auto">
+              <p className="text-slate-500 font-medium text-xs sm:text-sm mt-2 max-w-2xl mx-auto">
                 Selecione o objetivo principal do paciente para simular a dieta, calcular adaptações e projetar a composição corporal futura.
               </p>
             </div>
 
             {/* SELETOR DE ABAS */}
-            <div className="flex bg-slate-100 p-1.5 rounded-[1.5rem] w-full max-w-lg mx-auto shadow-inner">
+            <div className="flex bg-slate-100 p-1 md:p-1.5 rounded-[1.5rem] w-full max-w-lg mx-auto shadow-inner mx-2">
               <button 
                 onClick={() => setObjetivoPlano('emagrecimento')} 
-                className={`flex-1 py-4 text-xs sm:text-sm font-black uppercase tracking-wider rounded-xl transition-all flex items-center justify-center gap-2 ${objetivoPlano === 'emagrecimento' ? 'bg-white text-blue-600 shadow-md border border-slate-200/50' : 'text-slate-500 hover:text-slate-700'}`}
+                className={`flex-1 py-3 md:py-4 text-[10px] sm:text-sm font-black uppercase tracking-wider rounded-xl transition-all flex items-center justify-center gap-1 sm:gap-2 ${objetivoPlano === 'emagrecimento' ? 'bg-white text-blue-600 shadow-md border border-slate-200/50' : 'text-slate-500 hover:text-slate-700'}`}
               >
-                <TrendingDown className="w-5 h-5"/> Emagrecimento
+                <TrendingDown className="w-4 h-4 sm:w-5 sm:h-5"/> Emagrecimento
               </button>
               <button 
                 onClick={() => setObjetivoPlano('hipertrofia')} 
-                className={`flex-1 py-4 text-xs sm:text-sm font-black uppercase tracking-wider rounded-xl transition-all flex items-center justify-center gap-2 ${objetivoPlano === 'hipertrofia' ? 'bg-emerald-600 text-white shadow-md border border-emerald-500' : 'text-slate-500 hover:text-slate-700'}`}
+                className={`flex-1 py-3 md:py-4 text-[10px] sm:text-sm font-black uppercase tracking-wider rounded-xl transition-all flex items-center justify-center gap-1 sm:gap-2 ${objetivoPlano === 'hipertrofia' ? 'bg-emerald-600 text-white shadow-md border border-emerald-500' : 'text-slate-500 hover:text-slate-700'}`}
               >
-                <Dumbbell className="w-5 h-5"/> Bulking (Ganho)
+                <Dumbbell className="w-4 h-4 sm:w-5 sm:h-5"/> Bulking (Ganho)
               </button>
             </div>
 
@@ -269,9 +269,11 @@ export default function CalculadoraGastoCalorico() {
 
             {/* BOTÃO MESTRE DE SALVAR NO BANCO */}
             {avaliacaoAtual && results && (objetivoPlano === 'hipertrofia' || plannerResults) && !faltaBF_Save && (
-              <button onClick={handleSalvarNoBanco} disabled={salvando} className="w-full mt-6 bg-slate-900 hover:bg-emerald-700 disabled:opacity-50 text-white font-black py-6 rounded-[2rem] text-lg sm:text-xl uppercase tracking-widest shadow-xl hover:shadow-2xl transition-all">
-                {salvando ? 'Salvando...' : '💾 Salvar Planejamento na Avaliação'}
-              </button>
+              <div className="px-2">
+                <button onClick={handleSalvarNoBanco} disabled={salvando} className="w-full mt-4 md:mt-6 bg-slate-900 hover:bg-emerald-700 disabled:opacity-50 text-white font-black py-4 md:py-6 rounded-2xl md:rounded-[2rem] text-sm md:text-xl uppercase tracking-widest shadow-xl hover:shadow-2xl transition-all">
+                  {salvando ? 'Salvando...' : '💾 Salvar Planejamento na Avaliação'}
+                </button>
+              </div>
             )}
 
           </div>
