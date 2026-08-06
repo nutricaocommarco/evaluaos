@@ -35,7 +35,7 @@ export default function Hipertrofia({ formData, results, nivelTreino, setNivelTr
 
   const faltaBF = !formData.bf || formData.bf <= 0;
 
-  // Renderizador da Tabela de Estimativas (Design igual à imagem)
+  // Renderizador da Tabela de Estimativas
   const renderTabelaLyle = () => {
     const isM = abaTabelaLyle === 'M';
     return (
@@ -96,7 +96,7 @@ export default function Hipertrofia({ formData, results, nivelTreino, setNivelTr
           
           <div className="mt-4 pt-4 border-t border-slate-200">
              <p className="text-[10px] text-slate-400 leading-relaxed text-justify">
-               Observação de praticantes avançados (não estudo controlado). Massa muscular em indivíduos com boa genética; tendem a sobrestimar a média populacional. A linha do ano selecionado guia a sua meta[span_3](start_span)[span_3](end_span).
+               Observação de praticantes avançados (não estudo controlado). Massa muscular em indivíduos com boa genética; tendem a sobrestimar a média populacional. A linha do ano selecionado guia a sua meta.
              </p>
           </div>
         </div>
@@ -122,7 +122,7 @@ export default function Hipertrofia({ formData, results, nivelTreino, setNivelTr
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4 border-b border-emerald-100 pb-4">
             <div>
               <h3 className="text-lg md:text-xl font-black text-emerald-800 flex items-center gap-2">💪 Hipertrofia Natural</h3>
-              <p className="text-[10px] md:text-xs text-slate-500 mt-1">Predição científica baseada na Fisiologia e no método de Lyle McDonald[span_4](start_span)[span_4](end_span).</p>
+              <p className="text-[10px] md:text-xs text-slate-500 mt-1">Predição científica baseada na Fisiologia e no método de Lyle McDonald.</p>
             </div>
             <div className="w-full sm:w-56">
               <label className="block text-[9px] md:text-[10px] font-bold text-emerald-700 uppercase tracking-widest mb-1">Experiência de Treino</label>
@@ -147,7 +147,7 @@ export default function Hipertrofia({ formData, results, nivelTreino, setNivelTr
           {/* GRID PRINCIPAL: TABELA LYLE X PRESCRIÇÃO CALÓRICA */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 md:gap-8">
             
-            {/* LADO ESQUERDO: TABELA DE LYLE MCDONALD (IGUAL A IMAGEM) */}
+            {/* LADO ESQUERDO: TABELA DE LYLE MCDONALD */}
             <div className="space-y-4">
               {renderTabelaLyle()}
               
@@ -209,7 +209,7 @@ export default function Hipertrofia({ formData, results, nivelTreino, setNivelTr
                 </div>
               </div>
 
-              {/* CALCULADORA DE AJUSTE CALÓRICO (IGUAL A IMAGEM 1) */}
+              {/* CALCULADORA DE AJUSTE CALÓRICO */}
               <div className="bg-white p-5 md:p-6 rounded-3xl border border-slate-200 shadow-sm">
                 <h4 className="text-xs font-black text-emerald-800 uppercase tracking-widest mb-2 flex items-center gap-2">
                   <Settings2 className="w-4 h-4 text-emerald-600" /> Calculadora de Ajuste Calórico
