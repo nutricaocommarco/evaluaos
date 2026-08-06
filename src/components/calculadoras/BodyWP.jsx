@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Settings, Info, AlertTriangle, TrendingDown, Target, Droplet, Utensils } from 'lucide-react';
+import { Settings, Info, AlertTriangle, TrendingDown, Target, Droplet, Utensils, CalendarDays, Scale, ArrowDownRight, ArrowUpRight } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, Area, ComposedChart } from 'recharts';
 import { getBMR } from './CalculadoraGET';
 
@@ -15,15 +15,24 @@ export default function BodyWP({ formData, results, plannerData, setPlannerData,
     const energyDensity = 7300; 
     
     for (let i = 0; i <= days; i++) {
-      const uncertainty = (i / days) * currentWeight * 0.075; 
+      // Incerteza progressiva conforme o BWP original
+      const uncertainty = Number(((i / 90) * 2.8).toFixed(1)); 
+      const bfUncertainty = Number(((i / 90) * 1.3).toFixed(1));
       let currentBf = currentWeight > 0 ? (currentFM / currentWeight) * 100 : 0;
       
+      const pesoAlto = Number((currentWeight + uncertainty).toFixed(1));
+      const pesoBaixo = Number((Math.max(30, currentWeight - uncertainty)).toFixed(1));
+      const bfAlto = Number((currentBf + bfUncertainty).toFixed(1));
+      const bfBaixo = Number((Math.max(3, currentBf - bfUncertainty)).toFixed(1));
+
       data.push({ 
         dia: i, 
         pesoEstimado: Number(currentWeight.toFixed(1)), 
-        pesoAlto: Number((currentWeight + uncertainty).toFixed(1)), 
-        pesoBaixo: Number((currentWeight - uncertainty).toFixed(1)), 
-        bfEstimado: Number(currentBf.toFixed(1)) 
+        pesoAlto, 
+        pesoBaixo, 
+        bfEstimado: Number(currentBf.toFixed(1)),
+        bfAlto,
+        bfBaixo
       });
 
       let dailyBMR = rmrOverride ? rmrOverride * (currentWeight / initialWeight) : getBMR(currentWeight, height, age, isMale, currentBf, formula);
@@ -39,7 +48,18 @@ export default function BodyWP({ formData, results, plannerData, setPlannerData,
       
       if (currentFM < (currentWeight * 0.03)) currentFM = currentWeight * 0.03; 
     }
-    return { finalWeight: currentWeight, finalFM: currentFM, data };
+
+    const finalUncertainty = Number(((days / 90) * 2.8).toFixed(1));
+    const pesoMaximo = Number((currentWeight + finalUncertainty).toFixed(1));
+    const pesoMinimo = Number((Math.max(30, currentWeight - finalUncertainty)).toFixed(1));
+
+    return { 
+      finalWeight: currentWeight, 
+      finalFM: currentFM, 
+      pesoMaximo,
+      pesoMinimo,
+      data 
+    };
   };
 
   const runPlanner = () => {
@@ -67,6 +87,7 @@ export default function BodyWP({ formData, results, plannerData, setPlannerData,
     let achievedFM = bf ? w * (bf / 100) : 0;
     let minIntake = 500; 
     let maxIntake = 6000;
+    let simFinal = null;
 
     if (mode === 'target_weight') {
       targetW = parseFloat(plannerData.targetWeight); if (!targetW) return;
@@ -74,7 +95,11 @@ export default function BodyWP({ formData, results, plannerData, setPlannerData,
         let midIntake = (minIntake + maxIntake) / 2; 
         let sim = simulateWeightTrajectory(midIntake, days, w, h, a, isMale, bf, pal, form, getAtual, rmrOverride);
         if (sim.finalWeight > targetW) maxIntake = midIntake; else minIntake = midIntake; 
-        appliedIntake = midIntake; finalChartData = sim.data; achievedWeight = sim.finalWeight; achievedFM = sim.finalFM;
+        appliedIntake = midIntake; 
+        finalChartData = sim.data; 
+        achievedWeight = sim.finalWeight; 
+        achievedFM = sim.finalFM;
+        simFinal = sim;
       }
     } else if (mode === 'target_bf') {
       if (!targetBF || !bf) return;
@@ -83,7 +108,11 @@ export default function BodyWP({ formData, results, plannerData, setPlannerData,
         let sim = simulateWeightTrajectory(midIntake, days, w, h, a, isMale, bf, pal, form, getAtual, rmrOverride); 
         let finalBf = (sim.finalFM / sim.finalWeight) * 100;
         if (targetBF < bf) { if (finalBf > targetBF) maxIntake = midIntake; else minIntake = midIntake; } else { if (finalBf < targetBF) minIntake = midIntake; else maxIntake = midIntake; }
-        appliedIntake = midIntake; finalChartData = sim.data; achievedWeight = sim.finalWeight; achievedFM = sim.finalFM;
+        appliedIntake = midIntake; 
+        finalChartData = sim.data; 
+        achievedWeight = sim.finalWeight; 
+        achievedFM = sim.finalFM;
+        simFinal = sim;
       }
     } else if (mode === 'target_fat_loss') {
       if (!targetFatLoss || !bf) return;
@@ -93,12 +122,20 @@ export default function BodyWP({ formData, results, plannerData, setPlannerData,
         let sim = simulateWeightTrajectory(midIntake, days, w, h, a, isMale, bf, pal, form, getAtual, rmrOverride); 
         let fatLost = initialFM - sim.finalFM;
         if (fatLost < targetFatLoss) maxIntake = midIntake; else minIntake = midIntake; 
-        appliedIntake = midIntake; finalChartData = sim.data; achievedWeight = sim.finalWeight; achievedFM = sim.finalFM;
+        appliedIntake = midIntake; 
+        finalChartData = sim.data; 
+        achievedWeight = sim.finalWeight; 
+        achievedFM = sim.finalFM;
+        simFinal = sim;
       }
     } else {
       appliedIntake = parseFloat(plannerData.targetCalories); if (!appliedIntake) return;
       let sim = simulateWeightTrajectory(appliedIntake, days, w, h, a, isMale, bf, pal, form, getAtual, rmrOverride); 
-      finalChartData = sim.data; achievedWeight = sim.finalWeight; achievedFM = sim.finalFM; targetW = achievedWeight;
+      finalChartData = sim.data; 
+      achievedWeight = sim.finalWeight; 
+      achievedFM = sim.finalFM; 
+      targetW = achievedWeight;
+      simFinal = sim;
     }
 
     let bmrFuturo = rmrOverride ? rmrOverride * (achievedWeight / w) : getBMR(achievedWeight, h, a + (days/365), isMale, bf ? ((achievedFM/achievedWeight)*100) : 0, form);
@@ -110,18 +147,35 @@ export default function BodyWP({ formData, results, plannerData, setPlannerData,
       currentWarning = `Objetivo agressivo! A predição exigiria ${Math.round(appliedIntake)} kcal/dia. Ajustamos para o limite de ${safeMin} kcal/dia.`;
       appliedIntake = safeMin; 
       const safeSim = simulateWeightTrajectory(safeMin, days, w, h, a, isMale, bf, pal, form, getAtual, rmrOverride); 
-      finalChartData = safeSim.data; achievedWeight = safeSim.finalWeight; achievedFM = safeSim.finalFM;
+      finalChartData = safeSim.data; 
+      achievedWeight = safeSim.finalWeight; 
+      achievedFM = safeSim.finalFM;
+      simFinal = safeSim;
     } else if (mode === 'target_calories' && appliedIntake < safeMin) {
       currentWarning = `Atenção: Dieta de ${appliedIntake} kcal/dia abaixo do limite basal.`;
     }
 
-    let pesoPerdidoKg = 0; let massaGordaPerdidaKg = 0; let bfFinal = null; let bfPerdido = null;
+    let pesoPerdidoKg = 0; 
+    let massaGordaPerdidaKg = 0; 
+    let bfFinal = null; 
+    let bfPerdido = null;
+    let massaGordaFinalKg = null;
+    let massaLivreGorduraFinalKg = null;
+    let imcFinal = null;
+
+    if (h > 0 && achievedWeight > 0) {
+      const hM = h / 100;
+      imcFinal = Number((achievedWeight / (hM * hM)).toFixed(1));
+    }
+
     if (bf && bf > 0) { 
       pesoPerdidoKg = w - achievedWeight; 
       let initialFM = w * (bf / 100); 
       massaGordaPerdidaKg = initialFM - achievedFM; 
       bfFinal = (achievedFM / achievedWeight) * 100; 
       bfPerdido = bf - bfFinal; 
+      massaGordaFinalKg = achievedFM;
+      massaLivreGorduraFinalKg = achievedWeight - achievedFM;
     } else { 
       pesoPerdidoKg = w - achievedWeight; 
     }
@@ -131,10 +185,15 @@ export default function BodyWP({ formData, results, plannerData, setPlannerData,
       getFuturo: Math.round(getFuturo), 
       caloriasFaseMudanca: Math.round(appliedIntake), 
       pesoAlcancado: Number(achievedWeight.toFixed(1)), 
+      pesoMinimo: simFinal ? Number(simFinal.pesoMinimo.toFixed(1)) : Number((achievedWeight * 0.96).toFixed(1)),
+      pesoMaximo: simFinal ? Number(simFinal.pesoMaximo.toFixed(1)) : Number((achievedWeight * 1.04).toFixed(1)),
       pesoPerdidoKg: Number(pesoPerdidoKg.toFixed(1)), 
+      massaGordaFinalKg: massaGordaFinalKg !== null ? Number(massaGordaFinalKg.toFixed(1)) : null,
+      massaLivreGorduraFinalKg: massaLivreGorduraFinalKg !== null ? Number(massaLivreGorduraFinalKg.toFixed(1)) : null,
       massaGordaPerdidaKg: massaGordaPerdidaKg !== 0 ? Number(massaGordaPerdidaKg.toFixed(1)) : null, 
       bfFinal: bfFinal !== null ? Number(bfFinal.toFixed(1)) : null, 
       bfPerdido: bfPerdido !== null ? Number(bfPerdido.toFixed(1)) : null, 
+      imcFinal,
       dadosGrafico: finalChartData 
     });
   };
@@ -143,12 +202,23 @@ export default function BodyWP({ formData, results, plannerData, setPlannerData,
     if (active && payload && payload.length) {
       const data = payload[0].payload;
       return (
-        <div className="bg-slate-900 text-white p-3 rounded-lg shadow-xl border border-slate-700 text-xs space-y-1">
-          <p className="font-bold mb-2 border-b border-slate-700 pb-1 text-slate-300">Dia {label}</p>
-          <p className="text-white font-medium">Peso: <span className="font-bold text-emerald-400">{data.pesoEstimado} kg</span></p>
-          {data.bfEstimado > 0 && (
-            <p className="text-white font-medium pt-1">Gordura: <span className="font-bold text-amber-400">{data.bfEstimado}%</span></p>
-          )}
+        <div className="bg-slate-900 text-white p-3.5 rounded-xl shadow-2xl border border-slate-700 text-xs space-y-1.5">
+          <p className="font-black text-slate-300 border-b border-slate-700 pb-1 flex justify-between gap-4">
+            <span>Dia {label}</span>
+            <span className="text-emerald-400 font-bold">{data.pesoEstimado} kg</span>
+          </p>
+          <div className="space-y-0.5 text-[11px]">
+            <p className="text-slate-300 font-medium flex justify-between gap-4">
+              <span>Faixa Esperada:</span>
+              <span className="font-bold text-blue-300">[{data.pesoBaixo} kg a {data.pesoAlto} kg]</span>
+            </p>
+            {data.bfEstimado > 0 && (
+              <p className="text-slate-300 font-medium flex justify-between gap-4 pt-1">
+                <span>Gordura Estimada:</span>
+                <span className="font-bold text-amber-400">{data.bfEstimado}%</span>
+              </p>
+            )}
+          </div>
         </div>
       );
     }
@@ -162,7 +232,7 @@ export default function BodyWP({ formData, results, plannerData, setPlannerData,
   return (
     <div className="animate-in fade-in duration-300">
       <div className="flex justify-between items-center mb-4 md:mb-6 px-1">
-        <h3 className="text-lg md:text-xl font-black text-slate-800 flex items-center gap-2">🔥 Emagrecimento</h3>
+        <h3 className="text-lg md:text-xl font-black text-slate-800 flex items-center gap-2">🔥 Emagrecimento & Recomposição</h3>
         <button onClick={() => setAdvancedControls({...advancedControls, enabled: !advancedControls.enabled})} className={`px-3 py-2 rounded-xl text-[10px] md:text-xs font-bold border transition-all ${advancedControls.enabled ? 'bg-blue-600 text-white border-blue-600 shadow-md' : 'bg-white text-slate-500 border-slate-200 hover:bg-slate-50'}`}>
           <Settings className="w-3 h-3 md:w-4 md:h-4 inline-block mr-1" />Avançado {advancedControls.enabled ? 'ON' : 'OFF'}
         </button>
@@ -172,7 +242,7 @@ export default function BodyWP({ formData, results, plannerData, setPlannerData,
         <div className="bg-blue-50/50 p-4 rounded-xl border border-blue-100 mb-4 md:mb-6 flex gap-3">
           <Info className="w-6 h-6 text-blue-500 flex-shrink-0" />
           <div className="w-full">
-            <label className="block text-[10px] md:text-xs font-bold text-slate-700 uppercase mb-2">Sobrescrever GEB (Calorimetria)</label>
+            <label className="block text-[10px] md:text-xs font-bold text-slate-700 uppercase mb-2">Sobrescrever GEB (Calorimetria Indireta)</label>
             <input type="number" value={advancedControls.rmrOverride} onChange={(e) => setAdvancedControls({...advancedControls, rmrOverride: e.target.value})} placeholder={`Atual: ${results?.bmr || 0} kcal`} className="w-full sm:w-1/2 p-2.5 border-2 border-blue-200 rounded-xl outline-none text-sm" />
           </div>
         </div>
@@ -249,28 +319,83 @@ export default function BodyWP({ formData, results, plannerData, setPlannerData,
             </div>
 
             <button onClick={runPlanner} disabled={faltaBF || !plannerData.timeframeDays} className="w-full bg-slate-900 hover:bg-blue-700 disabled:opacity-50 text-white font-black py-4 rounded-xl md:rounded-2xl text-xs md:text-sm uppercase tracking-widest shadow-md transition-all mt-2">
-              Processar Simulação
+              Processar Simulação Iterativa
             </button>
           </div>
 
+          {/* PAINEL DE RESULTADOS COMPLETO E RECONSTRUÍDO DO BWP */}
           {plannerResults ? (
-            <div className="space-y-4 md:space-y-6 h-full flex flex-col justify-center animate-in fade-in slide-in-from-right-4 duration-500">
+            <div className="space-y-4 md:space-y-5 h-full flex flex-col justify-center animate-in fade-in slide-in-from-right-4 duration-500">
               {plannerWarning && <div className="bg-orange-50 border-l-4 border-orange-500 p-3 md:p-4 rounded-xl flex gap-2 md:gap-3"><AlertTriangle className="w-4 h-4 md:w-5 md:h-5 text-orange-600 flex-shrink-0" /><p className="text-[10px] md:text-xs font-bold text-orange-800">{plannerWarning}</p></div>}
               
-              <div className={`bg-white border-2 p-5 md:p-6 rounded-2xl md:rounded-3xl text-center shadow-sm ${plannerData.simulationMode === 'target_calories' ? 'border-emerald-100' : 'border-blue-100'}`}>
-                <span className="text-[9px] md:text-[10px] font-bold text-slate-400 uppercase tracking-widest">{plannerData.simulationMode === 'target_calories' ? 'Peso alcançado na balança:' : 'Dieta necessária (Kcal/dia):'}</span>
-                <div className={`text-4xl md:text-5xl font-black mt-1 mb-1 ${plannerData.simulationMode === 'target_calories' ? 'text-emerald-600' : 'text-blue-600'}`}>{plannerData.simulationMode === 'target_calories' ? plannerResults.pesoAlcancado : plannerResults.caloriasFaseMudanca}</div>
+              {/* CARD 1: FAIXA DE PESO ESPERADA (MÍNIMO, MÉDIO E MÁXIMO) */}
+              <div className="bg-white border-2 border-blue-100 p-4 md:p-5 rounded-2xl md:rounded-3xl shadow-sm space-y-3">
+                <span className="text-[9px] md:text-[10px] font-bold text-slate-400 uppercase tracking-widest block text-center">Faixa de Peso Esperada (BWP)</span>
+                
+                <div className="text-center">
+                  <span className="text-[10px] font-bold text-blue-500 uppercase tracking-widest block">Peso Médio Estimado</span>
+                  <div className="text-3xl md:text-4xl font-black text-blue-600">{plannerResults.pesoAlcancado} <span className="text-xs font-bold text-slate-400">kg</span></div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2 pt-2 border-t border-slate-100">
+                  <div className="bg-slate-50 p-2.5 rounded-xl text-center border border-slate-200/60">
+                    <span className="text-[8px] md:text-[9px] font-bold text-slate-500 uppercase tracking-wider flex items-center justify-center gap-1">
+                      <ArrowDownRight className="w-3 h-3 text-emerald-600" /> Peso Mínimo
+                    </span>
+                    <span className="text-base md:text-lg font-black text-slate-800">{plannerResults.pesoMinimo} kg</span>
+                  </div>
+                  <div className="bg-slate-50 p-2.5 rounded-xl text-center border border-slate-200/60">
+                    <span className="text-[8px] md:text-[9px] font-bold text-slate-500 uppercase tracking-wider flex items-center justify-center gap-1">
+                      <ArrowUpRight className="w-3 h-3 text-blue-600" /> Peso Máximo
+                    </span>
+                    <span className="text-base md:text-lg font-black text-slate-800">{plannerResults.pesoMaximo} kg</span>
+                  </div>
+                </div>
               </div>
 
-              <div className="bg-slate-50 border border-slate-200 p-4 md:p-5 rounded-2xl md:rounded-3xl text-center">
-                <span className="text-[9px] md:text-[10px] font-bold text-slate-400 uppercase tracking-widest">Nova Manutenção (Futuro):</span>
-                <div className="text-2xl md:text-3xl font-black text-slate-800 mt-1">{plannerResults.getFuturo} <span className="text-xs md:text-sm font-bold text-slate-500">Kcal</span></div>
+              {/* CARD 2: DIETA E MANUTENÇÃO */}
+              <div className="grid grid-cols-2 gap-2 md:gap-3">
+                <div className="bg-blue-50/70 border border-blue-200 p-3 md:p-4 rounded-xl md:rounded-2xl text-center">
+                  <span className="text-[8px] md:text-[9px] font-bold text-blue-800 uppercase tracking-widest block mb-1">Dieta Recomendada</span>
+                  <span className="text-xl md:text-2xl font-black text-blue-700">{plannerResults.caloriasFaseMudanca}</span>
+                  <span className="text-[9px] text-blue-600 font-bold block">Kcal / dia</span>
+                </div>
+                <div className="bg-slate-100/70 border border-slate-200 p-3 md:p-4 rounded-xl md:rounded-2xl text-center">
+                  <span className="text-[8px] md:text-[9px] font-bold text-slate-500 uppercase tracking-widest block mb-1">Manutenção Futura</span>
+                  <span className="text-xl md:text-2xl font-black text-slate-800">{plannerResults.getFuturo}</span>
+                  <span className="text-[9px] text-slate-500 font-bold block">Kcal / dia</span>
+                </div>
               </div>
 
+              {/* CARD 3: COMPOSIÇÃO CORPORAL & FRACIONAMENTO BWP */}
               {plannerResults.bfFinal !== null && (
-                <div className="grid grid-cols-2 gap-2 md:gap-3 pt-1">
-                  <div className="bg-white border border-slate-200 p-3 rounded-xl text-center"><span className="text-[8px] md:text-[9px] font-bold text-slate-400 uppercase block mb-1">Gordura Perdida</span><span className="text-lg md:text-xl font-black text-amber-500">{plannerResults.massaGordaPerdidaKg}kg</span></div>
-                  <div className="bg-white border border-slate-200 p-3 rounded-xl text-center"><span className="text-[8px] md:text-[9px] font-bold text-slate-400 uppercase block mb-1">Novo %GC</span><span className="text-lg md:text-xl font-black text-emerald-600">{plannerResults.bfFinal}%</span></div>
+                <div className="bg-white border border-slate-200 p-3 md:p-4 rounded-2xl space-y-2">
+                  <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest block text-center border-b border-slate-100 pb-1">Composição Corporal Projetada</span>
+                  
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="bg-amber-50/50 border border-amber-100 p-2.5 rounded-xl text-center">
+                      <span className="text-[8px] md:text-[9px] font-bold text-amber-700 uppercase block">Gordura (Massa Gorda)</span>
+                      <span className="text-sm md:text-base font-black text-amber-600">{plannerResults.massaGordaFinalKg} kg</span>
+                      {plannerResults.massaGordaPerdidaKg && (
+                        <span className="text-[8px] font-bold text-amber-600 block mt-0.5">(-{plannerResults.massaGordaPerdidaKg}kg)</span>
+                      )}
+                    </div>
+                    <div className="bg-emerald-50/50 border border-emerald-100 p-2.5 rounded-xl text-center">
+                      <span className="text-[8px] md:text-[9px] font-bold text-emerald-700 uppercase block">Massa Livre Gordura</span>
+                      <span className="text-sm md:text-base font-black text-emerald-600">{plannerResults.massaLivreGorduraFinalKg} kg</span>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2 pt-1">
+                    <div className="bg-slate-50 p-2 rounded-xl text-center">
+                      <span className="text-[8px] font-bold text-slate-400 uppercase block">Novo %GC</span>
+                      <span className="text-xs md:text-sm font-black text-slate-800">{plannerResults.bfFinal}%</span>
+                    </div>
+                    <div className="bg-slate-50 p-2 rounded-xl text-center">
+                      <span className="text-[8px] font-bold text-slate-400 uppercase block">IMC Estimado</span>
+                      <span className="text-xs md:text-sm font-black text-slate-800">{plannerResults.imcFinal || '-'} kg/m²</span>
+                    </div>
+                  </div>
                 </div>
               )}
             </div>
@@ -282,7 +407,7 @@ export default function BodyWP({ formData, results, plannerData, setPlannerData,
 
       {plannerResults && (
         <div className="bg-white p-3 sm:p-6 md:p-8 rounded-[1.25rem] sm:rounded-[2rem] border border-slate-200 shadow-sm space-y-4 md:space-y-6 mt-6 md:mt-8">
-          <h3 className="text-base md:text-lg font-black text-slate-800 px-2"><TrendingDown className="w-4 h-4 md:w-5 md:h-5 inline-block text-blue-600 mr-1 md:mr-2" /> Curva de Emagrecimento</h3>
+          <h3 className="text-base md:text-lg font-black text-slate-800 px-2"><TrendingDown className="w-4 h-4 md:w-5 md:h-5 inline-block text-blue-600 mr-1 md:mr-2" /> Curva de Emagrecimento (Trajetória)</h3>
           <div className="w-full h-[250px] md:h-[350px]">
             <ResponsiveContainer width="100%" height="100%">
               <ComposedChart data={plannerResults.dadosGrafico} margin={{ top: 20, right: 5, left: -25, bottom: 0 }}>
