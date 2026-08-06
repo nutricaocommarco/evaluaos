@@ -79,8 +79,33 @@ export default function HomePublica() {
         </div>
       </section>
 
+      {/* 🎬 2.5 NOVO: SEÇÃO DE VÍDEO DE APRESENTAÇÃO */}
+      <section className="pb-16 bg-white relative z-10 border-b border-slate-100">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6">
+          <div className="text-center mb-6">
+            <span className="text-xs font-black text-emerald-600 uppercase tracking-widest bg-emerald-50 px-3 py-1 rounded-full">
+              ▶️ Conheça a plataforma por dentro
+            </span>
+          </div>
+          
+          <div className="p-2 sm:p-4 bg-slate-50 rounded-[2rem] shadow-2xl border border-slate-200">
+            <div className="aspect-video w-full rounded-2xl overflow-hidden bg-slate-900 relative shadow-inner">
+              <iframe 
+                className="absolute top-0 left-0 w-full h-full"
+                src="https://www.youtube.com/embed/s0VPmv7gkF0?si=Q4lH_24iGjPZ-99O" 
+                title="EvaluaOS Tour Completo" 
+                frameBorder="0" 
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" 
+                referrerPolicy="strict-origin-when-cross-origin" 
+                allowFullScreen
+              ></iframe>
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* 📱 3. DEMONSTRAÇÃO INTERATIVA DO LAUDO E EVOLUÇÃO EM TEMPO REAL */}
-      <section className="py-16 bg-gradient-to-b from-white via-emerald-50/40 to-white border-y border-slate-100">
+      <section className="py-16 bg-gradient-to-b from-white via-emerald-50/40 to-white border-b border-slate-100">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 space-y-10">
           
           <div className="text-center space-y-3 max-w-2xl mx-auto">
