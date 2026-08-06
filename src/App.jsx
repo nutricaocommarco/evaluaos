@@ -17,7 +17,22 @@ import Aprendizado from './pages/Aprendizado'
 import ArtigoDetalhe from './pages/ArtigoDetalhe'
 import Precos from './pages/Precos'
 import Contato from './pages/Contato'
-import CalculadoraGastoCalorico from './pages/CalculadoraGastoCalorico';
+import CalculadoraGastoCalorico from './pages/CalculadoraGastoCalorico'
+
+// RASTREADOR AUTOMÁTICO DE NAVEGAÇÃO DE ROTAS (PAGEVIEWS NO GA4)
+function AnalyticsTracker() {
+  const location = useLocation()
+
+  useEffect(() => {
+    if (window.gtag) {
+      window.gtag('config', 'G-M6P8V04RQV', {
+        page_path: location.pathname + location.search,
+      })
+    }
+  }, [location])
+
+  return null
+}
 
 function MainApp() {
   const [session, setSession] = useState(null)
@@ -97,32 +112,35 @@ function MainApp() {
     )
   }
 
-  // 🔴 USUÁRIO NÃO LOGADO: Acessa a Landing Page, Login, Preços, Contato e Aprendizado
+  // 🔴 USUÁRIO NÃO LOGADO
   if (!session) {
     return (
-      <Routes>
-        <Route path="/" element={<HomePublica />} />
-        <Route path="/login" element={<Login />} />
-        
-        {/* ROTAS PÚBLICAS DO PACIENTE (Acesso via Token) */}
-        <Route path="/laudo/:tokenUrl" element={<ResultadoAvaliacao />} />
-        <Route path="/evolucao/:tokenUrl" element={<EvolucaoPaciente />} />
+      <>
+        <AnalyticsTracker />
+        <Routes>
+          <Route path="/" element={<HomePublica />} />
+          <Route path="/login" element={<Login />} />
+          
+          {/* ROTAS PÚBLICAS DO PACIENTE */}
+          <Route path="/laudo/:tokenUrl" element={<ResultadoAvaliacao />} />
+          <Route path="/evolucao/:tokenUrl" element={<EvolucaoPaciente />} />
 
-        {/* INSTITUCIONAL & SEO */}
-        <Route path="/aprendizado" element={<Aprendizado />} />
-        <Route path="/aprendizado/:artigoId" element={<ArtigoDetalhe />} />
-        <Route path="/precos" element={<Precos />} />
-        <Route path="/contato" element={<Contato />} />
-        
-        {/* Redireciona qualquer rota desconhecida de visitante para a Home */}
-        <Route path="*" element={<Navigate to="/" replace />} />
-      </Routes>
+          {/* INSTITUCIONAL & SEO */}
+          <Route path="/aprendizado" element={<Aprendizado />} />
+          <Route path="/aprendizado/:artigoId" element={<ArtigoDetalhe />} />
+          <Route path="/precos" element={<Precos />} />
+          <Route path="/contato" element={<Contato />} />
+          
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+      </>
     )
   }
 
-  // 🟢 USUÁRIO LOGADO: Painel Interno Completo
+  // 🟢 USUÁRIO LOGADO
   return (
     <div className="flex h-screen bg-gray-50 overflow-hidden">
+      <AnalyticsTracker />
       
       {isSidebarOpen && (
         <div 
@@ -182,7 +200,6 @@ function MainApp() {
       <div className="flex-1 flex flex-col h-screen overflow-hidden">
         
         <header className="bg-white shadow-sm border-b border-gray-100 px-4 h-[72px] flex justify-between items-center shrink-0">
-          
           <div className="flex items-center gap-3">
             <button 
               className="md:hidden p-2 -ml-2 text-gray-500 hover:text-emerald-600 focus:outline-none"
@@ -237,7 +254,6 @@ function MainApp() {
             <Route path="/evolucao/:tokenUrl" element={<EvolucaoPaciente />} />
             <Route path="/planejamento-calorico" element={<CalculadoraGastoCalorico />} />
             
-            {/* Central de Aprendizado acessível internamente */}
             <Route path="/aprendizado" element={<Aprendizado />} />
             <Route path="/aprendizado/:artigoId" element={<ArtigoDetalhe />} />
 
