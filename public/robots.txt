@@ -1,0 +1,12 @@
+User-agent: *
+Allow: /
+
+# Bloqueia a indexação de rotas privadas e dados sensíveis
+Disallow: /painel/
+Disallow: /pacientes/
+Disallow: /configuracoes/
+Disallow: /laudo/
+Disallow: /evolucao/
+
+# Aponta para o Sitemap
+Sitemap: https://evaluaos.nutricaocommarco.com.br/sitemap.xml
