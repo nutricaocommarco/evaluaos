@@ -1200,6 +1200,7 @@ export default function ResultadoAvaliacao() {
           logomarcaUrl={logomarcaUrl}
           tokenPublico={tokenPublico}
           isPublicView={isPublicView}
+          configVisibilidade={configVisibilidade} // ADICIONADO AQUI
         />
       )}
     </div>
