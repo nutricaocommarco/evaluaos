@@ -1,5 +1,5 @@
 import React from 'react';
-import { Calculator, Activity, HeartPulse, CheckCircle2, User } from 'lucide-react';
+import { Calculator, Activity, HeartPulse, CheckCircle2, User, Info } from 'lucide-react';
 
 export const metOptions = [
   { label: "Selecione a atividade...", value: "0" },
@@ -329,24 +329,43 @@ export default function CalculadoraGET({ formData, setFormData, results, setResu
         </button>
       </form>
 
-      {/* RESULTADOS BÁSICOS */}
+      {/* RESULTADOS DA BASE ATUAL */}
       {results && (
-        <div className="mt-8 md:mt-16 bg-slate-900 text-white p-5 sm:p-8 md:p-12 rounded-[1.5rem] md:rounded-[3rem] shadow-2xl relative overflow-hidden animate-in fade-in slide-in-from-bottom-8 duration-500">
+        <div className="mt-8 md:mt-16 bg-slate-900 text-white p-6 sm:p-8 md:p-12 rounded-[2rem] md:rounded-[3rem] animate-in fade-in slide-in-from-bottom-8 duration-500 shadow-2xl relative overflow-hidden">
           <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-emerald-400 to-emerald-600"></div>
-          <h2 className="text-lg md:text-2xl font-black mb-6 md:mb-8 text-center uppercase italic flex justify-center items-center gap-2">
-            <CheckCircle2 className="text-emerald-500 w-5 h-5 md:w-6 md:h-6"/> Resultados Iniciais
+
+          <h2 className="text-2xl md:text-3xl font-black mb-8 md:mb-10 text-center uppercase italic flex flex-col sm:flex-row items-center justify-center gap-2 md:gap-3">
+            <CheckCircle2 className="text-emerald-500 w-6 h-6 md:w-8 md:h-8" /> Resultados da Base Atual
           </h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 md:gap-6 mb-6">
-            <div className="bg-slate-800 p-4 md:p-6 rounded-[1.25rem] md:rounded-[1.5rem] border border-slate-700 text-center">
-              <h3 className="text-slate-400 font-bold mb-1 md:mb-2 uppercase text-[9px] md:text-[10px]">Metabolismo Basal (GEB)</h3>
-              <div className="text-4xl md:text-5xl font-black text-white mb-1">{results.bmr}</div>
-              <span className="text-xs md:text-sm text-slate-500 font-medium">kcal / dia</span>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8 mb-8 md:mb-10">
+            <div className="bg-slate-800/50 p-6 md:p-8 rounded-[1.5rem] md:rounded-[2rem] border border-slate-700 text-center flex flex-col justify-center">
+              <h3 className="text-slate-400 font-bold mb-3 md:mb-4 uppercase tracking-widest text-[10px] md:text-xs">Taxa Metabólica Basal (GEB)</h3>
+              <div className="text-5xl md:text-6xl font-black text-white mb-2">{results.bmr}</div>
+              <span className="text-base md:text-lg text-slate-500 font-medium mb-4 md:mb-6">kcal / dia</span>
+              <p className="text-xs md:text-sm text-slate-400 text-left pt-4 md:pt-6 border-t border-slate-700 font-medium leading-relaxed">
+                A energia exata que o corpo queima parado em repouso absoluto, apenas para manter as funções vitais.
+              </p>
             </div>
-            <div className="bg-emerald-900/40 p-4 md:p-6 rounded-[1.25rem] md:rounded-[1.5rem] border border-emerald-800 text-center relative mt-3 sm:mt-0">
-              <span className="absolute -top-3 left-1/2 transform -translate-x-1/2 bg-emerald-500 text-white text-[8px] md:text-[10px] font-black px-3 py-1 rounded-full uppercase whitespace-nowrap">Manutenção Atual</span>
-              <h3 className="text-emerald-300 font-bold mb-1 md:mb-2 uppercase text-[9px] md:text-[10px] mt-1 md:mt-2">Gasto Energético (GET)</h3>
-              <div className="text-4xl md:text-5xl font-black text-emerald-400 mb-1">{results.tdee}</div>
-              <span className="text-xs md:text-sm text-emerald-700 font-medium">kcal / dia</span>
+
+            <div className="bg-emerald-900/40 p-6 md:p-8 rounded-[1.5rem] md:rounded-[2rem] border border-emerald-800 text-center flex flex-col justify-center relative mt-4 md:mt-0">
+              <span className="absolute -top-3 md:-top-4 left-1/2 transform -translate-x-1/2 bg-emerald-500 text-white text-[10px] md:text-xs font-black px-4 md:px-6 py-1.5 md:py-2 rounded-full tracking-widest uppercase shadow-lg whitespace-nowrap">Calorias de Manutenção</span>
+              <h3 className="text-emerald-300 font-bold mb-3 md:mb-4 uppercase tracking-widest text-[10px] md:text-xs mt-3 md:mt-4">Gasto Energético Total (GET)</h3>
+              <div className="text-5xl md:text-6xl font-black text-emerald-400 mb-2">{results.tdee}</div>
+              <span className="text-base md:text-lg text-emerald-700 font-medium mb-4 md:mb-6">kcal / dia</span>
+              <p className="text-xs md:text-sm text-emerald-200/80 text-left pt-4 md:pt-6 border-t border-emerald-800 font-medium leading-relaxed">
+                Queima total estimada para o dia. Consumir este valor manterá o peso atual inalterado.
+              </p>
+            </div>
+          </div>
+
+          <div className="flex flex-col sm:flex-row justify-between items-center bg-slate-800 p-5 md:p-6 rounded-2xl text-xs md:text-sm border border-slate-700 gap-4 text-center sm:text-left">
+            <div className="flex flex-col sm:flex-row items-center gap-2 md:gap-3">
+              <Info className="w-5 h-5 md:w-6 md:h-6 text-emerald-500 flex-shrink-0" />
+              <span className="font-medium text-slate-300">Equação matemática utilizada: <strong className="text-white ml-1 block sm:inline">{results.formulaUsed}</strong></span>
+            </div>
+            <div className="bg-slate-900 px-4 md:px-5 py-2 md:py-2.5 rounded-full text-emerald-400 font-black text-[10px] md:text-xs uppercase tracking-widest border border-slate-700 flex-shrink-0">
+              Fator de Atividade: x{results.activityFactor}
             </div>
           </div>
         </div>
