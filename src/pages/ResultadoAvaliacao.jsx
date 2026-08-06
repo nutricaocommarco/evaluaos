@@ -454,7 +454,14 @@ export default function ResultadoAvaliacao() {
     )
   }
 
-  const exibirBlocoPlanner = dados?.calorias_fase_mudanca && (podeExibir('laudo_plan_dieta') || podeExibir('laudo_plan_manutencao') || podeExibir('laudo_plan_peso_alvo') || podeExibir('laudo_plan_bf_alvo'));
+  // DETECÇÃO AUTOMÁTICA DE BULKING / HIPERTROFIA
+  const isBulking = (dados?.peso_alvo && aval.peso_paciente && Number(dados.peso_alvo) > Number(aval.peso_paciente)) ||
+                    (dados?.perda_peso_total_kg && Number(dados.perda_peso_total_kg) < 0) ||
+                    (dados?.calorias_fase_mudanca && dados?.gasto_energetico_total && Number(dados.calorias_fase_mudanca) > Number(dados.gasto_energetico_total));
+
+  const alturaMeters = (aval.altura_paciente || 170) / 100;
+  const mlgAtual = massaMagra2C || 50;
+  const ffmiCalculado = alturaMeters > 0 ? (mlgAtual / (alturaMeters * alturaMeters)) + (6.1 * (1.8 - alturaMeters)) : 20;
 
   return (
     <div className={`space-y-6 pb-10 ${isPublicView ? 'max-w-4xl mx-auto p-4 sm:p-6' : ''}`}>
@@ -1085,82 +1092,179 @@ export default function ResultadoAvaliacao() {
       )}
 
       {/* ========================================================================= */}
-      {/* 11. PLANEJAMENTO DIETÉTICO E METAS (BODY WEIGHT PLANNER) */}
+      {/* 11. PLANEJAMENTO DIETÉTICO E METAS (HIPERTROFIA & EMAGRECIMENTO) */}
       {/* ========================================================================= */}
       {dados?.calorias_fase_mudanca && (podeExibir('laudo_plan_dieta') || podeExibir('laudo_plan_manutencao') || podeExibir('laudo_plan_peso_alvo') || podeExibir('laudo_plan_bf_alvo')) && (
-        <div className="bg-white p-6 rounded-xl border border-blue-100 shadow-sm space-y-6 mt-6 relative overflow-hidden">
-          <div className="absolute top-0 left-0 w-1 bg-blue-500 h-full"></div>
+        <div className={`bg-white p-6 rounded-xl border shadow-sm space-y-6 mt-6 relative overflow-hidden ${isBulking ? 'border-emerald-200' : 'border-blue-100'}`}>
+          <div className={`absolute top-0 left-0 w-1.5 h-full ${isBulking ? 'bg-emerald-600' : 'bg-blue-500'}`}></div>
           
-          <div className="border-b border-slate-100 pb-3">
-            <h3 className="text-sm font-black text-slate-800 uppercase tracking-wider flex items-center gap-2">
-              🎯 11. Planejamento Metabólico & Metas
-            </h3>
-            <p className="text-[10px] text-slate-500 mt-1 pl-6">Projeção estimada considerando a adaptação metabólica em {dados.dias_alvo || '-'} dias.</p>
+          <div className="border-b border-slate-100 pb-3 flex justify-between items-center">
+            <div>
+              <h3 className="text-sm font-black text-slate-800 uppercase tracking-wider flex items-center gap-2">
+                🎯 11. Planejamento Metabólico & Metas
+              </h3>
+              <p className="text-[10px] text-slate-500 mt-1">
+                {isBulking ? 'Estratégia de Hipertrofia & Bulking Limpo em' : 'Projeção estimada considerando a adaptação metabólica em'} {dados.dias_alvo || '-'} dias.
+              </p>
+            </div>
+            {isBulking && (
+              <span className="text-[10px] bg-emerald-100 text-emerald-800 font-bold px-3 py-1 rounded-full uppercase tracking-wide">
+                💪 Hipertrofia (Bulking)
+              </span>
+            )}
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            
-            {/* Bloco de Calorias */}
-            {(podeExibir('laudo_plan_dieta') || podeExibir('laudo_plan_manutencao')) && (
-              <div className="space-y-3">
-                {podeExibir('laudo_plan_dieta') && (
-                  <div className="bg-blue-50 border border-blue-100 p-4 rounded-xl flex justify-between items-center">
-                    <div>
-                      <p className="text-[10px] font-bold text-blue-800 uppercase tracking-wider">Dieta Recomendada</p>
-                      <p className="text-xs text-blue-600/80 font-medium">Calorias para Fase de Mudança</p>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-2xl font-black text-blue-700">{dados.calorias_fase_mudanca}</p>
-                      <p className="text-[9px] text-blue-500 uppercase font-bold">Kcal / Dia</p>
-                    </div>
-                  </div>
-                )}
+          {/* ESTRUTURA PARA BULKING / HIPERTROFIA */}
+          {isBulking ? (
+            <div className="space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 
-                {podeExibir('laudo_plan_manutencao') && (
-                  <div className="bg-slate-50 border border-slate-200 p-4 rounded-xl flex justify-between items-center">
-                    <div>
-                      <p className="text-[10px] font-bold text-slate-600 uppercase tracking-wider">Manutenção Futura</p>
-                      <p className="text-xs text-slate-400 font-medium">Após bater a meta</p>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-xl font-black text-slate-700">{dados.calorias_manutencao_futura}</p>
-                      <p className="text-[9px] text-slate-400 uppercase font-bold">Kcal / Dia</p>
-                    </div>
+                {/* Dieta de Superávit */}
+                <div className="bg-emerald-50 border border-emerald-200 p-4 rounded-xl flex justify-between items-center">
+                  <div>
+                    <p className="text-[10px] font-bold text-emerald-800 uppercase tracking-wider">Dieta Recomendada (Bulking)</p>
+                    <p className="text-xs text-emerald-600 font-medium">Calorias diárias em superávit</p>
                   </div>
-                )}
+                  <div className="text-right">
+                    <p className="text-2xl font-black text-emerald-700">{dados.calorias_fase_mudanca}</p>
+                    <p className="text-[9px] text-emerald-600 uppercase font-bold">Kcal / Dia</p>
+                  </div>
+                </div>
+
+                {/* GET Base */}
+                <div className="bg-slate-50 border border-slate-200 p-4 rounded-xl flex justify-between items-center">
+                  <div>
+                    <p className="text-[10px] font-bold text-slate-600 uppercase tracking-wider">Gasto Energético Base (GET)</p>
+                    <p className="text-xs text-slate-400 font-medium">Manutenção atual</p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-xl font-black text-slate-700">{dados.gasto_energetico_total || dados.calorias_manutencao_futura || '-'}</p>
+                    <p className="text-[9px] text-slate-400 uppercase font-bold">Kcal / Dia</p>
+                  </div>
+                </div>
+
               </div>
-            )}
 
-            {/* Bloco de Metas Corporais Fracionadas */}
-            {(podeExibir('laudo_plan_peso_alvo') || podeExibir('laudo_plan_bf_alvo')) && (
-              <div className="grid grid-cols-2 gap-3">
-                {podeExibir('laudo_plan_peso_alvo') && (
-                  <div className={`bg-white border border-slate-200 p-3 rounded-xl flex flex-col justify-center text-center ${!podeExibir('laudo_plan_bf_alvo') ? 'col-span-2' : ''}`}>
-                    <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-1">Peso Alvo Projetado</span>
-                    <span className="text-2xl font-black text-slate-800">{dados.peso_alvo} <span className="text-sm font-normal text-slate-400">kg</span></span>
-                    {dados.perda_peso_total_kg && (
-                      <span className="text-[10px] font-bold text-emerald-500 mt-1 bg-emerald-50 rounded-md py-0.5 px-2 w-fit mx-auto">
-                        {dados.perda_peso_total_kg > 0 ? `-${dados.perda_peso_total_kg} kg` : `+${Math.abs(dados.perda_peso_total_kg)} kg`}
-                      </span>
-                    )}
-                  </div>
-                )}
+              {/* Metas de Peso Alvo e Teto Genético FFMI */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                
+                <div className="bg-white border border-slate-200 p-3.5 rounded-xl text-center">
+                  <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest block mb-1">Peso Alvo Projetado</span>
+                  <span className="text-2xl font-black text-slate-800">{dados.peso_alvo || '-'} <span className="text-sm font-normal text-slate-400">kg</span></span>
+                  {dados.perda_peso_total_kg && (
+                    <span className="text-[10px] font-bold text-emerald-600 block mt-1 bg-emerald-50 rounded-md py-0.5 px-2 w-fit mx-auto">
+                      +{Math.abs(dados.perda_peso_total_kg)} kg de Ganho
+                    </span>
+                  )}
+                </div>
 
-                {podeExibir('laudo_plan_bf_alvo') && (
-                  <div className={`bg-white border border-slate-200 p-3 rounded-xl flex flex-col justify-center text-center ${!podeExibir('laudo_plan_peso_alvo') ? 'col-span-2' : ''}`}>
-                    <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-1">% Gordura Projetado</span>
-                    <span className="text-2xl font-black text-slate-800">{dados.meta_bf_percentual || '-'} <span className="text-sm font-normal text-slate-400">%</span></span>
-                    {dados.perda_massa_gorda_kg && (
-                      <span className="text-[10px] font-bold text-amber-500 mt-1 bg-amber-50 rounded-md py-0.5 px-2 w-fit mx-auto">
-                        {dados.perda_massa_gorda_kg > 0 ? `-${dados.perda_massa_gorda_kg} kg Gordura` : `+${Math.abs(dados.perda_massa_gorda_kg)} kg Gordura`}
-                      </span>
-                    )}
-                  </div>
-                )}
+                <div className="bg-white border border-slate-200 p-3.5 rounded-xl text-center">
+                  <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest block mb-1">Teto Genético (FFMI)</span>
+                  <span className="text-2xl font-black text-blue-700">{ffmiCalculado.toFixed(1)}</span>
+                  <span className="text-[10px] font-semibold text-slate-400 block mt-0.5">Potencial Muscular Natural</span>
+                </div>
+
+                <div className="bg-white border border-slate-200 p-3.5 rounded-xl text-center">
+                  <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest block mb-1">% Gordura Projetado</span>
+                  <span className="text-2xl font-black text-slate-800">{dados.meta_bf_percentual || percentualGordura.toFixed(1)} <span className="text-sm font-normal text-slate-400">%</span></span>
+                  <span className="text-[10px] font-bold text-slate-400 block mt-1">Controle de Adiposidade</span>
+                </div>
+
               </div>
-            )}
 
-          </div>
+              {/* Tabela de Referência de Lyle McDonald */}
+              <div className="bg-slate-900 text-white p-4 rounded-xl space-y-2">
+                <div className="flex justify-between items-center border-b border-slate-800 pb-2">
+                  <span className="text-xs font-bold text-emerald-400 uppercase tracking-wide">Tabela de Potencial Muscular (Lyle McDonald)</span>
+                  <span className="text-[10px] text-slate-400">Referência Natural</span>
+                </div>
+                <div className="grid grid-cols-4 text-center text-[10px] sm:text-xs pt-1">
+                  <div>
+                    <span className="block text-slate-400 font-bold">Ano 1</span>
+                    <span className="font-black text-white">{pac.sexo === 'M' ? '9 - 11 kg/ano' : '4,5 - 5,4 kg/ano'}</span>
+                  </div>
+                  <div>
+                    <span className="block text-slate-400 font-bold">Ano 2</span>
+                    <span className="font-black text-white">{pac.sexo === 'M' ? '4,5 - 5,4 kg/ano' : '2,2 - 2,7 kg/ano'}</span>
+                  </div>
+                  <div>
+                    <span className="block text-slate-400 font-bold">Ano 3</span>
+                    <span className="font-black text-white">{pac.sexo === 'M' ? '2,3 - 2,7 kg/ano' : '1,1 - 1,4 kg/ano'}</span>
+                  </div>
+                  <div>
+                    <span className="block text-slate-400 font-bold">Ano 4+</span>
+                    <span className="font-black text-white">{pac.sexo === 'M' ? '1,1 - 1,4 kg/ano' : '0,4 - 0,7 kg/ano'}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          ) : (
+            /* ESTRUTURA PADRÃO PARA EMAGRECIMENTO */
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              
+              {/* Bloco de Calorias */}
+              {(podeExibir('laudo_plan_dieta') || podeExibir('laudo_plan_manutencao')) && (
+                <div className="space-y-3">
+                  {podeExibir('laudo_plan_dieta') && (
+                    <div className="bg-blue-50 border border-blue-100 p-4 rounded-xl flex justify-between items-center">
+                      <div>
+                        <p className="text-[10px] font-bold text-blue-800 uppercase tracking-wider">Dieta Recomendada</p>
+                        <p className="text-xs text-blue-600/80 font-medium">Calorias para Fase de Mudança</p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-2xl font-black text-blue-700">{dados.calorias_fase_mudanca}</p>
+                        <p className="text-[9px] text-blue-500 uppercase font-bold">Kcal / Dia</p>
+                      </div>
+                    </div>
+                  )}
+                  
+                  {podeExibir('laudo_plan_manutencao') && (
+                    <div className="bg-slate-50 border border-slate-200 p-4 rounded-xl flex justify-between items-center">
+                      <div>
+                        <p className="text-[10px] font-bold text-slate-600 uppercase tracking-wider">Manutenção Futura</p>
+                        <p className="text-xs text-slate-400 font-medium">Após bater a meta</p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-xl font-black text-slate-700">{dados.calorias_manutencao_futura}</p>
+                        <p className="text-[9px] text-slate-400 uppercase font-bold">Kcal / Dia</p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Bloco de Metas Corporais Fracionadas */}
+              {(podeExibir('laudo_plan_peso_alvo') || podeExibir('laudo_plan_bf_alvo')) && (
+                <div className="grid grid-cols-2 gap-3">
+                  {podeExibir('laudo_plan_peso_alvo') && (
+                    <div className={`bg-white border border-slate-200 p-3 rounded-xl flex flex-col justify-center text-center ${!podeExibir('laudo_plan_bf_alvo') ? 'col-span-2' : ''}`}>
+                      <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-1">Peso Alvo Projetado</span>
+                      <span className="text-2xl font-black text-slate-800">{dados.peso_alvo} <span className="text-sm font-normal text-slate-400">kg</span></span>
+                      {dados.perda_peso_total_kg && (
+                        <span className="text-[10px] font-bold text-emerald-500 mt-1 bg-emerald-50 rounded-md py-0.5 px-2 w-fit mx-auto">
+                          {dados.perda_peso_total_kg > 0 ? `-${dados.perda_peso_total_kg} kg` : `+${Math.abs(dados.perda_peso_total_kg)} kg`}
+                        </span>
+                      )}
+                    </div>
+                  )}
+
+                  {podeExibir('laudo_plan_bf_alvo') && (
+                    <div className={`bg-white border border-slate-200 p-3 rounded-xl flex flex-col justify-center text-center ${!podeExibir('laudo_plan_peso_alvo') ? 'col-span-2' : ''}`}>
+                      <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-1">% Gordura Projetado</span>
+                      <span className="text-2xl font-black text-slate-800">{dados.meta_bf_percentual || '-'} <span className="text-sm font-normal text-slate-400">%</span></span>
+                      {dados.perda_massa_gorda_kg && (
+                        <span className="text-[10px] font-bold text-amber-500 mt-1 bg-amber-50 rounded-md py-0.5 px-2 w-fit mx-auto">
+                          {dados.perda_massa_gorda_kg > 0 ? `-${dados.perda_massa_gorda_kg} kg Gordura` : `+${Math.abs(dados.perda_massa_gorda_kg)} kg Gordura`}
+                        </span>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
+
+            </div>
+          )}
+
         </div>
       )}
 
@@ -1200,7 +1304,7 @@ export default function ResultadoAvaliacao() {
           logomarcaUrl={logomarcaUrl}
           tokenPublico={tokenPublico}
           isPublicView={isPublicView}
-          configVisibilidade={configVisibilidade} // ADICIONADO AQUI
+          configVisibilidade={configVisibilidade}
         />
       )}
     </div>
