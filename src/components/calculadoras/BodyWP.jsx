@@ -1,41 +1,65 @@
 import React, { useState } from 'react';
-import { Settings, Info, AlertTriangle, TrendingDown, Target, Droplet, Utensils, CalendarDays, Scale, ArrowDownRight, ArrowUpRight } from 'lucide-react';
+import { Settings, Info, AlertTriangle, TrendingDown, Target, Droplet, Utensils, CalendarDays, Scale, ArrowDownRight, ArrowUpRight, Zap } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, Area, ComposedChart } from 'recharts';
 import { getBMR } from './CalculadoraGET';
 
 export default function BodyWP({ formData, results, plannerData, setPlannerData, plannerResults, setPlannerResults, advancedControls, setAdvancedControls }) {
   const [plannerWarning, setPlannerWarning] = useState('');
 
+  // ALGORITMO FISIOLÓGICO COMPLETO COM PERDA DE GLICOGÊNIO E ÁGUA BWP
   const simulateWeightTrajectory = (intake, days, initialWeight, height, age, isMale, bf, pal, formula, baselineTDEE, rmrOverride) => {
     let currentWeight = initialWeight; 
     let initialFM = bf ? initialWeight * (bf / 100) : 0; 
     let currentFM = initialFM; 
     let data = [];
+    
+    // Adaptação metabólica adaptativa (14% do déficit)
     const metabolicAdaptation = intake < baselineTDEE ? (baselineTDEE - intake) * 0.14 : 0; 
-    const energyDensity = 7300; 
+    const energyDensity = 7300; // Densidade média do tecido adiposo/magro em kcal/kg
+    
+    // MODELAGEM DA PERDA DE GLICOGÊNIO E ÁGUA LIGADA (Primeiros 7-14 dias)
+    const deficit = baselineTDEE - intake;
+    let maxGlycogenWaterLoss = 0;
+    
+    if (deficit > 0) {
+      // Em déficit: Perda de até 2.5kg de glicogênio + água proporcional à agressividade da dieta
+      maxGlycogenWaterLoss = Math.min(2.5, 1.25 * (deficit / 500));
+    } else if (deficit < 0) {
+      // Em superávit: Supercompensação de glicogênio e retenção hídrica de até 1.5kg
+      maxGlycogenWaterLoss = -Math.min(1.5, 0.8 * (Math.abs(deficit) / 500));
+    }
     
     for (let i = 0; i <= days; i++) {
+      // Depleção exponencial de glicogênio nos primeiros 10-14 dias (Tau ~3.5 dias)
+      const glycogenWaterLoss = maxGlycogenWaterLoss * (1 - Math.exp(-i / 3.5));
+      
+      // Peso fisiológico real na balança (Tecidos + Depleção de Glicogênio/Água)
+      const displayWeight = Number((currentWeight - glycogenWaterLoss).toFixed(1));
+      
       // Incerteza progressiva conforme o BWP original
       const uncertainty = Number(((i / 90) * 2.8).toFixed(1)); 
       const bfUncertainty = Number(((i / 90) * 1.3).toFixed(1));
-      let currentBf = currentWeight > 0 ? (currentFM / currentWeight) * 100 : 0;
       
-      const pesoAlto = Number((currentWeight + uncertainty).toFixed(1));
-      const pesoBaixo = Number((Math.max(30, currentWeight - uncertainty)).toFixed(1));
+      let currentBf = displayWeight > 0 ? (currentFM / displayWeight) * 100 : 0;
+      
+      const pesoAlto = Number((displayWeight + uncertainty).toFixed(1));
+      const pesoBaixo = Number((Math.max(30, displayWeight - uncertainty)).toFixed(1));
       const bfAlto = Number((currentBf + bfUncertainty).toFixed(1));
       const bfBaixo = Number((Math.max(3, currentBf - bfUncertainty)).toFixed(1));
 
       data.push({ 
         dia: i, 
-        pesoEstimado: Number(currentWeight.toFixed(1)), 
+        pesoEstimado: displayWeight, 
         pesoAlto, 
         pesoBaixo, 
         bfEstimado: Number(currentBf.toFixed(1)),
         bfAlto,
-        bfBaixo
+        bfBaixo,
+        glicogenioPerdido: Number(glycogenWaterLoss.toFixed(2))
       });
 
-      let dailyBMR = rmrOverride ? rmrOverride * (currentWeight / initialWeight) : getBMR(currentWeight, height, age, isMale, currentBf, formula);
+      // Recálculo diário do BMR e GET com o peso atual
+      let dailyBMR = rmrOverride ? rmrOverride * (displayWeight / initialWeight) : getBMR(displayWeight, height, age, isMale, currentBf, formula);
       const theoreticalTDEE = dailyBMR * pal; 
       const actualTDEE = theoreticalTDEE - metabolicAdaptation; 
       const dailyBalance = actualTDEE - intake; 
@@ -43,21 +67,23 @@ export default function BodyWP({ formData, results, plannerData, setPlannerData,
       
       currentWeight -= weightChange;
       
+      // Particionamento de Forbes (75% gordura / 25% FFM no déficit)
       if (weightChange > 0) currentFM -= (weightChange * 0.75); 
       else currentFM -= (weightChange * 0.50); 
       
-      if (currentFM < (currentWeight * 0.03)) currentFM = currentWeight * 0.03; 
+      if (currentFM < (displayWeight * 0.03)) currentFM = displayWeight * 0.03; 
     }
 
-    const finalUncertainty = Number(((days / 90) * 2.8).toFixed(1));
-    const pesoMaximo = Number((currentWeight + finalUncertainty).toFixed(1));
-    const pesoMinimo = Number((Math.max(30, currentWeight - finalUncertainty)).toFixed(1));
+    const lastDayData = data[data.length - 1];
+    const achievedWeight = lastDayData.pesoEstimado;
+    const achievedFM = currentFM;
 
     return { 
-      finalWeight: currentWeight, 
-      finalFM: currentFM, 
-      pesoMaximo,
-      pesoMinimo,
+      finalWeight: achievedWeight, 
+      finalFM: achievedFM, 
+      pesoMaximo: lastDayData.pesoAlto,
+      pesoMinimo: lastDayData.pesoBaixo,
+      totalGlycogenWaterLoss: lastDayData.glicogenioPerdido,
       data 
     };
   };
@@ -187,6 +213,7 @@ export default function BodyWP({ formData, results, plannerData, setPlannerData,
       pesoAlcancado: Number(achievedWeight.toFixed(1)), 
       pesoMinimo: simFinal ? Number(simFinal.pesoMinimo.toFixed(1)) : Number((achievedWeight * 0.96).toFixed(1)),
       pesoMaximo: simFinal ? Number(simFinal.pesoMaximo.toFixed(1)) : Number((achievedWeight * 1.04).toFixed(1)),
+      glicogenioAguaIniciais: simFinal ? simFinal.totalGlycogenWaterLoss : 0,
       pesoPerdidoKg: Number(pesoPerdidoKg.toFixed(1)), 
       massaGordaFinalKg: massaGordaFinalKg !== null ? Number(massaGordaFinalKg.toFixed(1)) : null,
       massaLivreGorduraFinalKg: massaLivreGorduraFinalKg !== null ? Number(massaLivreGorduraFinalKg.toFixed(1)) : null,
@@ -212,8 +239,14 @@ export default function BodyWP({ formData, results, plannerData, setPlannerData,
               <span>Faixa Esperada:</span>
               <span className="font-bold text-blue-300">[{data.pesoBaixo} kg a {data.pesoAlto} kg]</span>
             </p>
+            {data.glicogenioPerdido > 0 && (
+              <p className="text-slate-300 font-medium flex justify-between gap-4">
+                <span>Água/Glicogênio:</span>
+                <span className="font-bold text-cyan-400">-{data.glicogenioPerdido} kg</span>
+              </p>
+            )}
             {data.bfEstimado > 0 && (
-              <p className="text-slate-300 font-medium flex justify-between gap-4 pt-1">
+              <p className="text-slate-300 font-medium flex justify-between gap-4 pt-1 border-t border-slate-800">
                 <span>Gordura Estimada:</span>
                 <span className="font-bold text-amber-400">{data.bfEstimado}%</span>
               </p>
@@ -367,10 +400,17 @@ export default function BodyWP({ formData, results, plannerData, setPlannerData,
                 </div>
               </div>
 
-              {/* CARD 3: COMPOSIÇÃO CORPORAL & FRACIONAMENTO BWP */}
+              {/* CARD 3: COMPOSIÇÃO CORPORAL & DEPLEÇÃO DE GLICOGÊNIO */}
               {plannerResults.bfFinal !== null && (
                 <div className="bg-white border border-slate-200 p-3 md:p-4 rounded-2xl space-y-2">
-                  <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest block text-center border-b border-slate-100 pb-1">Composição Corporal Projetada</span>
+                  <div className="flex justify-between items-center border-b border-slate-100 pb-1">
+                    <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Composição Corporal Projetada</span>
+                    {plannerResults.glicogenioAguaIniciais > 0 && (
+                      <span className="text-[9px] font-bold text-cyan-700 bg-cyan-50 border border-cyan-200 px-2 py-0.5 rounded flex items-center gap-1">
+                        <Zap className="w-3 h-3" /> Glicogênio/Água: -{plannerResults.glicogenioAguaIniciais}kg
+                      </span>
+                    )}
+                  </div>
                   
                   <div className="grid grid-cols-2 gap-2">
                     <div className="bg-amber-50/50 border border-amber-100 p-2.5 rounded-xl text-center">
