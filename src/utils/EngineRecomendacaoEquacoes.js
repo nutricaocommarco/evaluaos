@@ -132,37 +132,27 @@ export function recomendarEquacaoIdeal(medidas = {}, paciente = {}) {
   const soma8 = soma6 + bi + pa
 
   // =================================================================
-  // 🔬 A. CÁLCULO EXATO DE KERR (1988) PARA O TECIDO ADIPOSO (Z-SCORES INDIVIDUAIS)
-  // Utilizando a matriz Phantom original de Ross & Wilson (1974)
+  // 🔬 A. CÁLCULO EXATO DOS 4 COMPONENTES (IDÊNTICO AO LAUDO)
   // =================================================================
-  let massaAdiposaKerr = 0
+  
+  // 1. Tecido Adiposo (Kerr, 1988)
+  let massaAdiposaKerr = 0;
   if (soma6 > 0 && alturaCm > 0) {
-    const hC = 170.18 / alturaCm;
-    const zTri = ((tr * hC) - 15.4) / 4.47;
-    const zSub = ((sub * hC) - 15.2) / 5.10;
-    const zSup = ((se * hC) - 15.4) / 4.47;
-    const zAbd = ((ab * hC) - 25.4) / 7.78;
-    const zCox = ((cx * hC) - 26.9) / 8.33;
-    const zPan = ((pa * hC) - 16.0) / 4.64;
-    
-    const zAdiposoMedia = (zTri + zSub + zSup + zAbd + zCox + zPan) / 6;
-    massaAdiposaKerr = Math.max(0, ((zAdiposoMedia * 5.85) + 25.6) * Math.pow(alturaCm / 170.18, 3));
+    const zAdiposo = ((soma6 * (170.18 / alturaCm)) - 116.41) / 34.79;
+    massaAdiposaKerr = Math.max(0, ((zAdiposo * 5.85) + 25.6) * Math.pow(alturaCm / 170.18, 3));
   }
 
-  // B. Tecido Muscular de Lee (2000)
-  const dUmero = Number(medidas.diametro_umero) || 6.5
-  const dFemur = Number(medidas.diametro_femur) || 9.5
-  const dRadio = Number(medidas.diametro_punho) || 5.0
-  const dMaleolar = Number(medidas.diametro_maleolar) || 6.0
+  // 2. Tecido Muscular (Lee, 2000)
+  const dUmero = Number(medidas.diametro_umero) || 0
+  const dFemur = Number(medidas.diametro_femur) || 0
 
-  const pBraco = Number(medidas.perimetro_braco_contraido || medidas.perimetro_braco_relaxado) || 0
+  const pBraco = Number(medidas.perimetro_braco_relaxado) || 0
   const cCoxa = Number(medidas.perimetro_coxa_media) || 0
-  const cAntebraco = Number(medidas.perimetro_antibraco) || 0
   const cPant = Number(medidas.perimetro_panturrilha) || 0
 
-  const bracoCorr = pBraco - (tr * 0.3141)
-  const coxaCorr = cCoxa - (cx * 0.3141)
-  const pantCorr = cPant - (pa * 0.3141)
+  const bracoCorr = pBraco > 0 ? pBraco - (tr * 0.314) : 0;
+  const coxaCorr = cCoxa > 0 ? cCoxa - (cx * 0.314) : 0;
+  const pantCorr = cPant > 0 ? cPant - (pa * 0.314) : 0;
 
   let massaMuscularLee = 0
   if (alturaM > 0 && pBraco > 0 && cCoxa > 0 && cPant > 0) {
@@ -173,19 +163,19 @@ export function recomendarEquacaoIdeal(medidas = {}, paciente = {}) {
     massaMuscularLee = (alturaM * ((0.00744 * Math.pow(bracoCorr, 2)) + (0.00088 * Math.pow(coxaCorr, 2)) + (0.00441 * Math.pow(pantCorr, 2)))) + (2.4 * sexoNum) - (0.048 * idade) + racaNum + 7.8
   }
 
-  // C. Tecido Ósseo (Rocha 1975)
+  // 3. Tecido Ósseo (Rocha, 1975)
   let massaOsseaRocha = 0
   if (alturaM > 0 && dUmero > 0 && dFemur > 0) {
     massaOsseaRocha = 3.02 * Math.pow(Math.pow(alturaM, 2) * (dUmero / 100) * (dFemur / 100) * 400, 0.712)
   }
 
-  // D. Massa Residual (Würch 1973)
+  // 4. Massa Residual (Würch, 1973)
   const pctResidualWurch = sexo === 'M' ? 0.24 : 0.21
   let massaResidual4C = peso > 0 ? peso * pctResidualWurch : 0
 
   // =================================================================
   // ⚖️ NORMALIZAÇÃO PRÓ-RATA DOS 4 COMPONENTES
-  // Corrige o "Efeito Frankenstein" onde a soma de 4 modelos de regressão diferentes não bate com o peso da balança
+  // Corrige o "Efeito Frankenstein" igual ao ResultadoAvaliacao.jsx
   // =================================================================
   const somaBruta4C = massaAdiposaKerr + massaMuscularLee + massaOsseaRocha + massaResidual4C;
   if (somaBruta4C > 0 && peso > 0) {
@@ -308,17 +298,18 @@ export function recomendarEquacaoIdeal(medidas = {}, paciente = {}) {
       }
     }
 
-    // 🏅 HIERARQUIA 4: TRAVA DE KERR EM KG (O Limite Biológico)
+    // 🏅 HIERARQUIA 4: TRAVA DE KERR EM KG (O Limite Biológico Corrigido)
     const diffKerr = massaGordaSimuladaKg - massaAdiposaKerr
     if (diffKerr <= 0) {
       score += 200
       razoes.push(`Trava de Kerr: A gordura estimada (${massaGordaSimuladaKg.toFixed(1)} kg) respeita perfeitamente o teto do Tecido Adiposo (${massaAdiposaKerr.toFixed(1)} kg).`)
-    } else if (diffKerr <= 10.0) {
-      score += 50
-      razoes.push(`Trava de Kerr (Tolerância): A gordura excede levemente o tecido adiposo em ${diffKerr.toFixed(1)} kg, sendo variação aceitável pela densidade muscular.`)
+    } else if (diffKerr > 0 && diffKerr <= 2.0) {
+      // Pequena margem de erro estatístico das equações preditivas vs fracionamento anatômico
+      score -= 50 
+      razoes.push(`Aviso: A gordura excede levemente o tecido adiposo em ${diffKerr.toFixed(1)} kg (margem de erro da equação).`)
     } else {
-      score -= 300 // Penalidade severa
-      razoes.push(`Aviso Biológico: Superestima a gordura molecular em ${diffKerr.toFixed(1)} kg além da estrutura adiposa palpável.`)
+      score -= 300 // Penalidade severa: quebrou o princípio biológico
+      razoes.push(`Erro Biológico: A equação superestima a Massa Gorda (${massaGordaSimuladaKg.toFixed(1)} kg) acima do Tecido Adiposo total palpável (${massaAdiposaKerr.toFixed(1)} kg).`)
     }
 
     // 👤 HIERARQUIA 5: IDADE E NACIONALIDADE
