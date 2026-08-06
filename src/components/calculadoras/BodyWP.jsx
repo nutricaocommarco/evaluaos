@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Settings, Info, AlertTriangle, TrendingDown, Target, Droplet, Utensils, CalendarDays } from 'lucide-react';
+import { Settings, Info, AlertTriangle, TrendingDown, Target, Droplet, Utensils } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, Area, ComposedChart } from 'recharts';
 import { getBMR } from './CalculadoraGET';
 
@@ -139,18 +139,6 @@ export default function BodyWP({ formData, results, plannerData, setPlannerData,
     });
   };
 
-  const getFormattedDate = (daysToAdd) => { const d = new Date(); d.setDate(d.getDate() + (parseInt(daysToAdd) || 0)); const year = d.getFullYear(); const month = String(d.getMonth() + 1).padStart(2, '0'); const day = String(d.getDate()).padStart(2, '0'); return `${year}-${month}-${day}`; };
-  
-  const handleDateChange = (e) => { 
-    if (!e.target.value) return; 
-    const [year, month, day] = e.target.value.split('-').map(Number); 
-    const selected = new Date(year, month - 1, day); 
-    const today = new Date(); today.setHours(0,0,0,0); 
-    const diffTime = selected.getTime() - today.getTime(); 
-    const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24)); 
-    if (diffDays > 0) { setPlannerData({...plannerData, timeframeDays: diffDays}); } else { setPlannerData({...plannerData, timeframeDays: 1}); } 
-  };
-
   const CustomTooltip = ({ active, payload, label }) => {
     if (active && payload && payload.length) {
       const data = payload[0].payload;
@@ -210,18 +198,53 @@ export default function BodyWP({ formData, results, plannerData, setPlannerData,
           <div className="space-y-4 md:space-y-6">
             {faltaBF && <div className="bg-red-50 border-l-4 border-red-500 p-4 rounded-xl flex gap-3 items-start"><AlertTriangle className="w-5 h-5 text-red-600" /><p className="text-[10px] sm:text-xs font-bold text-red-800">Preencha o %GC no Passo 1 para simular composição.</p></div>}
             
-            {!faltaBF && plannerData.simulationMode === 'target_weight' && (<div><label className="block text-[10px] md:text-xs font-bold text-slate-600 uppercase mb-2">Quero pesar (kg)</label><input type="number" value={plannerData.targetWeight} onChange={(e) => setPlannerData({...plannerData, targetWeight: e.target.value})} className="w-full p-3 md:p-4 border-2 border-slate-300 rounded-xl md:rounded-2xl font-black text-xl md:text-2xl outline-none" /></div>)}
-            {!faltaBF && plannerData.simulationMode === 'target_bf' && (<div><label className="block text-[10px] md:text-xs font-bold text-slate-600 uppercase mb-2">Meta de %GC</label><input type="number" value={plannerData.targetBF} onChange={(e) => setPlannerData({...plannerData, targetBF: e.target.value})} className="w-full p-3 md:p-4 border-2 border-slate-300 rounded-xl md:rounded-2xl font-black text-xl md:text-2xl outline-none" /></div>)}
-            {!faltaBF && plannerData.simulationMode === 'target_fat_loss' && (<div><label className="block text-[10px] md:text-xs font-bold text-slate-600 uppercase mb-2">Kg gordura a perder</label><input type="number" value={plannerData.targetFatLoss} placeholder={`Atual: ${massaGordaAtualKg}kg`} onChange={(e) => setPlannerData({...plannerData, targetFatLoss: e.target.value})} className="w-full p-3 md:p-4 border-2 border-slate-300 rounded-xl md:rounded-2xl font-black text-xl md:text-2xl outline-none" /></div>)}
-            {!faltaBF && plannerData.simulationMode === 'target_calories' && (<div><label className="block text-[10px] md:text-xs font-bold text-slate-600 uppercase mb-2">Dieta Fixa (kcal)</label><input type="number" value={plannerData.targetCalories} onChange={(e) => setPlannerData({...plannerData, targetCalories: e.target.value})} className="w-full p-3 md:p-4 border-2 border-slate-300 rounded-xl md:rounded-2xl font-black text-xl md:text-2xl outline-none" /></div>)}
+            {!faltaBF && plannerData.simulationMode === 'target_weight' && (
+              <div className="animate-in fade-in">
+                <div className="flex justify-between items-center mb-2">
+                  <label className="text-[10px] md:text-xs font-bold text-slate-600 uppercase">Quero pesar (kg)</label>
+                  <span className="text-[9px] md:text-[10px] font-bold text-blue-700 bg-blue-100/50 border border-blue-200 px-2.5 py-1 rounded-md shadow-sm">Atual: {formData.weight || 0} kg</span>
+                </div>
+                <input type="number" value={plannerData.targetWeight} onChange={(e) => setPlannerData({...plannerData, targetWeight: e.target.value})} placeholder={`Ex: ${formData.weight ? (formData.weight - 5).toFixed(1) : 70}`} className="w-full p-3 md:p-4 border-2 border-slate-300 rounded-xl md:rounded-2xl font-black text-xl md:text-2xl outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all" />
+              </div>
+            )}
+            
+            {!faltaBF && plannerData.simulationMode === 'target_bf' && (
+              <div className="animate-in fade-in">
+                <div className="flex justify-between items-center mb-2">
+                  <label className="text-[10px] md:text-xs font-bold text-slate-600 uppercase">Meta de %GC</label>
+                  <span className="text-[9px] md:text-[10px] font-bold text-amber-700 bg-amber-100/50 border border-amber-200 px-2.5 py-1 rounded-md shadow-sm">Atual: {formData.bf || 0}%</span>
+                </div>
+                <input type="number" value={plannerData.targetBF} onChange={(e) => setPlannerData({...plannerData, targetBF: e.target.value})} placeholder={`Ex: ${formData.bf ? (formData.bf - 2).toFixed(1) : 15}`} className="w-full p-3 md:p-4 border-2 border-slate-300 rounded-xl md:rounded-2xl font-black text-xl md:text-2xl outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-100 transition-all" />
+              </div>
+            )}
+            
+            {!faltaBF && plannerData.simulationMode === 'target_fat_loss' && (
+              <div className="animate-in fade-in">
+                <div className="flex justify-between items-center mb-2">
+                  <label className="text-[10px] md:text-xs font-bold text-slate-600 uppercase">Kg gordura a perder</label>
+                  <span className="text-[9px] md:text-[10px] font-bold text-orange-700 bg-orange-100/50 border border-orange-200 px-2.5 py-1 rounded-md shadow-sm">Atual: {massaGordaAtualKg} kg</span>
+                </div>
+                <input type="number" value={plannerData.targetFatLoss} placeholder="Ex: 5" onChange={(e) => setPlannerData({...plannerData, targetFatLoss: e.target.value})} className="w-full p-3 md:p-4 border-2 border-slate-300 rounded-xl md:rounded-2xl font-black text-xl md:text-2xl outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-100 transition-all" />
+              </div>
+            )}
+
+            {!faltaBF && plannerData.simulationMode === 'target_calories' && (
+              <div className="animate-in fade-in">
+                <div className="flex justify-between items-center mb-2">
+                  <label className="text-[10px] md:text-xs font-bold text-slate-600 uppercase">Dieta Fixa (kcal)</label>
+                  <span className="text-[9px] md:text-[10px] font-bold text-emerald-700 bg-emerald-100/50 border border-emerald-200 px-2.5 py-1 rounded-md shadow-sm">GET Atual: {results.tdee} kcal</span>
+                </div>
+                <input type="number" value={plannerData.targetCalories} placeholder={`Ex: ${results.tdee ? results.tdee - 500 : 1500}`} onChange={(e) => setPlannerData({...plannerData, targetCalories: e.target.value})} className="w-full p-3 md:p-4 border-2 border-slate-300 rounded-xl md:rounded-2xl font-black text-xl md:text-2xl outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 transition-all" />
+              </div>
+            )}
 
             <div className="pt-2 border-t border-slate-200/60">
               <label className="block text-[10px] md:text-xs font-bold text-slate-600 uppercase mb-2">Em quanto tempo?</label>
               <div className="flex gap-2 mb-3">
-                <input type="number" value={plannerData.timeframeDays} onChange={(e) => setPlannerData({...plannerData, timeframeDays: e.target.value})} className="w-full p-3 border-2 border-slate-200 rounded-xl font-bold text-lg md:text-xl text-center outline-none" />
+                <input type="number" value={plannerData.timeframeDays} onChange={(e) => setPlannerData({...plannerData, timeframeDays: e.target.value})} className="w-full p-3 border-2 border-slate-200 rounded-xl font-bold text-lg md:text-xl text-center outline-none focus:border-slate-400 focus:ring-2 focus:ring-slate-100 transition-all" />
               </div>
               <div className="flex gap-2 justify-center flex-wrap mb-3">
-                {[30, 90, 180, 365].map(d => <button key={d} onClick={(e) => { e.preventDefault(); setPlannerData({...plannerData, timeframeDays: d})}} className={`text-[10px] md:text-xs px-2.5 md:px-3 py-1.5 font-bold rounded-lg transition-colors ${plannerData.timeframeDays == d ? 'bg-blue-600 text-white' : 'bg-white border border-slate-200 text-slate-600'}`}>{d} dias</button>)}
+                {[30, 90, 180, 365].map(d => <button key={d} onClick={(e) => { e.preventDefault(); setPlannerData({...plannerData, timeframeDays: d})}} className={`text-[10px] md:text-xs px-2.5 md:px-3 py-1.5 font-bold rounded-lg transition-colors ${plannerData.timeframeDays == d ? 'bg-slate-800 text-white shadow-md' : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-100'}`}>{d} dias</button>)}
               </div>
             </div>
 
@@ -231,7 +254,7 @@ export default function BodyWP({ formData, results, plannerData, setPlannerData,
           </div>
 
           {plannerResults ? (
-            <div className="space-y-4 md:space-y-6 h-full flex flex-col justify-center">
+            <div className="space-y-4 md:space-y-6 h-full flex flex-col justify-center animate-in fade-in slide-in-from-right-4 duration-500">
               {plannerWarning && <div className="bg-orange-50 border-l-4 border-orange-500 p-3 md:p-4 rounded-xl flex gap-2 md:gap-3"><AlertTriangle className="w-4 h-4 md:w-5 md:h-5 text-orange-600 flex-shrink-0" /><p className="text-[10px] md:text-xs font-bold text-orange-800">{plannerWarning}</p></div>}
               
               <div className={`bg-white border-2 p-5 md:p-6 rounded-2xl md:rounded-3xl text-center shadow-sm ${plannerData.simulationMode === 'target_calories' ? 'border-emerald-100' : 'border-blue-100'}`}>
@@ -246,8 +269,8 @@ export default function BodyWP({ formData, results, plannerData, setPlannerData,
 
               {plannerResults.bfFinal !== null && (
                 <div className="grid grid-cols-2 gap-2 md:gap-3 pt-1">
-                  <div className="bg-white border border-slate-200 p-3 rounded-xl text-center"><span className="text-[8px] md:text-[9px] font-bold text-slate-400 uppercase block">Gordura Perdida</span><span className="text-lg md:text-xl font-black text-amber-500">{plannerResults.massaGordaPerdidaKg}kg</span></div>
-                  <div className="bg-white border border-slate-200 p-3 rounded-xl text-center"><span className="text-[8px] md:text-[9px] font-bold text-slate-400 uppercase block">Novo %GC</span><span className="text-lg md:text-xl font-black text-emerald-600">{plannerResults.bfFinal}%</span></div>
+                  <div className="bg-white border border-slate-200 p-3 rounded-xl text-center"><span className="text-[8px] md:text-[9px] font-bold text-slate-400 uppercase block mb-1">Gordura Perdida</span><span className="text-lg md:text-xl font-black text-amber-500">{plannerResults.massaGordaPerdidaKg}kg</span></div>
+                  <div className="bg-white border border-slate-200 p-3 rounded-xl text-center"><span className="text-[8px] md:text-[9px] font-bold text-slate-400 uppercase block mb-1">Novo %GC</span><span className="text-lg md:text-xl font-black text-emerald-600">{plannerResults.bfFinal}%</span></div>
                 </div>
               )}
             </div>
