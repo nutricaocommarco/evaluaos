@@ -459,6 +459,8 @@ export default function ResultadoAvaliacao() {
                     (dados?.perda_peso_total_kg && Number(dados.perda_peso_total_kg) < 0) ||
                     (dados?.calorias_fase_mudanca && dados?.gasto_energetico_total && Number(dados.calorias_fase_mudanca) > Number(dados.gasto_energetico_total));
 
+  const superavitKcal = dados?.calorias_fase_mudanca && dados?.gasto_energetico_total ? Number(dados.calorias_fase_mudanca) - Number(dados.gasto_energetico_total) : 0;
+
   const alturaMeters = (aval.altura_paciente || 170) / 100;
   const mlgAtual = massaMagra2C || 50;
   const ffmiCalculado = alturaMeters > 0 ? (mlgAtual / (alturaMeters * alturaMeters)) + (6.1 * (1.8 - alturaMeters)) : 20;
@@ -1127,7 +1129,9 @@ export default function ResultadoAvaliacao() {
                   </div>
                   <div className="text-right">
                     <p className="text-2xl font-black text-emerald-700">{dados.calorias_fase_mudanca}</p>
-                    <p className="text-[9px] text-emerald-600 uppercase font-bold">Kcal / Dia</p>
+                    <p className="text-[9px] text-emerald-600 uppercase font-bold">
+                      Kcal / Dia {superavitKcal > 0 ? `(+${Math.round(superavitKcal)} kcal)` : ''}
+                    </p>
                   </div>
                 </div>
 
@@ -1151,9 +1155,16 @@ export default function ResultadoAvaliacao() {
                 <div className="bg-white border border-slate-200 p-3.5 rounded-xl text-center">
                   <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest block mb-1">Peso Alvo Projetado</span>
                   <span className="text-2xl font-black text-slate-800">{dados.peso_alvo || '-'} <span className="text-sm font-normal text-slate-400">kg</span></span>
-                  {dados.perda_peso_total_kg && (
-                    <span className="text-[10px] font-bold text-emerald-600 block mt-1 bg-emerald-50 rounded-md py-0.5 px-2 w-fit mx-auto">
-                      +{Math.abs(dados.perda_peso_total_kg)} kg de Ganho
+                  {dados.peso_alvo && aval.peso_paciente && (
+                    <span className={`text-[10px] font-bold block mt-1 rounded-md py-0.5 px-2 w-fit mx-auto ${
+                      Number(dados.peso_alvo) >= Number(aval.peso_paciente)
+                        ? 'text-emerald-600 bg-emerald-50'
+                        : 'text-blue-600 bg-blue-50'
+                    }`}>
+                      {Number(dados.peso_alvo) >= Number(aval.peso_paciente)
+                        ? `+${(Number(dados.peso_alvo) - Number(aval.peso_paciente)).toFixed(1)} kg de Ganho`
+                        : `-${(Number(aval.peso_paciente) - Number(dados.peso_alvo)).toFixed(1)} kg de Perda`
+                      }
                     </span>
                   )}
                 </div>
@@ -1167,7 +1178,11 @@ export default function ResultadoAvaliacao() {
                 <div className="bg-white border border-slate-200 p-3.5 rounded-xl text-center">
                   <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest block mb-1">% Gordura Projetado</span>
                   <span className="text-2xl font-black text-slate-800">{dados.meta_bf_percentual || percentualGordura.toFixed(1)} <span className="text-sm font-normal text-slate-400">%</span></span>
-                  <span className="text-[10px] font-bold text-slate-400 block mt-1">Controle de Adiposidade</span>
+                  {dados.meta_bf_percentual && aval.percentual_de_gordura && (
+                    <span className="text-[10px] font-bold text-amber-600 block mt-1 bg-amber-50 rounded-md py-0.5 px-2 w-fit mx-auto">
+                      {(Number(dados.meta_bf_percentual) - Number(aval.percentual_de_gordura)).toFixed(1)}% em Relação ao Atual
+                    </span>
+                  )}
                 </div>
 
               </div>
@@ -1240,9 +1255,16 @@ export default function ResultadoAvaliacao() {
                     <div className={`bg-white border border-slate-200 p-3 rounded-xl flex flex-col justify-center text-center ${!podeExibir('laudo_plan_bf_alvo') ? 'col-span-2' : ''}`}>
                       <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-1">Peso Alvo Projetado</span>
                       <span className="text-2xl font-black text-slate-800">{dados.peso_alvo} <span className="text-sm font-normal text-slate-400">kg</span></span>
-                      {dados.perda_peso_total_kg && (
-                        <span className="text-[10px] font-bold text-emerald-500 mt-1 bg-emerald-50 rounded-md py-0.5 px-2 w-fit mx-auto">
-                          {dados.perda_peso_total_kg > 0 ? `-${dados.perda_peso_total_kg} kg` : `+${Math.abs(dados.perda_peso_total_kg)} kg`}
+                      {dados.peso_alvo && aval.peso_paciente && (
+                        <span className={`text-[10px] font-bold mt-1 rounded-md py-0.5 px-2 w-fit mx-auto ${
+                          Number(dados.peso_alvo) >= Number(aval.peso_paciente)
+                            ? 'text-emerald-600 bg-emerald-50'
+                            : 'text-blue-600 bg-blue-50'
+                        }`}>
+                          {Number(dados.peso_alvo) >= Number(aval.peso_paciente)
+                            ? `+${(Number(dados.peso_alvo) - Number(aval.peso_paciente)).toFixed(1)} kg`
+                            : `-${(Number(aval.peso_paciente) - Number(dados.peso_alvo)).toFixed(1)} kg`
+                          }
                         </span>
                       )}
                     </div>
@@ -1252,9 +1274,9 @@ export default function ResultadoAvaliacao() {
                     <div className={`bg-white border border-slate-200 p-3 rounded-xl flex flex-col justify-center text-center ${!podeExibir('laudo_plan_peso_alvo') ? 'col-span-2' : ''}`}>
                       <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-1">% Gordura Projetado</span>
                       <span className="text-2xl font-black text-slate-800">{dados.meta_bf_percentual || '-'} <span className="text-sm font-normal text-slate-400">%</span></span>
-                      {dados.perda_massa_gorda_kg && (
-                        <span className="text-[10px] font-bold text-amber-500 mt-1 bg-amber-50 rounded-md py-0.5 px-2 w-fit mx-auto">
-                          {dados.perda_massa_gorda_kg > 0 ? `-${dados.perda_massa_gorda_kg} kg Gordura` : `+${Math.abs(dados.perda_massa_gorda_kg)} kg Gordura`}
+                      {dados.meta_bf_percentual && aval.percentual_de_gordura && (
+                        <span className="text-[10px] font-bold text-amber-600 mt-1 bg-amber-50 rounded-md py-0.5 px-2 w-fit mx-auto">
+                          {(Number(dados.meta_bf_percentual) - Number(aval.percentual_de_gordura)).toFixed(1)}% em Relação ao Atual
                         </span>
                       )}
                     </div>
