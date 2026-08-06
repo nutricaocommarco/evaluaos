@@ -17,6 +17,16 @@ export const CATEGORIAS_APRENDIZADO = [
 export const CONTEUDOS_APRENDIZADO = [
   // 📹 1. Vídeos Práticos
   {
+    id: 'video-overview-sistema',
+    titulo: 'EvaluaOS: O Melhor Sistema de Avaliação Antropométrica para Nutricionistas',
+    descricao: 'Faça um tour completo pelo sistema definitivo de avaliação antropométrica. Diga adeus às planilhas e veja como o EvaluaOS funciona na prática.',
+    categoria: 'Uso do EvaluaOS',
+    tipo: 'video',
+    url: 'https://www.youtube.com/watch?v=s0VPmv7gkF0',
+    tempoLeitura: '6 min assistindo',
+    capa: 'https://img.youtube.com/vi/s0VPmv7gkF0/hqdefault.jpg'
+  },
+  {
     id: 'video-perfil-restrito-isak',
     titulo: 'Perfil Restringido ISAK: Protocolo Internacional de Valoração Antropométrica',
     descricao: 'Vídeo oficial demonstrativo mostrando a localização de pontos anatômicos, dobras cutâneas, perímetros e diâmetros do perfil restrito.',
