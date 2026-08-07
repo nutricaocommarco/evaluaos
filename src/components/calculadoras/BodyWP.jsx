@@ -363,7 +363,7 @@ export default function BodyWP({ formData, results, plannerData, setPlannerData,
               
               {/* CARD 1: FAIXA DE PESO ESPERADA (MÍNIMO, MÉDIO E MÁXIMO) */}
               <div className="bg-white border-2 border-blue-100 p-4 md:p-5 rounded-2xl md:rounded-3xl shadow-sm space-y-3">
-                <span className="text-[9px] md:text-[10px] font-bold text-slate-400 uppercase tracking-widest block text-center">Faixa de Peso Esperada (BWP)</span>
+                <span className="text-[9px] md:text-[10px] font-bold text-slate-400 uppercase tracking-widest block text-center">Faixa de Peso Esperada</span>
                 
                 <div className="text-center">
                   <span className="text-[10px] font-bold text-blue-500 uppercase tracking-widest block">Peso Médio Estimado</span>
