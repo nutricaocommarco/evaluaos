@@ -22,8 +22,7 @@ import {
   calcularEnvergaduraRelativa,
   calcularIndiceConicidade,
   classificarConicidade,
-  classificarImo,
-  classificarImoMartin
+  classificarImo
 } from '../utils/escalasNormativas'
 
 const calcularSomatotipo = (medidas) => {
@@ -344,13 +343,17 @@ export default function ResultadoAvaliacao() {
       }
 
       // Massa Muscular - Martin (1990) e Massa Óssea - Martin (1991), usadas só no IMO
-      // (o Fracionamento em 4C acima continua em Lee/Rocha, sem mudança de escopo)
+      // (o Fracionamento em 4C acima continua em Lee/Rocha, sem mudança de escopo).
+      // IMO usa só o método Martin (sem fallback para outra fórmula/escala) para não
+      // pular de escala entre avaliações na Evolução quando os dados mudam de perfil.
       // A correção de perímetro (girth - dobra*0.314) parte de uma camada de gordura fina;
       // em dobras muito altas ela subestima a gordura e infla o músculo (validado com paciente
-      // real: IMC >= 25 chegou a estimar quase metade do peso corporal em músculo). Por isso
-      // só usamos Martin dentro do perfil em que ele foi validado (sem sobrepeso/obesidade).
+      // real: dobras de coxa/panturrilha bem acima do normal chegaram a estimar quase metade
+      // do peso corporal em músculo). O gate é pela dobra em si, não por IMC/peso — um
+      // fisiculturista tem perímetro grande mas dobra fina, então continua entrando normalmente;
+      // quem tem dobra grossa (a causa real do erro) que fica de fora, mostrando "-" no IMO.
       const pAntebraco = Number(avalDados.perimetro_antibraco) || 0;
-      const dentroFaixaSeguraMartin = calcImc > 0 && calcImc < 25;
+      const dentroFaixaSeguraMartin = dCoxa > 0 && dCoxa < 25 && dPant > 0 && dPant < 25;
       let calcMuscularMartin = 0;
       if (dentroFaixaSeguraMartin && alturaCm > 0 && calcPerimCorrigidoCoxa > 0 && pAntebraco > 0 && calcPerimCorrigidoPanturrilha > 0) {
         calcMuscularMartin = ((alturaCm * ((0.0553 * Math.pow(calcPerimCorrigidoCoxa, 2)) + (0.0987 * Math.pow(pAntebraco, 2)) + (0.0331 * Math.pow(calcPerimCorrigidoPanturrilha, 2)))) - 2445) * 0.001;
@@ -400,10 +403,7 @@ export default function ResultadoAvaliacao() {
 
       const somatotipo = calcularSomatotipo(avalDados)
       const iamVal = (calcMuscular > 0 && calcKerr > 0) ? (calcKerr / calcMuscular) : 0
-      const usouMartinNoImo = calcMuscularMartin > 0 && calcOsseaMartin > 0
-      const imoVal = usouMartinNoImo
-        ? (calcMuscularMartin / calcOsseaMartin)
-        : ((calcMuscular > 0 && calcRocha > 0) ? (calcMuscular / calcRocha) : 0)
+      const imoVal = (calcMuscularMartin > 0 && calcOsseaMartin > 0) ? (calcMuscularMartin / calcOsseaMartin) : 0
 
       // BUSCAR DADOS DE PLANEJAMENTO DO BANCO DE DADOS
       const { data: calcSalvoNoBanco } = await supabase
@@ -446,7 +446,6 @@ export default function ResultadoAvaliacao() {
         calcKerr,
         calcRocha,
         calcWurch,
-        usouMartinNoImo,
         avaliacoes: avalDados,
         pacientes: pac
       })
@@ -535,7 +534,7 @@ export default function ResultadoAvaliacao() {
 
   const iamVal = dados.indice_adiposo_muscular || 0
   const imoVal = dados.indice_massa_ossea_imo || 0
-  const infoImo = dados.usouMartinNoImo ? classificarImoMartin(imoVal, pac.sexo) : classificarImo(imoVal, pac.sexo)
+  const infoImo = classificarImo(imoVal, pac.sexo)
   const apvatVal = dados.area_previsao_visceral_apvat || 0
 
   const infoApVat = classificarApVat ? classificarApVat(apvatVal, pac.sexo) : { classificacao: '-', cor: 'gray' };

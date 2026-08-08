@@ -236,30 +236,9 @@ export function classificarConicidade(indice, sexo) {
   }
 }
 
-// 9.5 CLASSIFICAÇÃO DO ÍNDICE MÚSCULO-ÓSSEO (IMO) - Kerr & Ross (1988), tabela normativa Holway (Argentinos 20-30 anos)
+// 9.5 CLASSIFICAÇÃO DO ÍNDICE MÚSCULO-ÓSSEO (IMO) - Massa Muscular (Martin 1990) /
+// Massa Óssea (Martin 1991), tabela normativa Holway (dados não publicados, atletas argentinos)
 export function classificarImo(imo, sexo) {
-  if (!imo || imo <= 0) return { classificacao: '-', cor: 'gray' };
-
-  if (sexo === 'M') {
-    if (imo < 3.4) return { classificacao: 'Muito Baixo', cor: 'blue' };
-    if (imo < 3.8) return { classificacao: 'Baixo', cor: 'emerald' };
-    if (imo < 5.0) return { classificacao: 'Normal', cor: 'emerald' };
-    if (imo < 5.2) return { classificacao: 'Elevado', cor: 'amber' };
-    return { classificacao: 'Muito Elevado', cor: 'red' };
-  } else {
-    if (imo < 2.7) return { classificacao: 'Muito Baixo', cor: 'blue' };
-    if (imo < 3.1) return { classificacao: 'Baixo', cor: 'emerald' };
-    if (imo < 4.0) return { classificacao: 'Normal', cor: 'emerald' };
-    if (imo < 4.2) return { classificacao: 'Elevado', cor: 'amber' };
-    return { classificacao: 'Muito Elevado', cor: 'red' };
-  }
-}
-
-// 9b. CLASSIFICAÇÃO DE IMO - Escala Martin (Holway, dados não publicados, atletas argentinos)
-// Usar só quando o IMO em questão foi calculado com Massa Muscular (Martin 1990) /
-// Massa Óssea (Martin 1991) — o método Martin tende a estimar músculo mais alto que o
-// Lee/Rocha usado em classificarImo, então precisa da sua própria régua de corte.
-export function classificarImoMartin(imo, sexo) {
   if (!imo || imo <= 0) return { classificacao: '-', cor: 'gray' };
 
   if (sexo === 'M') {

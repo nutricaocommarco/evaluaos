@@ -170,10 +170,10 @@ export function recomendarEquacaoIdeal(medidas = {}, paciente = {}) {
   }
 
   // Massa Muscular - Martin (1990) e Massa Óssea - Martin (1991), usadas só no IMO
-  // Só dentro da faixa em que a correção de perímetro por dobra é confiável (ver
-  // ResultadoAvaliacao.jsx para o racional completo: sem sobrepeso/obesidade)
-  const imcGateMartin = alturaM > 0 ? peso / (alturaM * alturaM) : 0
-  const dentroFaixaSeguraMartin = imcGateMartin > 0 && imcGateMartin < 25
+  // Gate pela dobra de coxa/panturrilha (não por IMC/peso — ver ResultadoAvaliacao.jsx
+  // para o racional completo: um fisiculturista tem perímetro grande mas dobra fina e
+  // continua entrando; quem tem dobra grossa, a causa real do erro de correção, fica de fora)
+  const dentroFaixaSeguraMartin = cx > 0 && cx < 25 && pa > 0 && pa < 25
   const pAntebraco = Number(medidas.perimetro_antibraco) || 0
   let massaMuscularMartin = 0
   if (dentroFaixaSeguraMartin && alturaCm > 0 && coxaCorr > 0 && pAntebraco > 0 && pantCorr > 0) {
@@ -210,9 +210,8 @@ export function recomendarEquacaoIdeal(medidas = {}, paciente = {}) {
   const pctAdiposoKerr = peso > 0 ? Number(((massaAdiposaKerr / peso) * 100).toFixed(2)) : 0
 
   // E. Índices IMO e IAM (Baseados nas massas já ajustadas)
-  const imoLeeRocha = (massaMuscularMartin > 0 && massaOsseaMartin > 0)
-    ? (massaMuscularMartin / massaOsseaMartin)
-    : ((massaMuscularLee > 0 && massaOsseaRocha > 0) ? (massaMuscularLee / massaOsseaRocha) : 0)
+  // IMO usa só Martin (sem fallback pro Lee/Rocha) pra não pular de escala entre avaliações
+  const imoLeeRocha = (massaMuscularMartin > 0 && massaOsseaMartin > 0) ? (massaMuscularMartin / massaOsseaMartin) : 0
   const iamVal = (massaMuscularLee > 0 && massaAdiposaKerr > 0) ? (massaAdiposaKerr / massaMuscularLee) : 0
 
   // F. Somatotipo (Endomorfia / Mesomorfia)

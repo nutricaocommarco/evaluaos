@@ -6,7 +6,7 @@ import {
   ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend
 } from 'recharts'
 import BotaoExportarEvolucaoPDF from '../components/BotaoExportarEvolucaoPDF'
-import { classificarArgoref, classificarApVat, calcularIndiceConicidade, classificarConicidade, classificarImo, classificarImoMartin } from '../utils/escalasNormativas'
+import { classificarArgoref, classificarApVat, calcularIndiceConicidade, classificarConicidade, classificarImo } from '../utils/escalasNormativas'
 import { useTheme } from '../contexts/ThemeContext'
 
 export default function EvolucaoPaciente() {
@@ -191,11 +191,6 @@ export default function EvolucaoPaciente() {
           cintura_estatura: Number(calc.relacao_cintura_estatura || 0).toFixed(2),
           cintura_quadril: Number(calc.relacao_cintura_quadril || 0).toFixed(2),
           imo: Number(calc.indice_massa_ossea_imo || 0).toFixed(3),
-          // Mesmo gate usado no Laudo pro IMO Martin (campos presentes + sem sobrepeso/obesidade)
-          usou_martin_imo: Number(calc.imc || 0) > 0 && Number(calc.imc || 0) < 25
-            && Number(aval.perimetro_antibraco || 0) > 0
-            && Number(aval.diametro_punho || 0) > 0
-            && Number(aval.diametro_maleolar || 0) > 0,
           apvat: Number(apvatCalculado).toFixed(1),
           conicidade: calcularIndiceConicidade(aval.peso_paciente, aval.altura_paciente, aval.perimetro_cintura).toFixed(2),
           iam: Number(calc.indice_adiposo_muscular || 0).toFixed(2),
@@ -505,9 +500,7 @@ export default function EvolucaoPaciente() {
   const infoConicidadeEvolucao = classificarConicidade(ultimaConicidade, pacienteLocal?.sexo);
 
   const ultimoImo = Number(historico[historico.length - 1]?.imo || 0);
-  const infoImoEvolucao = historico[historico.length - 1]?.usou_martin_imo
-    ? classificarImoMartin(ultimoImo, pacienteLocal?.sexo)
-    : classificarImo(ultimoImo, pacienteLocal?.sexo);
+  const infoImoEvolucao = classificarImo(ultimoImo, pacienteLocal?.sexo);
 
   return (
     <div className="w-full max-w-6xl mx-auto space-y-10 pb-12 px-4 sm:px-6 overflow-x-hidden animate-fade-in-up print:m-0 print:p-0 print:overflow-visible">
