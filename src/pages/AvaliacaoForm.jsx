@@ -106,7 +106,7 @@ const calcularSomatotipo = (medidas) => {
   }
 }
 
-// COMPONENTE DE LINHA DE MEDIÇÃO COM BLOQUEIO DE SEGURANÇA E WHEEL DISABLE
+// COMPONENTE DE LINHA DE MEDIÇÃO COM DESBLOQUEIO POR CLIQUE (SEM LOOP DE FOCO)
 const MeasureRow = ({ label, field, categoryType, state, setter, isSingleMode, handleMeasureChange, tolerancias, alturaBanco }) => {
   const { m1, m2, m3 } = state[field] || { m1: '', m2: '', m3: '' }
   const v1 = parseFloat(m1)
@@ -119,7 +119,7 @@ const MeasureRow = ({ label, field, categoryType, state, setter, isSingleMode, h
     m3: !!m3
   })
 
-  // Atualiza trava se o valor for preenchido externamente (ex: edição de avaliação)
+  // Sincroniza estado de trava quando os valores forem alterados externamente
   useEffect(() => {
     setLocked({
       m1: !!m1,
@@ -128,19 +128,17 @@ const MeasureRow = ({ label, field, categoryType, state, setter, isSingleMode, h
     })
   }, [m1, m2, m3])
 
-  // Trata o clique/foco num campo que já tem número
-  const handleInputFocus = (e, key) => {
+  // Desbloqueia com confirmação apenas ao dar clique no campo travado
+  const handleInputClick = (key) => {
     if (locked[key] && state[field]?.[key]) {
-      const confirmar = window.confirm(`Deseja alterar a medida "${label}" (${key.toUpperCase()}: ${state[field][key]})?`)
+      const confirmar = window.confirm(`Deseja desbloquear e alterar a medida "${label}" (${key.toUpperCase()}: ${state[field][key]})?`)
       if (confirmar) {
         setLocked(prev => ({ ...prev, [key]: false }))
-      } else {
-        e.target.blur()
       }
     }
   }
 
-  // Trava o campo assim que o usuário sai dele após digitar um valor
+  // Trava novamente ao sair do campo (onBlur)
   const handleInputBlur = (key) => {
     if (state[field]?.[key]) {
       setLocked(prev => ({ ...prev, [key]: true }))
@@ -208,43 +206,56 @@ const MeasureRow = ({ label, field, categoryType, state, setter, isSingleMode, h
       </div>
 
       <div className="col-span-6 grid grid-cols-3 gap-2">
+        {/* Campo M1 */}
         <input 
           type="number" 
           step="0.1" 
           tabIndex={tabIndexM1} 
           value={m1} 
+          readOnly={locked.m1}
+          onClick={() => handleInputClick('m1')}
           onWheel={(e) => e.target.blur()}
-          onFocus={(e) => handleInputFocus(e, 'm1')}
           onBlur={() => handleInputBlur('m1')}
           onChange={(e) => handleMeasureChange(setter, field, 'm1', e.target.value)} 
-          className="w-full px-2 py-1.5 border rounded-md text-sm text-center focus:border-emerald-500 bg-white" 
+          className={`w-full px-2 py-1.5 border rounded-md text-sm text-center focus:border-emerald-500 transition-colors ${
+            locked.m1 ? 'bg-slate-50 cursor-pointer font-bold text-slate-800 border-slate-200' : 'bg-white font-normal'
+          }`} 
           placeholder={isSingleMode ? "Valor" : "1ª"} 
         />
         {!isSingleMode && (
           <>
+            {/* Campo M2 */}
             <input 
               type="number" 
               step="0.1" 
               tabIndex={tabIndexM2} 
               value={m2} 
+              readOnly={locked.m2}
+              onClick={() => handleInputClick('m2')}
               onWheel={(e) => e.target.blur()}
-              onFocus={(e) => handleInputFocus(e, 'm2')}
               onBlur={() => handleInputBlur('m2')}
               onChange={(e) => handleMeasureChange(setter, field, 'm2', e.target.value)} 
-              className="w-full px-2 py-1.5 border rounded-md text-sm text-center focus:border-emerald-500 bg-white" 
+              className={`w-full px-2 py-1.5 border rounded-md text-sm text-center focus:border-emerald-500 transition-colors ${
+                locked.m2 ? 'bg-slate-50 cursor-pointer font-bold text-slate-800 border-slate-200' : 'bg-white font-normal'
+              }`} 
               placeholder="2ª" 
             />
+            {/* Campo M3 */}
             <input 
               type="number" 
               step="0.1" 
               tabIndex={tabIndexM3} 
               disabled={!needsThird} 
-              value={m3} 
+              readOnly={locked.m3}
+              onClick={() => handleInputClick('m3')}
               onWheel={(e) => e.target.blur()}
-              onFocus={(e) => handleInputFocus(e, 'm3')}
               onBlur={() => handleInputBlur('m3')}
               onChange={(e) => handleMeasureChange(setter, field, 'm3', e.target.value)} 
-              className={`w-full px-2 py-1.5 border rounded-md text-sm text-center transition-colors ${needsThird ? 'ring-2 ring-red-400 bg-red-50 focus:ring-red-500' : 'opacity-40 bg-gray-100 cursor-not-allowed'}`} 
+              className={`w-full px-2 py-1.5 border rounded-md text-sm text-center transition-colors ${
+                needsThird 
+                  ? (locked.m3 ? 'bg-red-100 cursor-pointer font-bold text-red-900 border-red-300' : 'ring-2 ring-red-400 bg-red-50 focus:ring-red-500') 
+                  : 'opacity-40 bg-gray-100 cursor-not-allowed'
+              }`} 
               placeholder="3ª" 
             />
           </>
@@ -562,7 +573,7 @@ export default function AvaliacaoForm() {
 
     if (calcError) {
       console.error('Erro ao salvar cálculos:', calcError)
-      alert('As medidas foram salvas, mas houve um erro ao gerar o relatório calculated.')
+      alert('As medidas foram salvas, mas houve um erro ao gerar o relatório calculado.')
     } else {
       alert('Medidas salvas! Indo para o cálculo de gordura...')
       navigate('/equacoes-de-regressao', { 
