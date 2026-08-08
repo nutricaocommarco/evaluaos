@@ -106,7 +106,7 @@ const calcularSomatotipo = (medidas) => {
   }
 }
 
-// COMPONENTE DE LINHA DE MEDIÇÃO COM DESBLOQUEIO DIRETO E GARANTIDO
+// COMPONENTE DE LINHA DE MEDIÇÃO
 const MeasureRow = ({ label, field, categoryType, state, setter, isSingleMode, handleMeasureChange, tolerancias, alturaBanco, isEditingExisting }) => {
   const { m1, m2, m3 } = state[field] || { m1: '', m2: '', m3: '' }
   const v1 = parseFloat(m1)
@@ -117,11 +117,18 @@ const MeasureRow = ({ label, field, categoryType, state, setter, isSingleMode, h
   const inputRefM2 = useRef(null)
   const inputRefM3 = useRef(null)
 
-  // Estado de trava inicial (apenas se for edição de avaliação já gravada)
+  // Estado de trava inicial (para avaliações existentes)
   const [unlocked, setUnlocked] = useState({
     m1: !isEditingExisting,
     m2: !isEditingExisting,
     m3: !isEditingExisting
+  })
+
+  // Trava manual acumulada (para novas medições que são concluídas via onBlur)
+  const [lockedOnBlur, setLockedOnBlur] = useState({
+    m1: false,
+    m2: false,
+    m3: false
   })
 
   // Rastreia o estado de desconto do banco
@@ -131,13 +138,21 @@ const MeasureRow = ({ label, field, categoryType, state, setter, isSingleMode, h
     m3: false
   })
 
-  // Função limpa para solicitar desbloqueio e colocar o foco
+  // Ao sair do campo (onBlur), se houver número preenchido, ativa o bloqueio
+  const handleFieldBlur = (key) => {
+    if (state[field]?.[key] !== '' && state[field]?.[key] !== undefined) {
+      setLockedOnBlur(prev => ({ ...prev, [key]: true }))
+    }
+  }
+
+  // Função para solicitar desbloqueio
   const requestUnlock = (key, inputRef) => {
     const currentValue = state[field]?.[key]
-    if (currentValue && !unlocked[key]) {
+    if (currentValue) {
       const ok = window.confirm(`Deseja alterar a medida "${label}" (${key.toUpperCase()}: ${currentValue})?`)
       if (ok) {
         setUnlocked(prev => ({ ...prev, [key]: true }))
+        setLockedOnBlur(prev => ({ ...prev, [key]: false }))
         setTimeout(() => {
           if (inputRef.current) {
             inputRef.current.focus()
@@ -232,7 +247,8 @@ const MeasureRow = ({ label, field, categoryType, state, setter, isSingleMode, h
   // Helper para renderizar os campos de entrada
   const renderInputField = (key, val, tabIndex, ref, isThirdDisabled = false) => {
     const isFieldValuePresent = !!val
-    const isFieldLocked = isFieldValuePresent && !unlocked[key]
+    // O campo é travado se tiver valor E (estiver no modo de edição existente OU já foi concluído via onBlur) E não tiver sido desbloqueado
+    const isFieldLocked = isFieldValuePresent && (!unlocked[key] || lockedOnBlur[key])
 
     return (
       <div className="relative flex items-center">
@@ -243,6 +259,7 @@ const MeasureRow = ({ label, field, categoryType, state, setter, isSingleMode, h
           tabIndex={tabIndex} 
           value={val} 
           disabled={isThirdDisabled || isFieldLocked}
+          onBlur={() => handleFieldBlur(key)}
           onWheel={(e) => e.target.blur()}
           onChange={(e) => handleChangeMeasure(key, e.target.value)} 
           className={`w-full px-2 py-1.5 border rounded-md text-sm text-center transition-all ${
