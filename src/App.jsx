@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { BrowserRouter, Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom'
 import { supabase } from './supabaseClient'
+import { ThemeProvider } from './contexts/ThemeContext'
 
 // Importando suas telas 
 import HomePublica from './pages/HomePublica'
@@ -106,8 +107,8 @@ function MainApp() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <p className="text-emerald-600 font-bold animate-pulse text-xl">Carregando EvaluaOS...</p>
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-slate-950">
+        <p className="text-primary-600 font-bold animate-pulse text-xl">Carregando EvaluaOS...</p>
       </div>
     )
   }
@@ -139,7 +140,7 @@ function MainApp() {
 
   // 🟢 USUÁRIO LOGADO
   return (
-    <div className="flex h-screen bg-gray-50 overflow-hidden">
+    <div className="flex h-screen bg-gray-50 dark:bg-slate-950 overflow-hidden">
       <AnalyticsTracker />
       
       {isSidebarOpen && (
@@ -151,14 +152,14 @@ function MainApp() {
 
       <aside 
         className={`
-          fixed md:relative z-50 h-full bg-white shadow-xl border-r border-gray-100 flex flex-col transition-all duration-300 ease-in-out
+          fixed md:relative z-50 h-full bg-white dark:bg-slate-900 shadow-xl border-r border-gray-100 dark:border-slate-800 flex flex-col transition-all duration-300 ease-in-out
           ${isSidebarOpen ? 'w-64 translate-x-0' : 'w-20 -translate-x-full md:translate-x-0'}
         `}
       >
-        <div className="h-[72px] flex items-center justify-center border-b border-gray-100">
-          <button 
+        <div className="h-[72px] flex items-center justify-center border-b border-gray-100 dark:border-slate-800">
+          <button
             onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-            className="p-2 text-gray-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors focus:outline-none"
+            className="p-2 text-gray-400 hover:text-primary-600 hover:bg-primary-50 dark:hover:bg-primary-900/20 dark:bg-primary-900/20 dark:hover:bg-primary-900/30 dark:bg-primary-900/20 rounded-lg transition-colors focus:outline-none"
             title="Menu"
           >
             <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -180,9 +181,9 @@ function MainApp() {
               }}
               className={`
                 flex items-center p-3 rounded-xl transition-all duration-200 overflow-hidden group
-                ${currentPath.startsWith(item.path) 
-                  ? 'bg-emerald-600 text-white shadow-md' 
-                  : 'text-gray-500 hover:bg-gray-100 hover:text-emerald-700'
+                ${currentPath.startsWith(item.path)
+                  ? 'bg-primary-600 text-white shadow-md'
+                  : 'text-gray-500 dark:text-slate-400 hover:bg-gray-100 dark:hover:bg-slate-700 dark:hover:bg-slate-800 hover:text-primary-700 dark:hover:text-primary-400'
                 }
               `}
             >
@@ -199,10 +200,10 @@ function MainApp() {
 
       <div className="flex-1 flex flex-col h-screen overflow-hidden">
         
-        <header className="bg-white shadow-sm border-b border-gray-100 px-4 h-[72px] flex justify-between items-center shrink-0">
+        <header className="bg-white dark:bg-slate-900 shadow-sm border-b border-gray-100 dark:border-slate-800 px-4 h-[72px] flex justify-between items-center shrink-0">
           <div className="flex items-center gap-3">
-            <button 
-              className="md:hidden p-2 -ml-2 text-gray-500 hover:text-emerald-600 focus:outline-none"
+            <button
+              className="md:hidden p-2 -ml-2 text-gray-500 dark:text-slate-400 hover:text-primary-600 focus:outline-none"
               onClick={() => setIsSidebarOpen(true)}
             >
               <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -218,19 +219,19 @@ function MainApp() {
             >
               <img src="/Imagens/Logo_png.png" alt="EvaluaOS" className="h-[70px] w-auto object-contain" />
               <div className="hidden sm:flex flex-col">
-                <span className="text-sm font-black text-gray-800 tracking-tight">EvaluaOS</span>
-                <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Antropometria</span>
+                <span className="text-sm font-black text-gray-800 dark:text-slate-100 tracking-tight">EvaluaOS</span>
+                <span className="text-[10px] text-gray-400 dark:text-slate-400 font-bold uppercase tracking-wider">Antropometria</span>
               </div>
             </div>
           </div>
 
           <div className="flex items-center gap-4">
-            <span className="text-xs sm:text-sm font-medium text-gray-600 truncate max-w-[150px] sm:max-w-none">
+            <span className="text-xs sm:text-sm font-medium text-gray-600 dark:text-slate-400 truncate max-w-[150px] sm:max-w-none">
               {session.user.email}
             </span>
             <button
               onClick={handleLogout}
-              className="px-4 py-2 text-xs font-bold text-red-500 bg-red-50 hover:bg-red-100 rounded-lg transition-colors"
+              className="px-4 py-2 text-xs font-bold text-red-500 bg-red-50 dark:bg-red-950/40 dark:bg-red-900/20 hover:bg-red-100 dark:hover:bg-red-950/70 dark:bg-red-900/20 rounded-lg transition-colors"
             >
               Sair
             </button>
@@ -259,11 +260,11 @@ function MainApp() {
 
             <Route path="*" element={
               <div className="flex flex-col items-center justify-center h-full text-center p-6">
-                <div className="w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center text-gray-300 mb-6">
+                <div className="w-24 h-24 bg-gray-100 dark:bg-slate-800 rounded-full flex items-center justify-center text-gray-300 dark:text-slate-600 mb-6">
                   <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2v20"></path><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg>
                 </div>
-                <h2 className="text-2xl font-black text-gray-800 mb-2">Página em Construção</h2>
-                <p className="text-gray-500 max-w-md">
+                <h2 className="text-2xl font-black text-gray-800 dark:text-slate-100 mb-2">Página em Construção</h2>
+                <p className="text-gray-500 dark:text-slate-400 max-w-md">
                   A seção selecionada está sendo desenvolvida. Em breve você poderá acessá-la por aqui!
                 </p>
               </div>
@@ -279,7 +280,9 @@ function MainApp() {
 export default function App() {
   return (
     <BrowserRouter>
-      <MainApp />
+      <ThemeProvider>
+        <MainApp />
+      </ThemeProvider>
     </BrowserRouter>
   )
 }

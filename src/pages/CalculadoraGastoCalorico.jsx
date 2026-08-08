@@ -162,37 +162,37 @@ export default function CalculadoraGastoCalorico() {
   const faltaBF_Save = (objetivoPlano === 'hipertrofia' || (objetivoPlano === 'emagrecimento' && precisaBF)) && (!formData.bf || formData.bf <= 0);
 
   return (
-    <section className="py-6 md:py-24 bg-slate-50 px-2 sm:px-6 container mx-auto max-w-5xl text-left">
+    <section className="py-6 md:py-24 bg-slate-50 dark:bg-slate-800 px-2 sm:px-6 container mx-auto max-w-5xl text-left">
 
       {/* SEÇÃO DE PESQUISA DE PACIENTE (Z-INDEX AJUSTADO) */}
-      <div className="bg-white p-4 sm:p-8 rounded-[1.5rem] md:rounded-[2rem] shadow-sm border border-emerald-100 mb-6 sm:mb-8 relative z-10">
+      <div className="bg-white dark:bg-slate-900 p-4 sm:p-8 rounded-[1.5rem] md:rounded-[2rem] shadow-sm border border-primary-100 dark:border-primary-900/40 mb-6 sm:mb-8 relative z-10">
         <div>
-          <h2 className="text-xl font-bold text-slate-800">Planejamento Dietético e Metas</h2>
-          <p className="text-sm text-slate-500 mb-4">Selecione o paciente e a avaliação para importar os dados e salvar o plano.</p>
+          <h2 className="text-xl font-bold text-slate-800 dark:text-slate-200">Planejamento Dietético e Metas</h2>
+          <p className="text-sm text-slate-500 dark:text-slate-400 mb-4">Selecione o paciente e a avaliação para importar os dados e salvar o plano.</p>
         </div>
 
         <div className="space-y-2 relative" ref={dropdownRef}>
-          <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider">Pesquisar Paciente</label>
-          <input type="text" value={busca} onChange={(e) => { setBusca(e.target.value); setShowDropdown(true); }} onFocus={() => setShowDropdown(true)} placeholder="Digite o nome..." className="w-full px-4 py-3 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-emerald-500 outline-none transition-all" />
+          <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wider">Pesquisar Paciente</label>
+          <input type="text" value={busca} onChange={(e) => { setBusca(e.target.value); setShowDropdown(true); }} onFocus={() => setShowDropdown(true)} placeholder="Digite o nome..." className="w-full px-4 py-3 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 outline-none transition-all" />
           {showDropdown && pacientesFiltrados.length > 0 && (
-            <ul className="absolute z-30 w-full mt-1 bg-white border border-slate-200 rounded-lg shadow-xl max-h-60 overflow-y-auto">
+            <ul className="absolute z-30 w-full mt-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg shadow-xl max-h-60 overflow-y-auto">
               {pacientesFiltrados.map(p => (
-                <li key={p.id} onClick={() => selecionarPacienteBusca(p)} className="px-4 py-3 cursor-pointer hover:bg-emerald-50 text-sm font-medium border-b border-slate-100 last:border-0">{p.nome_completo} <span className="text-xs text-slate-400 font-normal ml-2">({p.sexo})</span></li>
+                <li key={p.id} onClick={() => selecionarPacienteBusca(p)} className="px-4 py-3 cursor-pointer hover:bg-primary-50 dark:hover:bg-primary-900/20 dark:bg-primary-900/20 text-sm font-medium border-b border-slate-100 dark:border-slate-800 last:border-0">{p.nome_completo} <span className="text-xs text-slate-400 dark:text-slate-400 font-normal ml-2">({p.sexo})</span></li>
               ))}
             </ul>
           )}
         </div>
 
         {pacienteSelecionado && avaliacaoAtual && (
-          <div className="mt-6 flex flex-col sm:flex-row justify-between items-start sm:items-center bg-emerald-50/50 border border-emerald-100 rounded-lg p-4 gap-4 animate-in fade-in">
+          <div className="mt-6 flex flex-col sm:flex-row justify-between items-start sm:items-center bg-primary-50/50 dark:bg-primary-900/20 border border-primary-100 dark:border-primary-900/40 rounded-lg p-4 gap-4 animate-in fade-in">
             <div>
-              <p className="text-sm text-slate-700">Avaliando: <strong className="text-emerald-800">{pacienteSelecionado.nome_completo}</strong></p>
-              <p className="text-xs text-slate-500 mt-1">Peso Base Coletado: {avaliacaoAtual.peso_paciente || 0} kg</p>
+              <p className="text-sm text-slate-700 dark:text-slate-300">Avaliando: <strong className="text-primary-800 dark:text-primary-300">{pacienteSelecionado.nome_completo}</strong></p>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">Peso Base Coletado: {avaliacaoAtual.peso_paciente || 0} kg</p>
             </div>
             {historicoAvaliacoes.length > 0 && (
               <div className="w-full sm:w-auto">
-                <label className="block text-[10px] font-bold text-emerald-700 uppercase mb-1">Avaliação Selecionada</label>
-                <select value={avaliacaoAtual.id} onChange={(e) => selecionarAvaliacaoDoHistorico(e.target.value)} className="w-full sm:w-48 px-3 py-2 border border-emerald-200 rounded-md text-sm outline-none bg-white font-semibold">
+                <label className="block text-[10px] font-bold text-primary-700 dark:text-primary-400 uppercase mb-1">Avaliação Selecionada</label>
+                <select value={avaliacaoAtual.id} onChange={(e) => selecionarAvaliacaoDoHistorico(e.target.value)} className="w-full sm:w-48 px-3 py-2 border border-primary-200 dark:border-primary-800 rounded-md text-sm outline-none bg-white dark:bg-slate-900 font-semibold">
                   {historicoAvaliacoes.map(hist => <option key={hist.id} value={hist.id}>{new Date(hist.data_avaliacao).toLocaleDateString('pt-BR')} (Ref: {String(hist.id).slice(0, 4)})</option>)}
                 </select>
               </div>
@@ -201,7 +201,7 @@ export default function CalculadoraGastoCalorico() {
         )}
       </div>
 
-      <div className="bg-white p-2 sm:p-10 md:p-16 rounded-[1.5rem] sm:rounded-[2.5rem] md:rounded-[4rem] shadow-2xl border border-slate-100 flex flex-col gap-6 md:gap-12">
+      <div className="bg-white dark:bg-slate-900 p-2 sm:p-10 md:p-16 rounded-[1.5rem] sm:rounded-[2.5rem] md:rounded-[4rem] shadow-2xl border border-slate-100 dark:border-slate-800 flex flex-col gap-6 md:gap-12">
 
         {/* COMPONENTE 1: CALCULADORA BÁSICA E TDEE */}
         <CalculadoraGET 
@@ -214,28 +214,28 @@ export default function CalculadoraGastoCalorico() {
 
         {/* HUB DE PLANEJAMENTO METABÓLICO (SÓ APARECE APÓS CALCULAR O TDEE) */}
         {results && (
-          <div className="bg-white p-2 sm:p-10 md:p-16 rounded-[1.5rem] sm:rounded-[2.5rem] md:rounded-[4rem] shadow-2xl border border-slate-200 flex flex-col gap-6 md:gap-8 mt-6 md:mt-12 animate-in slide-in-from-bottom-10">
+          <div className="bg-white dark:bg-slate-900 p-2 sm:p-10 md:p-16 rounded-[1.5rem] sm:rounded-[2.5rem] md:rounded-[4rem] shadow-2xl border border-slate-200 dark:border-slate-700 flex flex-col gap-6 md:gap-8 mt-6 md:mt-12 animate-in slide-in-from-bottom-10">
 
             <div className="text-center mb-2 md:mb-4 px-2">
-              <h2 className="text-2xl md:text-4xl font-black text-slate-900 uppercase italic">
+              <h2 className="text-2xl md:text-4xl font-black text-slate-900 dark:text-slate-100 uppercase italic">
                 Hub de Planejamento <span className="text-blue-600">Metabólico</span>
               </h2>
-              <p className="text-slate-500 font-medium text-xs sm:text-sm mt-2 max-w-2xl mx-auto">
+              <p className="text-slate-500 dark:text-slate-400 font-medium text-xs sm:text-sm mt-2 max-w-2xl mx-auto">
                 Selecione o objetivo principal do paciente para simular a dieta, calcular adaptações e projetar a composição corporal futura.
               </p>
             </div>
 
             {/* SELETOR DE ABAS */}
-            <div className="flex bg-slate-100 p-1 md:p-1.5 rounded-[1.5rem] w-full max-w-lg mx-auto shadow-inner border border-slate-200/60">
+            <div className="flex bg-slate-100 dark:bg-slate-800 p-1 md:p-1.5 rounded-[1.5rem] w-full max-w-lg mx-auto shadow-inner border border-slate-200/60">
               <button 
                 onClick={() => setObjetivoPlano('emagrecimento')} 
-                className={`flex-1 py-3 md:py-4 text-[10px] sm:text-sm font-black uppercase tracking-wider rounded-xl transition-all flex items-center justify-center gap-1 sm:gap-2 ${objetivoPlano === 'emagrecimento' ? 'bg-white text-blue-600 shadow-md border border-slate-200/50' : 'text-slate-500 hover:text-slate-700'}`}
+                className={`flex-1 py-3 md:py-4 text-[10px] sm:text-sm font-black uppercase tracking-wider rounded-xl transition-all flex items-center justify-center gap-1 sm:gap-2 ${objetivoPlano === 'emagrecimento' ? 'bg-white dark:bg-slate-900 text-blue-600 shadow-md border border-slate-200/50' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700'}`}
               >
                 <TrendingDown className="w-4 h-4 sm:w-5 sm:h-5"/> Emagrecimento
               </button>
               <button 
                 onClick={() => setObjetivoPlano('hipertrofia')} 
-                className={`flex-1 py-3 md:py-4 text-[10px] sm:text-sm font-black uppercase tracking-wider rounded-xl transition-all flex items-center justify-center gap-1 sm:gap-2 ${objetivoPlano === 'hipertrofia' ? 'bg-emerald-600 text-white shadow-md border border-emerald-500' : 'text-slate-500 hover:text-slate-700'}`}
+                className={`flex-1 py-3 md:py-4 text-[10px] sm:text-sm font-black uppercase tracking-wider rounded-xl transition-all flex items-center justify-center gap-1 sm:gap-2 ${objetivoPlano === 'hipertrofia' ? 'bg-primary-600 text-white shadow-md border border-primary-500' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700'}`}
               >
                 <Dumbbell className="w-4 h-4 sm:w-5 sm:h-5"/> Bulking (Ganho)
               </button>
@@ -270,7 +270,7 @@ export default function CalculadoraGastoCalorico() {
             {/* BOTÃO MESTRE DE SALVAR NO BANCO */}
             {avaliacaoAtual && results && (objetivoPlano === 'hipertrofia' || plannerResults) && !faltaBF_Save && (
               <div className="px-2">
-                <button onClick={handleSalvarNoBanco} disabled={salvando} className="w-full mt-4 md:mt-6 bg-slate-900 hover:bg-emerald-700 disabled:opacity-50 text-white font-black py-4 md:py-6 rounded-2xl md:rounded-[2rem] text-sm md:text-xl uppercase tracking-widest shadow-xl hover:shadow-2xl transition-all">
+                <button onClick={handleSalvarNoBanco} disabled={salvando} className="w-full mt-4 md:mt-6 bg-slate-900 hover:bg-primary-700 disabled:opacity-50 text-white font-black py-4 md:py-6 rounded-2xl md:rounded-[2rem] text-sm md:text-xl uppercase tracking-widest shadow-xl hover:shadow-2xl transition-all">
                   {salvando ? 'Salvando...' : '💾 Salvar Planejamento na Avaliação'}
                 </button>
               </div>

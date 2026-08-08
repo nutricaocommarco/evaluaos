@@ -1,3 +1,44 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+:root {
+  /* Paleta padrão = emerald do Tailwind, em RGB, para bater 100% com o visual atual */
+  --color-primary-50: 236 253 245;
+  --color-primary-100: 209 250 229;
+  --color-primary-200: 167 243 208;
+  --color-primary-300: 110 231 183;
+  --color-primary-400: 52 211 153;
+  --color-primary-500: 16 185 129;
+  --color-primary-600: 5 150 105;
+  --color-primary-700: 4 120 87;
+  --color-primary-800: 6 95 70;
+  --color-primary-900: 6 78 59;
+  --color-primary-950: 2 44 34;
+}
+
+/* Rede de segurança do modo escuro: garante texto/fundo legíveis em elementos que
+   não definem classes explícitas (inputs, selects, textareas sem bg- ou text-).
+   Fica em @layer base para que qualquer classe dark: explícita sempre tenha prioridade. */
+html.dark {
+  color-scheme: dark;
+}
+
+html.dark body {
+  color: rgb(226 232 240); /* slate-200 */
+}
+
+@layer base {
+  html.dark input,
+  html.dark select,
+  html.dark textarea {
+    background-color: rgb(30 41 59); /* slate-800 */
+    border-color: rgb(51 65 85); /* slate-700 */
+    color: rgb(226 232 240); /* slate-200 */
+  }
+}
+
+html.dark input::placeholder,
+html.dark textarea::placeholder {
+  color: rgb(100 116 139); /* slate-500 */
+}

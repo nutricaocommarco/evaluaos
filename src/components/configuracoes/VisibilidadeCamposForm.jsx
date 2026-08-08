@@ -65,7 +65,7 @@ export default function VisibilidadeCamposForm({ config, setConfig, onSave, savi
 
   const renderBlocoCategory = (titulo, categoria, itens) => (
     <div className="space-y-2">
-      <h4 className="text-xs font-bold text-gray-700 uppercase tracking-wide border-b pb-1">{titulo}</h4>
+      <h4 className="text-xs font-bold text-gray-700 dark:text-slate-300 uppercase tracking-wide border-b pb-1">{titulo}</h4>
       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2 pt-1">
         {itens.map(item => {
           const isChecked = (camposVisiveis[categoria] || []).includes(item.key)
@@ -73,14 +73,14 @@ export default function VisibilidadeCamposForm({ config, setConfig, onSave, savi
             <label
               key={item.key}
               className={`flex items-center space-x-2 text-xs p-2 rounded-lg border cursor-pointer transition-colors ${
-                isChecked ? 'bg-emerald-50/60 border-emerald-200 text-emerald-900 font-semibold' : 'bg-gray-50 border-gray-100 text-gray-400'
+                isChecked ? 'bg-primary-50/60 dark:bg-primary-900/20 border-primary-200 dark:border-primary-800 text-primary-900 dark:text-primary-300 font-semibold' : 'bg-gray-50 dark:bg-slate-800 border-gray-100 dark:border-slate-800 text-gray-400 dark:text-slate-400'
               }`}
             >
               <input
                 type="checkbox"
                 checked={isChecked}
                 onChange={() => handleToggle(categoria, item.key)}
-                className="rounded text-emerald-600 focus:ring-emerald-500 w-3.5 h-3.5"
+                className="rounded text-primary-600 focus:ring-primary-500 w-3.5 h-3.5"
               />
               <span className="truncate">{item.label}</span>
             </label>
@@ -91,10 +91,10 @@ export default function VisibilidadeCamposForm({ config, setConfig, onSave, savi
   )
 
   return (
-    <div className="bg-white p-6 rounded-xl border border-gray-100 shadow-sm space-y-6">
+    <div className="bg-white dark:bg-slate-900 p-6 rounded-xl border border-gray-100 dark:border-slate-800 shadow-sm space-y-6">
       <div>
-        <h3 className="text-sm font-bold text-gray-800 uppercase tracking-wider">Campos do Formulário de Coleta</h3>
-        <p className="text-xs text-gray-500 mt-0.5">
+        <h3 className="text-sm font-bold text-gray-800 dark:text-slate-100 uppercase tracking-wider">Campos do Formulário de Coleta</h3>
+        <p className="text-xs text-gray-500 dark:text-slate-400 mt-0.5">
           Marque os campos que você deseja exibir na tela de inserção de medidas (`AvaliacaoForm`). Ocultar campos não utilizados agiliza sua rotina.
         </p>
       </div>
@@ -108,7 +108,7 @@ export default function VisibilidadeCamposForm({ config, setConfig, onSave, savi
         <button
           onClick={onSave}
           disabled={saving}
-          className="px-4 py-2 bg-emerald-600 text-white rounded-lg text-xs font-semibold hover:bg-emerald-700 disabled:opacity-50 transition-colors shadow-sm"
+          className="px-4 py-2 bg-primary-600 text-white rounded-lg text-xs font-semibold hover:bg-primary-700 disabled:opacity-50 transition-colors shadow-sm"
         >
           {saving ? 'Salvando...' : 'Salvar Formulário de Coleta'}
         </button>

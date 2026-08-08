@@ -169,28 +169,49 @@ export function recomendarEquacaoIdeal(medidas = {}, paciente = {}) {
     massaOsseaRocha = 3.02 * Math.pow(Math.pow(alturaM, 2) * (dUmero / 100) * (dFemur / 100) * 400, 0.712)
   }
 
+  // Massa Muscular - Martin (1990) e Massa Óssea - Martin (1991), usadas só no IMO
+  // Gate pela dobra de coxa/panturrilha (não por IMC/peso — ver ResultadoAvaliacao.jsx
+  // para o racional completo: um fisiculturista tem perímetro grande mas dobra fina e
+  // continua entrando; quem tem dobra grossa, a causa real do erro de correção, fica de fora)
+  const dentroFaixaSeguraMartin = cx > 0 && cx < 25 && pa > 0 && pa < 25
+  const pAntebraco = Number(medidas.perimetro_antibraco) || 0
+  let massaMuscularMartin = 0
+  if (dentroFaixaSeguraMartin && alturaCm > 0 && coxaCorr > 0 && pAntebraco > 0 && pantCorr > 0) {
+    massaMuscularMartin = ((alturaCm * ((0.0553 * Math.pow(coxaCorr, 2)) + (0.0987 * Math.pow(pAntebraco, 2)) + (0.0331 * Math.pow(pantCorr, 2)))) - 2445) * 0.001
+  }
+
+  const dPunho = Number(medidas.diametro_punho) || 0
+  const dTornozelo = Number(medidas.diametro_maleolar) || 0
+  let massaOsseaMartin = 0
+  if (dentroFaixaSeguraMartin && alturaCm > 0 && dUmero > 0 && dFemur > 0 && dPunho > 0 && dTornozelo > 0) {
+    massaOsseaMartin = 0.6 * alturaCm * Math.pow(dUmero + dFemur + dPunho + dTornozelo, 2) * 0.0001
+  }
+
   // 4. Massa Residual (Würch, 1973)
   const pctResidualWurch = sexo === 'M' ? 0.24 : 0.21
   let massaResidual4C = peso > 0 ? peso * pctResidualWurch : 0
 
   // =================================================================
-  // ⚖️ NORMALIZAÇÃO PRÓ-RATA DOS 4 COMPONENTES
-  // Corrige o "Efeito Frankenstein" igual ao ResultadoAvaliacao.jsx
+  // ⚖️ AJUSTE PRÓ-RATA (só Ósseo/Residual)
+  // Adiposo (Kerr) e Muscular (Lee) usam fórmulas Phantom validadas e ficam fixos.
+  // Ósseo (Rocha) e Residual (Würch) são estimativas mais incertas — a diferença
+  // entre o peso real e Adiposo+Muscular é redistribuída só entre elas, evitando o
+  // "Efeito Frankenstein" (soma ≠ peso) sem corromper os dois valores já exatos.
   // =================================================================
-  const somaBruta4C = massaAdiposaKerr + massaMuscularLee + massaOsseaRocha + massaResidual4C;
-  if (somaBruta4C > 0 && peso > 0) {
-    const fatorAjuste = peso / somaBruta4C;
-    massaAdiposaKerr *= fatorAjuste;
-    massaMuscularLee *= fatorAjuste;
-    massaOsseaRocha *= fatorAjuste;
-    massaResidual4C *= fatorAjuste;
+  const massaRestante4C = Math.max(0, peso - massaAdiposaKerr - massaMuscularLee);
+  const somaOsseoResidualBruto = massaOsseaRocha + massaResidual4C;
+  if (somaOsseoResidualBruto > 0 && massaRestante4C > 0) {
+    const fatorAjusteRestante = massaRestante4C / somaOsseoResidualBruto;
+    massaOsseaRocha *= fatorAjusteRestante;
+    massaResidual4C *= fatorAjusteRestante;
   }
 
   // Após ajuste, tiramos o %Adiposo
   const pctAdiposoKerr = peso > 0 ? Number(((massaAdiposaKerr / peso) * 100).toFixed(2)) : 0
 
   // E. Índices IMO e IAM (Baseados nas massas já ajustadas)
-  const imoLeeRocha = (massaMuscularLee > 0 && massaOsseaRocha > 0) ? (massaMuscularLee / massaOsseaRocha) : 0
+  // IMO usa só Martin (sem fallback pro Lee/Rocha) pra não pular de escala entre avaliações
+  const imoLeeRocha = (massaMuscularMartin > 0 && massaOsseaMartin > 0) ? (massaMuscularMartin / massaOsseaMartin) : 0
   const iamVal = (massaMuscularLee > 0 && massaAdiposaKerr > 0) ? (massaAdiposaKerr / massaMuscularLee) : 0
 
   // F. Somatotipo (Endomorfia / Mesomorfia)

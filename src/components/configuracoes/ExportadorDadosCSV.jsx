@@ -170,27 +170,27 @@ export default function ExportadorDadosCSV() {
   }
 
   return (
-    <div className="bg-white p-6 rounded-xl border border-gray-100 shadow-sm space-y-4">
+    <div className="bg-white dark:bg-slate-900 p-6 rounded-xl border border-gray-100 dark:border-slate-800 shadow-sm space-y-4">
       <div>
-        <h3 className="text-sm font-bold text-gray-800 uppercase tracking-wider">Backup & Exportação de Dados</h3>
-        <p className="text-xs text-gray-500 mt-0.5">
+        <h3 className="text-sm font-bold text-gray-800 dark:text-slate-100 uppercase tracking-wider">Backup & Exportação de Dados</h3>
+        <p className="text-xs text-gray-500 dark:text-slate-400 mt-0.5">
           Baixe uma planilha completa contendo todas as variáveis antropométricas, cadastrais e calculadas dos seus pacientes.
         </p>
       </div>
 
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-4 bg-gray-50 border border-gray-100 rounded-lg gap-4">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-4 bg-gray-50 dark:bg-slate-800 border border-gray-100 dark:border-slate-800 rounded-lg gap-4">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center font-bold">
+          <div className="w-10 h-10 rounded-full bg-primary-100 dark:bg-primary-900/30 dark:bg-primary-900/20 text-primary-700 dark:text-primary-400 flex items-center justify-center font-bold">
             💾
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <span className="text-xs font-bold text-gray-800 block">Exportar Backup Completo (Meus Dados)</span>
-              <span className="px-2 py-0.5 bg-amber-100 text-amber-800 text-[10px] font-bold rounded-full uppercase">
+              <span className="text-xs font-bold text-gray-800 dark:text-slate-100 block">Exportar Backup Completo (Meus Dados)</span>
+              <span className="px-2 py-0.5 bg-amber-100 dark:bg-amber-900/30 dark:bg-amber-900/20 text-amber-800 dark:text-amber-300 text-[10px] font-bold rounded-full uppercase">
                 Exclusivo Pro
               </span>
             </div>
-            <span className="text-[11px] text-gray-400 block">Arquivo CSV estruturado para Excel, Google Planilhas e análises avançadas</span>
+            <span className="text-[11px] text-gray-400 dark:text-slate-400 block">Arquivo CSV estruturado para Excel, Google Planilhas e análises avançadas</span>
           </div>
         </div>
 
@@ -206,19 +206,19 @@ export default function ExportadorDadosCSV() {
       {/* 👑 MODAL DE UPGRADE PRO */}
       {modalUpgradeAberto && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-gray-100 text-center space-y-4">
-            <div className="w-16 h-16 bg-amber-100 text-amber-600 rounded-full flex items-center justify-center text-2xl mx-auto">
+          <div className="bg-white dark:bg-slate-900 rounded-2xl max-w-md w-full p-6 shadow-2xl border border-gray-100 dark:border-slate-800 text-center space-y-4">
+            <div className="w-16 h-16 bg-amber-100 dark:bg-amber-900/30 dark:bg-amber-900/20 text-amber-600 rounded-full flex items-center justify-center text-2xl mx-auto">
               👑
             </div>
 
             <div>
-              <h3 className="text-lg font-bold text-gray-900">Recurso Exclusivo do Plano Pro</h3>
-              <p className="text-xs text-gray-500 mt-2 leading-relaxed">
+              <h3 className="text-lg font-bold text-gray-900 dark:text-slate-100">Recurso Exclusivo do Plano Pro</h3>
+              <p className="text-xs text-gray-500 dark:text-slate-400 mt-2 leading-relaxed">
                 A exportação completa de backups em CSV é uma funcionalidade avançada reservada aos assinantes do **Plano Pro**.
               </p>
             </div>
 
-            <div className="bg-amber-50 rounded-xl p-3 border border-amber-100 text-left text-xs text-amber-900 space-y-1">
+            <div className="bg-amber-50 dark:bg-amber-900/20 dark:bg-amber-900/20 rounded-xl p-3 border border-amber-100 dark:border-amber-900/40 text-left text-xs text-amber-900 dark:text-amber-300 space-y-1">
               <p className="font-semibold">Vantagens de assinar o Pro:</p>
               <p>• Backup ilimitado dos seus dados em CSV</p>
               <p>• Cadastro ilimitado de alunos e avaliações</p>
@@ -228,13 +228,13 @@ export default function ExportadorDadosCSV() {
             <div className="flex flex-col gap-2 pt-2">
               <button
                 onClick={() => navigate('/meu-plano')}
-                className="w-full py-3 bg-emerald-600 text-white font-bold rounded-xl text-xs hover:bg-emerald-700 transition-colors shadow-md"
+                className="w-full py-3 bg-primary-600 text-white font-bold rounded-xl text-xs hover:bg-primary-700 transition-colors shadow-md"
               >
                 Conhecer o Plano Pro
               </button>
               <button
                 onClick={() => setModalUpgradeAberto(false)}
-                className="w-full py-2 bg-transparent text-gray-400 font-semibold rounded-xl text-xs hover:text-gray-600 transition-colors"
+                className="w-full py-2 bg-transparent text-gray-400 dark:text-slate-400 font-semibold rounded-xl text-xs hover:text-gray-600 transition-colors"
               >
                 Agora não
               </button>

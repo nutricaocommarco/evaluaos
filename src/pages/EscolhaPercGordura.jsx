@@ -339,15 +339,15 @@ export default function EscolhaPercGordura() {
   const listaParaExibir = pacienteSelecionado?.sexo === 'F' ? listaFeminina : listaMasculina
 
   return (
-    <div className="max-w-3xl mx-auto space-y-8 bg-white p-6 sm:p-8 rounded-xl shadow border border-gray-100 pb-12">
+    <div className="max-w-3xl mx-auto space-y-8 bg-white dark:bg-slate-900 p-6 sm:p-8 rounded-xl shadow border border-gray-100 dark:border-slate-800 pb-12">
       
       <div>
-        <h2 className="text-2xl font-bold text-gray-800">Laboratório de Equações</h2>
-        <p className="text-sm text-gray-500">Escolha a equação ideal para o paciente e valide os resultados.</p>
+        <h2 className="text-2xl font-bold text-gray-800 dark:text-slate-100">Laboratório de Equações</h2>
+        <p className="text-sm text-gray-500 dark:text-slate-400">Escolha a equação ideal para o paciente e valide os resultados.</p>
       </div>
 
       <div className="space-y-2 relative" ref={dropdownRef}>
-        <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wider">
+        <label className="block text-xs font-semibold text-gray-700 dark:text-slate-300 uppercase tracking-wider">
           Pesquisar Paciente
         </label>
         <input
@@ -359,18 +359,18 @@ export default function EscolhaPercGordura() {
           }}
           onFocus={() => setShowDropdown(true)}
           placeholder="Digite o nome (Ex: Mar...)"
-          className="w-full px-4 py-3 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none transition-all"
+          className="w-full px-4 py-3 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none transition-all"
         />
         
         {showDropdown && pacientesFiltrados.length > 0 && (
-          <ul className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+          <ul className="absolute z-10 w-full mt-1 bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-700 rounded-lg shadow-lg max-h-60 overflow-y-auto">
             {pacientesFiltrados.map(p => (
               <li
                 key={p.id}
                 onClick={() => selecionarPacienteBusca(p)}
-                className="px-4 py-3 cursor-pointer hover:bg-emerald-50 hover:text-emerald-700 text-sm font-medium border-b border-gray-100 last:border-0"
+                className="px-4 py-3 cursor-pointer hover:bg-primary-50 dark:hover:bg-primary-900/20 dark:bg-primary-900/20 hover:text-primary-700 text-sm font-medium border-b border-gray-100 dark:border-slate-800 last:border-0"
               >
-                {p.nome_completo} <span className="text-xs text-gray-400 font-normal ml-2">({p.sexo})</span>
+                {p.nome_completo} <span className="text-xs text-gray-400 dark:text-slate-400 font-normal ml-2">({p.sexo})</span>
               </li>
             ))}
           </ul>
@@ -380,21 +380,21 @@ export default function EscolhaPercGordura() {
       {pacienteSelecionado && avaliacaoAtual && (
         <div className="space-y-6 animate-fade-in-up">
           
-          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center bg-gray-50 border border-gray-100 rounded-lg p-4 gap-4">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center bg-gray-50 dark:bg-slate-800 border border-gray-100 dark:border-slate-800 rounded-lg p-4 gap-4">
             <div>
-              <p className="text-sm text-gray-700">Avaliando: <strong>{pacienteSelecionado.nome_completo}</strong></p>
-              <p className="text-xs text-gray-500 mt-1">Peso Coletado: {medidasBrutas.peso_paciente || 0} kg</p>
+              <p className="text-sm text-gray-700 dark:text-slate-300">Avaliando: <strong>{pacienteSelecionado.nome_completo}</strong></p>
+              <p className="text-xs text-gray-500 dark:text-slate-400 mt-1">Peso Coletado: {medidasBrutas.peso_paciente || 0} kg</p>
             </div>
 
             {historicoAvaliacoes.length > 0 && (
               <div className="w-full sm:w-auto">
-                <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">
+                <label className="block text-[10px] font-bold text-gray-500 dark:text-slate-400 uppercase mb-1">
                   Avaliação Selecionada
                 </label>
                 <select
                   value={avaliacaoAtual.id}
                   onChange={(e) => selecionarAvaliacaoDoHistorico(e.target.value)}
-                  className="w-full sm:w-48 px-3 py-2 border border-gray-300 rounded-md text-sm outline-none focus:ring-2 focus:ring-emerald-500 bg-white"
+                  className="w-full sm:w-48 px-3 py-2 border border-gray-300 rounded-md text-sm outline-none focus:ring-2 focus:ring-primary-500 bg-white dark:bg-slate-900"
                 >
                   {historicoAvaliacoes.map(hist => (
                     <option key={hist.id} value={hist.id}>
@@ -408,74 +408,74 @@ export default function EscolhaPercGordura() {
 
           {/* 💎 PAINEL DE INTELIGÊNCIA CIENTÍFICA: AVALIAÇÃO MULTICRITÉRIO */}
           {recomendacaoEngine && recomendacaoEngine.indicadoresCruzados && (
-            <div className="bg-gradient-to-br from-emerald-50 to-teal-50 border-2 border-emerald-200 rounded-xl p-5 shadow-sm space-y-5">
+            <div className="bg-gradient-to-br from-primary-50 to-teal-50 dark:from-slate-900 dark:to-slate-900 border-2 border-primary-200 dark:border-primary-800 rounded-xl p-5 shadow-sm space-y-5">
               
-              <div className="flex items-center gap-2 border-b border-emerald-200 pb-2">
+              <div className="flex items-center gap-2 border-b border-primary-200 dark:border-primary-800 pb-2">
                 <span className="text-xl">🧠</span>
-                <h4 className="text-xs font-black text-emerald-900 uppercase tracking-wider">
+                <h4 className="text-xs font-black text-primary-900 dark:text-primary-300 uppercase tracking-wider">
                   Diagnóstico Clínico & Recomendações EvaluaOS
                 </h4>
               </div>
 
               {/* DASHBOARD DOS PARÂMETROS CRUZADOS */}
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-3 bg-white/60 p-4 rounded-lg border border-emerald-100/50">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3 bg-white/60 dark:bg-slate-900/60 dark:bg-slate-800/70 p-4 rounded-lg border border-primary-100/50 dark:border-primary-900/40">
                 <div className="flex flex-col">
-                  <span className="text-[10px] font-bold text-gray-500 uppercase">Peso / Estatura</span>
-                  <span className="text-sm font-black text-gray-800">{recomendacaoEngine.indicadoresCruzados.peso}kg / {recomendacaoEngine.indicadoresCruzados.alturaCm}cm</span>
+                  <span className="text-[10px] font-bold text-gray-500 dark:text-slate-400 uppercase">Peso / Estatura</span>
+                  <span className="text-sm font-black text-gray-800 dark:text-slate-100">{recomendacaoEngine.indicadoresCruzados.peso}kg / {recomendacaoEngine.indicadoresCruzados.alturaCm}cm</span>
                 </div>
                 <div className="flex flex-col">
-                  <span className="text-[10px] font-bold text-gray-500 uppercase">IMC</span>
-                  <span className="text-sm font-black text-gray-800">{recomendacaoEngine.indicadoresCruzados.imc} <span className="text-[10px] font-medium text-gray-500">({recomendacaoEngine.indicadoresCruzados.classificacaoImc})</span></span>
+                  <span className="text-[10px] font-bold text-gray-500 dark:text-slate-400 uppercase">IMC</span>
+                  <span className="text-sm font-black text-gray-800 dark:text-slate-100">{recomendacaoEngine.indicadoresCruzados.imc} <span className="text-[10px] font-medium text-gray-500 dark:text-slate-400">({recomendacaoEngine.indicadoresCruzados.classificacaoImc})</span></span>
                 </div>
                 <div className="flex flex-col">
-                  <span className="text-[10px] font-bold text-gray-500 uppercase">Σ 6 Dobras</span>
+                  <span className="text-[10px] font-bold text-gray-500 dark:text-slate-400 uppercase">Σ 6 Dobras</span>
                   <span className="text-sm font-black text-amber-600">{recomendacaoEngine.indicadoresCruzados.soma6}mm</span>
                 </div>
                 <div className="flex flex-col">
-                  <span className="text-[10px] font-bold text-gray-500 uppercase">Σ 8 Dobras</span>
+                  <span className="text-[10px] font-bold text-gray-500 dark:text-slate-400 uppercase">Σ 8 Dobras</span>
                   <span className="text-sm font-black text-amber-600">{recomendacaoEngine.indicadoresCruzados.soma8}mm</span>
                 </div>
 
-                <div className="flex flex-col col-span-2 border-t border-emerald-100/50 pt-2 mt-1">
-                  <span className="text-[10px] font-bold text-gray-500 uppercase">Fracionamento 4C (Anatômico)</span>
+                <div className="flex flex-col col-span-2 border-t border-primary-100/50 pt-2 mt-1">
+                  <span className="text-[10px] font-bold text-gray-500 dark:text-slate-400 uppercase">Fracionamento 4C (Anatômico)</span>
                   <div className="flex gap-4 mt-1">
                     <div className="flex flex-col">
                       <span className="text-[9px] font-semibold text-amber-600">Adiposo (Kerr)</span>
-                      <span className="text-xs font-black text-gray-800">{recomendacaoEngine.indicadoresCruzados.massaAdiposaKg} kg</span>
+                      <span className="text-xs font-black text-gray-800 dark:text-slate-100">{recomendacaoEngine.indicadoresCruzados.massaAdiposaKg} kg</span>
                     </div>
                     <div className="flex flex-col">
-                      <span className="text-[9px] font-semibold text-emerald-600">Muscular (Lee)</span>
-                      <span className="text-xs font-black text-gray-800">{recomendacaoEngine.indicadoresCruzados.massaMuscularLee} kg</span>
+                      <span className="text-[9px] font-semibold text-primary-600">Muscular (Lee)</span>
+                      <span className="text-xs font-black text-gray-800 dark:text-slate-100">{recomendacaoEngine.indicadoresCruzados.massaMuscularLee} kg</span>
                     </div>
                     <div className="flex flex-col">
                       <span className="text-[9px] font-semibold text-indigo-500">Ósseo (Rocha)</span>
-                      <span className="text-xs font-black text-gray-800">{recomendacaoEngine.indicadoresCruzados.massaOsseaRocha} kg</span>
+                      <span className="text-xs font-black text-gray-800 dark:text-slate-100">{recomendacaoEngine.indicadoresCruzados.massaOsseaRocha} kg</span>
                     </div>
                     <div className="flex flex-col">
-                      <span className="text-[9px] font-semibold text-gray-500">Residual (Würch)</span>
-                      <span className="text-xs font-black text-gray-800">{recomendacaoEngine.indicadoresCruzados.massaResidual4C} kg</span>
+                      <span className="text-[9px] font-semibold text-gray-500 dark:text-slate-400">Residual (Würch)</span>
+                      <span className="text-xs font-black text-gray-800 dark:text-slate-100">{recomendacaoEngine.indicadoresCruzados.massaResidual4C} kg</span>
                     </div>
                   </div>
                 </div>
 
-                <div className="flex flex-col col-span-2 border-t border-emerald-100/50 pt-2 mt-1">
-                  <span className="text-[10px] font-bold text-gray-500 uppercase">Índices e Somatotipo</span>
+                <div className="flex flex-col col-span-2 border-t border-primary-100/50 pt-2 mt-1">
+                  <span className="text-[10px] font-bold text-gray-500 dark:text-slate-400 uppercase">Índices e Somatotipo</span>
                   <div className="flex gap-4 mt-1">
                     <div className="flex flex-col">
-                      <span className="text-[9px] font-semibold text-gray-500">IMO</span>
-                      <span className="text-xs font-black text-gray-800">{recomendacaoEngine.indicadoresCruzados.imoVal}</span>
+                      <span className="text-[9px] font-semibold text-gray-500 dark:text-slate-400">IMO</span>
+                      <span className="text-xs font-black text-gray-800 dark:text-slate-100">{recomendacaoEngine.indicadoresCruzados.imoVal}</span>
                     </div>
                     <div className="flex flex-col">
-                      <span className="text-[9px] font-semibold text-gray-500">IAM</span>
-                      <span className="text-xs font-black text-gray-800">{recomendacaoEngine.indicadoresCruzados.iamVal}</span>
+                      <span className="text-[9px] font-semibold text-gray-500 dark:text-slate-400">IAM</span>
+                      <span className="text-xs font-black text-gray-800 dark:text-slate-100">{recomendacaoEngine.indicadoresCruzados.iamVal}</span>
                     </div>
                     <div className="flex flex-col">
-                      <span className="text-[9px] font-semibold text-gray-500">Endomorfia</span>
-                      <span className="text-xs font-black text-gray-800">{recomendacaoEngine.indicadoresCruzados.endomorfia}</span>
+                      <span className="text-[9px] font-semibold text-gray-500 dark:text-slate-400">Endomorfia</span>
+                      <span className="text-xs font-black text-gray-800 dark:text-slate-100">{recomendacaoEngine.indicadoresCruzados.endomorfia}</span>
                     </div>
                     <div className="flex flex-col">
-                      <span className="text-[9px] font-semibold text-gray-500">Mesomorfia</span>
-                      <span className="text-xs font-black text-gray-800">{recomendacaoEngine.indicadoresCruzados.mesomorfia}</span>
+                      <span className="text-[9px] font-semibold text-gray-500 dark:text-slate-400">Mesomorfia</span>
+                      <span className="text-xs font-black text-gray-800 dark:text-slate-100">{recomendacaoEngine.indicadoresCruzados.mesomorfia}</span>
                     </div>
                   </div>
                 </div>
@@ -484,25 +484,25 @@ export default function EscolhaPercGordura() {
               {/* LISTA DE EQUAÇÕES SUGERIDAS RANKED */}
               {recomendacaoEngine.equacoesSugeridas && recomendacaoEngine.equacoesSugeridas.length > 0 && (
                 <div className="space-y-3 pt-2">
-                  <p className="text-[11px] font-bold text-emerald-800 uppercase tracking-wide">
+                  <p className="text-[11px] font-bold text-primary-800 dark:text-primary-300 uppercase tracking-wide">
                     🏆 Ranking das Melhores Equações para este Perfil:
                   </p>
                   {recomendacaoEngine.equacoesSugeridas.map((eqSugg, idx) => (
-                    <div key={idx} className={`border p-3 rounded-lg flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 transition-all ${idx === 0 ? 'bg-white border-emerald-300 shadow-sm' : 'bg-white/60 border-emerald-100'}`}>
+                    <div key={idx} className={`border p-3 rounded-lg flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 transition-all ${idx === 0 ? 'bg-white dark:bg-slate-900 border-primary-300 shadow-sm' : 'bg-white/60 dark:bg-slate-900/60 dark:bg-slate-800/70 border-primary-100 dark:border-primary-900/40'}`}>
                       <div className="space-y-1 flex-1">
                         <div className="flex items-center gap-2">
-                          <span className={`text-xs font-black px-2 py-0.5 rounded ${idx === 0 ? 'bg-emerald-600 text-white' : 'bg-emerald-100 text-emerald-800'}`}>
+                          <span className={`text-xs font-black px-2 py-0.5 rounded ${idx === 0 ? 'bg-primary-600 text-white' : 'bg-primary-100 dark:bg-primary-900/30 dark:bg-primary-900/20 text-primary-800 dark:text-primary-300'}`}>
                             #{idx + 1}
                           </span>
-                          <p className="text-sm font-bold text-gray-800">{eqSugg.nome}</p>
-                          <span className="text-[9px] font-bold text-gray-400 border border-gray-200 px-1 rounded hidden sm:inline-block">Score: {eqSugg.score}</span>
+                          <p className="text-sm font-bold text-gray-800 dark:text-slate-100">{eqSugg.nome}</p>
+                          <span className="text-[9px] font-bold text-gray-400 dark:text-slate-400 border border-gray-200 dark:border-slate-700 px-1 rounded hidden sm:inline-block">Score: {eqSugg.score}</span>
                         </div>
-                        <p className="text-xs text-gray-600 leading-relaxed">{eqSugg.justificativa}</p>
+                        <p className="text-xs text-gray-600 dark:text-slate-400 leading-relaxed">{eqSugg.justificativa}</p>
                       </div>
                       <button
                         type="button"
                         onClick={() => setEquacaoSelecionada(eqSugg.nome)}
-                        className={`text-[10px] font-extrabold px-4 py-2 rounded-md transition-colors shadow-2xs whitespace-nowrap ${idx === 0 ? 'bg-emerald-600 text-white hover:bg-emerald-700' : 'bg-gray-100 text-gray-600 hover:bg-emerald-600 hover:text-white'}`}
+                        className={`text-[10px] font-extrabold px-4 py-2 rounded-md transition-colors shadow-2xs whitespace-nowrap ${idx === 0 ? 'bg-primary-600 text-white hover:bg-primary-700' : 'bg-gray-100 dark:bg-slate-800 text-gray-600 dark:text-slate-400 hover:bg-primary-600 hover:text-white'}`}
                       >
                         Aplicar Seleção
                       </button>
@@ -513,14 +513,14 @@ export default function EscolhaPercGordura() {
             </div>
           )}
 
-          <div className="space-y-2 border-t border-gray-100 pt-6">
-            <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wider">
+          <div className="space-y-2 border-t border-gray-100 dark:border-slate-800 pt-6">
+            <label className="block text-xs font-semibold text-gray-700 dark:text-slate-300 uppercase tracking-wider">
               Ou Selecione Manualmente a Equação de Regressão
             </label>
             <select
               value={equacaoSelecionada}
               onChange={(e) => setEquacaoSelecionada(e.target.value)}
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-emerald-500 bg-white shadow-sm"
+              className="w-full px-4 py-3 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 bg-white dark:bg-slate-900 shadow-sm"
             >
               <option value="">Selecione uma equação...</option>
               {listaParaExibir.map((eq, i) => (
@@ -530,9 +530,9 @@ export default function EscolhaPercGordura() {
           </div>
 
           {metadados && (
-            <div className="bg-blue-50 border border-blue-100 rounded-lg p-4 transition-all">
-              <h4 className="text-xs font-bold text-blue-800 uppercase tracking-wider mb-3">Validação Científica da Equação Ativa</h4>
-              <ul className="text-sm text-blue-800 space-y-1.5">
+            <div className="bg-blue-50 dark:bg-blue-900/20 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-900/40 rounded-lg p-4 transition-all">
+              <h4 className="text-xs font-bold text-blue-800 dark:text-blue-300 uppercase tracking-wider mb-3">Validação Científica da Equação Ativa</h4>
+              <ul className="text-sm text-blue-800 dark:text-blue-300 space-y-1.5">
                 <li><strong>Autor(es):</strong> {metadados.autor} ({metadados.ano})</li>
                 <li><strong>Protocolo:</strong> {metadados.protocolo}</li>
                 <li><strong>População Alvo:</strong> {metadados.populacao}</li>
@@ -542,12 +542,12 @@ export default function EscolhaPercGordura() {
             </div>
           )}
 
-          <div className="flex flex-col sm:flex-row gap-6 items-center bg-emerald-50 border border-emerald-100 p-6 rounded-xl">
+          <div className="flex flex-col sm:flex-row gap-6 items-center bg-primary-50 dark:bg-primary-900/20 dark:bg-primary-900/20 border border-primary-100 dark:border-primary-900/40 p-6 rounded-xl">
             <div className="flex-1 text-center sm:text-left">
-              <h4 className="text-emerald-800 text-sm font-semibold uppercase tracking-wider">Resultado Calculado</h4>
-              <p className="text-xs text-emerald-600 mt-1">Percentual de Gordura Corporal (%G)</p>
+              <h4 className="text-primary-800 dark:text-primary-300 text-sm font-semibold uppercase tracking-wider">Resultado Calculado</h4>
+              <p className="text-xs text-primary-600 mt-1">Percentual de Gordura Corporal (%G)</p>
             </div>
-            <div className="text-5xl font-black text-emerald-700">
+            <div className="text-5xl font-black text-primary-700 dark:text-primary-400">
               {resultadoGordura > 0 ? resultadoGordura : '--'}
               <span className="text-2xl ml-1">%</span>
             </div>
@@ -557,7 +557,7 @@ export default function EscolhaPercGordura() {
             <button
               onClick={handleSalvar}
               disabled={!equacaoSelecionada || resultadoGordura <= 0 || salvando}
-              className="px-6 py-3 bg-emerald-600 text-white font-semibold rounded-lg shadow-md hover:bg-emerald-700 disabled:opacity-50 transition-all w-full sm:w-auto"
+              className="px-6 py-3 bg-primary-600 text-white font-semibold rounded-lg shadow-md hover:bg-primary-700 disabled:opacity-50 transition-all w-full sm:w-auto"
             >
               {salvando ? 'Salvando...' : 'Salvar Resultado na Avaliação'}
             </button>

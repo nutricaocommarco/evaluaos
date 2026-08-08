@@ -6,12 +6,14 @@ import {
   ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend
 } from 'recharts'
 import BotaoExportarEvolucaoPDF from '../components/BotaoExportarEvolucaoPDF'
-import { classificarArgoref, classificarApVat } from '../utils/escalasNormativas'
+import { classificarArgoref, classificarApVat, calcularIndiceConicidade, classificarConicidade, classificarImo } from '../utils/escalasNormativas'
+import { useTheme } from '../contexts/ThemeContext'
 
 export default function EvolucaoPaciente() {
   const location = useLocation()
   const navigate = useNavigate()
   const { tokenUrl } = useParams() // Pega o token se for link público
+  const { setDarkMode, setCorPrimaria } = useTheme()
 
   const isPublicView = !!tokenUrl;
   
@@ -83,9 +85,14 @@ export default function EvolucaoPaciente() {
         if (avalData.auth_id) {
           const { data: configData } = await supabase
             .from('configuracoes_avaliador')
-            .select('visibilidade_publica')
+            .select('visibilidade_publica, dark_mode, cor_primaria')
             .eq('auth_id', avalData.auth_id)
             .maybeSingle();
+
+          if (isPublicView && configData) {
+            setDarkMode(!!configData.dark_mode);
+            if (configData.cor_primaria) setCorPrimaria(configData.cor_primaria);
+          }
 
           if (configData?.visibilidade_publica) {
             setConfigVisibilidade(configData.visibilidade_publica);
@@ -185,6 +192,7 @@ export default function EvolucaoPaciente() {
           cintura_quadril: Number(calc.relacao_cintura_quadril || 0).toFixed(2),
           imo: Number(calc.indice_massa_ossea_imo || 0).toFixed(3),
           apvat: Number(apvatCalculado).toFixed(1),
+          conicidade: calcularIndiceConicidade(aval.peso_paciente, aval.altura_paciente, aval.perimetro_cintura).toFixed(2),
           iam: Number(calc.indice_adiposo_muscular || 0).toFixed(2),
 
           triceps: Number(aval.dobra_cutanea_triceps || 0).toFixed(1),
@@ -216,7 +224,10 @@ export default function EvolucaoPaciente() {
           grafico_perim_corr_coxa: Number(calc.perimetro_corrigido_coxa || 0),
           grafico_perim_corr_panturrilha: Number(calc.perimetro_corrigido_panturrilha || 0),
           eixo_x: Number(calc.somatocarta_eixo_x || 0),
-          eixo_y: Number(calc.somatocarta_eixo_y || 0)
+          eixo_y: Number(calc.somatocarta_eixo_y || 0),
+
+          peso_alvo: calc.peso_alvo ? Number(calc.peso_alvo) : null,
+          meta_bf_percentual: calc.meta_bf_percentual ? Number(calc.meta_bf_percentual) : null
         }
       }).filter(item => item.grafico_peso > 0)
 
@@ -227,13 +238,13 @@ export default function EvolucaoPaciente() {
     carregarDados()
   }, [tokenUrl])
 
-  if (loading) return <div className="p-8 text-center text-emerald-600 font-bold">Processando evolução...</div>
+  if (loading) return <div className="p-8 text-center text-primary-600 font-bold">Processando evolução...</div>
 
   if (!pacienteLocal) {
     return (
       <div className="flex flex-col items-center justify-center h-full space-y-4 p-8">
-        <h2 className="text-xl font-bold text-gray-800">Nenhum paciente selecionado ou Link Inválido</h2>
-        {!isPublicView && <button onClick={() => navigate('/pacientes')} className="px-6 py-2 bg-emerald-600 text-white rounded-lg">Ir para Pacientes</button>}
+        <h2 className="text-xl font-bold text-gray-800 dark:text-slate-100">Nenhum paciente selecionado ou Link Inválido</h2>
+        {!isPublicView && <button onClick={() => navigate('/pacientes')} className="px-6 py-2 bg-primary-600 text-white rounded-lg">Ir para Pacientes</button>}
       </div>
     )
   }
@@ -241,10 +252,10 @@ export default function EvolucaoPaciente() {
   if (historico.length < 2) {
     return (
       <div className="p-8 max-w-3xl mx-auto text-center space-y-6">
-        <div className="bg-white p-8 rounded-xl shadow border border-gray-100">
-          <h2 className="text-2xl font-bold text-gray-800 mb-2">Evolução Incompleta</h2>
-          <p className="text-gray-500">O paciente possui apenas {historico.length} avaliação registrada. São necessárias pelo menos 2 avaliações no sistema para gerar o comparativo temporal.</p>
-          {!isPublicView && <button onClick={() => navigate('/pacientes')} className="mt-6 px-6 py-2 bg-emerald-600 text-white rounded-lg font-semibold hover:bg-emerald-700">Voltar</button>}
+        <div className="bg-white dark:bg-slate-900 p-8 rounded-xl shadow border border-gray-100 dark:border-slate-800">
+          <h2 className="text-2xl font-bold text-gray-800 dark:text-slate-100 mb-2">Evolução Incompleta</h2>
+          <p className="text-gray-500 dark:text-slate-400">O paciente possui apenas {historico.length} avaliação registrada. São necessárias pelo menos 2 avaliações no sistema para gerar o comparativo temporal.</p>
+          {!isPublicView && <button onClick={() => navigate('/pacientes')} className="mt-6 px-6 py-2 bg-primary-600 text-white rounded-lg font-semibold hover:bg-primary-700">Voltar</button>}
         </div>
       </div>
     )
@@ -291,27 +302,27 @@ export default function EvolucaoPaciente() {
     const isVertical = totalAvaliacoes >= 3;
 
     const renderBadge = (diferenca, extraClasses = "") => {
-      if (Number(diferenca) === 0) return <div className={`text-[9px] text-gray-400 font-bold bg-gray-50 px-1.5 py-0.5 rounded-md border border-gray-100 ${extraClasses}`}>(0)</div>;
+      if (Number(diferenca) === 0) return <div className={`text-[11px] text-gray-500 dark:text-slate-300 font-bold bg-gray-50 dark:bg-slate-800 px-1.5 py-0.5 rounded-md border border-gray-100 dark:border-slate-700 ${extraClasses}`}>(0)</div>;
       const isPositivo = diferenca > 0;
       const isBom = isInverso ? !isPositivo : isPositivo;
-      const corBadge = isBom ? 'text-emerald-700 bg-emerald-50 border-emerald-100' : 'text-red-700 bg-red-50 border-red-100';
+      const corBadge = isBom ? 'text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-900/30 border-emerald-100 dark:border-emerald-900/40' : 'text-red-700 dark:text-red-300 bg-red-50 dark:bg-red-900/30 dark:bg-red-900/20 border-red-100 dark:border-red-900/40';
       return (
-        <div className={`flex items-center justify-center px-1.5 py-0.5 rounded-md border text-[9px] font-bold ${corBadge} ${extraClasses}`}>
+        <div className={`flex items-center justify-center px-1.5 py-0.5 rounded-md border text-[11px] font-bold ${corBadge} ${extraClasses}`}>
           {isPositivo ? '↑' : '↓'} {Math.abs(diferenca).toFixed(casasDecimais)}
         </div>
       );
     }
 
     return (
-      <div className="bg-white rounded-xl border border-gray-100 p-4 shadow-sm flex flex-col min-w-0 w-full overflow-hidden break-inside-avoid">
+      <div className="bg-white dark:bg-slate-900 rounded-xl border border-gray-100 dark:border-slate-800 p-4 shadow-sm flex flex-col min-w-0 w-full overflow-hidden break-inside-avoid">
         <div className="flex justify-between items-start mb-4 gap-2">
           <div className="flex-1 min-w-0">
-            <h4 className="text-gray-600 font-black text-xs uppercase tracking-wider truncate">{titulo}</h4>
-            {unidade && <span className="text-[10px] bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full font-bold mt-1 inline-block">{unidade}</span>}
+            <h4 className="text-gray-600 dark:text-slate-400 font-black text-xs uppercase tracking-wider truncate">{titulo}</h4>
+            {unidade && <span className="text-[10px] bg-gray-100 dark:bg-slate-800 text-gray-500 dark:text-slate-400 px-2 py-0.5 rounded-full font-bold mt-1 inline-block">{unidade}</span>}
           </div>
           {totalAvaliacoes >= 2 && (
             <div className="flex flex-col items-end shrink-0">
-              <span className="text-[8px] uppercase text-gray-400 font-bold mb-0.5">Delta Total</span>
+              <span className="text-[10px] uppercase text-gray-500 dark:text-slate-300 font-bold mb-0.5">Delta Total</span>
               {renderBadge(deltaTotal)}
             </div>
           )}
@@ -328,13 +339,13 @@ export default function EvolucaoPaciente() {
                 deltaUI = renderBadge(diferenca);
               }
               return (
-                <div key={idx} className="flex justify-between items-center bg-gray-50/50 border border-gray-100 p-2.5 rounded-lg w-full">
+                <div key={idx} className="flex justify-between items-center bg-gray-50 dark:bg-slate-800/60 dark:bg-slate-800/70 border border-gray-100 dark:border-slate-700 p-2.5 rounded-lg w-full">
                   <div className="flex items-center gap-3">
                     <div className="flex flex-col min-w-[50px]">
-                      <span className="text-[9px] font-bold uppercase" style={{ color: av.cor }}>{av.nome_avaliacao}</span>
-                      <span className="text-[8px] text-gray-400 font-medium">{av.dataStr_curta}</span>
+                      <span className="text-[11px] font-bold uppercase" style={{ color: av.cor }}>{av.nome_avaliacao}</span>
+                      <span className="text-[10px] text-gray-500 dark:text-slate-400 font-medium">{av.dataStr_curta}</span>
                     </div>
-                    <span className="text-base font-black text-gray-800">{valorAtual.toFixed(casasDecimais)}</span>
+                    <span className="text-base font-black text-gray-800 dark:text-slate-100">{valorAtual.toFixed(casasDecimais)}</span>
                   </div>
                   {deltaUI && <div>{deltaUI}</div>}
                 </div>
@@ -353,15 +364,15 @@ export default function EvolucaoPaciente() {
               }
               return (
                 <div key={idx} className="flex items-center flex-1">
-                  <div className="flex flex-col items-center justify-center p-2 rounded-lg bg-gray-50/50 border border-gray-50 w-full min-w-[70px]">
+                  <div className="flex flex-col items-center justify-center p-2 rounded-lg bg-gray-50 dark:bg-slate-800/60 dark:bg-slate-800/70 border border-gray-100 dark:border-slate-700 w-full min-w-[70px]">
                     <div className="flex flex-col items-center mb-1">
-                      <span className="text-[9px] font-bold uppercase" style={{ color: av.cor }}>{av.nome_avaliacao}</span>
-                      <span className="text-[8px] text-gray-400 font-medium">{av.dataStr_curta}</span>
+                      <span className="text-[11px] font-bold uppercase" style={{ color: av.cor }}>{av.nome_avaliacao}</span>
+                      <span className="text-[10px] text-gray-500 dark:text-slate-400 font-medium">{av.dataStr_curta}</span>
                     </div>
-                    <span className="text-lg font-black text-gray-800">{valorAtual.toFixed(casasDecimais)}</span>
+                    <span className="text-lg font-black text-gray-800 dark:text-slate-100">{valorAtual.toFixed(casasDecimais)}</span>
                   </div>
                   {deltaUI}
-                  {idx < historico.length - 1 && <div className="w-4 h-[1px] bg-gray-200 mx-1 shrink-0"></div>}
+                  {idx < historico.length - 1 && <div className="w-4 h-[1px] bg-gray-200 dark:bg-slate-700 mx-1 shrink-0"></div>}
                 </div>
               )
             })}
@@ -385,10 +396,10 @@ export default function EvolucaoPaciente() {
             return (
               <div key={idx} className="flex items-center gap-3">
                 <span className="w-8 text-[10px] font-bold text-right" style={{ color: av.cor }}>{av.nome_avaliacao}</span>
-                <div className="flex-1 bg-gray-100 h-2.5 rounded-full overflow-hidden flex items-center">
+                <div className="flex-1 bg-gray-100 dark:bg-slate-800 h-2.5 rounded-full overflow-hidden flex items-center">
                   <div className="h-full rounded-full transition-all duration-1000" style={{ width: `${pct}%`, backgroundColor: corBarra }}></div>
                 </div>
-                <span className="w-6 text-right text-xs font-black text-gray-800">{val.toFixed(1)}</span>
+                <span className="w-6 text-right text-xs font-black text-gray-800 dark:text-slate-100">{val.toFixed(1)}</span>
               </div>
             )
           })}
@@ -405,10 +416,75 @@ export default function EvolucaoPaciente() {
     )
   }
 
+  // Progresso da meta definida numa avaliação, comparado com o resultado real da seguinte.
+  const calcularProgressoMeta = (inicial, alvo, atual) => {
+    const totalPlanejado = alvo - inicial;
+    if (!totalPlanejado) return null;
+    const alcancado = atual - inicial;
+    return {
+      totalPlanejado,
+      alcancado,
+      progressoPct: (alcancado / totalPlanejado) * 100,
+      isGanho: totalPlanejado > 0
+    };
+  };
+
+  const renderLinhaMeta = (titulo, unidade, inicial, alvo, atual, progresso, casasDecimais = 1) => {
+    const superou = progresso.progressoPct > 100;
+    const seAfastou = progresso.alcancado !== 0 && Math.sign(progresso.alcancado) !== Math.sign(progresso.totalPlanejado);
+    const pctBarra = Math.max(4, Math.min(100, progresso.progressoPct));
+
+    return (
+      <div className="space-y-2">
+        <div className="flex justify-between items-baseline">
+          <span className="text-xs font-black text-gray-700 dark:text-slate-300 uppercase tracking-wider">{titulo}</span>
+          <span className={`text-xs font-bold ${superou ? 'text-emerald-600 dark:text-emerald-400' : seAfastou ? 'text-red-600 dark:text-red-400' : 'text-primary-700 dark:text-primary-400'}`}>
+            {superou ? '🎉 Meta superada' : seAfastou ? 'Se afastou da meta' : `${Math.max(0, progresso.progressoPct).toFixed(0)}%`}
+          </span>
+        </div>
+        <div className="w-full bg-gray-100 dark:bg-slate-800 h-2.5 rounded-full overflow-hidden">
+          <div className={`h-full rounded-full transition-all duration-1000 ${seAfastou ? 'bg-red-500' : 'bg-primary-600'}`} style={{ width: `${seAfastou ? 4 : pctBarra}%` }}></div>
+        </div>
+        <div className="flex justify-between text-[10px] text-gray-500 dark:text-slate-400 font-medium">
+          <span>Inicial: <strong className="text-gray-800 dark:text-slate-100">{Number(inicial).toFixed(casasDecimais)}{unidade}</strong></span>
+          <span>Meta: <strong className="text-gray-800 dark:text-slate-100">{Number(alvo).toFixed(casasDecimais)}{unidade}</strong></span>
+          <span>Atual: <strong className="text-gray-800 dark:text-slate-100">{Number(atual).toFixed(casasDecimais)}{unidade}</strong></span>
+        </div>
+        <p className="text-[11px] text-gray-600 dark:text-slate-300">
+          {seAfastou
+            ? <>Se afastou <strong>{Math.abs(progresso.alcancado).toFixed(casasDecimais)}{unidade}</strong> da meta (planejado: {Math.abs(progresso.totalPlanejado).toFixed(casasDecimais)}{unidade}).</>
+            : <>{progresso.isGanho ? 'Ganhou' : 'Perdeu'} <strong>{Math.abs(progresso.alcancado).toFixed(casasDecimais)}{unidade}</strong> de <strong>{Math.abs(progresso.totalPlanejado).toFixed(casasDecimais)}{unidade}</strong> planejados.</>
+          }
+        </p>
+      </div>
+    );
+  };
+
+  const MetaProgressoCard = ({ avMeta, avAtual }) => {
+    const progressoPeso = avMeta.peso_alvo ? calcularProgressoMeta(Number(avMeta.peso), avMeta.peso_alvo, Number(avAtual.peso)) : null;
+    const progressoBf = avMeta.meta_bf_percentual ? calcularProgressoMeta(Number(avMeta.gordura_perc), avMeta.meta_bf_percentual, Number(avAtual.gordura_perc)) : null;
+
+    if (!progressoPeso && !progressoBf) return null;
+
+    return (
+      <div className="bg-white dark:bg-slate-900 rounded-xl border border-gray-100 dark:border-slate-800 p-4 shadow-sm flex flex-col gap-4 w-full">
+        <div className="flex items-center justify-between border-b border-gray-100 dark:border-slate-800 pb-2 flex-wrap gap-1">
+          <span className="text-[10px] font-bold text-gray-500 dark:text-slate-400">Meta de {avMeta.dataStr_curta}</span>
+          <span className="text-[10px] font-bold text-gray-500 dark:text-slate-400">→ Avaliação de {avAtual.dataStr_curta}</span>
+        </div>
+        {progressoPeso && renderLinhaMeta('Peso', ' kg', avMeta.peso, avMeta.peso_alvo, avAtual.peso, progressoPeso)}
+        {progressoBf && renderLinhaMeta('% Gordura', '%', avMeta.gordura_perc, avMeta.meta_bf_percentual, avAtual.gordura_perc, progressoBf)}
+      </div>
+    );
+  };
+
+  const paresComMeta = historico.slice(1).map((av, i) => ({ avMeta: historico[i], avAtual: av }))
+    .filter(p => p.avMeta.peso_alvo || p.avMeta.meta_bf_percentual);
+
   const exibeBlocoComposicao = podeExibir('evo_peso') || podeExibir('evo_gordura_perc') || podeExibir('evo_massa_gorda') || podeExibir('evo_massa_muscular') || podeExibir('evo_massa_magra') || podeExibir('evo_imc');
   const exibeBlocoDobras = podeExibir('evo_dobra_triceps') || podeExibir('evo_dobra_subescapular') || podeExibir('evo_dobra_biceps') || podeExibir('evo_dobra_crista_iliaca') || podeExibir('evo_dobra_supraespinhal') || podeExibir('evo_dobra_abdominal') || podeExibir('evo_dobra_coxa') || podeExibir('evo_dobra_panturrilha');
   const exibeBlocoPerimetros = podeExibir('evo_perim_braco_rel') || podeExibir('evo_perim_braco_cont') || podeExibir('evo_perim_antibraco') || podeExibir('evo_perim_cintura') || podeExibir('evo_perim_abdominal') || podeExibir('evo_perim_quadril') || podeExibir('evo_perim_coxa_max') || podeExibir('evo_perim_coxa_med') || podeExibir('evo_perim_panturrilha');
-  const exibeBlocoIndices = podeExibir('evo_idx_cintura_estatura') || podeExibir('evo_idx_rcq') || podeExibir('evo_idx_apvat') || podeExibir('evo_idx_iam') || podeExibir('evo_idx_imo');
+  const exibeBlocoIndices = podeExibir('evo_idx_cintura_estatura') || podeExibir('evo_idx_rcq') || podeExibir('evo_idx_apvat') || podeExibir('evo_idx_iam') || podeExibir('evo_idx_imo') || podeExibir('evo_idx_conicidade');
 
   const exibeGraficoPerimetrosCriticos = podeExibir('evo_perim_cintura') || podeExibir('evo_perim_quadril') || podeExibir('evo_perim_braco_cont');
   const exibeGraficoSomatorios = podeExibir('evo_soma_6') || podeExibir('evo_soma_8');
@@ -419,6 +495,12 @@ export default function EvolucaoPaciente() {
 
   const ultimoApVat = Number(historico[historico.length - 1]?.apvat || 0);
   const infoApVatEvolucao = classificarApVat(ultimoApVat, pacienteLocal?.sexo);
+
+  const ultimaConicidade = Number(historico[historico.length - 1]?.conicidade || 0);
+  const infoConicidadeEvolucao = classificarConicidade(ultimaConicidade, pacienteLocal?.sexo);
+
+  const ultimoImo = Number(historico[historico.length - 1]?.imo || 0);
+  const infoImoEvolucao = classificarImo(ultimoImo, pacienteLocal?.sexo);
 
   return (
     <div className="w-full max-w-6xl mx-auto space-y-10 pb-12 px-4 sm:px-6 overflow-x-hidden animate-fade-in-up print:m-0 print:p-0 print:overflow-visible">
@@ -433,29 +515,29 @@ export default function EvolucaoPaciente() {
       `}</style>
 
       {/* --- CABEÇALHO PROFISSIONAL --- */}
-      <div className="bg-white p-5 sm:p-6 rounded-xl border border-gray-100 shadow-sm flex flex-col gap-6 w-full min-w-0 overflow-hidden">
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center border-b border-gray-100 pb-4 gap-4 w-full">
+      <div className="bg-white dark:bg-slate-900 p-5 sm:p-6 rounded-xl border border-gray-100 dark:border-slate-800 shadow-sm flex flex-col gap-6 w-full min-w-0 overflow-hidden">
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center border-b border-gray-100 dark:border-slate-800 pb-4 gap-4 w-full">
           <div className="flex items-center gap-4">
             {avaliador?.logomarca_url ? (
-              <img src={avaliador.logomarca_url} alt="Logo" className="w-14 h-14 rounded-full object-cover border border-gray-200 bg-white shrink-0" />
+              <img src={avaliador.logomarca_url} alt="Logo" className="w-14 h-14 rounded-full object-cover border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 shrink-0" />
             ) : (
-              <div className="w-14 h-14 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-600 font-black text-xl shrink-0">
+              <div className="w-14 h-14 rounded-full bg-primary-100 dark:bg-primary-900/30 dark:bg-primary-900/20 flex items-center justify-center text-primary-600 font-black text-xl shrink-0">
                 {avaliador?.nome_completo ? avaliador.nome_completo.charAt(0) : 'A'}
               </div>
             )}
             <div className="flex flex-col min-w-0 overflow-hidden">
-              <span className="text-sm font-bold text-gray-800 uppercase tracking-wide truncate">{avaliador?.empresa || 'Consultório'}</span>
-              <span className="text-xs text-gray-500 truncate">Avaliador(a): <span className="font-bold text-gray-700">{avaliador?.nome_completo || '-'}</span></span>
+              <span className="text-sm font-bold text-gray-800 dark:text-slate-100 uppercase tracking-wide truncate">{avaliador?.empresa || 'Consultório'}</span>
+              <span className="text-xs text-gray-500 dark:text-slate-400 truncate">Avaliador(a): <span className="font-bold text-gray-700 dark:text-slate-300">{avaliador?.nome_completo || '-'}</span></span>
             </div>
           </div>
 
           <div className="flex items-center gap-4 w-full md:w-auto justify-between md:justify-end shrink-0">
-            <span className="text-[10px] text-gray-400 font-medium tracking-wide">
-              Gerado via <a href="https://evaluaos.nutricaocommarco.com.br" target="_blank" rel="noopener noreferrer" className="font-bold text-emerald-600 hover:underline">EvaluaOS</a>
+            <span className="text-[10px] text-gray-400 dark:text-slate-400 font-medium tracking-wide">
+              Gerado via <a href="https://evaluaos.nutricaocommarco.com.br" target="_blank" rel="noopener noreferrer" className="font-bold text-primary-600 hover:underline">EvaluaOS</a>
             </span>
 
             {!isPublicView && (
-              <button onClick={() => navigate('/pacientes')} className="px-4 py-2 border border-gray-200 text-gray-600 text-xs font-semibold rounded-lg hover:bg-gray-50">
+              <button onClick={() => navigate('/pacientes')} className="px-4 py-2 border border-gray-200 dark:border-slate-700 text-gray-600 dark:text-slate-400 text-xs font-semibold rounded-lg hover:bg-gray-50 dark:hover:bg-slate-800">
                 Voltar
               </button>
             )}
@@ -463,40 +545,40 @@ export default function EvolucaoPaciente() {
         </div>
 
         <div className="w-full min-w-0">
-          <h2 className="text-sm font-bold text-gray-500 uppercase tracking-wider mb-1">Evolução Antropométrica de</h2>
-          <h2 className="text-2xl sm:text-3xl font-black text-gray-900 uppercase tracking-tight break-words break-all sm:break-normal">
+          <h2 className="text-sm font-bold text-gray-500 dark:text-slate-400 uppercase tracking-wider mb-1">Evolução Antropométrica de</h2>
+          <h2 className="text-2xl sm:text-3xl font-black text-gray-900 dark:text-slate-100 uppercase tracking-tight break-words break-all sm:break-normal">
             {pacienteLocal?.nome_completo}
           </h2>
 
-          <div className="flex flex-wrap gap-x-6 gap-y-4 mt-5 bg-gray-50 p-4 rounded-xl border border-gray-100 w-full">
+          <div className="flex flex-wrap gap-x-6 gap-y-4 mt-5 bg-gray-50 dark:bg-slate-800 p-4 rounded-xl border border-gray-100 dark:border-slate-800 w-full">
             <div className="flex flex-col gap-0.5">
-              <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Idade</span>
-              <span className="text-sm font-black text-gray-700">{idade} anos</span>
+              <span className="text-[10px] text-gray-400 dark:text-slate-400 font-bold uppercase tracking-wider">Idade</span>
+              <span className="text-sm font-black text-gray-700 dark:text-slate-300">{idade} anos</span>
             </div>
             <div className="flex flex-col gap-0.5">
-              <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Sexo</span>
-              <span className="text-sm font-black text-gray-700">{pacienteLocal?.sexo === 'M' ? 'Masculino' : 'Feminino'}</span>
+              <span className="text-[10px] text-gray-400 dark:text-slate-400 font-bold uppercase tracking-wider">Sexo</span>
+              <span className="text-sm font-black text-gray-700 dark:text-slate-300">{pacienteLocal?.sexo === 'M' ? 'Masculino' : 'Feminino'}</span>
             </div>
             <div className="flex flex-col gap-0.5">
-              <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Estatura</span>
-              <span className="text-sm font-black text-gray-700">{ultimaEstatura > 0 ? `${ultimaEstatura} cm` : '-'}</span>
+              <span className="text-[10px] text-gray-400 dark:text-slate-400 font-bold uppercase tracking-wider">Estatura</span>
+              <span className="text-sm font-black text-gray-700 dark:text-slate-300">{ultimaEstatura > 0 ? `${ultimaEstatura} cm` : '-'}</span>
             </div>
             {pacienteLocal?.ocupacao && (
               <div className="flex flex-col gap-0.5">
-                <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Ocupação</span>
-                <span className="text-sm font-black text-gray-700">{pacienteLocal.ocupacao}</span>
+                <span className="text-[10px] text-gray-400 dark:text-slate-400 font-bold uppercase tracking-wider">Ocupação</span>
+                <span className="text-sm font-black text-gray-700 dark:text-slate-300">{pacienteLocal.ocupacao}</span>
               </div>
             )}
             {pacienteLocal?.etnia && (
               <div className="flex flex-col gap-0.5">
-                <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Etnia</span>
-                <span className="text-sm font-black text-gray-700">{pacienteLocal.etnia}</span>
+                <span className="text-[10px] text-gray-400 dark:text-slate-400 font-bold uppercase tracking-wider">Etnia</span>
+                <span className="text-sm font-black text-gray-700 dark:text-slate-300">{pacienteLocal.etnia}</span>
               </div>
             )}
             {pacienteLocal?.nacionalidade && (
               <div className="flex flex-col gap-0.5">
-                <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Nação</span>
-                <span className="text-sm font-black text-gray-700 truncate max-w-[120px]">{pacienteLocal.nacionalidade}</span>
+                <span className="text-[10px] text-gray-400 dark:text-slate-400 font-bold uppercase tracking-wider">Nação</span>
+                <span className="text-sm font-black text-gray-700 dark:text-slate-300 truncate max-w-[120px]">{pacienteLocal.nacionalidade}</span>
               </div>
             )}
           </div>
@@ -507,10 +589,10 @@ export default function EvolucaoPaciente() {
       {exibeBlocoComposicao && (
         <div className="break-inside-avoid w-full">
           <div className="flex items-center gap-2 mb-4 px-1">
-            <div className="w-8 h-8 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center shrink-0">
+            <div className="w-8 h-8 rounded-full bg-blue-50 dark:bg-blue-900/20 dark:bg-blue-900/20 text-blue-600 flex items-center justify-center shrink-0">
               <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"></path><line x1="7" y1="7" x2="7.01" y2="7"></line></svg>
             </div>
-            <h3 className="text-lg font-black text-gray-800">Composição Corporal</h3>
+            <h3 className="text-lg font-black text-gray-800 dark:text-slate-100">Composição Corporal</h3>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 w-full min-w-0">
             <CardEvolucao titulo="Massa Corporal (Peso)" chaveDado="peso" unidade="kg" isInverso={true} chaveVisibilidade="evo_peso" />
@@ -523,12 +605,29 @@ export default function EvolucaoPaciente() {
         </div>
       )}
 
+      {/* BLOCO 1.5: Metas & Progresso */}
+      {podeExibir('evo_metas') && paresComMeta.length > 0 && (
+        <div className="break-inside-avoid w-full">
+          <div className="flex items-center gap-2 mb-4 px-1">
+            <div className="w-8 h-8 rounded-full bg-primary-50 dark:bg-primary-900/30 text-primary-600 dark:text-primary-400 flex items-center justify-center shrink-0">
+              <span>🎯</span>
+            </div>
+            <h3 className="text-lg font-black text-gray-800 dark:text-slate-100">Metas & Progresso</h3>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 w-full min-w-0">
+            {paresComMeta.map((p, idx) => (
+              <MetaProgressoCard key={idx} avMeta={p.avMeta} avAtual={p.avAtual} />
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* BLOCO 2: Gráficos Visuais */}
       {(podeExibir('evo_grafico_massa') || podeExibir('evo_grafico_gordura') || podeExibir('evo_grafico_somatocarta')) && (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 break-inside-avoid w-full min-w-0">
           {podeExibir('evo_grafico_massa') && (
-            <div className="bg-white p-4 sm:p-6 rounded-xl border border-gray-100 shadow-sm flex flex-col min-w-0 w-full overflow-hidden">
-              <h3 className="text-sm font-black text-gray-800 uppercase tracking-wider mb-6">Composição (kg)</h3>
+            <div className="bg-white dark:bg-slate-900 p-4 sm:p-6 rounded-xl border border-gray-100 dark:border-slate-800 shadow-sm flex flex-col min-w-0 w-full overflow-hidden">
+              <h3 className="text-sm font-black text-gray-800 dark:text-slate-100 uppercase tracking-wider mb-6">Composição (kg)</h3>
               <div className="w-full h-[280px] relative">
                 <div className="absolute inset-0">
                   <ResponsiveContainer width="100%" height="100%">
@@ -549,8 +648,8 @@ export default function EvolucaoPaciente() {
           )}
 
           {podeExibir('evo_grafico_gordura') && (
-            <div className="bg-white p-4 sm:p-6 rounded-xl border border-gray-100 shadow-sm flex flex-col min-w-0 w-full overflow-hidden">
-              <h3 className="text-sm font-black text-gray-800 uppercase tracking-wider mb-6">Evolução % de Gordura</h3>
+            <div className="bg-white dark:bg-slate-900 p-4 sm:p-6 rounded-xl border border-gray-100 dark:border-slate-800 shadow-sm flex flex-col min-w-0 w-full overflow-hidden">
+              <h3 className="text-sm font-black text-gray-800 dark:text-slate-100 uppercase tracking-wider mb-6">Evolução % de Gordura</h3>
               <div className="w-full h-[280px] relative">
                 <div className="absolute inset-0">
                   <ResponsiveContainer width="100%" height="100%">
@@ -569,10 +668,10 @@ export default function EvolucaoPaciente() {
           )}
 
           {podeExibir('evo_grafico_somatocarta') && (
-            <div className="bg-white p-4 sm:p-6 rounded-xl border border-gray-100 shadow-sm flex flex-col items-center justify-between min-w-0 w-full overflow-hidden">
-              <h3 className="text-sm font-black text-gray-800 uppercase tracking-wider w-full text-left mb-4">Trajetória do Somatotipo</h3>
+            <div className="bg-white dark:bg-slate-900 p-4 sm:p-6 rounded-xl border border-gray-100 dark:border-slate-800 shadow-sm flex flex-col items-center justify-between min-w-0 w-full overflow-hidden">
+              <h3 className="text-sm font-black text-gray-800 dark:text-slate-100 uppercase tracking-wider w-full text-left mb-4">Trajetória do Somatotipo</h3>
 
-              <div className="relative w-full max-w-[280px] sm:max-w-[320px] aspect-square bg-[#f8fafc] rounded-lg border border-gray-200 overflow-hidden mt-2">
+              <div className="relative w-full max-w-[280px] sm:max-w-[320px] aspect-square bg-[#f8fafc] rounded-lg border border-gray-200 dark:border-slate-700 overflow-hidden mt-2">
                 <div className="absolute inset-y-0 left-1/2 w-px border-l border-dashed border-gray-300"></div>
                 <div className="absolute inset-x-0 top-1/2 h-px border-t border-dashed border-gray-300"></div>
                 <svg className="absolute inset-0 w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none">
@@ -580,7 +679,7 @@ export default function EvolucaoPaciente() {
                 </svg>
                 <span className="absolute top-4 left-1/2 -translate-x-1/2 text-[9px] font-black text-blue-600">MESOMORFIA</span>
                 <span className="absolute bottom-4 left-4 text-[9px] font-black text-orange-600">ENDOMORFIA</span>
-                <span className="absolute bottom-4 right-4 text-[9px] font-black text-emerald-600">ECTOMORFIA</span>
+                <span className="absolute bottom-4 right-4 text-[9px] font-black text-primary-600">ECTOMORFIA</span>
 
                 {historico.map((av, idx) => {
                   const leftPos = ((av.eixo_x + 10) / 20) * 100;
@@ -601,7 +700,7 @@ export default function EvolucaoPaciente() {
 
               <div className="mt-4 w-full flex flex-wrap justify-center gap-2">
                 {historico.map((av, idx) => (
-                  <div key={idx} className="flex items-center gap-1 text-[10px] text-gray-600 font-medium bg-gray-50 px-2 py-1 rounded border border-gray-100">
+                  <div key={idx} className="flex items-center gap-1 text-[10px] text-gray-600 dark:text-slate-400 font-medium bg-gray-50 dark:bg-slate-800 px-2 py-1 rounded border border-gray-100 dark:border-slate-800">
                     <div className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: av.cor }}></div>
                     <span className="truncate max-w-[60px]">{av.nome_avaliacao}</span>
                   </div>
@@ -614,8 +713,8 @@ export default function EvolucaoPaciente() {
 
       {/* BARRAS DO SOMATOTIPO INDIVIDUAL */}
       {podeExibir('evo_grafico_barras_somatotipo') && (
-        <div className="bg-white p-4 sm:p-6 rounded-xl border border-gray-100 shadow-sm flex flex-col break-inside-avoid min-w-0 w-full overflow-hidden">
-          <h3 className="text-sm font-black text-gray-800 uppercase tracking-wider w-full text-left mb-6">Evolução dos Componentes do Somatotipo</h3>
+        <div className="bg-white dark:bg-slate-900 p-4 sm:p-6 rounded-xl border border-gray-100 dark:border-slate-800 shadow-sm flex flex-col break-inside-avoid min-w-0 w-full overflow-hidden">
+          <h3 className="text-sm font-black text-gray-800 dark:text-slate-100 uppercase tracking-wider w-full text-left mb-6">Evolução dos Componentes do Somatotipo</h3>
           <BarChartSomatotipo />
         </div>
       )}
@@ -627,7 +726,7 @@ export default function EvolucaoPaciente() {
             <div className="w-8 h-8 rounded-full bg-rose-50 text-rose-600 flex items-center justify-center shrink-0">
               <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10z"></path><path d="M2 12h20"></path></svg>
             </div>
-            <h3 className="text-lg font-black text-gray-800">Circunferências (Perímetros)</h3>
+            <h3 className="text-lg font-black text-gray-800 dark:text-slate-100">Circunferências (Perímetros)</h3>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 w-full min-w-0">
@@ -643,8 +742,8 @@ export default function EvolucaoPaciente() {
           </div>
 
           {exibeGraficoPerimetrosCriticos && (
-            <div className="bg-white p-4 sm:p-6 rounded-xl border border-gray-100 shadow-sm flex flex-col min-w-0 w-full overflow-hidden">
-              <h3 className="text-sm font-black text-gray-800 uppercase tracking-wider mb-6">Comparativo de Perímetros Críticos (cm)</h3>
+            <div className="bg-white dark:bg-slate-900 p-4 sm:p-6 rounded-xl border border-gray-100 dark:border-slate-800 shadow-sm flex flex-col min-w-0 w-full overflow-hidden">
+              <h3 className="text-sm font-black text-gray-800 dark:text-slate-100 uppercase tracking-wider mb-6">Comparativo de Perímetros Críticos (cm)</h3>
               <div className="w-full h-[280px] relative">
                 <div className="absolute inset-0">
                   <ResponsiveContainer width="100%" height="100%">
@@ -665,10 +764,10 @@ export default function EvolucaoPaciente() {
           )}
 
           {(podeExibir('evo_perim_braco_rel') || podeExibir('evo_perim_coxa_med') || podeExibir('evo_perim_panturrilha')) && (
-            <div className="pt-4 space-y-4 border-t border-gray-100">
+            <div className="pt-4 space-y-4 border-t border-gray-100 dark:border-slate-800">
               <div className="flex items-center gap-2">
                 <span className="text-base">💪</span>
-                <h4 className="text-xs font-black text-gray-700 uppercase tracking-wider">Massa Muscular Regional (Perímetros Corrigidos por Dobras)</h4>
+                <h4 className="text-xs font-black text-gray-700 dark:text-slate-300 uppercase tracking-wider">Massa Muscular Regional (Perímetros Corrigidos por Dobras)</h4>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 w-full min-w-0">
@@ -677,8 +776,8 @@ export default function EvolucaoPaciente() {
                 <CardEvolucao titulo="Panturrilha Corrigida" chaveDado="perim_corrigido_panturrilha" unidade="cm" isInverso={false} chaveVisibilidade="evo_perim_panturrilha" />
               </div>
 
-              <div className="bg-white p-4 sm:p-6 rounded-xl border border-gray-100 shadow-sm flex flex-col min-w-0 w-full overflow-hidden">
-                <h3 className="text-sm font-black text-gray-800 uppercase tracking-wider mb-6">Evolução do Perímetro Corrigido / Muscular (cm)</h3>
+              <div className="bg-white dark:bg-slate-900 p-4 sm:p-6 rounded-xl border border-gray-100 dark:border-slate-800 shadow-sm flex flex-col min-w-0 w-full overflow-hidden">
+                <h3 className="text-sm font-black text-gray-800 dark:text-slate-100 uppercase tracking-wider mb-6">Evolução do Perímetro Corrigido / Muscular (cm)</h3>
                 <div className="w-full h-[280px] relative">
                   <div className="absolute inset-0">
                     <ResponsiveContainer width="100%" height="100%">
@@ -705,10 +804,10 @@ export default function EvolucaoPaciente() {
       {(exibeBlocoDobras || exibeGraficoSomatorios) && (
         <div className="break-inside-avoid w-full space-y-6">
           <div className="flex items-center gap-2 mb-4 px-1">
-            <div className="w-8 h-8 rounded-full bg-orange-50 text-orange-600 flex items-center justify-center shrink-0">
+            <div className="w-8 h-8 rounded-full bg-orange-50 dark:bg-orange-900/20 dark:bg-orange-900/20 text-orange-600 flex items-center justify-center shrink-0">
               <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
             </div>
-            <h3 className="text-lg font-black text-gray-800">Dobras Cutâneas e Somatórios</h3>
+            <h3 className="text-lg font-black text-gray-800 dark:text-slate-100">Dobras Cutâneas e Somatórios</h3>
           </div>
 
           {exibeBlocoDobras && (
@@ -728,7 +827,7 @@ export default function EvolucaoPaciente() {
             <>
               <div className="flex items-center gap-4 my-8">
                 <div className="h-px bg-gray-200 flex-1"></div>
-                <span className="text-xs font-bold text-gray-400 uppercase tracking-wider text-center px-2">Somatórios Gerais</span>
+                <span className="text-xs font-bold text-gray-400 dark:text-slate-400 uppercase tracking-wider text-center px-2">Somatórios Gerais</span>
                 <div className="h-px bg-gray-200 flex-1"></div>
               </div>
 
@@ -738,16 +837,16 @@ export default function EvolucaoPaciente() {
                   
                   {/* ESCALA ARGOREF (COMPONENTE DE RESUMO NA EVOLUÇÃO) */}
                   {ultimoSoma6 > 0 && (
-                    <div className="bg-emerald-50/60 p-3 rounded-xl border border-emerald-100 flex justify-between items-center">
+                    <div className="bg-emerald-50/60 dark:bg-emerald-900/20 p-3 rounded-xl border border-emerald-100 dark:border-emerald-900/40 flex justify-between items-center">
                       <div>
-                        <span className="text-xs font-bold text-gray-800">Classificação ARGOREF (Holway, 2025)</span>
-                        <p className="text-[10px] text-gray-500">Último somatório de 6 dobras registrado ({ultimoSoma6} mm).</p>
+                        <span className="text-xs font-bold text-gray-800 dark:text-slate-100">Classificação ARGOREF (Holway, 2025)</span>
+                        <p className="text-[10px] text-gray-500 dark:text-slate-400">Último somatório de 6 dobras registrado ({ultimoSoma6} mm).</p>
                       </div>
                       <span className={`text-[10px] font-extrabold px-2.5 py-1 rounded-md uppercase tracking-wider ${
-                        infoArgorefEvolucao.cor === 'red' ? 'bg-red-100 text-red-800' :
-                        infoArgorefEvolucao.cor === 'amber' ? 'bg-amber-100 text-amber-800' :
-                        infoArgorefEvolucao.cor === 'blue' ? 'bg-blue-100 text-blue-800' :
-                        'bg-emerald-100 text-emerald-800'
+                        infoArgorefEvolucao.cor === 'red' ? 'bg-red-100 dark:bg-red-900/30 dark:bg-red-900/20 text-red-800 dark:text-red-300' :
+                        infoArgorefEvolucao.cor === 'amber' ? 'bg-amber-100 dark:bg-amber-900/30 dark:bg-amber-900/20 text-amber-800 dark:text-amber-300' :
+                        infoArgorefEvolucao.cor === 'blue' ? 'bg-blue-100 dark:bg-blue-900/30 dark:bg-blue-900/20 text-blue-800 dark:text-blue-300' :
+                        'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-800 dark:text-emerald-300'
                       }`}>
                         {infoArgorefEvolucao.classificacao}
                       </span>
@@ -758,8 +857,8 @@ export default function EvolucaoPaciente() {
                 <CardEvolucao titulo="Somatório 8 Dobras" chaveDado="soma_8" unidade="mm" isInverso={true} chaveVisibilidade="evo_soma_8" />
               </div>
 
-              <div className="bg-white p-4 sm:p-6 rounded-xl border border-gray-100 shadow-sm flex flex-col min-w-0 w-full overflow-hidden">
-                <h3 className="text-sm font-black text-gray-800 uppercase tracking-wider mb-6">Evolução do Somatório de Dobras (mm)</h3>
+              <div className="bg-white dark:bg-slate-900 p-4 sm:p-6 rounded-xl border border-gray-100 dark:border-slate-800 shadow-sm flex flex-col min-w-0 w-full overflow-hidden">
+                <h3 className="text-sm font-black text-gray-800 dark:text-slate-100 uppercase tracking-wider mb-6">Evolução do Somatório de Dobras (mm)</h3>
                 <div className="w-full h-[280px] relative">
                   <div className="absolute inset-0">
                     <ResponsiveContainer width="100%" height="100%">
@@ -785,10 +884,10 @@ export default function EvolucaoPaciente() {
       {exibeBlocoIndices && (
         <div className="break-inside-avoid w-full space-y-4">
           <div className="flex items-center gap-2 mb-4 px-1">
-            <div className="w-8 h-8 rounded-full bg-purple-50 text-purple-600 flex items-center justify-center shrink-0">
+            <div className="w-8 h-8 rounded-full bg-purple-50 dark:bg-purple-900/20 dark:bg-purple-900/20 text-purple-600 flex items-center justify-center shrink-0">
               <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"></path></svg>
             </div>
-            <h3 className="text-lg font-black text-gray-800">Risco Cardiometabólico e Índices</h3>
+            <h3 className="text-lg font-black text-gray-800 dark:text-slate-100">Risco Cardiometabólico e Índices</h3>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 w-full min-w-0">
             <CardEvolucao titulo="Cintura / Estatura" chaveDado="cintura_estatura" isInverso={true} chaveVisibilidade="evo_idx_cintura_estatura" />
@@ -799,16 +898,16 @@ export default function EvolucaoPaciente() {
               
               {/* CLASSIFICAÇÃO APVAT DA ÚLTIMA CONSULTA */}
               {ultimoApVat > 0 && (
-                <div className="bg-emerald-50/60 p-3 rounded-xl border border-emerald-100 flex justify-between items-center">
+                <div className="bg-emerald-50/60 dark:bg-emerald-900/20 p-3 rounded-xl border border-emerald-100 dark:border-emerald-900/40 flex justify-between items-center">
                   <div>
-                    <span className="text-xs font-bold text-gray-800">Risco apVAT (Samouda, 2013)</span>
-                    <p className="text-[10px] text-gray-500">Última avaliação ({ultimoApVat} cm²).</p>
+                    <span className="text-xs font-bold text-gray-800 dark:text-slate-100">Risco apVAT (Samouda, 2013)</span>
+                    <p className="text-[10px] text-gray-500 dark:text-slate-400">Última avaliação ({ultimoApVat} cm²).</p>
                   </div>
                   <span className={`text-[10px] font-extrabold px-2.5 py-1 rounded-md uppercase tracking-wider ${
-                    infoApVatEvolucao.cor === 'red' ? 'bg-red-100 text-red-800' :
-                    infoApVatEvolucao.cor === 'orange' ? 'bg-orange-100 text-orange-800' :
-                    infoApVatEvolucao.cor === 'amber' ? 'bg-amber-100 text-amber-800' :
-                    'bg-emerald-100 text-emerald-800'
+                    infoApVatEvolucao.cor === 'red' ? 'bg-red-100 dark:bg-red-900/30 dark:bg-red-900/20 text-red-800 dark:text-red-300' :
+                    infoApVatEvolucao.cor === 'orange' ? 'bg-orange-100 dark:bg-orange-900/30 dark:bg-orange-900/20 text-orange-800 dark:text-orange-300' :
+                    infoApVatEvolucao.cor === 'amber' ? 'bg-amber-100 dark:bg-amber-900/30 dark:bg-amber-900/20 text-amber-800 dark:text-amber-300' :
+                    'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-800 dark:text-emerald-300'
                   }`}>
                     {infoApVatEvolucao.classificacao}
                   </span>
@@ -817,21 +916,60 @@ export default function EvolucaoPaciente() {
             </div>
 
             <CardEvolucao titulo="Índice Adiposo Muscular" chaveDado="iam" isInverso={true} chaveVisibilidade="evo_idx_iam" />
-            <CardEvolucao titulo="Índice Massa Óssea (IMO)" chaveDado="imo" isInverso={false} chaveVisibilidade="evo_idx_imo" casasDecimais={3} />
+            <div className="space-y-3">
+              <CardEvolucao titulo="Índice Massa Óssea (IMO)" chaveDado="imo" isInverso={false} chaveVisibilidade="evo_idx_imo" casasDecimais={3} />
+
+              {ultimoImo > 0 && (
+                <div className="bg-emerald-50/60 dark:bg-emerald-900/20 p-3 rounded-xl border border-emerald-100 dark:border-emerald-900/40 flex justify-between items-center">
+                  <div>
+                    <span className="text-xs font-bold text-gray-800 dark:text-slate-100">Classificação IMO (Holway)</span>
+                    <p className="text-[10px] text-gray-500 dark:text-slate-400">Última avaliação ({ultimoImo.toFixed(3)}).</p>
+                  </div>
+                  <span className={`text-[10px] font-extrabold px-2.5 py-1 rounded-md uppercase tracking-wider ${
+                    infoImoEvolucao.cor === 'red' ? 'bg-red-100 dark:bg-red-900/30 dark:bg-red-900/20 text-red-800 dark:text-red-300' :
+                    infoImoEvolucao.cor === 'amber' ? 'bg-amber-100 dark:bg-amber-900/30 dark:bg-amber-900/20 text-amber-800 dark:text-amber-300' :
+                    infoImoEvolucao.cor === 'blue' ? 'bg-blue-100 dark:bg-blue-900/30 dark:bg-blue-900/20 text-blue-800 dark:text-blue-300' :
+                    'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-800 dark:text-emerald-300'
+                  }`}>
+                    {infoImoEvolucao.classificacao}
+                  </span>
+                </div>
+              )}
+            </div>
+
+            <div className="space-y-3">
+              <CardEvolucao titulo="Índice de Conicidade" chaveDado="conicidade" isInverso={true} chaveVisibilidade="evo_idx_conicidade" casasDecimais={2} />
+
+              {ultimaConicidade > 0 && (
+                <div className="bg-emerald-50/60 dark:bg-emerald-900/20 p-3 rounded-xl border border-emerald-100 dark:border-emerald-900/40 flex justify-between items-center">
+                  <div>
+                    <span className="text-xs font-bold text-gray-800 dark:text-slate-100">Risco Conicidade (Valdez, 1991)</span>
+                    <p className="text-[10px] text-gray-500 dark:text-slate-400">Última avaliação ({ultimaConicidade.toFixed(2)}).</p>
+                  </div>
+                  <span className={`text-[10px] font-extrabold px-2.5 py-1 rounded-md uppercase tracking-wider ${
+                    infoConicidadeEvolucao.cor === 'red' ? 'bg-red-100 dark:bg-red-900/30 dark:bg-red-900/20 text-red-800 dark:text-red-300' :
+                    infoConicidadeEvolucao.cor === 'amber' ? 'bg-amber-100 dark:bg-amber-900/30 dark:bg-amber-900/20 text-amber-800 dark:text-amber-300' :
+                    'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-800 dark:text-emerald-300'
+                  }`}>
+                    {infoConicidadeEvolucao.classificacao}
+                  </span>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       )}
 
       {/* 🎥 PLAYER DE VÍDEO DO LAUDO (ÚLTIMA AVALIAÇÃO OU VÍDEO PADRÃO) */}
       {videoEmbedUrl && (
-        <div className="bg-white border border-slate-200 rounded-3xl p-5 sm:p-6 shadow-sm space-y-3 my-6">
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-3xl p-5 sm:p-6 shadow-sm space-y-3 my-6">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 bg-emerald-50 text-emerald-600 rounded-xl flex items-center justify-center font-bold text-base">
+            <div className="w-9 h-9 bg-primary-50 dark:bg-primary-900/20 dark:bg-primary-900/20 text-primary-600 rounded-xl flex items-center justify-center font-bold text-base">
               📹
             </div>
             <div>
-              <h3 className="text-sm font-bold text-slate-900">Mensagem & Orientações em Vídeo</h3>
-              <p className="text-xs text-slate-500">Assista às explicações do seu avaliador sobre os seus resultados.</p>
+              <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">Mensagem & Orientações em Vídeo</h3>
+              <p className="text-xs text-slate-500 dark:text-slate-400">Assista às explicações do seu avaliador sobre os seus resultados.</p>
             </div>
           </div>
 
