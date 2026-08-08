@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { supabase } from '../supabaseClient'
 
@@ -106,11 +106,16 @@ const calcularSomatotipo = (medidas) => {
   }
 }
 
-// COMPONENTE DE LINHA DE MEDIÇÃO
+// COMPONENTE DE LINHA DE MEDIÇÃO COM DESBLOQUEIO GARANTIDO
 const MeasureRow = ({ label, field, categoryType, state, setter, isSingleMode, handleMeasureChange, tolerancias, alturaBanco, isEditingExisting }) => {
   const { m1, m2, m3 } = state[field] || { m1: '', m2: '', m3: '' }
   const v1 = parseFloat(m1)
   const v2 = parseFloat(m2)
+
+  // Referências diretas dos inputs para forçar o foco via código
+  const inputRefM1 = useRef(null)
+  const inputRefM2 = useRef(null)
+  const inputRefM3 = useRef(null)
 
   // Estado de trava individual para cada campo
   const [isLocked, setIsLocked] = useState({
@@ -126,19 +131,25 @@ const MeasureRow = ({ label, field, categoryType, state, setter, isSingleMode, h
     m3: false
   })
 
-  // Ao sair do campo (onBlur), se houver número preenchido, trava automaticamente
+  // Trava o campo ao sair (onBlur) se houver número preenchido
   const handleFieldBlur = (key) => {
     if (state[field]?.[key] !== '' && state[field]?.[key] !== undefined) {
       setIsLocked(prev => ({ ...prev, [key]: true }))
     }
   }
 
-  // Ao clicar em um campo que está travado, exibe a confirmação
-  const handleFieldClick = (key) => {
+  // Tenta destravar e coloca o foco imediatamente no input
+  const handleFieldClick = (key, inputRef) => {
     if (isLocked[key]) {
       const ok = window.confirm(`Deseja desbloquear e alterar a medida "${label}" (${key.toUpperCase()}: ${state[field][key]})?`)
       if (ok) {
         setIsLocked(prev => ({ ...prev, [key]: false }))
+        setTimeout(() => {
+          if (inputRef.current) {
+            inputRef.current.focus()
+            inputRef.current.select()
+          }
+        }, 50)
       }
     }
   }
@@ -246,57 +257,69 @@ const MeasureRow = ({ label, field, categoryType, state, setter, isSingleMode, h
 
       <div className="col-span-6 grid grid-cols-3 gap-2">
         {/* Campo M1 */}
-        <input 
-          type="number" 
-          step="0.1" 
-          tabIndex={tabIndexM1} 
-          value={m1} 
-          readOnly={isLocked.m1}
-          onClick={() => handleFieldClick('m1')}
-          onBlur={() => handleFieldBlur('m1')}
-          onWheel={(e) => e.target.blur()}
-          onChange={(e) => handleChangeMeasure('m1', e.target.value)} 
-          className={`w-full px-2 py-1.5 border rounded-md text-sm text-center focus:border-emerald-500 transition-colors ${
-            isLocked.m1 ? 'bg-slate-100 cursor-pointer font-bold text-slate-800 border-slate-300' : 'bg-white font-normal'
-          }`} 
-          placeholder={isSingleMode ? "Valor" : "1ª"} 
-        />
+        <div className="relative" onClick={() => handleFieldClick('m1', inputRefM1)}>
+          <input 
+            ref={inputRefM1}
+            type="number" 
+            step="0.1" 
+            tabIndex={tabIndexM1} 
+            value={m1} 
+            readOnly={isLocked.m1}
+            onBlur={() => handleFieldBlur('m1')}
+            onWheel={(e) => e.target.blur()}
+            onChange={(e) => handleChangeMeasure('m1', e.target.value)} 
+            className={`w-full px-2 py-1.5 border rounded-md text-sm text-center focus:border-emerald-500 transition-colors ${
+              isLocked.m1 
+                ? 'bg-slate-100 font-bold text-slate-800 border-slate-300 cursor-pointer select-none' 
+                : 'bg-white font-normal'
+            }`} 
+            placeholder={isSingleMode ? "Valor" : "1ª"} 
+          />
+        </div>
+
         {!isSingleMode && (
           <>
             {/* Campo M2 */}
-            <input 
-              type="number" 
-              step="0.1" 
-              tabIndex={tabIndexM2} 
-              value={m2} 
-              readOnly={isLocked.m2}
-              onClick={() => handleFieldClick('m2')}
-              onBlur={() => handleFieldBlur('m2')}
-              onWheel={(e) => e.target.blur()}
-              onChange={(e) => handleChangeMeasure('m2', e.target.value)} 
-              className={`w-full px-2 py-1.5 border rounded-md text-sm text-center focus:border-emerald-500 transition-colors ${
-                isLocked.m2 ? 'bg-slate-100 cursor-pointer font-bold text-slate-800 border-slate-300' : 'bg-white font-normal'
-              }`} 
-              placeholder="2ª" 
-            />
+            <div className="relative" onClick={() => handleFieldClick('m2', inputRefM2)}>
+              <input 
+                ref={inputRefM2}
+                type="number" 
+                step="0.1" 
+                tabIndex={tabIndexM2} 
+                value={m2} 
+                readOnly={isLocked.m2}
+                onBlur={() => handleFieldBlur('m2')}
+                onWheel={(e) => e.target.blur()}
+                onChange={(e) => handleChangeMeasure('m2', e.target.value)} 
+                className={`w-full px-2 py-1.5 border rounded-md text-sm text-center focus:border-emerald-500 transition-colors ${
+                  isLocked.m2 
+                    ? 'bg-slate-100 font-bold text-slate-800 border-slate-300 cursor-pointer select-none' 
+                    : 'bg-white font-normal'
+                }`} 
+                placeholder="2ª" 
+              />
+            </div>
+
             {/* Campo M3 */}
-            <input 
-              type="number" 
-              step="0.1" 
-              tabIndex={tabIndexM3} 
-              disabled={!needsThird} 
-              readOnly={isLocked.m3}
-              onClick={() => handleFieldClick('m3')}
-              onBlur={() => handleFieldBlur('m3')}
-              onWheel={(e) => e.target.blur()}
-              onChange={(e) => handleChangeMeasure('m3', e.target.value)} 
-              className={`w-full px-2 py-1.5 border rounded-md text-sm text-center transition-colors ${
-                needsThird 
-                  ? (isLocked.m3 ? 'bg-red-100 cursor-pointer font-bold text-red-900 border-red-300' : 'ring-2 ring-red-400 bg-red-50 focus:ring-red-500') 
-                  : 'opacity-40 bg-gray-100 cursor-not-allowed'
-              }`} 
-              placeholder="3ª" 
-            />
+            <div className="relative" onClick={() => handleFieldClick('m3', inputRefM3)}>
+              <input 
+                ref={inputRefM3}
+                type="number" 
+                step="0.1" 
+                tabIndex={tabIndexM3} 
+                disabled={!needsThird} 
+                readOnly={isLocked.m3}
+                onBlur={() => handleFieldBlur('m3')}
+                onWheel={(e) => e.target.blur()}
+                onChange={(e) => handleChangeMeasure('m3', e.target.value)} 
+                className={`w-full px-2 py-1.5 border rounded-md text-sm text-center transition-colors ${
+                  needsThird 
+                    ? (isLocked.m3 ? 'bg-red-100 font-bold text-red-900 border-red-300 cursor-pointer select-none' : 'ring-2 ring-red-400 bg-red-50 focus:ring-red-500') 
+                    : 'opacity-40 bg-gray-100 cursor-not-allowed'
+                }`} 
+                placeholder="3ª" 
+              />
+            </div>
           </>
         )}
       </div>
