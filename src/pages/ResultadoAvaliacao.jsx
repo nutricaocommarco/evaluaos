@@ -14,9 +14,16 @@ import {
   classificarRcq, 
   classificarArgoref, 
   classificarPercentilItaliano,
-  classificarMorrow, 
-  classificarApVat, 
-  classificarSomatotipoDetalhado 
+  classificarMorrow,
+  classificarApVat,
+  classificarSomatotipoDetalhado,
+  calcularIndiceCormico,
+  calcularIndiceManouvrier,
+  calcularEnvergaduraRelativa,
+  calcularIndiceConicidade,
+  classificarConicidade,
+  classificarImo,
+  classificarImoMartin
 } from '../utils/escalasNormativas'
 
 const calcularSomatotipo = (medidas) => {
@@ -336,18 +343,42 @@ export default function ResultadoAvaliacao() {
         calcRocha = 3.02 * Math.pow(Math.pow(alturaM, 2) * (dUmero / 100) * (dFemur / 100) * 400, 0.712)
       }
 
+      // Massa Muscular - Martin (1990) e Massa Óssea - Martin (1991), usadas só no IMO
+      // (o Fracionamento em 4C acima continua em Lee/Rocha, sem mudança de escopo)
+      // A correção de perímetro (girth - dobra*0.314) parte de uma camada de gordura fina;
+      // em dobras muito altas ela subestima a gordura e infla o músculo (validado com paciente
+      // real: IMC >= 25 chegou a estimar quase metade do peso corporal em músculo). Por isso
+      // só usamos Martin dentro do perfil em que ele foi validado (sem sobrepeso/obesidade).
+      const pAntebraco = Number(avalDados.perimetro_antibraco) || 0;
+      const dentroFaixaSeguraMartin = calcImc > 0 && calcImc < 25;
+      let calcMuscularMartin = 0;
+      if (dentroFaixaSeguraMartin && alturaCm > 0 && calcPerimCorrigidoCoxa > 0 && pAntebraco > 0 && calcPerimCorrigidoPanturrilha > 0) {
+        calcMuscularMartin = ((alturaCm * ((0.0553 * Math.pow(calcPerimCorrigidoCoxa, 2)) + (0.0987 * Math.pow(pAntebraco, 2)) + (0.0331 * Math.pow(calcPerimCorrigidoPanturrilha, 2)))) - 2445) * 0.001;
+      }
+
+      const dPunho = Number(avalDados.diametro_punho) || 0;
+      const dTornozelo = Number(avalDados.diametro_maleolar) || 0;
+      let calcOsseaMartin = 0;
+      if (dentroFaixaSeguraMartin && alturaCm > 0 && dUmero > 0 && dFemur > 0 && dPunho > 0 && dTornozelo > 0) {
+        calcOsseaMartin = 0.6 * alturaCm * Math.pow(dUmero + dFemur + dPunho + dTornozelo, 2) * 0.0001;
+      }
+
       // 4. Würch (1973)
       const pctResidualWurch = pac.sexo === 'M' ? 0.24 : 0.21
       let calcWurch = pesoFinal > 0 ? pesoFinal * pctResidualWurch : 0
 
-      // NORMALIZAÇÃO
-      const soma4C = calcKerr + calcMuscular + calcRocha + calcWurch;
-      if (soma4C > 0 && pesoFinal > 0) {
-        const fatorAjuste = pesoFinal / soma4C;
-        calcKerr *= fatorAjuste;
-        calcMuscular *= fatorAjuste;
-        calcRocha *= fatorAjuste;
-        calcWurch *= fatorAjuste;
+      // AJUSTE PRÓ-RATA (só Ósseo/Residual)
+      // Adiposo (Kerr) e Muscular (Lee) usam fórmulas Phantom validadas e ficam fixos.
+      // Ósseo (Rocha) e Residual (Würch, % fixo do peso) são estimativas mais incertas
+      // (sem medidas de tórax/cintura escapular) — a diferença entre o peso real e
+      // Adiposo+Muscular é redistribuída proporcionalmente só entre elas, evitando o
+      // "efeito Frankenstein" (soma ≠ peso) sem corromper os dois valores já exatos.
+      const massaRestante4C = Math.max(0, pesoFinal - calcKerr - calcMuscular);
+      const somaOsseoResidualBruto = calcRocha + calcWurch;
+      if (somaOsseoResidualBruto > 0 && massaRestante4C > 0) {
+        const fatorAjusteRestante = massaRestante4C / somaOsseoResidualBruto;
+        calcRocha *= fatorAjusteRestante;
+        calcWurch *= fatorAjusteRestante;
       }
 
       const pCintura = avalDados.perimetro_cintura || 0
@@ -369,7 +400,10 @@ export default function ResultadoAvaliacao() {
 
       const somatotipo = calcularSomatotipo(avalDados)
       const iamVal = (calcMuscular > 0 && calcKerr > 0) ? (calcKerr / calcMuscular) : 0
-      const imoVal = (calcMuscular > 0 && calcRocha > 0) ? (calcMuscular / calcRocha) : 0
+      const usouMartinNoImo = calcMuscularMartin > 0 && calcOsseaMartin > 0
+      const imoVal = usouMartinNoImo
+        ? (calcMuscularMartin / calcOsseaMartin)
+        : ((calcMuscular > 0 && calcRocha > 0) ? (calcMuscular / calcRocha) : 0)
 
       // BUSCAR DADOS DE PLANEJAMENTO DO BANCO DE DADOS
       const { data: calcSalvoNoBanco } = await supabase
@@ -409,9 +443,10 @@ export default function ResultadoAvaliacao() {
 
       setDados({
         ...payloadCalculado,
-        calcKerr, 
+        calcKerr,
         calcRocha,
         calcWurch,
+        usouMartinNoImo,
         avaliacoes: avalDados,
         pacientes: pac
       })
@@ -500,6 +535,7 @@ export default function ResultadoAvaliacao() {
 
   const iamVal = dados.indice_adiposo_muscular || 0
   const imoVal = dados.indice_massa_ossea_imo || 0
+  const infoImo = dados.usouMartinNoImo ? classificarImoMartin(imoVal, pac.sexo) : classificarImo(imoVal, pac.sexo)
   const apvatVal = dados.area_previsao_visceral_apvat || 0
 
   const infoApVat = classificarApVat ? classificarApVat(apvatVal, pac.sexo) : { classificacao: '-', cor: 'gray' };
@@ -507,6 +543,12 @@ export default function ResultadoAvaliacao() {
   const infoRcq = classificarRcq ? classificarRcq(rcq, pac.sexo) : { classificacao: '-', cor: 'gray' };
   const rce = dados.relacao_cintura_estatura || 0;
   const infoRce = classificarRce ? classificarRce(rce) : { classificacao: '-', cor: 'gray' };
+
+  const infoCormico = calcularIndiceCormico(aval.altura_sentado_paciente, aval.altura_paciente);
+  const infoManouvrier = calcularIndiceManouvrier(aval.altura_sentado_paciente, aval.altura_paciente);
+  const infoEnvergadura = calcularEnvergaduraRelativa(aval.envergadura_paciente, aval.altura_paciente);
+  const conicidadeVal = calcularIndiceConicidade(aval.peso_paciente, aval.altura_paciente, aval.perimetro_cintura);
+  const infoConicidade = classificarConicidade(conicidadeVal, pac.sexo);
 
   const soma6 = dados.somatorio_6_dobras || 0;
   const soma8 = dados.somatorio_8_dobras || 0;
@@ -899,7 +941,7 @@ export default function ResultadoAvaliacao() {
       )}
 
       {/* 4. INDICADORES DE SAÚDE */}
-      {(podeExibir('laudo_rcq') || podeExibir('laudo_rce') || podeExibir('laudo_status_cintura') || podeExibir('laudo_soma_6') || podeExibir('laudo_soma_8')) && (
+      {(podeExibir('laudo_rcq') || podeExibir('laudo_rce') || podeExibir('laudo_status_cintura') || podeExibir('laudo_soma_6') || podeExibir('laudo_soma_8') || podeExibir('laudo_indice_cormico') || podeExibir('laudo_manouvrier') || podeExibir('laudo_envergadura_relativa') || podeExibir('laudo_conicidade')) && (
         <div>
           <h3 className="text-sm font-bold text-gray-800 dark:text-slate-100 uppercase tracking-wider mb-3 px-1 mt-6">⚖️ 4. Indicadores de Saúde</h3>
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -982,6 +1024,70 @@ export default function ResultadoAvaliacao() {
               <div className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-gray-100 dark:border-slate-800 shadow-sm flex justify-between items-center">
                 <span className="text-xs font-bold text-gray-600 dark:text-slate-400">Σ 8 Dobras</span>
                 <span className="text-lg font-black text-amber-600">{soma8 > 0 ? soma8.toFixed(1) : '-'} <span className="text-xs font-normal text-gray-400 dark:text-slate-400">mm</span></span>
+              </div>
+            )}
+
+            {podeExibir('laudo_indice_cormico') && infoCormico.valor > 0 && (
+              <div className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-gray-100 dark:border-slate-800 shadow-sm space-y-2">
+                <div className="flex justify-between items-center">
+                  <span className="text-xs font-bold text-gray-600 dark:text-slate-400">Índice Córmico</span>
+                  <span className="text-lg font-black text-indigo-600">{infoCormico.valor.toFixed(2)}</span>
+                </div>
+                <div className="pt-2 border-t border-gray-50 dark:border-slate-800 flex justify-between items-center">
+                  <span className="text-[10px] text-gray-400 dark:text-slate-400 font-medium">Biotipo:</span>
+                  <span className="text-[9px] font-extrabold px-2 py-0.5 rounded uppercase tracking-wider bg-gray-100 dark:bg-slate-800 text-gray-700 dark:text-slate-300">
+                    {infoCormico.classificacao}
+                  </span>
+                </div>
+              </div>
+            )}
+
+            {podeExibir('laudo_manouvrier') && infoManouvrier.valor > 0 && (
+              <div className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-gray-100 dark:border-slate-800 shadow-sm space-y-2">
+                <div className="flex justify-between items-center">
+                  <span className="text-xs font-bold text-gray-600 dark:text-slate-400">Índice de Manouvrier</span>
+                  <span className="text-lg font-black text-indigo-600">{infoManouvrier.valor.toFixed(0)}</span>
+                </div>
+                <div className="pt-2 border-t border-gray-50 dark:border-slate-800 flex justify-between items-center">
+                  <span className="text-[10px] text-gray-400 dark:text-slate-400 font-medium">Biotipo:</span>
+                  <span className="text-[9px] font-extrabold px-2 py-0.5 rounded uppercase tracking-wider bg-gray-100 dark:bg-slate-800 text-gray-700 dark:text-slate-300">
+                    {infoManouvrier.classificacao}
+                  </span>
+                </div>
+              </div>
+            )}
+
+            {podeExibir('laudo_envergadura_relativa') && infoEnvergadura.valor > 0 && (
+              <div className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-gray-100 dark:border-slate-800 shadow-sm space-y-2">
+                <div className="flex justify-between items-center">
+                  <span className="text-xs font-bold text-gray-600 dark:text-slate-400">Envergadura Relativa</span>
+                  <span className="text-lg font-black text-indigo-600">{infoEnvergadura.valor.toFixed(2)}</span>
+                </div>
+                <div className="pt-2 border-t border-gray-50 dark:border-slate-800 flex justify-between items-center">
+                  <span className="text-[10px] text-gray-400 dark:text-slate-400 font-medium">Biotipo:</span>
+                  <span className="text-[9px] font-extrabold px-2 py-0.5 rounded uppercase tracking-wider bg-gray-100 dark:bg-slate-800 text-gray-700 dark:text-slate-300">
+                    {infoEnvergadura.classificacao}
+                  </span>
+                </div>
+              </div>
+            )}
+
+            {podeExibir('laudo_conicidade') && conicidadeVal > 0 && (
+              <div className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-gray-100 dark:border-slate-800 shadow-sm space-y-2">
+                <div className="flex justify-between items-center">
+                  <span className="text-xs font-bold text-gray-600 dark:text-slate-400">Índice de Conicidade</span>
+                  <span className="text-lg font-black text-indigo-600">{conicidadeVal.toFixed(2)}</span>
+                </div>
+                <div className="pt-2 border-t border-gray-50 dark:border-slate-800 flex justify-between items-center">
+                  <span className="text-[10px] text-gray-400 dark:text-slate-400 font-medium">Classificação:</span>
+                  <span className={`text-[9px] font-extrabold px-2 py-0.5 rounded uppercase tracking-wider ${
+                    infoConicidade.cor === 'red' ? 'bg-red-100 dark:bg-red-900/30 dark:bg-red-900/20 text-red-800 dark:text-red-300' :
+                    infoConicidade.cor === 'amber' ? 'bg-amber-100 dark:bg-amber-900/30 dark:bg-amber-900/20 text-amber-800 dark:text-amber-300' :
+                    'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-800 dark:text-emerald-300'
+                  }`}>
+                    {infoConicidade.classificacao}
+                  </span>
+                </div>
               </div>
             )}
           </div>
@@ -1208,6 +1314,19 @@ export default function ResultadoAvaliacao() {
                     {imoVal > 0 ? imoVal.toFixed(3) : '-'}
                   </span>
                 </div>
+                {imoVal > 0 && (
+                  <div className="pt-1 border-t border-gray-100 dark:border-slate-800 flex justify-between items-center">
+                    <span className="text-[10px] text-gray-400 dark:text-slate-400 font-medium">Classificação (Holway):</span>
+                    <span className={`text-[9px] font-extrabold px-2 py-0.5 rounded uppercase tracking-wider ${
+                      infoImo.cor === 'red' ? 'bg-red-100 dark:bg-red-900/30 dark:bg-red-900/20 text-red-800 dark:text-red-300' :
+                      infoImo.cor === 'amber' ? 'bg-amber-100 dark:bg-amber-900/30 dark:bg-amber-900/20 text-amber-800 dark:text-amber-300' :
+                      infoImo.cor === 'blue' ? 'bg-blue-100 dark:bg-blue-900/30 dark:bg-blue-900/20 text-blue-800 dark:text-blue-300' :
+                      'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-800 dark:text-emerald-300'
+                    }`}>
+                      {infoImo.classificacao}
+                    </span>
+                  </div>
+                )}
               </div>
             )}
           </div>

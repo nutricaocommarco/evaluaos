@@ -177,7 +177,107 @@ export function classificarMorrow(percentualGordura, sexo, idade) {
   return { classificacao: 'Muito Elevado', cor: 'red' };
 }
 
-// 9. CLASSIFICAÇÃO DE LOHMAN (1992) - Risco à Saúde por %Gordura
+// 9.1 ÍNDICE CÓRMICO - Proporção Tronco/Estatura (Biotipo)
+export function calcularIndiceCormico(alturaSentadaCm, alturaCm) {
+  if (!alturaSentadaCm || !alturaCm) return { valor: 0, classificacao: '-' };
+
+  const valor = alturaSentadaCm / alturaCm;
+  let classificacao = 'Mesocórmico (Proporção Média)';
+  if (valor < 0.51) classificacao = 'Braquicórmico (Tronco Curto)';
+  else if (valor > 0.53) classificacao = 'Macrocórmico (Tronco Longo)';
+
+  return { valor, classificacao };
+}
+
+// 9.2 ÍNDICE DE MANOUVRIER - Proporção dos Membros Inferiores (Biotipo)
+export function calcularIndiceManouvrier(alturaSentadaCm, alturaCm) {
+  if (!alturaSentadaCm || !alturaCm) return { valor: 0, classificacao: '-' };
+
+  const valor = ((alturaCm - alturaSentadaCm) / alturaSentadaCm) * 100;
+  let classificacao = 'Normolíneo (Membros Proporcionais)';
+  if (valor < 85) classificacao = 'Brevilíneo (Membros Inferiores Curtos)';
+  else if (valor > 90) classificacao = 'Longilíneo (Membros Inferiores Longos)';
+
+  return { valor, classificacao };
+}
+
+// 9.3 ENVERGADURA RELATIVA - Envergadura de Braços vs Estatura (Biotipo)
+export function calcularEnvergaduraRelativa(envergaduraCm, alturaCm) {
+  if (!envergaduraCm || !alturaCm) return { valor: 0, classificacao: '-' };
+
+  const valor = envergaduraCm / alturaCm;
+  let classificacao = 'Proporcional à Estatura';
+  if (valor < 0.98) classificacao = 'Menor que a Estatura';
+  else if (valor > 1.02) classificacao = 'Maior que a Estatura';
+
+  return { valor, classificacao };
+}
+
+// 9.4 ÍNDICE DE CONICIDADE (Valdez, 1991) - Risco Cardiovascular
+export function calcularIndiceConicidade(pesoKg, alturaCm, cinturaCm) {
+  if (!pesoKg || !alturaCm || !cinturaCm) return 0;
+
+  const alturaM = alturaCm / 100;
+  const cinturaM = cinturaCm / 100;
+  return cinturaM / (0.109 * Math.sqrt(pesoKg / alturaM));
+}
+
+export function classificarConicidade(indice, sexo) {
+  if (!indice || indice <= 0) return { classificacao: '-', cor: 'gray' };
+
+  if (sexo === 'M') {
+    if (indice < 1.10) return { classificacao: 'Baixo Risco', cor: 'emerald' };
+    if (indice < 1.25) return { classificacao: 'Risco Moderado', cor: 'amber' };
+    return { classificacao: 'Risco Alto', cor: 'red' };
+  } else {
+    if (indice < 1.05) return { classificacao: 'Baixo Risco', cor: 'emerald' };
+    if (indice < 1.18) return { classificacao: 'Risco Moderado', cor: 'amber' };
+    return { classificacao: 'Risco Alto', cor: 'red' };
+  }
+}
+
+// 9.5 CLASSIFICAÇÃO DO ÍNDICE MÚSCULO-ÓSSEO (IMO) - Kerr & Ross (1988), tabela normativa Holway (Argentinos 20-30 anos)
+export function classificarImo(imo, sexo) {
+  if (!imo || imo <= 0) return { classificacao: '-', cor: 'gray' };
+
+  if (sexo === 'M') {
+    if (imo < 3.4) return { classificacao: 'Muito Baixo', cor: 'blue' };
+    if (imo < 3.8) return { classificacao: 'Baixo', cor: 'emerald' };
+    if (imo < 5.0) return { classificacao: 'Normal', cor: 'emerald' };
+    if (imo < 5.2) return { classificacao: 'Elevado', cor: 'amber' };
+    return { classificacao: 'Muito Elevado', cor: 'red' };
+  } else {
+    if (imo < 2.7) return { classificacao: 'Muito Baixo', cor: 'blue' };
+    if (imo < 3.1) return { classificacao: 'Baixo', cor: 'emerald' };
+    if (imo < 4.0) return { classificacao: 'Normal', cor: 'emerald' };
+    if (imo < 4.2) return { classificacao: 'Elevado', cor: 'amber' };
+    return { classificacao: 'Muito Elevado', cor: 'red' };
+  }
+}
+
+// 9b. CLASSIFICAÇÃO DE IMO - Escala Martin (Holway, dados não publicados, atletas argentinos)
+// Usar só quando o IMO em questão foi calculado com Massa Muscular (Martin 1990) /
+// Massa Óssea (Martin 1991) — o método Martin tende a estimar músculo mais alto que o
+// Lee/Rocha usado em classificarImo, então precisa da sua própria régua de corte.
+export function classificarImoMartin(imo, sexo) {
+  if (!imo || imo <= 0) return { classificacao: '-', cor: 'gray' };
+
+  if (sexo === 'M') {
+    if (imo < 3.7) return { classificacao: 'Muito Baixo', cor: 'blue' };
+    if (imo < 4.0) return { classificacao: 'Baixo', cor: 'emerald' };
+    if (imo <= 5.0) return { classificacao: 'Normal', cor: 'emerald' };
+    if (imo <= 5.6) return { classificacao: 'Elevado', cor: 'amber' };
+    return { classificacao: 'Muito Elevado', cor: 'red' };
+  } else {
+    if (imo < 2.8) return { classificacao: 'Muito Baixo', cor: 'blue' };
+    if (imo < 3.2) return { classificacao: 'Baixo', cor: 'emerald' };
+    if (imo <= 4.4) return { classificacao: 'Normal', cor: 'emerald' };
+    if (imo <= 4.8) return { classificacao: 'Elevado', cor: 'amber' };
+    return { classificacao: 'Muito Elevado', cor: 'red' };
+  }
+}
+
+// 10. CLASSIFICAÇÃO DE LOHMAN (1992) - Risco à Saúde por %Gordura
 export function classificarLohman(percentualGordura, sexo) {
   if (!percentualGordura || percentualGordura <= 0) return { classificacao: '-', cor: 'gray' };
 

@@ -6,7 +6,7 @@ import {
   ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend
 } from 'recharts'
 import BotaoExportarEvolucaoPDF from '../components/BotaoExportarEvolucaoPDF'
-import { classificarArgoref, classificarApVat } from '../utils/escalasNormativas'
+import { classificarArgoref, classificarApVat, calcularIndiceConicidade, classificarConicidade, classificarImo, classificarImoMartin } from '../utils/escalasNormativas'
 import { useTheme } from '../contexts/ThemeContext'
 
 export default function EvolucaoPaciente() {
@@ -191,7 +191,13 @@ export default function EvolucaoPaciente() {
           cintura_estatura: Number(calc.relacao_cintura_estatura || 0).toFixed(2),
           cintura_quadril: Number(calc.relacao_cintura_quadril || 0).toFixed(2),
           imo: Number(calc.indice_massa_ossea_imo || 0).toFixed(3),
+          // Mesmo gate usado no Laudo pro IMO Martin (campos presentes + sem sobrepeso/obesidade)
+          usou_martin_imo: Number(calc.imc || 0) > 0 && Number(calc.imc || 0) < 25
+            && Number(aval.perimetro_antibraco || 0) > 0
+            && Number(aval.diametro_punho || 0) > 0
+            && Number(aval.diametro_maleolar || 0) > 0,
           apvat: Number(apvatCalculado).toFixed(1),
+          conicidade: calcularIndiceConicidade(aval.peso_paciente, aval.altura_paciente, aval.perimetro_cintura).toFixed(2),
           iam: Number(calc.indice_adiposo_muscular || 0).toFixed(2),
 
           triceps: Number(aval.dobra_cutanea_triceps || 0).toFixed(1),
@@ -223,7 +229,10 @@ export default function EvolucaoPaciente() {
           grafico_perim_corr_coxa: Number(calc.perimetro_corrigido_coxa || 0),
           grafico_perim_corr_panturrilha: Number(calc.perimetro_corrigido_panturrilha || 0),
           eixo_x: Number(calc.somatocarta_eixo_x || 0),
-          eixo_y: Number(calc.somatocarta_eixo_y || 0)
+          eixo_y: Number(calc.somatocarta_eixo_y || 0),
+
+          peso_alvo: calc.peso_alvo ? Number(calc.peso_alvo) : null,
+          meta_bf_percentual: calc.meta_bf_percentual ? Number(calc.meta_bf_percentual) : null
         }
       }).filter(item => item.grafico_peso > 0)
 
@@ -412,10 +421,75 @@ export default function EvolucaoPaciente() {
     )
   }
 
+  // Progresso da meta definida numa avaliação, comparado com o resultado real da seguinte.
+  const calcularProgressoMeta = (inicial, alvo, atual) => {
+    const totalPlanejado = alvo - inicial;
+    if (!totalPlanejado) return null;
+    const alcancado = atual - inicial;
+    return {
+      totalPlanejado,
+      alcancado,
+      progressoPct: (alcancado / totalPlanejado) * 100,
+      isGanho: totalPlanejado > 0
+    };
+  };
+
+  const renderLinhaMeta = (titulo, unidade, inicial, alvo, atual, progresso, casasDecimais = 1) => {
+    const superou = progresso.progressoPct > 100;
+    const seAfastou = progresso.alcancado !== 0 && Math.sign(progresso.alcancado) !== Math.sign(progresso.totalPlanejado);
+    const pctBarra = Math.max(4, Math.min(100, progresso.progressoPct));
+
+    return (
+      <div className="space-y-2">
+        <div className="flex justify-between items-baseline">
+          <span className="text-xs font-black text-gray-700 dark:text-slate-300 uppercase tracking-wider">{titulo}</span>
+          <span className={`text-xs font-bold ${superou ? 'text-emerald-600 dark:text-emerald-400' : seAfastou ? 'text-red-600 dark:text-red-400' : 'text-primary-700 dark:text-primary-400'}`}>
+            {superou ? '🎉 Meta superada' : seAfastou ? 'Se afastou da meta' : `${Math.max(0, progresso.progressoPct).toFixed(0)}%`}
+          </span>
+        </div>
+        <div className="w-full bg-gray-100 dark:bg-slate-800 h-2.5 rounded-full overflow-hidden">
+          <div className={`h-full rounded-full transition-all duration-1000 ${seAfastou ? 'bg-red-500' : 'bg-primary-600'}`} style={{ width: `${seAfastou ? 4 : pctBarra}%` }}></div>
+        </div>
+        <div className="flex justify-between text-[10px] text-gray-500 dark:text-slate-400 font-medium">
+          <span>Inicial: <strong className="text-gray-800 dark:text-slate-100">{Number(inicial).toFixed(casasDecimais)}{unidade}</strong></span>
+          <span>Meta: <strong className="text-gray-800 dark:text-slate-100">{Number(alvo).toFixed(casasDecimais)}{unidade}</strong></span>
+          <span>Atual: <strong className="text-gray-800 dark:text-slate-100">{Number(atual).toFixed(casasDecimais)}{unidade}</strong></span>
+        </div>
+        <p className="text-[11px] text-gray-600 dark:text-slate-300">
+          {seAfastou
+            ? <>Se afastou <strong>{Math.abs(progresso.alcancado).toFixed(casasDecimais)}{unidade}</strong> da meta (planejado: {Math.abs(progresso.totalPlanejado).toFixed(casasDecimais)}{unidade}).</>
+            : <>{progresso.isGanho ? 'Ganhou' : 'Perdeu'} <strong>{Math.abs(progresso.alcancado).toFixed(casasDecimais)}{unidade}</strong> de <strong>{Math.abs(progresso.totalPlanejado).toFixed(casasDecimais)}{unidade}</strong> planejados.</>
+          }
+        </p>
+      </div>
+    );
+  };
+
+  const MetaProgressoCard = ({ avMeta, avAtual }) => {
+    const progressoPeso = avMeta.peso_alvo ? calcularProgressoMeta(Number(avMeta.peso), avMeta.peso_alvo, Number(avAtual.peso)) : null;
+    const progressoBf = avMeta.meta_bf_percentual ? calcularProgressoMeta(Number(avMeta.gordura_perc), avMeta.meta_bf_percentual, Number(avAtual.gordura_perc)) : null;
+
+    if (!progressoPeso && !progressoBf) return null;
+
+    return (
+      <div className="bg-white dark:bg-slate-900 rounded-xl border border-gray-100 dark:border-slate-800 p-4 shadow-sm flex flex-col gap-4 w-full">
+        <div className="flex items-center justify-between border-b border-gray-100 dark:border-slate-800 pb-2 flex-wrap gap-1">
+          <span className="text-[10px] font-bold text-gray-500 dark:text-slate-400">Meta de {avMeta.dataStr_curta}</span>
+          <span className="text-[10px] font-bold text-gray-500 dark:text-slate-400">→ Avaliação de {avAtual.dataStr_curta}</span>
+        </div>
+        {progressoPeso && renderLinhaMeta('Peso', ' kg', avMeta.peso, avMeta.peso_alvo, avAtual.peso, progressoPeso)}
+        {progressoBf && renderLinhaMeta('% Gordura', '%', avMeta.gordura_perc, avMeta.meta_bf_percentual, avAtual.gordura_perc, progressoBf)}
+      </div>
+    );
+  };
+
+  const paresComMeta = historico.slice(1).map((av, i) => ({ avMeta: historico[i], avAtual: av }))
+    .filter(p => p.avMeta.peso_alvo || p.avMeta.meta_bf_percentual);
+
   const exibeBlocoComposicao = podeExibir('evo_peso') || podeExibir('evo_gordura_perc') || podeExibir('evo_massa_gorda') || podeExibir('evo_massa_muscular') || podeExibir('evo_massa_magra') || podeExibir('evo_imc');
   const exibeBlocoDobras = podeExibir('evo_dobra_triceps') || podeExibir('evo_dobra_subescapular') || podeExibir('evo_dobra_biceps') || podeExibir('evo_dobra_crista_iliaca') || podeExibir('evo_dobra_supraespinhal') || podeExibir('evo_dobra_abdominal') || podeExibir('evo_dobra_coxa') || podeExibir('evo_dobra_panturrilha');
   const exibeBlocoPerimetros = podeExibir('evo_perim_braco_rel') || podeExibir('evo_perim_braco_cont') || podeExibir('evo_perim_antibraco') || podeExibir('evo_perim_cintura') || podeExibir('evo_perim_abdominal') || podeExibir('evo_perim_quadril') || podeExibir('evo_perim_coxa_max') || podeExibir('evo_perim_coxa_med') || podeExibir('evo_perim_panturrilha');
-  const exibeBlocoIndices = podeExibir('evo_idx_cintura_estatura') || podeExibir('evo_idx_rcq') || podeExibir('evo_idx_apvat') || podeExibir('evo_idx_iam') || podeExibir('evo_idx_imo');
+  const exibeBlocoIndices = podeExibir('evo_idx_cintura_estatura') || podeExibir('evo_idx_rcq') || podeExibir('evo_idx_apvat') || podeExibir('evo_idx_iam') || podeExibir('evo_idx_imo') || podeExibir('evo_idx_conicidade');
 
   const exibeGraficoPerimetrosCriticos = podeExibir('evo_perim_cintura') || podeExibir('evo_perim_quadril') || podeExibir('evo_perim_braco_cont');
   const exibeGraficoSomatorios = podeExibir('evo_soma_6') || podeExibir('evo_soma_8');
@@ -426,6 +500,14 @@ export default function EvolucaoPaciente() {
 
   const ultimoApVat = Number(historico[historico.length - 1]?.apvat || 0);
   const infoApVatEvolucao = classificarApVat(ultimoApVat, pacienteLocal?.sexo);
+
+  const ultimaConicidade = Number(historico[historico.length - 1]?.conicidade || 0);
+  const infoConicidadeEvolucao = classificarConicidade(ultimaConicidade, pacienteLocal?.sexo);
+
+  const ultimoImo = Number(historico[historico.length - 1]?.imo || 0);
+  const infoImoEvolucao = historico[historico.length - 1]?.usou_martin_imo
+    ? classificarImoMartin(ultimoImo, pacienteLocal?.sexo)
+    : classificarImo(ultimoImo, pacienteLocal?.sexo);
 
   return (
     <div className="w-full max-w-6xl mx-auto space-y-10 pb-12 px-4 sm:px-6 overflow-x-hidden animate-fade-in-up print:m-0 print:p-0 print:overflow-visible">
@@ -526,6 +608,23 @@ export default function EvolucaoPaciente() {
             <CardEvolucao titulo="Massa Muscular" chaveDado="massa_muscular" unidade="kg" isInverso={false} chaveVisibilidade="evo_massa_muscular" />
             <CardEvolucao titulo="Massa Magra" chaveDado="massa_magra" unidade="kg" isInverso={false} chaveVisibilidade="evo_massa_magra" />
             <CardEvolucao titulo="IMC" chaveDado="imc" unidade="kg/m²" isInverso={true} chaveVisibilidade="evo_imc" />
+          </div>
+        </div>
+      )}
+
+      {/* BLOCO 1.5: Metas & Progresso */}
+      {podeExibir('evo_metas') && paresComMeta.length > 0 && (
+        <div className="break-inside-avoid w-full">
+          <div className="flex items-center gap-2 mb-4 px-1">
+            <div className="w-8 h-8 rounded-full bg-primary-50 dark:bg-primary-900/30 text-primary-600 dark:text-primary-400 flex items-center justify-center shrink-0">
+              <span>🎯</span>
+            </div>
+            <h3 className="text-lg font-black text-gray-800 dark:text-slate-100">Metas & Progresso</h3>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 w-full min-w-0">
+            {paresComMeta.map((p, idx) => (
+              <MetaProgressoCard key={idx} avMeta={p.avMeta} avAtual={p.avAtual} />
+            ))}
           </div>
         </div>
       )}
@@ -824,7 +923,46 @@ export default function EvolucaoPaciente() {
             </div>
 
             <CardEvolucao titulo="Índice Adiposo Muscular" chaveDado="iam" isInverso={true} chaveVisibilidade="evo_idx_iam" />
-            <CardEvolucao titulo="Índice Massa Óssea (IMO)" chaveDado="imo" isInverso={false} chaveVisibilidade="evo_idx_imo" casasDecimais={3} />
+            <div className="space-y-3">
+              <CardEvolucao titulo="Índice Massa Óssea (IMO)" chaveDado="imo" isInverso={false} chaveVisibilidade="evo_idx_imo" casasDecimais={3} />
+
+              {ultimoImo > 0 && (
+                <div className="bg-emerald-50/60 dark:bg-emerald-900/20 p-3 rounded-xl border border-emerald-100 dark:border-emerald-900/40 flex justify-between items-center">
+                  <div>
+                    <span className="text-xs font-bold text-gray-800 dark:text-slate-100">Classificação IMO (Holway)</span>
+                    <p className="text-[10px] text-gray-500 dark:text-slate-400">Última avaliação ({ultimoImo.toFixed(3)}).</p>
+                  </div>
+                  <span className={`text-[10px] font-extrabold px-2.5 py-1 rounded-md uppercase tracking-wider ${
+                    infoImoEvolucao.cor === 'red' ? 'bg-red-100 dark:bg-red-900/30 dark:bg-red-900/20 text-red-800 dark:text-red-300' :
+                    infoImoEvolucao.cor === 'amber' ? 'bg-amber-100 dark:bg-amber-900/30 dark:bg-amber-900/20 text-amber-800 dark:text-amber-300' :
+                    infoImoEvolucao.cor === 'blue' ? 'bg-blue-100 dark:bg-blue-900/30 dark:bg-blue-900/20 text-blue-800 dark:text-blue-300' :
+                    'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-800 dark:text-emerald-300'
+                  }`}>
+                    {infoImoEvolucao.classificacao}
+                  </span>
+                </div>
+              )}
+            </div>
+
+            <div className="space-y-3">
+              <CardEvolucao titulo="Índice de Conicidade" chaveDado="conicidade" isInverso={true} chaveVisibilidade="evo_idx_conicidade" casasDecimais={2} />
+
+              {ultimaConicidade > 0 && (
+                <div className="bg-emerald-50/60 dark:bg-emerald-900/20 p-3 rounded-xl border border-emerald-100 dark:border-emerald-900/40 flex justify-between items-center">
+                  <div>
+                    <span className="text-xs font-bold text-gray-800 dark:text-slate-100">Risco Conicidade (Valdez, 1991)</span>
+                    <p className="text-[10px] text-gray-500 dark:text-slate-400">Última avaliação ({ultimaConicidade.toFixed(2)}).</p>
+                  </div>
+                  <span className={`text-[10px] font-extrabold px-2.5 py-1 rounded-md uppercase tracking-wider ${
+                    infoConicidadeEvolucao.cor === 'red' ? 'bg-red-100 dark:bg-red-900/30 dark:bg-red-900/20 text-red-800 dark:text-red-300' :
+                    infoConicidadeEvolucao.cor === 'amber' ? 'bg-amber-100 dark:bg-amber-900/30 dark:bg-amber-900/20 text-amber-800 dark:text-amber-300' :
+                    'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-800 dark:text-emerald-300'
+                  }`}>
+                    {infoConicidadeEvolucao.classificacao}
+                  </span>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       )}

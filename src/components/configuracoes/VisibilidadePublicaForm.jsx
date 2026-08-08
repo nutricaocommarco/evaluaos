@@ -125,6 +125,12 @@ export default function VisibilidadePublicaForm({ config, setConfig, onSave, sav
       ]
     },
     {
+      titulo: 'Metas & Progresso',
+      chaves: [
+        { key: 'evo_metas', label: 'Progresso rumo à meta definida' }
+      ]
+    },
+    {
       titulo: 'Gráficos Visuais',
       chaves: [
         { key: 'evo_grafico_massa', label: 'Gráfico: Composição (kg)' },
@@ -169,7 +175,8 @@ export default function VisibilidadePublicaForm({ config, setConfig, onSave, sav
         { key: 'evo_idx_rcq', label: 'Cintura / Quadril (RCQ)' },
         { key: 'evo_idx_apvat', label: 'Área Visceral (apVAT)' },
         { key: 'evo_idx_iam', label: 'Índice Adiposo Muscular (IAM)' },
-        { key: 'evo_idx_imo', label: 'Índice Massa Óssea (IMO)' }
+        { key: 'evo_idx_imo', label: 'Índice Massa Óssea (IMO)' },
+        { key: 'evo_idx_conicidade', label: 'Índice de Conicidade' }
       ]
     }
   ]
@@ -216,7 +223,11 @@ export default function VisibilidadePublicaForm({ config, setConfig, onSave, sav
         { key: 'laudo_rce', label: 'Relação Cintura-Estatura (RCE)' },
         { key: 'laudo_status_cintura', label: 'Circunferência da Cintura (Status)' },
         { key: 'laudo_soma_6', label: 'Somatório 6 Dobras' },
-        { key: 'laudo_soma_8', label: 'Somatório 8 Dobras' }
+        { key: 'laudo_soma_8', label: 'Somatório 8 Dobras' },
+        { key: 'laudo_indice_cormico', label: 'Índice Córmico' },
+        { key: 'laudo_manouvrier', label: 'Índice de Manouvrier' },
+        { key: 'laudo_envergadura_relativa', label: 'Envergadura Relativa' },
+        { key: 'laudo_conicidade', label: 'Índice de Conicidade' }
       ]
     },
     {
