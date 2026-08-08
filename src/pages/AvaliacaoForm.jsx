@@ -112,19 +112,19 @@ const MeasureRow = ({ label, field, categoryType, state, setter, isSingleMode, h
   const v1 = parseFloat(m1)
   const v2 = parseFloat(m2)
 
-  // Referências para foco
+  // Referências de foco
   const inputRefM1 = useRef(null)
   const inputRefM2 = useRef(null)
   const inputRefM3 = useRef(null)
 
-  // Estado de trava inicial (para avaliações existentes)
+  // Desbloqueio individual por campo
   const [unlocked, setUnlocked] = useState({
     m1: !isEditingExisting,
     m2: !isEditingExisting,
     m3: !isEditingExisting
   })
 
-  // Trava manual acumulada (para novas medições que são concluídas via onBlur)
+  // Trava ao sair do campo (onBlur)
   const [lockedOnBlur, setLockedOnBlur] = useState({
     m1: false,
     m2: false,
@@ -145,22 +145,16 @@ const MeasureRow = ({ label, field, categoryType, state, setter, isSingleMode, h
     }
   }
 
-  // Função para solicitar desbloqueio
-  const requestUnlock = (key, inputRef) => {
-    const currentValue = state[field]?.[key]
-    if (currentValue) {
-      const ok = window.confirm(`Deseja alterar a medida "${label}" (${key.toUpperCase()}: ${currentValue})?`)
-      if (ok) {
-        setUnlocked(prev => ({ ...prev, [key]: true }))
-        setLockedOnBlur(prev => ({ ...prev, [key]: false }))
-        setTimeout(() => {
-          if (inputRef.current) {
-            inputRef.current.focus()
-            inputRef.current.select()
-          }
-        }, 50)
+  // DESBLOQUEIO DIRETO AO CLICAR NO CADEADO / CAMPO (SEM POPUP)
+  const requestUnlockDirect = (key, inputRef) => {
+    setUnlocked(prev => ({ ...prev, [key]: true }))
+    setLockedOnBlur(prev => ({ ...prev, [key]: false }))
+    setTimeout(() => {
+      if (inputRef.current) {
+        inputRef.current.focus()
+        inputRef.current.select()
       }
-    }
+    }, 30)
   }
 
   // Atualiza a medida
@@ -247,7 +241,6 @@ const MeasureRow = ({ label, field, categoryType, state, setter, isSingleMode, h
   // Helper para renderizar os campos de entrada
   const renderInputField = (key, val, tabIndex, ref, isThirdDisabled = false) => {
     const isFieldValuePresent = !!val
-    // O campo é travado se tiver valor E (estiver no modo de edição existente OU já foi concluído via onBlur) E não tiver sido desbloqueado
     const isFieldLocked = isFieldValuePresent && (!unlocked[key] || lockedOnBlur[key])
 
     return (
@@ -274,9 +267,9 @@ const MeasureRow = ({ label, field, categoryType, state, setter, isSingleMode, h
         {isFieldLocked && (
           <button
             type="button"
-            onClick={() => requestUnlock(key, ref)}
-            className="absolute right-1 text-[10px] bg-slate-200 hover:bg-slate-300 text-slate-700 px-1.5 py-0.5 rounded font-bold transition-colors"
-            title="Clique para destravar e alterar esta medida"
+            onClick={() => requestUnlockDirect(key, ref)}
+            className="absolute right-1 text-[10px] bg-slate-200 hover:bg-slate-300 text-slate-700 px-1.5 py-0.5 rounded font-bold transition-colors cursor-pointer"
+            title="Clique para liberar e alterar esta medida"
           >
             🔒
           </button>
@@ -353,6 +346,61 @@ export default function AvaliacaoForm() {
   const [dobras, setDobras] = useState(initMeasures(dobraKeys))
   const [perimetros, setPerimetros] = useState(initMeasures(perimetroKeys))
   const [diametros, setDiametros] = useState(initMeasures(diametroKeys))
+
+  // CHAVE ÚNICA DE RASCUNHO POR PACIENTE
+  const DRAFT_KEY = paciente?.id ? `rascunho_avaliacao_${paciente.id}` : null
+
+  // 1. RECUPERAR RASCUNHO AUTOMÁTICO SE A PÁGINA CAIR OU ATUALIZAR
+  useEffect(() => {
+    if (!avaliacaoIdParaEditar && DRAFT_KEY) {
+      const rascunhoSalvo = localStorage.getItem(DRAFT_KEY)
+      if (rascunhoSalvo) {
+        try {
+          const parsed = JSON.parse(rascunhoSalvo)
+          const dataHora = parsed.timestamp ? new Date(parsed.timestamp).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) : ''
+          const restaurar = window.confirm(
+            `💾 Encontramos um rascunho desta avaliação salvo às ${dataHora}.\nDeseja restaurar os dados preenchidos?`
+          )
+          if (restaurar) {
+            if (parsed.basicas) setBasicas(parsed.basicas)
+            if (parsed.dobras) setDobras(parsed.dobras)
+            if (parsed.perimetros) setPerimetros(parsed.perimetros)
+            if (parsed.diametros) setDiametros(parsed.diametros)
+            if (parsed.videoUrl) setVideoUrl(parsed.videoUrl)
+          } else {
+            localStorage.removeItem(DRAFT_KEY)
+          }
+        } catch (err) {
+          console.error('Erro ao ler rascunho:', err)
+        }
+      }
+    }
+  }, [DRAFT_KEY, avaliacaoIdParaEditar])
+
+  // 2. AUTO-SAVE EM TEMPO REAL NO LOCALSTORAGE
+  useEffect(() => {
+    if (!avaliacaoIdParaEditar && DRAFT_KEY) {
+      const dadosParaSalvar = {
+        timestamp: new Date().toISOString(),
+        basicas,
+        dobras,
+        perimetros,
+        diametros,
+        videoUrl
+      }
+      localStorage.setItem(DRAFT_KEY, JSON.stringify(dadosParaSalvar))
+    }
+  }, [basicas, dobras, perimetros, diametros, videoUrl, DRAFT_KEY, avaliacaoIdParaEditar])
+
+  // 3. AVISO DO NAVEGADOR SE FECHAR OU RECARREGAR A ABA (BEFOREUNLOAD)
+  useEffect(() => {
+    const handleBeforeUnload = (e) => {
+      e.preventDefault()
+      e.returnValue = ''
+    }
+    window.addEventListener('beforeunload', handleBeforeUnload)
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload)
+  }, [])
   
   useEffect(() => {
     async function carregarDadosIniciais() {
@@ -629,6 +677,11 @@ export default function AvaliacaoForm() {
       console.error('Erro ao salvar cálculos:', calcError)
       alert('As medidas foram salvas, mas houve um erro ao gerar o relatório calculado.')
     } else {
+      // LIMPA O RASCUNHO APÓS CONCLUIR O ENVIO COM SUCESSO
+      if (DRAFT_KEY) {
+        localStorage.removeItem(DRAFT_KEY)
+      }
+
       alert('Medidas salvas! Indo para o cálculo de gordura...')
       navigate('/equacoes-de-regressao', { 
         state: { 
