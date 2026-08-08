@@ -163,9 +163,9 @@ export default function CalculadoraGastoCalorico() {
 
   return (
     <section className="py-6 md:py-24 bg-slate-50 px-2 sm:px-6 container mx-auto max-w-5xl text-left">
-      
-      {/* SEÇÃO DE PESQUISA DE PACIENTE */}
-      <div className="bg-white p-4 sm:p-8 rounded-[1.5rem] md:rounded-[2rem] shadow-sm border border-emerald-100 mb-6 sm:mb-8 z-50 relative">
+
+      {/* SEÇÃO DE PESQUISA DE PACIENTE (Z-INDEX AJUSTADO) */}
+      <div className="bg-white p-4 sm:p-8 rounded-[1.5rem] md:rounded-[2rem] shadow-sm border border-emerald-100 mb-6 sm:mb-8 relative z-10">
         <div>
           <h2 className="text-xl font-bold text-slate-800">Planejamento Dietético e Metas</h2>
           <p className="text-sm text-slate-500 mb-4">Selecione o paciente e a avaliação para importar os dados e salvar o plano.</p>
@@ -175,7 +175,7 @@ export default function CalculadoraGastoCalorico() {
           <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider">Pesquisar Paciente</label>
           <input type="text" value={busca} onChange={(e) => { setBusca(e.target.value); setShowDropdown(true); }} onFocus={() => setShowDropdown(true)} placeholder="Digite o nome..." className="w-full px-4 py-3 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-emerald-500 outline-none transition-all" />
           {showDropdown && pacientesFiltrados.length > 0 && (
-            <ul className="absolute z-50 w-full mt-1 bg-white border border-slate-200 rounded-lg shadow-xl max-h-60 overflow-y-auto">
+            <ul className="absolute z-30 w-full mt-1 bg-white border border-slate-200 rounded-lg shadow-xl max-h-60 overflow-y-auto">
               {pacientesFiltrados.map(p => (
                 <li key={p.id} onClick={() => selecionarPacienteBusca(p)} className="px-4 py-3 cursor-pointer hover:bg-emerald-50 text-sm font-medium border-b border-slate-100 last:border-0">{p.nome_completo} <span className="text-xs text-slate-400 font-normal ml-2">({p.sexo})</span></li>
               ))}
@@ -202,7 +202,7 @@ export default function CalculadoraGastoCalorico() {
       </div>
 
       <div className="bg-white p-2 sm:p-10 md:p-16 rounded-[1.5rem] sm:rounded-[2.5rem] md:rounded-[4rem] shadow-2xl border border-slate-100 flex flex-col gap-6 md:gap-12">
-        
+
         {/* COMPONENTE 1: CALCULADORA BÁSICA E TDEE */}
         <CalculadoraGET 
           formData={formData} 
@@ -215,7 +215,7 @@ export default function CalculadoraGastoCalorico() {
         {/* HUB DE PLANEJAMENTO METABÓLICO (SÓ APARECE APÓS CALCULAR O TDEE) */}
         {results && (
           <div className="bg-white p-2 sm:p-10 md:p-16 rounded-[1.5rem] sm:rounded-[2.5rem] md:rounded-[4rem] shadow-2xl border border-slate-200 flex flex-col gap-6 md:gap-8 mt-6 md:mt-12 animate-in slide-in-from-bottom-10">
-            
+
             <div className="text-center mb-2 md:mb-4 px-2">
               <h2 className="text-2xl md:text-4xl font-black text-slate-900 uppercase italic">
                 Hub de Planejamento <span className="text-blue-600">Metabólico</span>
@@ -226,7 +226,7 @@ export default function CalculadoraGastoCalorico() {
             </div>
 
             {/* SELETOR DE ABAS */}
-            <div className="flex bg-slate-100 p-1 md:p-1.5 rounded-[1.5rem] w-full max-w-lg mx-auto shadow-inner mx-2">
+            <div className="flex bg-slate-100 p-1 md:p-1.5 rounded-[1.5rem] w-full max-w-lg mx-auto shadow-inner border border-slate-200/60">
               <button 
                 onClick={() => setObjetivoPlano('emagrecimento')} 
                 className={`flex-1 py-3 md:py-4 text-[10px] sm:text-sm font-black uppercase tracking-wider rounded-xl transition-all flex items-center justify-center gap-1 sm:gap-2 ${objetivoPlano === 'emagrecimento' ? 'bg-white text-blue-600 shadow-md border border-slate-200/50' : 'text-slate-500 hover:text-slate-700'}`}

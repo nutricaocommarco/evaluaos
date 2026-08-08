@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { supabase } from '../supabaseClient'
 
@@ -106,10 +106,62 @@ const calcularSomatotipo = (medidas) => {
   }
 }
 
-const MeasureRow = ({ label, field, categoryType, state, setter, isSingleMode, handleMeasureChange, tolerancias }) => {
+// COMPONENTE DE LINHA DE MEDIÇÃO
+const MeasureRow = ({ label, field, categoryType, state, setter, isSingleMode, handleMeasureChange, tolerancias, alturaBanco, isEditingExisting }) => {
   const { m1, m2, m3 } = state[field] || { m1: '', m2: '', m3: '' }
   const v1 = parseFloat(m1)
   const v2 = parseFloat(m2)
+
+  // Referências de foco
+  const inputRefM1 = useRef(null)
+  const inputRefM2 = useRef(null)
+  const inputRefM3 = useRef(null)
+
+  // Desbloqueio individual por campo
+  const [unlocked, setUnlocked] = useState({
+    m1: !isEditingExisting,
+    m2: !isEditingExisting,
+    m3: !isEditingExisting
+  })
+
+  // Trava ao sair do campo (onBlur)
+  const [lockedOnBlur, setLockedOnBlur] = useState({
+    m1: false,
+    m2: false,
+    m3: false
+  })
+
+  // Rastreia o estado de desconto do banco
+  const [descontado, setDescontado] = useState({
+    m1: false,
+    m2: false,
+    m3: false
+  })
+
+  // Ao sair do campo (onBlur), se houver número preenchido, ativa o bloqueio
+  const handleFieldBlur = (key) => {
+    if (state[field]?.[key] !== '' && state[field]?.[key] !== undefined) {
+      setLockedOnBlur(prev => ({ ...prev, [key]: true }))
+    }
+  }
+
+  // DESBLOQUEIO DIRETO AO CLICAR NO CADEADO / CAMPO (SEM POPUP)
+  const requestUnlockDirect = (key, inputRef) => {
+    setUnlocked(prev => ({ ...prev, [key]: true }))
+    setLockedOnBlur(prev => ({ ...prev, [key]: false }))
+    setTimeout(() => {
+      if (inputRef.current) {
+        inputRef.current.focus()
+        inputRef.current.select()
+      }
+    }, 30)
+  }
+
+  // Atualiza a medida
+  const handleChangeMeasure = (key, value) => {
+    setDescontado(prev => ({ ...prev, [key]: false }))
+    handleMeasureChange(setter, field, key, value)
+  }
 
   let needsThird = false
   let diffPercent = 0
@@ -143,18 +195,119 @@ const MeasureRow = ({ label, field, categoryType, state, setter, isSingleMode, h
   const tabIndexM2 = 200 + globalIndex
   const tabIndexM3 = 300 + globalIndex
 
+  // SUBTRAÇÃO INTELIGENTE DO BANCO POR MEDIDA
+  const handleDescontarBanco = () => {
+    if (!alturaBanco) return
+
+    let novoM1 = m1
+    let novoM2 = m2
+    let novoM3 = m3
+    let novoDescontado = { ...descontado }
+
+    if (m1 && !descontado.m1) {
+      const num1 = parseFloat(m1)
+      if (!isNaN(num1)) {
+        novoM1 = String(Math.max(0, Number((num1 - alturaBanco).toFixed(1))))
+        novoDescontado.m1 = true
+      }
+    }
+
+    if (m2 && !descontado.m2) {
+      const num2 = parseFloat(m2)
+      if (!isNaN(num2)) {
+        novoM2 = String(Math.max(0, Number((num2 - alturaBanco).toFixed(1))))
+        novoDescontado.m2 = true
+      }
+    }
+
+    if (m3 && !descontado.m3) {
+      const num3 = parseFloat(m3)
+      if (!isNaN(num3)) {
+        novoM3 = String(Math.max(0, Number((num3 - alturaBanco).toFixed(1))))
+        novoDescontado.m3 = true
+      }
+    }
+
+    setDescontado(novoDescontado)
+    setter(prev => ({
+      ...prev,
+      [field]: { m1: novoM1, m2: novoM2, m3: novoM3 }
+    }))
+  }
+
+  const temMedidas = (m1 || m2 || m3)
+  const haMedidasPendiente = (m1 && !descontado.m1) || (m2 && !descontado.m2) || (m3 && !descontado.m3)
+
+  // Helper para renderizar os campos de entrada
+  const renderInputField = (key, val, tabIndex, ref, isThirdDisabled = false) => {
+    const isFieldValuePresent = !!val
+    const isFieldLocked = isFieldValuePresent && (!unlocked[key] || lockedOnBlur[key])
+
+    return (
+      <div className="relative flex items-center">
+        <input 
+          ref={ref}
+          type="number" 
+          step="0.1" 
+          tabIndex={tabIndex} 
+          value={val} 
+          disabled={isThirdDisabled || isFieldLocked}
+          onBlur={() => handleFieldBlur(key)}
+          onWheel={(e) => e.target.blur()}
+          onChange={(e) => handleChangeMeasure(key, e.target.value)} 
+          className={`w-full px-2 py-1.5 border rounded-md text-sm text-center transition-all ${
+            isFieldLocked 
+              ? 'bg-slate-100 font-bold text-slate-800 border-slate-300 cursor-not-allowed opacity-90' 
+              : isThirdDisabled 
+                ? 'opacity-40 bg-gray-100 cursor-not-allowed'
+                : 'bg-white font-normal focus:border-emerald-500'
+          }`} 
+          placeholder={key === 'm1' ? (isSingleMode ? "Valor" : "1ª") : key === 'm2' ? "2ª" : "3ª"} 
+        />
+        {isFieldLocked && (
+          <button
+            type="button"
+            onClick={() => requestUnlockDirect(key, ref)}
+            className="absolute right-1 text-[10px] bg-slate-200 hover:bg-slate-300 text-slate-700 px-1.5 py-0.5 rounded font-bold transition-colors cursor-pointer"
+            title="Clique para liberar e alterar esta medida"
+          >
+            🔒
+          </button>
+        )}
+      </div>
+    )
+  }
+
   return (
     <div className="flex flex-col md:grid md:grid-cols-12 gap-2 md:items-center border-b border-gray-100 py-3 md:py-2 hover:bg-gray-50 px-2 rounded transition-colors">
-      <div className="col-span-4 text-sm md:text-xs font-medium text-gray-700">{label}</div>
+      <div className="col-span-4 text-sm md:text-xs font-medium text-gray-700 flex flex-wrap items-center justify-between gap-1">
+        <span>{label}</span>
+        {field === 'altura_sentado_paciente' && alturaBanco > 0 && temMedidas && (
+          <button
+            type="button"
+            onClick={handleDescontarBanco}
+            className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full transition-all flex items-center gap-1 shadow-sm ${
+              haMedidasPendiente 
+                ? 'bg-amber-100 hover:bg-amber-200 text-amber-900 animate-pulse' 
+                : 'bg-emerald-100 text-emerald-800'
+            }`}
+            title={`Subtrai os ${alturaBanco} cm do banco apenas das medidas pendentes`}
+          >
+            {haMedidasPendiente ? `🪑 Descontar Banco (-${alturaBanco}cm)` : `✓ Banco Descontado (-${alturaBanco}cm)`}
+          </button>
+        )}
+      </div>
+
       <div className="col-span-6 grid grid-cols-3 gap-2">
-        <input type="number" step="0.1" tabIndex={tabIndexM1} value={m1} onChange={(e) => handleMeasureChange(setter, field, 'm1', e.target.value)} className="w-full px-2 py-1.5 border rounded-md text-sm text-center focus:border-emerald-500 bg-white" placeholder={isSingleMode ? "Valor" : "1ª"} />
+        {renderInputField('m1', m1, tabIndexM1, inputRefM1)}
         {!isSingleMode && (
           <>
-            <input type="number" step="0.1" tabIndex={tabIndexM2} value={m2} onChange={(e) => handleMeasureChange(setter, field, 'm2', e.target.value)} className="w-full px-2 py-1.5 border rounded-md text-sm text-center focus:border-emerald-500 bg-white" placeholder="2ª" />
-            <input type="number" step="0.1" tabIndex={tabIndexM3} disabled={!needsThird} value={m3} onChange={(e) => handleMeasureChange(setter, field, 'm3', e.target.value)} className={`w-full px-2 py-1.5 border rounded-md text-sm text-center transition-colors ${needsThird ? 'ring-2 ring-red-400 bg-red-50 focus:ring-red-500' : 'opacity-40 bg-gray-100 cursor-not-allowed'}`} placeholder="3ª" />
+            {renderInputField('m2', m2, tabIndexM2, inputRefM2)}
+            {renderInputField('m3', m3, tabIndexM3, inputRefM3, !needsThird)}
           </>
         )}
       </div>
+      
       <div className="col-span-2 text-right md:text-center mt-1 md:mt-0">
         <span className="text-xs text-gray-500 md:hidden mr-2">Resultado:</span>
         <span className="text-sm font-bold text-emerald-700 bg-emerald-50 px-2 py-1 rounded">{finalValue}</span>
@@ -172,6 +325,7 @@ export default function AvaliacaoForm() {
 
   const [loading, setLoading] = useState(false)
   const [isSingleMode, setIsSingleMode] = useState(false)
+  const [alturaBanco, setAlturaBanco] = useState(0)
 
   const [configAvaliador, setConfigAvaliador] = useState({
     tolerancia_dobras: 5.0,
@@ -192,6 +346,61 @@ export default function AvaliacaoForm() {
   const [dobras, setDobras] = useState(initMeasures(dobraKeys))
   const [perimetros, setPerimetros] = useState(initMeasures(perimetroKeys))
   const [diametros, setDiametros] = useState(initMeasures(diametroKeys))
+
+  // CHAVE ÚNICA DE RASCUNHO POR PACIENTE
+  const DRAFT_KEY = paciente?.id ? `rascunho_avaliacao_${paciente.id}` : null
+
+  // 1. RECUPERAR RASCUNHO AUTOMÁTICO SE A PÁGINA CAIR OU ATUALIZAR
+  useEffect(() => {
+    if (!avaliacaoIdParaEditar && DRAFT_KEY) {
+      const rascunhoSalvo = localStorage.getItem(DRAFT_KEY)
+      if (rascunhoSalvo) {
+        try {
+          const parsed = JSON.parse(rascunhoSalvo)
+          const dataHora = parsed.timestamp ? new Date(parsed.timestamp).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) : ''
+          const restaurar = window.confirm(
+            `💾 Encontramos um rascunho desta avaliação salvo às ${dataHora}.\nDeseja restaurar os dados preenchidos?`
+          )
+          if (restaurar) {
+            if (parsed.basicas) setBasicas(parsed.basicas)
+            if (parsed.dobras) setDobras(parsed.dobras)
+            if (parsed.perimetros) setPerimetros(parsed.perimetros)
+            if (parsed.diametros) setDiametros(parsed.diametros)
+            if (parsed.videoUrl) setVideoUrl(parsed.videoUrl)
+          } else {
+            localStorage.removeItem(DRAFT_KEY)
+          }
+        } catch (err) {
+          console.error('Erro ao ler rascunho:', err)
+        }
+      }
+    }
+  }, [DRAFT_KEY, avaliacaoIdParaEditar])
+
+  // 2. AUTO-SAVE EM TEMPO REAL NO LOCALSTORAGE
+  useEffect(() => {
+    if (!avaliacaoIdParaEditar && DRAFT_KEY) {
+      const dadosParaSalvar = {
+        timestamp: new Date().toISOString(),
+        basicas,
+        dobras,
+        perimetros,
+        diametros,
+        videoUrl
+      }
+      localStorage.setItem(DRAFT_KEY, JSON.stringify(dadosParaSalvar))
+    }
+  }, [basicas, dobras, perimetros, diametros, videoUrl, DRAFT_KEY, avaliacaoIdParaEditar])
+
+  // 3. AVISO DO NAVEGADOR SE FECHAR OU RECARREGAR A ABA (BEFOREUNLOAD)
+  useEffect(() => {
+    const handleBeforeUnload = (e) => {
+      e.preventDefault()
+      e.returnValue = ''
+    }
+    window.addEventListener('beforeunload', handleBeforeUnload)
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload)
+  }, [])
   
   useEffect(() => {
     async function carregarDadosIniciais() {
@@ -199,6 +408,7 @@ export default function AvaliacaoForm() {
 
       const { data: authUser } = await supabase.auth.getUser()
       if (authUser?.user) {
+        // Carrega configurações de tolerância do avaliador
         const { data: confData } = await supabase
           .from('configuracoes_avaliador')
           .select('*')
@@ -207,6 +417,25 @@ export default function AvaliacaoForm() {
 
         if (confData) {
           setConfigAvaliador(confData)
+        }
+
+        // Carrega a altura do banco cadastrado em equipamentos
+        const { data: avalData } = await supabase
+          .from('avaliadores')
+          .select('id, auth_id')
+          .eq('auth_id', authUser.user.id)
+          .maybeSingle()
+
+        const idAvaliador = avalData?.id || avalData?.auth_id || authUser.user.id
+
+        const { data: equipData } = await supabase
+          .from('equipamentos')
+          .select('altura_banco')
+          .eq('id_avaliador', idAvaliador)
+          .maybeSingle()
+
+        if (equipData?.altura_banco) {
+          setAlturaBanco(parseFloat(equipData.altura_banco) || 0)
         }
       }
 
@@ -410,7 +639,7 @@ export default function AvaliacaoForm() {
     const calcRcq = pQuadril > 0 ? pCintura / pQuadril : 0
     const calcRce = alturaCm > 0 ? pCintura / alturaCm : 0
 
-    // 💡 CÁLCULO DO apVAT (Samouda et al., 2013)
+    // CÁLCULO DO apVAT (Samouda et al., 2013)
     const calcApVat = calcularApVAT(paciente.sexo, idade, pesoFinal, alturaCm, pCintura, pCoxaMaxima)
 
     const dSub = resolvedDobras.dobra_cutanea_subescapular || 0
@@ -431,7 +660,7 @@ export default function AvaliacaoForm() {
       massa_muscular: Number(calcMuscular.toFixed(2)),
       relacao_cintura_quadril: Number(calcRcq.toFixed(2)),
       relacao_cintura_estatura: Number(calcRce.toFixed(2)),
-      area_previsao_visceral_apvat: Number(calcApVat.toFixed(1)), // 🌟 INCLUÍDO AQUI
+      area_previsao_visceral_apvat: Number(calcApVat.toFixed(1)),
       somatorio_6_dobras: Number(calcSoma6.toFixed(1)),
       somatorio_8_dobras: Number(calcSoma8.toFixed(1)),
       perimetro_corrigido_braco: Number(calcPerimCorrigidoBraco.toFixed(2)),
@@ -448,6 +677,11 @@ export default function AvaliacaoForm() {
       console.error('Erro ao salvar cálculos:', calcError)
       alert('As medidas foram salvas, mas houve um erro ao gerar o relatório calculado.')
     } else {
+      // LIMPA O RASCUNHO APÓS CONCLUIR O ENVIO COM SUCESSO
+      if (DRAFT_KEY) {
+        localStorage.removeItem(DRAFT_KEY)
+      }
+
       alert('Medidas salvas! Indo para o cálculo de gordura...')
       navigate('/equacoes-de-regressao', { 
         state: { 
@@ -474,6 +708,14 @@ export default function AvaliacaoForm() {
     return (
       <div className="bg-white p-4 md:p-6 rounded-xl border border-gray-100 shadow-sm space-y-2">
         <h3 className="text-sm font-bold text-gray-800 uppercase tracking-wider mb-4 border-b pb-2">{title}</h3>
+        
+        {/* DICA RESUMIDA DE ALTURA DO BANCO */}
+        {type === 'basicas' && alturaBanco > 0 && (
+          <div className="bg-amber-50 border border-amber-200/80 rounded-lg p-2.5 mb-3 text-xs text-amber-900 flex items-center justify-between gap-2">
+            <span>💡 <strong>Banco cadastrado ({alturaBanco} cm):</strong> Digite a altura total e use o botão na linha da Altura Sentado para descontar a altura do banco.</span>
+          </div>
+        )}
+
         <div className="w-full">
           <div className="hidden md:grid grid-cols-12 gap-2 items-center pb-2 text-xs font-bold text-gray-400 uppercase tracking-wider border-b px-2">
             <div className="col-span-4">Local da Medida</div>
@@ -495,6 +737,8 @@ export default function AvaliacaoForm() {
               isSingleMode={isSingleMode} 
               handleMeasureChange={handleMeasureChange} 
               tolerancias={configAvaliador}
+              alturaBanco={alturaBanco}
+              isEditingExisting={!!avaliacaoIdParaEditar}
             />
           ))}
         </div>
