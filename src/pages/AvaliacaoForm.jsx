@@ -112,21 +112,28 @@ const MeasureRow = ({ label, field, categoryType, state, setter, isSingleMode, h
   const v1 = parseFloat(m1)
   const v2 = parseFloat(m2)
 
-  // O bloqueio só inicia ativado se for uma EDICAO DE AVALIACAO EXISTENTE que veio do banco de dados
+  // Estado de trava individual para cada campo
   const [isLocked, setIsLocked] = useState({
     m1: isEditingExisting && !!m1,
     m2: isEditingExisting && !!m2,
     m3: isEditingExisting && !!m3
   })
 
-  // Estado para rastrear quais medidas já foram descontadas do banco
+  // Rastreia o estado de desconto do banco
   const [descontado, setDescontado] = useState({
     m1: false,
     m2: false,
     m3: false
   })
 
-  // Solicita confirmação ao clicar em uma medida travada
+  // Ao sair do campo (onBlur), se houver número preenchido, trava automaticamente
+  const handleFieldBlur = (key) => {
+    if (state[field]?.[key] !== '' && state[field]?.[key] !== undefined) {
+      setIsLocked(prev => ({ ...prev, [key]: true }))
+    }
+  }
+
+  // Ao clicar em um campo que está travado, exibe a confirmação
   const handleFieldClick = (key) => {
     if (isLocked[key]) {
       const ok = window.confirm(`Deseja desbloquear e alterar a medida "${label}" (${key.toUpperCase()}: ${state[field][key]})?`)
@@ -246,6 +253,7 @@ const MeasureRow = ({ label, field, categoryType, state, setter, isSingleMode, h
           value={m1} 
           readOnly={isLocked.m1}
           onClick={() => handleFieldClick('m1')}
+          onBlur={() => handleFieldBlur('m1')}
           onWheel={(e) => e.target.blur()}
           onChange={(e) => handleChangeMeasure('m1', e.target.value)} 
           className={`w-full px-2 py-1.5 border rounded-md text-sm text-center focus:border-emerald-500 transition-colors ${
@@ -263,6 +271,7 @@ const MeasureRow = ({ label, field, categoryType, state, setter, isSingleMode, h
               value={m2} 
               readOnly={isLocked.m2}
               onClick={() => handleFieldClick('m2')}
+              onBlur={() => handleFieldBlur('m2')}
               onWheel={(e) => e.target.blur()}
               onChange={(e) => handleChangeMeasure('m2', e.target.value)} 
               className={`w-full px-2 py-1.5 border rounded-md text-sm text-center focus:border-emerald-500 transition-colors ${
@@ -278,6 +287,7 @@ const MeasureRow = ({ label, field, categoryType, state, setter, isSingleMode, h
               disabled={!needsThird} 
               readOnly={isLocked.m3}
               onClick={() => handleFieldClick('m3')}
+              onBlur={() => handleFieldBlur('m3')}
               onWheel={(e) => e.target.blur()}
               onChange={(e) => handleChangeMeasure('m3', e.target.value)} 
               className={`w-full px-2 py-1.5 border rounded-md text-sm text-center transition-colors ${
