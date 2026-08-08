@@ -106,43 +106,60 @@ const calcularSomatotipo = (medidas) => {
   }
 }
 
-// COMPONENTE DE LINHA DE MEDIÇÃO COM DESBLOQUEIO POR CLIQUE (SEM LOOP DE FOCO)
+// COMPONENTE DE LINHA DE MEDIÇÃO
 const MeasureRow = ({ label, field, categoryType, state, setter, isSingleMode, handleMeasureChange, tolerancias, alturaBanco }) => {
   const { m1, m2, m3 } = state[field] || { m1: '', m2: '', m3: '' }
   const v1 = parseFloat(m1)
   const v2 = parseFloat(m2)
 
-  // ESTADO LOCAL DE TRAVA DE EDIÇÃO
-  const [locked, setLocked] = useState({
-    m1: !!m1,
-    m2: !!m2,
-    m3: !!m3
+  // Estado de desbloqueio ativo por campo nesta sessão de edição
+  const [unlocked, setUnlocked] = useState({
+    m1: false,
+    m2: false,
+    m3: false
   })
 
-  // Sincroniza estado de trava quando os valores forem alterados externamente
-  useEffect(() => {
-    setLocked({
-      m1: !!m1,
-      m2: !!m2,
-      m3: !!m3
-    })
-  }, [m1, m2, m3])
+  // Estado para rastrear quais medidas já foram descontadas do banco
+  const [descontado, setDescontado] = useState({
+    m1: false,
+    m2: false,
+    m3: false
+  })
 
-  // Desbloqueia com confirmação apenas ao dar clique no campo travado
+  // Pergunta confirmação ao clicar num campo que já tem valor
   const handleInputClick = (key) => {
-    if (locked[key] && state[field]?.[key]) {
-      const confirmar = window.confirm(`Deseja desbloquear e alterar a medida "${label}" (${key.toUpperCase()}: ${state[field][key]})?`)
-      if (confirmar) {
-        setLocked(prev => ({ ...prev, [key]: false }))
+    const val = state[field]?.[key]
+    if (val && !unlocked[key]) {
+      const ok = window.confirm(`Deseja desbloquear e alterar a medida "${label}" (${key.toUpperCase()}: ${val})?`)
+      if (ok) {
+        setUnlocked(prev => ({ ...prev, [key]: true }))
+      }
+    }
+  }
+
+  // Permite desbloqueio ao navegar via TAB e pressionar teclas de edição
+  const handleInputKeyDown = (key, e) => {
+    const val = state[field]?.[key]
+    if (val && !unlocked[key]) {
+      if (e.key.length === 1 || e.key === 'Backspace' || e.key === 'Delete') {
+        e.preventDefault()
+        const ok = window.confirm(`Deseja desbloquear e alterar a medida "${label}" (${key.toUpperCase()}: ${val})?`)
+        if (ok) {
+          setUnlocked(prev => ({ ...prev, [key]: true }))
+        }
       }
     }
   }
 
   // Trava novamente ao sair do campo (onBlur)
   const handleInputBlur = (key) => {
-    if (state[field]?.[key]) {
-      setLocked(prev => ({ ...prev, [key]: true }))
-    }
+    setUnlocked(prev => ({ ...prev, [key]: false }))
+  }
+
+  // Atualiza valor e reseta desconto do banco se for reeditado
+  const handleChangeMeasure = (key, value) => {
+    setDescontado(prev => ({ ...prev, [key]: false }))
+    handleMeasureChange(setter, field, key, value)
   }
 
   let needsThird = false
@@ -177,30 +194,65 @@ const MeasureRow = ({ label, field, categoryType, state, setter, isSingleMode, h
   const tabIndexM2 = 200 + globalIndex
   const tabIndexM3 = 300 + globalIndex
 
-  // Subtração automática do banco para Altura Sentado
+  // SUBTRAÇÃO INTELIGENTE DO BANCO POR MEDIDA
   const handleDescontarBanco = () => {
     if (!alturaBanco) return
-    setter(prev => {
-      const cur = prev[field] || { m1: '', m2: '', m3: '' }
-      const newM1 = cur.m1 ? String(Math.max(0, Number((parseFloat(cur.m1) - alturaBanco).toFixed(1)))) : ''
-      const newM2 = cur.m2 ? String(Math.max(0, Number((parseFloat(cur.m2) - alturaBanco).toFixed(1)))) : ''
-      const newM3 = cur.m3 ? String(Math.max(0, Number((parseFloat(cur.m3) - alturaBanco).toFixed(1)))) : ''
-      return { ...prev, [field]: { m1: newM1, m2: newM2, m3: newM3 } }
-    })
+
+    let novoM1 = m1
+    let novoM2 = m2
+    let novoM3 = m3
+    let novoDescontado = { ...descontado }
+
+    if (m1 && !descontado.m1) {
+      const num1 = parseFloat(m1)
+      if (!isNaN(num1)) {
+        novoM1 = String(Math.max(0, Number((num1 - alturaBanco).toFixed(1))))
+        novoDescontado.m1 = true
+      }
+    }
+
+    if (m2 && !descontado.m2) {
+      const num2 = parseFloat(m2)
+      if (!isNaN(num2)) {
+        novoM2 = String(Math.max(0, Number((num2 - alturaBanco).toFixed(1))))
+        novoDescontado.m2 = true
+      }
+    }
+
+    if (m3 && !descontado.m3) {
+      const num3 = parseFloat(m3)
+      if (!isNaN(num3)) {
+        novoM3 = String(Math.max(0, Number((num3 - alturaBanco).toFixed(1))))
+        novoDescontado.m3 = true
+      }
+    }
+
+    setDescontado(novoDescontado)
+    setter(prev => ({
+      ...prev,
+      [field]: { m1: novoM1, m2: novoM2, m3: novoM3 }
+    }))
   }
+
+  const temMedidas = (m1 || m2 || m3)
+  const haMedidasPendiente = (m1 && !descontado.m1) || (m2 && !descontado.m2) || (m3 && !descontado.m3)
 
   return (
     <div className="flex flex-col md:grid md:grid-cols-12 gap-2 md:items-center border-b border-gray-100 py-3 md:py-2 hover:bg-gray-50 px-2 rounded transition-colors">
       <div className="col-span-4 text-sm md:text-xs font-medium text-gray-700 flex flex-wrap items-center justify-between gap-1">
         <span>{label}</span>
-        {field === 'altura_sentado_paciente' && alturaBanco > 0 && (v1 > 0 || v2 > 0) && (
+        {field === 'altura_sentado_paciente' && alturaBanco > 0 && temMedidas && (
           <button
             type="button"
             onClick={handleDescontarBanco}
-            className="text-[10px] font-bold bg-amber-100 hover:bg-amber-200 text-amber-900 px-2 py-0.5 rounded-full transition-colors flex items-center gap-1 shadow-sm"
-            title={`Subtrai os ${alturaBanco} cm do banco do valor digitado`}
+            className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full transition-all flex items-center gap-1 shadow-sm ${
+              haMedidasPendiente 
+                ? 'bg-amber-100 hover:bg-amber-200 text-amber-900 animate-pulse' 
+                : 'bg-emerald-100 text-emerald-800'
+            }`}
+            title={`Subtrai os ${alturaBanco} cm do banco apenas das medidas pendentes`}
           >
-            🪑 Descontar Banco (-{alturaBanco}cm)
+            {haMedidasPendiente ? `🪑 Descontar Banco (-${alturaBanco}cm)` : `✓ Banco Descontado (-${alturaBanco}cm)`}
           </button>
         )}
       </div>
@@ -212,13 +264,14 @@ const MeasureRow = ({ label, field, categoryType, state, setter, isSingleMode, h
           step="0.1" 
           tabIndex={tabIndexM1} 
           value={m1} 
-          readOnly={locked.m1}
+          readOnly={!!m1 && !unlocked.m1}
           onClick={() => handleInputClick('m1')}
+          onKeyDown={(e) => handleInputKeyDown('m1', e)}
           onWheel={(e) => e.target.blur()}
           onBlur={() => handleInputBlur('m1')}
-          onChange={(e) => handleMeasureChange(setter, field, 'm1', e.target.value)} 
+          onChange={(e) => handleChangeMeasure('m1', e.target.value)} 
           className={`w-full px-2 py-1.5 border rounded-md text-sm text-center focus:border-emerald-500 transition-colors ${
-            locked.m1 ? 'bg-slate-50 cursor-pointer font-bold text-slate-800 border-slate-200' : 'bg-white font-normal'
+            !!m1 && !unlocked.m1 ? 'bg-slate-50 cursor-pointer font-bold text-slate-800 border-slate-200' : 'bg-white font-normal'
           }`} 
           placeholder={isSingleMode ? "Valor" : "1ª"} 
         />
@@ -230,13 +283,14 @@ const MeasureRow = ({ label, field, categoryType, state, setter, isSingleMode, h
               step="0.1" 
               tabIndex={tabIndexM2} 
               value={m2} 
-              readOnly={locked.m2}
+              readOnly={!!m2 && !unlocked.m2}
               onClick={() => handleInputClick('m2')}
+              onKeyDown={(e) => handleInputKeyDown('m2', e)}
               onWheel={(e) => e.target.blur()}
               onBlur={() => handleInputBlur('m2')}
-              onChange={(e) => handleMeasureChange(setter, field, 'm2', e.target.value)} 
+              onChange={(e) => handleChangeMeasure('m2', e.target.value)} 
               className={`w-full px-2 py-1.5 border rounded-md text-sm text-center focus:border-emerald-500 transition-colors ${
-                locked.m2 ? 'bg-slate-50 cursor-pointer font-bold text-slate-800 border-slate-200' : 'bg-white font-normal'
+                !!m2 && !unlocked.m2 ? 'bg-slate-50 cursor-pointer font-bold text-slate-800 border-slate-200' : 'bg-white font-normal'
               }`} 
               placeholder="2ª" 
             />
@@ -246,14 +300,15 @@ const MeasureRow = ({ label, field, categoryType, state, setter, isSingleMode, h
               step="0.1" 
               tabIndex={tabIndexM3} 
               disabled={!needsThird} 
-              readOnly={locked.m3}
+              readOnly={!!m3 && !unlocked.m3}
               onClick={() => handleInputClick('m3')}
+              onKeyDown={(e) => handleInputKeyDown('m3', e)}
               onWheel={(e) => e.target.blur()}
               onBlur={() => handleInputBlur('m3')}
-              onChange={(e) => handleMeasureChange(setter, field, 'm3', e.target.value)} 
+              onChange={(e) => handleChangeMeasure('m3', e.target.value)} 
               className={`w-full px-2 py-1.5 border rounded-md text-sm text-center transition-colors ${
                 needsThird 
-                  ? (locked.m3 ? 'bg-red-100 cursor-pointer font-bold text-red-900 border-red-300' : 'ring-2 ring-red-400 bg-red-50 focus:ring-red-500') 
+                  ? (!!m3 && !unlocked.m3 ? 'bg-red-100 cursor-pointer font-bold text-red-900 border-red-300' : 'ring-2 ring-red-400 bg-red-50 focus:ring-red-500') 
                   : 'opacity-40 bg-gray-100 cursor-not-allowed'
               }`} 
               placeholder="3ª" 
