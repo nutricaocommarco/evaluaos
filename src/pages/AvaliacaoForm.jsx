@@ -106,22 +106,22 @@ const calcularSomatotipo = (medidas) => {
   }
 }
 
-// COMPONENTE DE LINHA DE MEDIÇÃO COM DESBLOQUEIO GARANTIDO
+// COMPONENTE DE LINHA DE MEDIÇÃO COM DESBLOQUEIO DIRETO E GARANTIDO
 const MeasureRow = ({ label, field, categoryType, state, setter, isSingleMode, handleMeasureChange, tolerancias, alturaBanco, isEditingExisting }) => {
   const { m1, m2, m3 } = state[field] || { m1: '', m2: '', m3: '' }
   const v1 = parseFloat(m1)
   const v2 = parseFloat(m2)
 
-  // Referências diretas dos inputs para forçar o foco via código
+  // Referências para foco
   const inputRefM1 = useRef(null)
   const inputRefM2 = useRef(null)
   const inputRefM3 = useRef(null)
 
-  // Estado de trava individual para cada campo
-  const [isLocked, setIsLocked] = useState({
-    m1: isEditingExisting && !!m1,
-    m2: isEditingExisting && !!m2,
-    m3: isEditingExisting && !!m3
+  // Estado de trava inicial (apenas se for edição de avaliação já gravada)
+  const [unlocked, setUnlocked] = useState({
+    m1: !isEditingExisting,
+    m2: !isEditingExisting,
+    m3: !isEditingExisting
   })
 
   // Rastreia o estado de desconto do banco
@@ -131,19 +131,13 @@ const MeasureRow = ({ label, field, categoryType, state, setter, isSingleMode, h
     m3: false
   })
 
-  // Trava o campo ao sair (onBlur) se houver número preenchido
-  const handleFieldBlur = (key) => {
-    if (state[field]?.[key] !== '' && state[field]?.[key] !== undefined) {
-      setIsLocked(prev => ({ ...prev, [key]: true }))
-    }
-  }
-
-  // Tenta destravar e coloca o foco imediatamente no input
-  const handleFieldClick = (key, inputRef) => {
-    if (isLocked[key]) {
-      const ok = window.confirm(`Deseja desbloquear e alterar a medida "${label}" (${key.toUpperCase()}: ${state[field][key]})?`)
+  // Função limpa para solicitar desbloqueio e colocar o foco
+  const requestUnlock = (key, inputRef) => {
+    const currentValue = state[field]?.[key]
+    if (currentValue && !unlocked[key]) {
+      const ok = window.confirm(`Deseja alterar a medida "${label}" (${key.toUpperCase()}: ${currentValue})?`)
       if (ok) {
-        setIsLocked(prev => ({ ...prev, [key]: false }))
+        setUnlocked(prev => ({ ...prev, [key]: true }))
         setTimeout(() => {
           if (inputRef.current) {
             inputRef.current.focus()
@@ -235,6 +229,45 @@ const MeasureRow = ({ label, field, categoryType, state, setter, isSingleMode, h
   const temMedidas = (m1 || m2 || m3)
   const haMedidasPendiente = (m1 && !descontado.m1) || (m2 && !descontado.m2) || (m3 && !descontado.m3)
 
+  // Helper para renderizar os campos de entrada
+  const renderInputField = (key, val, tabIndex, ref, isThirdDisabled = false) => {
+    const isFieldValuePresent = !!val
+    const isFieldLocked = isFieldValuePresent && !unlocked[key]
+
+    return (
+      <div className="relative flex items-center">
+        <input 
+          ref={ref}
+          type="number" 
+          step="0.1" 
+          tabIndex={tabIndex} 
+          value={val} 
+          disabled={isThirdDisabled || isFieldLocked}
+          onWheel={(e) => e.target.blur()}
+          onChange={(e) => handleChangeMeasure(key, e.target.value)} 
+          className={`w-full px-2 py-1.5 border rounded-md text-sm text-center transition-all ${
+            isFieldLocked 
+              ? 'bg-slate-100 font-bold text-slate-800 border-slate-300 cursor-not-allowed opacity-90' 
+              : isThirdDisabled 
+                ? 'opacity-40 bg-gray-100 cursor-not-allowed'
+                : 'bg-white font-normal focus:border-emerald-500'
+          }`} 
+          placeholder={key === 'm1' ? (isSingleMode ? "Valor" : "1ª") : key === 'm2' ? "2ª" : "3ª"} 
+        />
+        {isFieldLocked && (
+          <button
+            type="button"
+            onClick={() => requestUnlock(key, ref)}
+            className="absolute right-1 text-[10px] bg-slate-200 hover:bg-slate-300 text-slate-700 px-1.5 py-0.5 rounded font-bold transition-colors"
+            title="Clique para destravar e alterar esta medida"
+          >
+            🔒
+          </button>
+        )}
+      </div>
+    )
+  }
+
   return (
     <div className="flex flex-col md:grid md:grid-cols-12 gap-2 md:items-center border-b border-gray-100 py-3 md:py-2 hover:bg-gray-50 px-2 rounded transition-colors">
       <div className="col-span-4 text-sm md:text-xs font-medium text-gray-700 flex flex-wrap items-center justify-between gap-1">
@@ -256,73 +289,15 @@ const MeasureRow = ({ label, field, categoryType, state, setter, isSingleMode, h
       </div>
 
       <div className="col-span-6 grid grid-cols-3 gap-2">
-        {/* Campo M1 */}
-        <div className="relative" onClick={() => handleFieldClick('m1', inputRefM1)}>
-          <input 
-            ref={inputRefM1}
-            type="number" 
-            step="0.1" 
-            tabIndex={tabIndexM1} 
-            value={m1} 
-            readOnly={isLocked.m1}
-            onBlur={() => handleFieldBlur('m1')}
-            onWheel={(e) => e.target.blur()}
-            onChange={(e) => handleChangeMeasure('m1', e.target.value)} 
-            className={`w-full px-2 py-1.5 border rounded-md text-sm text-center focus:border-emerald-500 transition-colors ${
-              isLocked.m1 
-                ? 'bg-slate-100 font-bold text-slate-800 border-slate-300 cursor-pointer select-none' 
-                : 'bg-white font-normal'
-            }`} 
-            placeholder={isSingleMode ? "Valor" : "1ª"} 
-          />
-        </div>
-
+        {renderInputField('m1', m1, tabIndexM1, inputRefM1)}
         {!isSingleMode && (
           <>
-            {/* Campo M2 */}
-            <div className="relative" onClick={() => handleFieldClick('m2', inputRefM2)}>
-              <input 
-                ref={inputRefM2}
-                type="number" 
-                step="0.1" 
-                tabIndex={tabIndexM2} 
-                value={m2} 
-                readOnly={isLocked.m2}
-                onBlur={() => handleFieldBlur('m2')}
-                onWheel={(e) => e.target.blur()}
-                onChange={(e) => handleChangeMeasure('m2', e.target.value)} 
-                className={`w-full px-2 py-1.5 border rounded-md text-sm text-center focus:border-emerald-500 transition-colors ${
-                  isLocked.m2 
-                    ? 'bg-slate-100 font-bold text-slate-800 border-slate-300 cursor-pointer select-none' 
-                    : 'bg-white font-normal'
-                }`} 
-                placeholder="2ª" 
-              />
-            </div>
-
-            {/* Campo M3 */}
-            <div className="relative" onClick={() => handleFieldClick('m3', inputRefM3)}>
-              <input 
-                ref={inputRefM3}
-                type="number" 
-                step="0.1" 
-                tabIndex={tabIndexM3} 
-                disabled={!needsThird} 
-                readOnly={isLocked.m3}
-                onBlur={() => handleFieldBlur('m3')}
-                onWheel={(e) => e.target.blur()}
-                onChange={(e) => handleChangeMeasure('m3', e.target.value)} 
-                className={`w-full px-2 py-1.5 border rounded-md text-sm text-center transition-colors ${
-                  needsThird 
-                    ? (isLocked.m3 ? 'bg-red-100 font-bold text-red-900 border-red-300 cursor-pointer select-none' : 'ring-2 ring-red-400 bg-red-50 focus:ring-red-500') 
-                    : 'opacity-40 bg-gray-100 cursor-not-allowed'
-                }`} 
-                placeholder="3ª" 
-              />
-            </div>
+            {renderInputField('m2', m2, tabIndexM2, inputRefM2)}
+            {renderInputField('m3', m3, tabIndexM3, inputRefM3, !needsThird)}
           </>
         )}
       </div>
+      
       <div className="col-span-2 text-right md:text-center mt-1 md:mt-0">
         <span className="text-xs text-gray-500 md:hidden mr-2">Resultado:</span>
         <span className="text-sm font-bold text-emerald-700 bg-emerald-50 px-2 py-1 rounded">{finalValue}</span>
