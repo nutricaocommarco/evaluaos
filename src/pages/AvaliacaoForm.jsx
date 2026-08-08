@@ -107,16 +107,16 @@ const calcularSomatotipo = (medidas) => {
 }
 
 // COMPONENTE DE LINHA DE MEDIÇÃO
-const MeasureRow = ({ label, field, categoryType, state, setter, isSingleMode, handleMeasureChange, tolerancias, alturaBanco }) => {
+const MeasureRow = ({ label, field, categoryType, state, setter, isSingleMode, handleMeasureChange, tolerancias, alturaBanco, isEditingExisting }) => {
   const { m1, m2, m3 } = state[field] || { m1: '', m2: '', m3: '' }
   const v1 = parseFloat(m1)
   const v2 = parseFloat(m2)
 
-  // Estado de desbloqueio ativo por campo nesta sessão de edição
-  const [unlocked, setUnlocked] = useState({
-    m1: false,
-    m2: false,
-    m3: false
+  // O bloqueio só inicia ativado se for uma EDICAO DE AVALIACAO EXISTENTE que veio do banco de dados
+  const [isLocked, setIsLocked] = useState({
+    m1: isEditingExisting && !!m1,
+    m2: isEditingExisting && !!m2,
+    m3: isEditingExisting && !!m3
   })
 
   // Estado para rastrear quais medidas já foram descontadas do banco
@@ -126,37 +126,17 @@ const MeasureRow = ({ label, field, categoryType, state, setter, isSingleMode, h
     m3: false
   })
 
-  // Pergunta confirmação ao clicar num campo que já tem valor
-  const handleInputClick = (key) => {
-    const val = state[field]?.[key]
-    if (val && !unlocked[key]) {
-      const ok = window.confirm(`Deseja desbloquear e alterar a medida "${label}" (${key.toUpperCase()}: ${val})?`)
+  // Solicita confirmação ao clicar em uma medida travada
+  const handleFieldClick = (key) => {
+    if (isLocked[key]) {
+      const ok = window.confirm(`Deseja desbloquear e alterar a medida "${label}" (${key.toUpperCase()}: ${state[field][key]})?`)
       if (ok) {
-        setUnlocked(prev => ({ ...prev, [key]: true }))
+        setIsLocked(prev => ({ ...prev, [key]: false }))
       }
     }
   }
 
-  // Permite desbloqueio ao navegar via TAB e pressionar teclas de edição
-  const handleInputKeyDown = (key, e) => {
-    const val = state[field]?.[key]
-    if (val && !unlocked[key]) {
-      if (e.key.length === 1 || e.key === 'Backspace' || e.key === 'Delete') {
-        e.preventDefault()
-        const ok = window.confirm(`Deseja desbloquear e alterar a medida "${label}" (${key.toUpperCase()}: ${val})?`)
-        if (ok) {
-          setUnlocked(prev => ({ ...prev, [key]: true }))
-        }
-      }
-    }
-  }
-
-  // Trava novamente ao sair do campo (onBlur)
-  const handleInputBlur = (key) => {
-    setUnlocked(prev => ({ ...prev, [key]: false }))
-  }
-
-  // Atualiza valor e reseta desconto do banco se for reeditado
+  // Atualiza a medida
   const handleChangeMeasure = (key, value) => {
     setDescontado(prev => ({ ...prev, [key]: false }))
     handleMeasureChange(setter, field, key, value)
@@ -264,14 +244,12 @@ const MeasureRow = ({ label, field, categoryType, state, setter, isSingleMode, h
           step="0.1" 
           tabIndex={tabIndexM1} 
           value={m1} 
-          readOnly={!!m1 && !unlocked.m1}
-          onClick={() => handleInputClick('m1')}
-          onKeyDown={(e) => handleInputKeyDown('m1', e)}
+          readOnly={isLocked.m1}
+          onClick={() => handleFieldClick('m1')}
           onWheel={(e) => e.target.blur()}
-          onBlur={() => handleInputBlur('m1')}
           onChange={(e) => handleChangeMeasure('m1', e.target.value)} 
           className={`w-full px-2 py-1.5 border rounded-md text-sm text-center focus:border-emerald-500 transition-colors ${
-            !!m1 && !unlocked.m1 ? 'bg-slate-50 cursor-pointer font-bold text-slate-800 border-slate-200' : 'bg-white font-normal'
+            isLocked.m1 ? 'bg-slate-100 cursor-pointer font-bold text-slate-800 border-slate-300' : 'bg-white font-normal'
           }`} 
           placeholder={isSingleMode ? "Valor" : "1ª"} 
         />
@@ -283,14 +261,12 @@ const MeasureRow = ({ label, field, categoryType, state, setter, isSingleMode, h
               step="0.1" 
               tabIndex={tabIndexM2} 
               value={m2} 
-              readOnly={!!m2 && !unlocked.m2}
-              onClick={() => handleInputClick('m2')}
-              onKeyDown={(e) => handleInputKeyDown('m2', e)}
+              readOnly={isLocked.m2}
+              onClick={() => handleFieldClick('m2')}
               onWheel={(e) => e.target.blur()}
-              onBlur={() => handleInputBlur('m2')}
               onChange={(e) => handleChangeMeasure('m2', e.target.value)} 
               className={`w-full px-2 py-1.5 border rounded-md text-sm text-center focus:border-emerald-500 transition-colors ${
-                !!m2 && !unlocked.m2 ? 'bg-slate-50 cursor-pointer font-bold text-slate-800 border-slate-200' : 'bg-white font-normal'
+                isLocked.m2 ? 'bg-slate-100 cursor-pointer font-bold text-slate-800 border-slate-300' : 'bg-white font-normal'
               }`} 
               placeholder="2ª" 
             />
@@ -300,15 +276,13 @@ const MeasureRow = ({ label, field, categoryType, state, setter, isSingleMode, h
               step="0.1" 
               tabIndex={tabIndexM3} 
               disabled={!needsThird} 
-              readOnly={!!m3 && !unlocked.m3}
-              onClick={() => handleInputClick('m3')}
-              onKeyDown={(e) => handleInputKeyDown('m3', e)}
+              readOnly={isLocked.m3}
+              onClick={() => handleFieldClick('m3')}
               onWheel={(e) => e.target.blur()}
-              onBlur={() => handleInputBlur('m3')}
               onChange={(e) => handleChangeMeasure('m3', e.target.value)} 
               className={`w-full px-2 py-1.5 border rounded-md text-sm text-center transition-colors ${
                 needsThird 
-                  ? (!!m3 && !unlocked.m3 ? 'bg-red-100 cursor-pointer font-bold text-red-900 border-red-300' : 'ring-2 ring-red-400 bg-red-50 focus:ring-red-500') 
+                  ? (isLocked.m3 ? 'bg-red-100 cursor-pointer font-bold text-red-900 border-red-300' : 'ring-2 ring-red-400 bg-red-50 focus:ring-red-500') 
                   : 'opacity-40 bg-gray-100 cursor-not-allowed'
               }`} 
               placeholder="3ª" 
@@ -686,6 +660,7 @@ export default function AvaliacaoForm() {
               handleMeasureChange={handleMeasureChange} 
               tolerancias={configAvaliador}
               alturaBanco={alturaBanco}
+              isEditingExisting={!!avaliacaoIdParaEditar}
             />
           ))}
         </div>
