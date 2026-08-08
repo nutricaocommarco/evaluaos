@@ -46,6 +46,46 @@ export const CONTEUDOS_APRENDIZADO = [
     tempoLeitura: '34 min assistindo',
     capa: 'https://img.youtube.com/vi/Ff2WDc7LhXU/hqdefault.jpg'
   },
+  {
+    id: 'video-criar-conta-evaluaos',
+    titulo: 'Como Criar Sua Conta no Sistema Antropométrico EvaluaOS (Passo a Passo)',
+    descricao: 'Passo a passo completo para criar sua conta no EvaluaOS e começar a usar o sistema de avaliação antropométrica.',
+    categoria: 'Uso do EvaluaOS',
+    tipo: 'video',
+    url: 'https://www.youtube.com/watch?v=T8FNGfl4120',
+    tempoLeitura: 'Vídeo tutorial',
+    capa: 'https://img.youtube.com/vi/T8FNGfl4120/hqdefault.jpg'
+  },
+  {
+    id: 'video-cadastro-paciente-avaliacao',
+    titulo: 'Cadastro de Paciente e Avaliação Antropométrica Passo a Passo no EvaluaOS',
+    descricao: 'Veja como cadastrar um paciente e registrar uma avaliação antropométrica completa dentro do EvaluaOS.',
+    categoria: 'Uso do EvaluaOS',
+    tipo: 'video',
+    url: 'https://www.youtube.com/watch?v=SXSzends7c4',
+    tempoLeitura: 'Vídeo tutorial',
+    capa: 'https://img.youtube.com/vi/SXSzends7c4/hqdefault.jpg'
+  },
+  {
+    id: 'video-escolha-percentual-gordura',
+    titulo: 'Como Escolher o % de Gordura Certo com a Inteligência do EvaluaOS na sua Avaliação',
+    descricao: 'Entenda como a engine de recomendação do EvaluaOS ajuda a escolher o percentual de gordura e a equação mais adequada para cada avaliação.',
+    categoria: 'Uso do EvaluaOS',
+    tipo: 'video',
+    url: 'https://www.youtube.com/watch?v=pRedW54PDK4',
+    tempoLeitura: 'Vídeo tutorial',
+    capa: 'https://img.youtube.com/vi/pRedW54PDK4/hqdefault.jpg'
+  },
+  {
+    id: 'video-laudo-antropometrico-evaluaos',
+    titulo: 'Laudo Antropométrico no Sistema EvaluaOS',
+    descricao: 'Veja como o EvaluaOS gera o laudo antropométrico completo, pronto para ser entregue ao paciente.',
+    categoria: 'Uso do EvaluaOS',
+    tipo: 'video',
+    url: 'https://www.youtube.com/watch?v=XRnxQ8z7Ucs',
+    tempoLeitura: 'Vídeo tutorial',
+    capa: 'https://img.youtube.com/vi/XRnxQ8z7Ucs/hqdefault.jpg'
+  },
 
   // 🌐 2. Artigos do Seu Blog Oficial (Links Externos)
   ...artigosBlogMarco,
