@@ -297,7 +297,8 @@ export default function EvolucaoPaciente() {
     const totalAvaliacoes = historico.length;
     const primeiraAv = Number(historico[0][chaveDado]);
     const ultimaAv = Number(historico[totalAvaliacoes - 1][chaveDado]);
-    const deltaTotal = (ultimaAv - primeiraAv).toFixed(casasDecimais);
+    const temDeltaTotal = primeiraAv > 0 && ultimaAv > 0;
+    const deltaTotal = temDeltaTotal ? (ultimaAv - primeiraAv).toFixed(casasDecimais) : null;
 
     const isVertical = totalAvaliacoes >= 3;
 
@@ -320,7 +321,7 @@ export default function EvolucaoPaciente() {
             <h4 className="text-gray-600 dark:text-slate-400 font-black text-xs uppercase tracking-wider truncate">{titulo}</h4>
             {unidade && <span className="text-[10px] bg-gray-100 dark:bg-slate-800 text-gray-500 dark:text-slate-400 px-2 py-0.5 rounded-full font-bold mt-1 inline-block">{unidade}</span>}
           </div>
-          {totalAvaliacoes >= 2 && (
+          {totalAvaliacoes >= 2 && temDeltaTotal && (
             <div className="flex flex-col items-end shrink-0">
               <span className="text-[10px] uppercase text-gray-500 dark:text-slate-300 font-bold mb-0.5">Delta Total</span>
               {renderBadge(deltaTotal)}
@@ -335,8 +336,10 @@ export default function EvolucaoPaciente() {
               let deltaUI = null;
               if (idx > 0) {
                 const valorAnterior = Number(historico[idx - 1][chaveDado]);
-                const diferenca = (valorAtual - valorAnterior);
-                deltaUI = renderBadge(diferenca);
+                if (valorAtual > 0 && valorAnterior > 0) {
+                  const diferenca = (valorAtual - valorAnterior);
+                  deltaUI = renderBadge(diferenca);
+                }
               }
               return (
                 <div key={idx} className="flex justify-between items-center bg-gray-50 dark:bg-slate-800/60 dark:bg-slate-800/70 border border-gray-100 dark:border-slate-700 p-2.5 rounded-lg w-full">
@@ -345,7 +348,7 @@ export default function EvolucaoPaciente() {
                       <span className="text-[11px] font-bold uppercase" style={{ color: av.cor }}>{av.nome_avaliacao}</span>
                       <span className="text-[10px] text-gray-500 dark:text-slate-400 font-medium">{av.dataStr_curta}</span>
                     </div>
-                    <span className="text-base font-black text-gray-800 dark:text-slate-100">{valorAtual.toFixed(casasDecimais)}</span>
+                    <span className="text-base font-black text-gray-800 dark:text-slate-100">{valorAtual > 0 ? valorAtual.toFixed(casasDecimais) : '-'}</span>
                   </div>
                   {deltaUI && <div>{deltaUI}</div>}
                 </div>
@@ -359,8 +362,10 @@ export default function EvolucaoPaciente() {
               let deltaUI = null;
               if (idx > 0) {
                 const valorAnterior = Number(historico[idx - 1][chaveDado]);
-                const diferenca = (valorAtual - valorAnterior);
-                deltaUI = renderBadge(diferenca, "ml-1");
+                if (valorAtual > 0 && valorAnterior > 0) {
+                  const diferenca = (valorAtual - valorAnterior);
+                  deltaUI = renderBadge(diferenca, "ml-1");
+                }
               }
               return (
                 <div key={idx} className="flex items-center flex-1">
@@ -369,7 +374,7 @@ export default function EvolucaoPaciente() {
                       <span className="text-[11px] font-bold uppercase" style={{ color: av.cor }}>{av.nome_avaliacao}</span>
                       <span className="text-[10px] text-gray-500 dark:text-slate-400 font-medium">{av.dataStr_curta}</span>
                     </div>
-                    <span className="text-lg font-black text-gray-800 dark:text-slate-100">{valorAtual.toFixed(casasDecimais)}</span>
+                    <span className="text-lg font-black text-gray-800 dark:text-slate-100">{valorAtual > 0 ? valorAtual.toFixed(casasDecimais) : '-'}</span>
                   </div>
                   {deltaUI}
                   {idx < historico.length - 1 && <div className="w-4 h-[1px] bg-gray-200 dark:bg-slate-700 mx-1 shrink-0"></div>}
@@ -986,12 +991,13 @@ export default function EvolucaoPaciente() {
       )}
 
       <div className="flex justify-end gap-2 w-full mt-6 no-print">
-        <BotaoExportarEvolucaoPDF 
-          historico={historico} 
-          paciente={pacienteLocal} 
-          avaliador={avaliador} 
+        <BotaoExportarEvolucaoPDF
+          historico={historico}
+          paciente={pacienteLocal}
+          avaliador={avaliador}
           idade={idade}
           isPublicView={isPublicView}
+          configVisibilidade={configVisibilidade}
         />
       </div>
     </div>

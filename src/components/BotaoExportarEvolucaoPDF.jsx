@@ -1,5 +1,6 @@
 import React from 'react';
 import { Document, Page, Text, View, StyleSheet, PDFDownloadLink, Image } from '@react-pdf/renderer';
+import { classificarApVat, classificarImo, classificarConicidade } from '../utils/escalasNormativas';
 
 // --- ESTILOS DO PDF DE EVOLUÇÃO ---
 const styles = StyleSheet.create({
@@ -26,43 +27,97 @@ const styles = StyleSheet.create({
   colLabel: { flex: 2, paddingHorizontal: 6, paddingVertical: 4, fontSize: 9, color: '#374151', fontWeight: 'bold', borderRightWidth: 1, borderRightColor: '#E5E7EB' },
   colValue: { flex: 1, paddingHorizontal: 4, paddingVertical: 4, fontSize: 9, color: '#4B5563', textAlign: 'center', borderRightWidth: 1, borderRightColor: '#E5E7EB' },
   colDelta: { flex: 1, paddingHorizontal: 4, paddingVertical: 4, fontSize: 9, fontWeight: 'bold', textAlign: 'center' },
-  
+
+  badgeGreen: { backgroundColor: '#D1FAE5', color: '#065F46', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4, fontSize: 8, fontWeight: 'bold', textTransform: 'uppercase' },
+  badgeGray: { backgroundColor: '#E5E7EB', color: '#6B7280', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4, fontSize: 8, fontWeight: 'bold', textTransform: 'uppercase' },
+  badgeRed: { backgroundColor: '#FEE2E2', color: '#991B1B', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4, fontSize: 8, fontWeight: 'bold', textTransform: 'uppercase' },
+  badgeOrange: { backgroundColor: '#FFEDD5', color: '#9A3412', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4, fontSize: 8, fontWeight: 'bold', textTransform: 'uppercase' },
+  badgeAmber: { backgroundColor: '#FEF3C7', color: '#92400E', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4, fontSize: 8, fontWeight: 'bold', textTransform: 'uppercase' },
+  badgeBlue: { backgroundColor: '#DBEAFE', color: '#1E40AF', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4, fontSize: 8, fontWeight: 'bold', textTransform: 'uppercase' },
+
+  metaCard: { backgroundColor: '#FFFFFF', padding: 10, borderRadius: 6, borderWidth: 1, borderColor: '#E5E7EB', marginBottom: 8 },
+  metaTitleRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4 },
+  metaBarBg: { backgroundColor: '#F3F4F6', height: 6, borderRadius: 3, width: '100%', marginBottom: 4 },
+  metaBarFill: { backgroundColor: '#10B981', height: 6, borderRadius: 3 },
+
   footer: { position: 'absolute', bottom: 20, left: 40, right: 40, borderTopWidth: 1, borderTopColor: '#E5E7EB', paddingTop: 10, textAlign: 'center', fontSize: 8, color: '#9CA3AF' }
 });
 
-const EvolucaoPDF = ({ historico, paciente, avaliador, idade }) => {
+const CORES_BADGE = { red: 'badgeRed', orange: 'badgeOrange', amber: 'badgeAmber', blue: 'badgeBlue', emerald: 'badgeGreen', gray: 'badgeGray' };
+
+const ClassBadge = ({ cor, texto }) => {
+  if (!texto || texto === '-') return null;
+  const styleKey = CORES_BADGE[cor] || 'badgeGray';
+  return <Text style={styles[styleKey]}>{texto}</Text>;
+};
+
+const EvolucaoPDF = ({ historico, paciente, avaliador, idade, configVisibilidade }) => {
   const consultorio = avaliador?.empresa || 'Consultório';
   const dataHoje = new Date().toLocaleDateString('pt-BR');
 
-  const renderRow = (label, chaveDado, unidade, isInverse = false) => {
+  const podeExibir = (chave) => {
+    if (!configVisibilidade) return true;
+    const idPaciente = paciente?.id;
+    if (idPaciente && configVisibilidade.pacientes?.[idPaciente]?.[chave] !== undefined) {
+      return configVisibilidade.pacientes[idPaciente][chave];
+    }
+    if (configVisibilidade[chave] !== undefined) {
+      return configVisibilidade[chave] !== false;
+    }
+    return true;
+  };
+
+  const renderRow = (label, chaveDado, unidade, isInverse = false, chaveVisibilidade = null, casasDecimais = 1) => {
+    if (chaveVisibilidade && !podeExibir(chaveVisibilidade)) return null;
+
     const primeira = Number(historico[0][chaveDado]);
     const ultima = Number(historico[historico.length - 1][chaveDado]);
     const diff = ultima - primeira;
-    
+
     let diffColor = '#9CA3AF';
     let diffText = '(0)';
-    
+
     if (diff !== 0) {
         const isPos = diff > 0;
         const isGood = isInverse ? !isPos : isPos;
         diffColor = isGood ? '#059669' : '#DC2626';
-        diffText = `${isPos ? '+' : ''}${diff.toFixed(1)}`;
+        diffText = `${isPos ? '+' : ''}${diff.toFixed(casasDecimais)}`;
     }
 
     return (
-        <View style={styles.tableRow} key={chaveDado}>
-            <View style={styles.colLabel}><Text>{label} ({unidade})</Text></View>
-            {historico.map((av, idx) => (
-                <View key={idx} style={styles.colValue}>
-                    <Text>{Number(av[chaveDado]).toFixed(1)}</Text>
-                </View>
-            ))}
+        <View style={styles.tableRow} key={chaveDado} wrap={false}>
+            <View style={styles.colLabel}><Text>{unidade ? `${label} (${unidade})` : label}</Text></View>
+            {historico.map((av, idx) => {
+                const val = Number(av[chaveDado]);
+                return (
+                    <View key={idx} style={styles.colValue}>
+                        <Text>{val > 0 ? val.toFixed(casasDecimais) : '-'}</Text>
+                    </View>
+                );
+            })}
             <View style={styles.colDelta}>
                 <Text style={{ color: diffColor }}>{diffText}</Text>
             </View>
         </View>
     );
   };
+
+  // --- Progresso de metas (mesma lógica de EvolucaoPaciente.jsx) ---
+  const calcularProgressoMeta = (inicial, alvo, atual) => {
+    const totalPlanejado = alvo - inicial;
+    if (!totalPlanejado) return null;
+    const alcancado = atual - inicial;
+    return { totalPlanejado, alcancado, progressoPct: (alcancado / totalPlanejado) * 100, isGanho: totalPlanejado > 0 };
+  };
+
+  const paresComMeta = historico.slice(1).map((av, i) => ({ avMeta: historico[i], avAtual: av }))
+    .filter(p => p.avMeta.peso_alvo || p.avMeta.meta_bf_percentual);
+
+  // --- Classificações da última avaliação (mesmos classificadores usados na tela) ---
+  const ultimaAval = historico[historico.length - 1] || {};
+  const infoApVatEvolucao = classificarApVat(Number(ultimaAval.apvat || 0), paciente?.sexo);
+  const infoImoEvolucao = classificarImo(Number(ultimaAval.imo || 0), paciente?.sexo);
+  const infoConicidadeEvolucao = classificarConicidade(Number(ultimaAval.conicidade || 0), paciente?.sexo);
 
   return (
     <Document>
@@ -106,37 +161,124 @@ const EvolucaoPDF = ({ historico, paciente, avaliador, idade }) => {
                 <View style={styles.colDelta}><Text>DIFERENÇA</Text></View>
             </View>
 
-            <View style={[styles.tableRow, { backgroundColor: '#F3F4F6' }]}><View style={[styles.colLabel, { borderRightWidth: 0 }]}><Text>1. Composição Corporal</Text></View></View>
-            {renderRow('Peso Corporal', 'peso', 'kg', true)}
-            {renderRow('IMC', 'imc', 'kg/m²', true)}
-            {renderRow('% Gordura', 'gordura_perc', '%', true)}
-            {renderRow('Massa de Gordura', 'massa_gorda', 'kg', true)}
-            {renderRow('Massa Muscular', 'massa_muscular', 'kg', false)}
-            {renderRow('Massa Magra', 'massa_magra', 'kg', false)}
+            <View style={[styles.tableRow, { backgroundColor: '#F3F4F6' }]} wrap={false}><View style={[styles.colLabel, { borderRightWidth: 0 }]}><Text>1. Composição Corporal</Text></View></View>
+            {renderRow('Peso Corporal', 'peso', 'kg', true, 'evo_peso')}
+            {renderRow('IMC', 'imc', 'kg/m²', true, 'evo_imc', 2)}
+            {renderRow('% Gordura', 'gordura_perc', '%', true, 'evo_gordura_perc')}
+            {renderRow('Massa de Gordura', 'massa_gorda', 'kg', true, 'evo_massa_gorda')}
+            {renderRow('Massa Muscular', 'massa_muscular', 'kg', false, 'evo_massa_muscular')}
+            {renderRow('Massa Magra', 'massa_magra', 'kg', false, 'evo_massa_magra')}
 
-            <View style={[styles.tableRow, { backgroundColor: '#F3F4F6' }]}><View style={[styles.colLabel, { borderRightWidth: 0 }]}><Text>2. Perímetros (Circunferências)</Text></View></View>
-            {renderRow('Cintura', 'cintura', 'cm', true)}
-            {renderRow('Abdominal', 'perim_abdominal', 'cm', true)}
-            {renderRow('Quadril', 'quadril', 'cm', true)}
-            {renderRow('Braço Relaxado', 'braco_rel', 'cm', false)}
-            {renderRow('Braço Contraído', 'braco_cont', 'cm', false)}
-            {renderRow('Antebraço', 'antibraco', 'cm', false)}
-            {renderRow('Coxa Máxima', 'coxa_max', 'cm', false)}
-            {renderRow('Coxa Média', 'coxa_med', 'cm', false)}
-            {renderRow('Panturrilha', 'perim_panturrilha', 'cm', false)}
+            <View style={[styles.tableRow, { backgroundColor: '#F3F4F6' }]} wrap={false}><View style={[styles.colLabel, { borderRightWidth: 0 }]}><Text>2. Perímetros (Circunferências)</Text></View></View>
+            {renderRow('Cintura', 'cintura', 'cm', true, 'evo_perim_cintura')}
+            {renderRow('Abdominal', 'perim_abdominal', 'cm', true, 'evo_perim_abdominal')}
+            {renderRow('Quadril', 'quadril', 'cm', true, 'evo_perim_quadril')}
+            {renderRow('Braço Relaxado', 'braco_rel', 'cm', false, 'evo_perim_braco_rel')}
+            {renderRow('Braço Contraído', 'braco_cont', 'cm', false, 'evo_perim_braco_cont')}
+            {renderRow('Antebraço', 'antibraco', 'cm', false, 'evo_perim_antibraco')}
+            {renderRow('Coxa Máxima', 'coxa_max', 'cm', false, 'evo_perim_coxa_max')}
+            {renderRow('Coxa Média', 'coxa_med', 'cm', false, 'evo_perim_coxa_med')}
+            {renderRow('Panturrilha', 'perim_panturrilha', 'cm', false, 'evo_perim_panturrilha')}
 
-            <View style={[styles.tableRow, { backgroundColor: '#F3F4F6' }]}><View style={[styles.colLabel, { borderRightWidth: 0 }]}><Text>3. Dobras Cutâneas & Somatórios</Text></View></View>
-            {renderRow('Tríceps', 'triceps', 'mm', true)}
-            {renderRow('Subescapular', 'subescapular', 'mm', true)}
-            {renderRow('Bíceps', 'biceps', 'mm', true)}
-            {renderRow('Crista Ilíaca', 'crista_iliaca', 'mm', true)}
-            {renderRow('Supraespinhal', 'supraespinhal', 'mm', true)}
-            {renderRow('Abdominal', 'abdominal', 'mm', true)}
-            {renderRow('Coxa Média', 'coxa', 'mm', true)}
-            {renderRow('Panturrilha', 'panturrilha', 'mm', true)}
-            {renderRow('Σ 6 Dobras', 'soma_6', 'mm', true)}
-            {renderRow('Σ 8 Dobras', 'soma_8', 'mm', true)}
+            <View style={[styles.tableRow, { backgroundColor: '#F3F4F6' }]} wrap={false}><View style={[styles.colLabel, { borderRightWidth: 0 }]}><Text>3. Perímetros Corrigidos (Massa Muscular Regional)</Text></View></View>
+            {renderRow('Braço Corrigido', 'perim_corrigido_braco', 'cm', false, 'evo_perim_braco_rel')}
+            {renderRow('Coxa Corrigida', 'perim_corrigido_coxa', 'cm', false, 'evo_perim_coxa_med')}
+            {renderRow('Panturrilha Corrigida', 'perim_corrigido_panturrilha', 'cm', false, 'evo_perim_panturrilha')}
+
+            <View style={[styles.tableRow, { backgroundColor: '#F3F4F6' }]} wrap={false}><View style={[styles.colLabel, { borderRightWidth: 0 }]}><Text>4. Dobras Cutâneas & Somatórios</Text></View></View>
+            {renderRow('Tríceps', 'triceps', 'mm', true, 'evo_dobra_triceps')}
+            {renderRow('Subescapular', 'subescapular', 'mm', true, 'evo_dobra_subescapular')}
+            {renderRow('Bíceps', 'biceps', 'mm', true, 'evo_dobra_biceps')}
+            {renderRow('Crista Ilíaca', 'crista_iliaca', 'mm', true, 'evo_dobra_crista_iliaca')}
+            {renderRow('Supraespinhal', 'supraespinhal', 'mm', true, 'evo_dobra_supraespinhal')}
+            {renderRow('Abdominal', 'abdominal', 'mm', true, 'evo_dobra_abdominal')}
+            {renderRow('Coxa Média', 'coxa', 'mm', true, 'evo_dobra_coxa')}
+            {renderRow('Panturrilha', 'panturrilha', 'mm', true, 'evo_dobra_panturrilha')}
+            {renderRow('Σ 6 Dobras', 'soma_6', 'mm', true, 'evo_soma_6')}
+            {renderRow('Σ 8 Dobras', 'soma_8', 'mm', true, 'evo_soma_8')}
+
+            {podeExibir('evo_grafico_barras_somatotipo') && (
+              <>
+                <View style={[styles.tableRow, { backgroundColor: '#F3F4F6' }]} wrap={false}><View style={[styles.colLabel, { borderRightWidth: 0 }]}><Text>5. Somatotipo (Heath-Carter)</Text></View></View>
+                {renderRow('Endomorfia', 'endo', '', false)}
+                {renderRow('Mesomorfia', 'meso', '', false)}
+                {renderRow('Ectomorfia', 'ecto', '', false)}
+              </>
+            )}
+
+            <View style={[styles.tableRow, { backgroundColor: '#F3F4F6' }]} wrap={false}><View style={[styles.colLabel, { borderRightWidth: 0 }]}><Text>6. Risco Cardiometabólico e Índices</Text></View></View>
+            {renderRow('Cintura / Estatura', 'cintura_estatura', '', true, 'evo_idx_cintura_estatura', 2)}
+            {renderRow('Cintura / Quadril (RCQ)', 'cintura_quadril', '', true, 'evo_idx_rcq', 2)}
+            {renderRow('Área Visceral (apVAT)', 'apvat', 'cm²', true, 'evo_idx_apvat')}
+            {renderRow('Índice Adiposo Muscular (IAM)', 'iam', '', true, 'evo_idx_iam', 2)}
+            {renderRow('Índice Massa Óssea (IMO)', 'imo', '', false, 'evo_idx_imo', 3)}
+            {renderRow('Índice de Conicidade', 'conicidade', '', true, 'evo_idx_conicidade', 2)}
         </View>
+
+        {/* CLASSIFICAÇÕES DA ÚLTIMA AVALIAÇÃO */}
+        {(podeExibir('evo_idx_apvat') || podeExibir('evo_idx_imo') || podeExibir('evo_idx_conicidade')) && (
+          <View style={{ flexDirection: 'row', gap: 8, marginBottom: 12 }}>
+            {podeExibir('evo_idx_apvat') && Number(ultimaAval.apvat) > 0 && (
+              <View style={[styles.metaCard, { flex: 1 }]}>
+                <Text style={{ fontSize: 8, color: '#6B7280', marginBottom: 3 }}>Risco apVAT (última avaliação)</Text>
+                <ClassBadge cor={infoApVatEvolucao.cor} texto={infoApVatEvolucao.classificacao} />
+              </View>
+            )}
+            {podeExibir('evo_idx_imo') && Number(ultimaAval.imo) > 0 && (
+              <View style={[styles.metaCard, { flex: 1 }]}>
+                <Text style={{ fontSize: 8, color: '#6B7280', marginBottom: 3 }}>Classificação IMO (última avaliação)</Text>
+                <ClassBadge cor={infoImoEvolucao.cor} texto={infoImoEvolucao.classificacao} />
+              </View>
+            )}
+            {podeExibir('evo_idx_conicidade') && Number(ultimaAval.conicidade) > 0 && (
+              <View style={[styles.metaCard, { flex: 1 }]}>
+                <Text style={{ fontSize: 8, color: '#6B7280', marginBottom: 3 }}>Risco Conicidade (última avaliação)</Text>
+                <ClassBadge cor={infoConicidadeEvolucao.cor} texto={infoConicidadeEvolucao.classificacao} />
+              </View>
+            )}
+          </View>
+        )}
+
+        {/* METAS & PROGRESSO */}
+        {podeExibir('evo_metas') && paresComMeta.length > 0 && (
+          <View style={{ marginBottom: 10 }} wrap={false}>
+            <Text style={styles.sectionTitle}>Metas & Progresso</Text>
+            {paresComMeta.map((par, idx) => {
+              const progressoPeso = par.avMeta.peso_alvo ? calcularProgressoMeta(Number(par.avMeta.peso), par.avMeta.peso_alvo, Number(par.avAtual.peso)) : null;
+              const progressoBf = par.avMeta.meta_bf_percentual ? calcularProgressoMeta(Number(par.avMeta.gordura_perc), par.avMeta.meta_bf_percentual, Number(par.avAtual.gordura_perc)) : null;
+              if (!progressoPeso && !progressoBf) return null;
+
+              return (
+                <View key={idx} style={styles.metaCard}>
+                  <View style={styles.metaTitleRow}>
+                    <Text style={{ fontSize: 8, fontWeight: 'bold', color: '#6B7280' }}>Meta de {par.avMeta.dataStr_curta}</Text>
+                    <Text style={{ fontSize: 8, fontWeight: 'bold', color: '#6B7280' }}>→ Avaliação de {par.avAtual.dataStr_curta}</Text>
+                  </View>
+                  {progressoPeso && (
+                    <View style={{ marginBottom: 4 }}>
+                      <View style={styles.metaTitleRow}>
+                        <Text style={{ fontSize: 9, fontWeight: 'bold', color: '#1F2937' }}>Peso</Text>
+                        <Text style={{ fontSize: 9, fontWeight: 'bold', color: '#10B981' }}>{Math.max(0, progressoPeso.progressoPct).toFixed(0)}%</Text>
+                      </View>
+                      <View style={styles.metaBarBg}><View style={[styles.metaBarFill, { width: `${Math.max(4, Math.min(100, progressoPeso.progressoPct))}%` }]} /></View>
+                      <Text style={{ fontSize: 8, color: '#4B5563' }}>Inicial: {Number(par.avMeta.peso).toFixed(1)}kg | Meta: {Number(par.avMeta.peso_alvo).toFixed(1)}kg | Atual: {Number(par.avAtual.peso).toFixed(1)}kg</Text>
+                    </View>
+                  )}
+                  {progressoBf && (
+                    <View>
+                      <View style={styles.metaTitleRow}>
+                        <Text style={{ fontSize: 9, fontWeight: 'bold', color: '#1F2937' }}>% Gordura</Text>
+                        <Text style={{ fontSize: 9, fontWeight: 'bold', color: '#10B981' }}>{Math.max(0, progressoBf.progressoPct).toFixed(0)}%</Text>
+                      </View>
+                      <View style={styles.metaBarBg}><View style={[styles.metaBarFill, { width: `${Math.max(4, Math.min(100, progressoBf.progressoPct))}%` }]} /></View>
+                      <Text style={{ fontSize: 8, color: '#4B5563' }}>Inicial: {Number(par.avMeta.gordura_perc).toFixed(1)}% | Meta: {Number(par.avMeta.meta_bf_percentual).toFixed(1)}% | Atual: {Number(par.avAtual.gordura_perc).toFixed(1)}%</Text>
+                    </View>
+                  )}
+                </View>
+              );
+            })}
+          </View>
+        )}
 
         <View style={styles.footer} fixed>
           <Text>Documento gerado pelo sistema EvaluaOS - {consultorio} | Impresso em {dataHoje}</Text>
@@ -146,7 +288,7 @@ const EvolucaoPDF = ({ historico, paciente, avaliador, idade }) => {
   )
 }
 
-export default function BotaoExportarEvolucaoPDF({ historico, paciente, avaliador, idade, isPublicView }) {
+export default function BotaoExportarEvolucaoPDF({ historico, paciente, avaliador, idade, isPublicView, configVisibilidade }) {
   const telefoneLimpo = paciente?.telefone ? paciente.telefone.replace(/\D/g, '') : '';
   const primeiroNome = paciente?.nome_completo ? paciente.nome_completo.split(' ')[0] : 'Paciente';
   const saudacao = avaliador?.nome_completo ? avaliador.nome_completo : 'seu Avaliador';
@@ -179,7 +321,7 @@ export default function BotaoExportarEvolucaoPDF({ historico, paciente, avaliado
       ) : null}
 
           <PDFDownloadLink
-            document={<EvolucaoPDF historico={historico} paciente={paciente} avaliador={avaliador} idade={idade} />}
+            document={<EvolucaoPDF historico={historico} paciente={paciente} avaliador={avaliador} idade={idade} configVisibilidade={configVisibilidade} />}
             fileName={`Evolucao_${paciente?.nome_completo ? paciente.nome_completo.replace(/\s+/g, '_') : 'Paciente'}.pdf`}
             className="flex items-center justify-center px-4 py-2.5 bg-gray-800 text-white text-xs font-semibold rounded-lg shadow hover:bg-gray-900 transition-colors flex-1 md:flex-none"
           >

@@ -1,5 +1,21 @@
 import React from 'react';
 import { Document, Page, Text, View, StyleSheet, PDFDownloadLink, Svg, Line, Polygon, Circle, Image } from '@react-pdf/renderer';
+import {
+  classificarImc,
+  classificarRcq,
+  classificarRce,
+  classificarArgoref,
+  classificarPercentilItaliano,
+  classificarMorrow,
+  classificarApVat,
+  classificarImo,
+  classificarSomatotipoDetalhado,
+  calcularIndiceCormico,
+  calcularIndiceManouvrier,
+  calcularEnvergaduraRelativa,
+  calcularIndiceConicidade,
+  classificarConicidade
+} from '../utils/escalasNormativas';
 
 // --- ESTILOS DO PDF (Padrão Clean / Clínico) ---
 const styles = StyleSheet.create({
@@ -26,6 +42,7 @@ const styles = StyleSheet.create({
   gridItem2Col: { width: '48%', flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 4, borderBottomWidth: 1, borderBottomColor: '#F9FAFB' },
   gridItem3Col: { width: '31%', flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 4, borderBottomWidth: 1, borderBottomColor: '#F9FAFB' },
   gridItem4Col: { width: '23%', flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 4, borderBottomWidth: 1, borderBottomColor: '#F9FAFB' },
+  gridItem3ColStacked: { width: '31%', paddingVertical: 4, borderBottomWidth: 1, borderBottomColor: '#F9FAFB' },
   gridLabel: { fontSize: 9, color: '#4B5563' },
   gridValue: { fontSize: 9, fontWeight: 'bold', color: '#111827' },
   gridUnit: { fontSize: 7, color: '#9CA3AF', fontWeight: 'normal' },
@@ -38,6 +55,12 @@ const styles = StyleSheet.create({
   textAmber: { color: '#F59E0B' }, textAmberDark: { color: '#D97706' }, textBlue: { color: '#2563EB' }, textEmerald: { color: '#047857' }, textIndigo: { color: '#4F46E5' }, textSlate: { color: '#475569' },
   badgeGreen: { backgroundColor: '#D1FAE5', color: '#065F46', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4, fontSize: 8, fontWeight: 'bold', textTransform: 'uppercase' },
   badgeGray: { backgroundColor: '#E5E7EB', color: '#6B7280', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4, fontSize: 8, fontWeight: 'bold', textTransform: 'uppercase' },
+  badgeRed: { backgroundColor: '#FEE2E2', color: '#991B1B', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4, fontSize: 8, fontWeight: 'bold', textTransform: 'uppercase' },
+  badgeOrange: { backgroundColor: '#FFEDD5', color: '#9A3412', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4, fontSize: 8, fontWeight: 'bold', textTransform: 'uppercase' },
+  badgeAmber: { backgroundColor: '#FEF3C7', color: '#92400E', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4, fontSize: 8, fontWeight: 'bold', textTransform: 'uppercase' },
+  badgeBlue: { backgroundColor: '#DBEAFE', color: '#1E40AF', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4, fontSize: 8, fontWeight: 'bold', textTransform: 'uppercase' },
+  classRow: { flexDirection: 'row', justifyContent: 'flex-end', marginTop: 4 },
+  descText: { fontSize: 7, color: '#6B7280', lineHeight: 1.4, marginTop: 3 },
   barContainer: { backgroundColor: '#F3F4F6', height: 8, borderRadius: 4, width: '100%', marginTop: 2 },
   barAmber: { backgroundColor: '#F59E0B', height: 8, borderRadius: 4 }, barBlue: { backgroundColor: '#3B82F6', height: 8, borderRadius: 4 }, barEmerald: { backgroundColor: '#10B981', height: 8, borderRadius: 4 },
   footer: { position: 'absolute', bottom: 20, left: 55, right: 35, borderTopWidth: 1, borderTopColor: '#E5E7EB', paddingTop: 10, textAlign: 'center', fontSize: 8, color: '#9CA3AF' }
@@ -54,13 +77,33 @@ const MeasureItem = ({ label, value, unit, styleClass }) => {
   );
 };
 
-const HighlightCard = ({ label, value, unit, valColor, showBorder, refText, isBlueBorder }) => (
+const HighlightCard = ({ label, value, unit, valColor, showBorder, refText, isBlueBorder, classInfo }) => (
   <View style={[styles.highlightCard, showBorder ? (isBlueBorder ? styles.highlightCardLeftBorderBlue : styles.highlightCardLeftBorder) : {}]}>
     <Text style={styles.highlightLabel}>{label}</Text>
     <Text style={[styles.highlightValue, valColor]}>{value > 0 ? (value % 1 !== 0 ? value.toFixed(2) : value) : '-'} <Text style={styles.gridUnit}>{unit}</Text></Text>
     {refText && <Text style={styles.highlightRef}>{refText}</Text>}
+    {classInfo && value > 0 && <ClassBadge cor={classInfo.cor} texto={classInfo.classificacao} align="flex-start" />}
   </View>
 );
+
+const CORES_BADGE = {
+  red: 'badgeRed',
+  orange: 'badgeOrange',
+  amber: 'badgeAmber',
+  blue: 'badgeBlue',
+  emerald: 'badgeGreen',
+  gray: 'badgeGray'
+};
+
+const ClassBadge = ({ cor, texto, align = 'flex-end' }) => {
+  if (!texto || texto === '-') return null;
+  const styleKey = CORES_BADGE[cor] || 'badgeGray';
+  return (
+    <View style={{ flexDirection: 'row', justifyContent: align, marginTop: 4 }}>
+      <Text style={styles[styleKey]}>{texto}</Text>
+    </View>
+  );
+};
 
 const ProgressBar = ({ label, value, valColor, barStyle }) => (
   <View style={{ marginBottom: 10 }}>
@@ -98,6 +141,33 @@ const RelatorioPDF = ({ dados, idade, statusCintura, iamVal, imoVal, nomeEmpresa
   };
 
   const exibirBlocoPlanner = dados?.calorias_fase_mudanca && (podeExibir('laudo_plan_dieta') || podeExibir('laudo_plan_manutencao') || podeExibir('laudo_plan_peso_alvo') || podeExibir('laudo_plan_bf_alvo'));
+
+  // --- CLASSIFICAÇÕES (mesmos classificadores e mesma lógica de ResultadoAvaliacao.jsx) ---
+  const infoImc = classificarImc(dados?.imc);
+  const infoRcq = classificarRcq(dados?.relacao_cintura_quadril, pac.sexo);
+  const infoRce = classificarRce(dados?.relacao_cintura_estatura);
+
+  const ehIdadeArgoref = idade >= 20 && idade <= 30;
+  const infoSoma6 = ehIdadeArgoref
+    ? classificarArgoref(dados?.somatorio_6_dobras, pac.sexo)
+    : { classificacao: classificarPercentilItaliano(dados?.somatorio_6_dobras, pac.sexo, idade), cor: 'emerald' };
+  const rotuloSoma6 = ehIdadeArgoref ? 'ARGOREF (Holway)' : 'Percentil ISAK (Campa)';
+
+  const infoMorrow = classificarMorrow(aval.percentual_de_gordura, pac.sexo, idade);
+  const infoApVat = classificarApVat(dados?.area_previsao_visceral_apvat, pac.sexo);
+  const infoImo = classificarImo(imoVal, pac.sexo);
+
+  const infoCormico = calcularIndiceCormico(aval.altura_sentado_paciente, aval.altura_paciente);
+  const infoManouvrier = calcularIndiceManouvrier(aval.altura_sentado_paciente, aval.altura_paciente);
+  const infoEnvergadura = calcularEnvergaduraRelativa(aval.envergadura_paciente, aval.altura_paciente);
+  const conicidadeVal = calcularIndiceConicidade(aval.peso_paciente, aval.altura_paciente, aval.perimetro_cintura);
+  const infoConicidade = classificarConicidade(conicidadeVal, pac.sexo);
+
+  const descricoesSomatotipo = classificarSomatotipoDetalhado({
+    endomorfia: dados?.somatotipo_endomorfia,
+    mesomorfia: dados?.somatotipo_mesomorfia,
+    ectomorfia: dados?.somatotipo_ectomorfia
+  });
 
   return (
     <Document>
@@ -163,7 +233,7 @@ const RelatorioPDF = ({ dados, idade, statusCintura, iamVal, imoVal, nomeEmpresa
           <View style={styles.sectionWrap} wrap={false}>
             <Text style={styles.sectionTitle}>📊 2. Composição Corporal</Text>
             <View style={{ flexDirection: 'row', gap: 6 }}>
-              {podeExibir('laudo_imc') && <HighlightCard label="IMC" value={dados?.imc} unit="kg/m²" valColor={{ color: '#1F2937' }} />}
+              {podeExibir('laudo_imc') && <HighlightCard label="IMC" value={dados?.imc} unit="kg/m²" valColor={{ color: '#1F2937' }} classInfo={infoImc} />}
               {podeExibir('laudo_percentual_gordura') && <HighlightCard label="% Gordura" value={aval.percentual_de_gordura} unit="%" valColor={styles.textAmber} />}
               {podeExibir('laudo_massa_gorda') && <HighlightCard label="Massa Gorda" value={dados?.massa_gorda} unit="kg" valColor={styles.textAmberDark} />}
               {podeExibir('laudo_massa_magra') && <HighlightCard label="Massa Magra" value={dados?.massa_magra} unit="kg" valColor={styles.textBlue} />}
@@ -224,21 +294,38 @@ const RelatorioPDF = ({ dados, idade, statusCintura, iamVal, imoVal, nomeEmpresa
         )}
 
         {/* 4. INDICADORES DE SAÚDE */}
-        {(podeExibir('laudo_rcq') || podeExibir('laudo_rce') || podeExibir('laudo_status_cintura') || podeExibir('laudo_soma_6') || podeExibir('laudo_soma_8')) && (
+        {(podeExibir('laudo_rcq') || podeExibir('laudo_rce') || podeExibir('laudo_status_cintura') || podeExibir('laudo_soma_6') || podeExibir('laudo_soma_8') || podeExibir('laudo_indice_cormico') || podeExibir('laudo_manouvrier') || podeExibir('laudo_envergadura_relativa') || podeExibir('laudo_conicidade')) && (
           <View style={styles.sectionWrap} wrap={false}>
             <Text style={styles.sectionTitle}>⚖️ 4. Indicadores de Saúde</Text>
-            <View style={{ flexDirection: 'row', gap: 6 }}>
-              {podeExibir('laudo_rcq') && <HighlightCard label="RCQ" value={dados?.relacao_cintura_quadril} unit="" valColor={styles.textIndigo} />}
-              {podeExibir('laudo_rce') && <HighlightCard label="RCE" value={dados?.relacao_cintura_estatura} unit="" valColor={styles.textIndigo} />}
+            <View style={{ flexDirection: 'row', gap: 6, marginBottom: 8 }}>
+              {podeExibir('laudo_rcq') && <HighlightCard label="RCQ" value={dados?.relacao_cintura_quadril} unit="" valColor={styles.textIndigo} classInfo={infoRcq} />}
+              {podeExibir('laudo_rce') && <HighlightCard label="RCE" value={dados?.relacao_cintura_estatura} unit="" valColor={styles.textIndigo} classInfo={infoRce} />}
               {podeExibir('laudo_status_cintura') && (
                 <View style={[styles.highlightCard, { alignItems: 'center' }]}>
                   <Text style={styles.highlightLabel}>Cintura (Status)</Text>
                   <Text style={styles.badgeGreen}>{statusCintura || '-'}</Text>
                 </View>
               )}
-              {podeExibir('laudo_soma_6') && <HighlightCard label="Σ 6 Dobras" value={dados?.somatorio_6_dobras} unit="mm" valColor={styles.textAmberDark} />}
+              {podeExibir('laudo_soma_6') && <HighlightCard label={`Σ 6 Dobras`} value={dados?.somatorio_6_dobras} unit="mm" valColor={styles.textAmberDark} classInfo={{ cor: infoSoma6.cor, classificacao: infoSoma6.classificacao !== '-' ? `${rotuloSoma6}: ${infoSoma6.classificacao}` : null }} />}
               {podeExibir('laudo_soma_8') && <HighlightCard label="Σ 8 Dobras" value={dados?.somatorio_8_dobras} unit="mm" valColor={styles.textAmberDark} />}
             </View>
+
+            {(podeExibir('laudo_indice_cormico') || podeExibir('laudo_manouvrier') || podeExibir('laudo_envergadura_relativa') || podeExibir('laudo_conicidade')) && (
+              <View style={{ flexDirection: 'row', gap: 6 }}>
+                {podeExibir('laudo_indice_cormico') && infoCormico.valor > 0 && (
+                  <HighlightCard label="Índice Córmico" value={infoCormico.valor} unit="" valColor={styles.textIndigo} classInfo={{ cor: 'gray', classificacao: infoCormico.classificacao }} />
+                )}
+                {podeExibir('laudo_manouvrier') && infoManouvrier.valor > 0 && (
+                  <HighlightCard label="Manouvrier" value={infoManouvrier.valor} unit="" valColor={styles.textIndigo} classInfo={{ cor: 'gray', classificacao: infoManouvrier.classificacao }} />
+                )}
+                {podeExibir('laudo_envergadura_relativa') && infoEnvergadura.valor > 0 && (
+                  <HighlightCard label="Envergadura Rel." value={infoEnvergadura.valor} unit="" valColor={styles.textIndigo} classInfo={{ cor: 'gray', classificacao: infoEnvergadura.classificacao }} />
+                )}
+                {podeExibir('laudo_conicidade') && conicidadeVal > 0 && (
+                  <HighlightCard label="Índice de Conicidade" value={conicidadeVal} unit="" valColor={styles.textIndigo} classInfo={infoConicidade} />
+                )}
+              </View>
+            )}
           </View>
         )}
 
@@ -306,8 +393,11 @@ const RelatorioPDF = ({ dados, idade, statusCintura, iamVal, imoVal, nomeEmpresa
               {podeExibir('laudo_somatotipo_barras') && (
                 <View style={styles.cardWhite}>
                   <ProgressBar label="Endomorfia (Adiposidade)" value={dados?.somatotipo_endomorfia} valColor="#B45309" barStyle={styles.barAmber} />
+                  <Text style={[styles.descText, { marginTop: -6, marginBottom: 8 }]}>{descricoesSomatotipo.endomorfia.descricao}</Text>
                   <ProgressBar label="Mesomorfia (Musculosidade)" value={dados?.somatotipo_mesomorfia} valColor="#1D4ED8" barStyle={styles.barBlue} />
+                  <Text style={[styles.descText, { marginTop: -6, marginBottom: 8 }]}>{descricoesSomatotipo.mesomorfia.descricao}</Text>
                   <ProgressBar label="Ectomorfia (Linearidade)" value={dados?.somatotipo_ectomorfia} valColor="#047857" barStyle={styles.barEmerald} />
+                  <Text style={[styles.descText, { marginTop: -6 }]}>{descricoesSomatotipo.ectomorfia.descricao}</Text>
                 </View>
               )}
 
@@ -335,27 +425,36 @@ const RelatorioPDF = ({ dados, idade, statusCintura, iamVal, imoVal, nomeEmpresa
           </View>
         )}
 
-        {/* 10. OUTROS INDICADORES (IAM, IMO, etc) */}
-        {(podeExibir('laudo_iam') || podeExibir('laudo_imo') || podeExibir('laudo_apvat')) && (
+        {/* 10. OUTROS INDICADORES (IAM, IMO, apVAT, Morrow) */}
+        {(podeExibir('laudo_iam') || podeExibir('laudo_imo') || podeExibir('laudo_apvat') || podeExibir('laudo_morrow')) && (
           <View style={styles.sectionWrap} wrap={false}>
             <Text style={styles.sectionTitle}>🚀 10. Outros Indicadores & Classificações</Text>
             <View style={styles.gridContainer}>
+              {podeExibir('laudo_apvat') && (
+                <View style={styles.gridItem3ColStacked}>
+                  <Text style={styles.gridLabel}>Área Visceral (apVAT)</Text>
+                  <Text style={styles.gridValue}>{dados?.area_previsao_visceral_apvat > 0 ? `${dados.area_previsao_visceral_apvat.toFixed(1)} cm²` : '-'}</Text>
+                  <ClassBadge cor={infoApVat.cor} texto={infoApVat.classificacao} align="flex-start" />
+                </View>
+              )}
+              {podeExibir('laudo_morrow') && (
+                <View style={styles.gridItem3ColStacked}>
+                  <Text style={styles.gridLabel}>Gordura (Morrow 2003)</Text>
+                  <Text style={styles.gridValue}>{aval.percentual_de_gordura > 0 ? `${Number(aval.percentual_de_gordura).toFixed(1)}%` : '-'}</Text>
+                  <ClassBadge cor={infoMorrow.cor} texto={infoMorrow.classificacao} align="flex-start" />
+                </View>
+              )}
               {podeExibir('laudo_iam') && (
-                <View style={styles.gridItem3Col}>
+                <View style={styles.gridItem3ColStacked}>
                   <Text style={styles.gridLabel}>IAM</Text>
                   <Text style={styles.gridValue}>{iamVal > 0 ? iamVal.toFixed(2) : '-'}</Text>
                 </View>
               )}
               {podeExibir('laudo_imo') && (
-                <View style={styles.gridItem3Col}>
+                <View style={styles.gridItem3ColStacked}>
                   <Text style={styles.gridLabel}>Índice Músculo Ósseo</Text>
                   <Text style={[styles.gridValue, styles.textEmerald]}>{imoVal > 0 ? imoVal.toFixed(3) : '-'}</Text>
-                </View>
-              )}
-              {podeExibir('laudo_apvat') && (
-                <View style={styles.gridItem3Col}>
-                  <Text style={styles.gridLabel}>APVAT</Text>
-                  <Text style={styles.gridValue}>{dados?.area_previsao_visceral_apvat > 0 ? `${dados.area_previsao_visceral_apvat.toFixed(1)} cm²` : '-'}</Text>
+                  <ClassBadge cor={infoImo.cor} texto={infoImo.classificacao} align="flex-start" />
                 </View>
               )}
             </View>
