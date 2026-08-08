@@ -24,6 +24,7 @@ export default function EvolucaoPaciente() {
   const [historico, setHistorico] = useState([])
   const [avaliador, setAvaliador] = useState(null)
   const [configVisibilidade, setConfigVisibilidade] = useState({})
+  const [excluindoMetaId, setExcluindoMetaId] = useState(null)
 
   // Cores padronizadas para as bolinhas da Somatocarta e Legendas
   const coresAvaliacoes = ['#10b981', '#3b82f6', '#f59e0b', '#ec4899', '#8b5cf6', '#ef4444', '#14b8a6', '#64748b']
@@ -465,6 +466,24 @@ export default function EvolucaoPaciente() {
     );
   };
 
+  const handleExcluirMeta = async (idAvaliacaoMeta) => {
+    if (!window.confirm('Excluir a meta definida nesta avaliação? Isso não afeta as medidas, só remove o peso alvo / %GC alvo.')) return;
+
+    setExcluindoMetaId(idAvaliacaoMeta);
+    const { error } = await supabase
+      .from('dados_calculados')
+      .update({ peso_alvo: null, meta_bf_percentual: null })
+      .eq('id_avaliacao', idAvaliacaoMeta);
+    setExcluindoMetaId(null);
+
+    if (error) {
+      alert('Erro ao excluir a meta: ' + error.message);
+      return;
+    }
+
+    setHistorico(prev => prev.map(av => av.id === idAvaliacaoMeta ? { ...av, peso_alvo: null, meta_bf_percentual: null } : av));
+  };
+
   const MetaProgressoCard = ({ avMeta, avAtual }) => {
     const progressoPeso = avMeta.peso_alvo ? calcularProgressoMeta(Number(avMeta.peso), avMeta.peso_alvo, Number(avAtual.peso)) : null;
     const progressoBf = avMeta.meta_bf_percentual ? calcularProgressoMeta(Number(avMeta.gordura_perc), avMeta.meta_bf_percentual, Number(avAtual.gordura_perc)) : null;
@@ -475,7 +494,23 @@ export default function EvolucaoPaciente() {
       <div className="bg-white dark:bg-slate-900 rounded-xl border border-gray-100 dark:border-slate-800 p-4 shadow-sm flex flex-col gap-4 w-full">
         <div className="flex items-center justify-between border-b border-gray-100 dark:border-slate-800 pb-2 flex-wrap gap-1">
           <span className="text-[10px] font-bold text-gray-500 dark:text-slate-400">Meta de {avMeta.dataStr_curta}</span>
-          <span className="text-[10px] font-bold text-gray-500 dark:text-slate-400">→ Avaliação de {avAtual.dataStr_curta}</span>
+          <div className="flex items-center gap-2">
+            <span className="text-[10px] font-bold text-gray-500 dark:text-slate-400">→ Avaliação de {avAtual.dataStr_curta}</span>
+            {!isPublicView && (
+              <button
+                onClick={() => handleExcluirMeta(avMeta.id)}
+                disabled={excluindoMetaId === avMeta.id}
+                title="Excluir meta"
+                className="text-gray-400 hover:text-red-600 dark:text-slate-500 dark:hover:text-red-400 transition-colors disabled:opacity-40 shrink-0"
+              >
+                {excluindoMetaId === avMeta.id ? (
+                  <svg className="w-3.5 h-3.5 animate-spin" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg>
+                ) : (
+                  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+                )}
+              </button>
+            )}
+          </div>
         </div>
         {progressoPeso && renderLinhaMeta('Peso', ' kg', avMeta.peso, avMeta.peso_alvo, avAtual.peso, progressoPeso)}
         {progressoBf && renderLinhaMeta('% Gordura', '%', avMeta.gordura_perc, avMeta.meta_bf_percentual, avAtual.gordura_perc, progressoBf)}
