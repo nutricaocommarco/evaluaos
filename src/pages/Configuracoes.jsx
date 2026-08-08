@@ -7,6 +7,8 @@ import VisibilidadeCamposForm from '../components/configuracoes/VisibilidadeCamp
 import EquacaoPadraoForm from '../components/configuracoes/EquacaoPadraoForm'
 import VisibilidadePublicaForm from '../components/configuracoes/VisibilidadePublicaForm'
 import ExportadorDadosCSV from '../components/configuracoes/ExportadorDadosCSV'
+import TemaForm from '../components/configuracoes/TemaForm'
+import { DEFAULT_PRIMARY_HEX } from '../utils/colorTheme'
 
 export default function Configuracoes() {
   const [loading, setLoading] = useState(true)
@@ -21,7 +23,9 @@ export default function Configuracoes() {
     campos_visiveis: null,
     equacao_padrao_masculina: 'Mitchell et al. (2020) - 7skf ISAK',
     equacao_padrao_feminina: 'Durnin et al. (1974) - 4skf',
-    visibilidade_publica: null
+    visibilidade_publica: null,
+    dark_mode: false,
+    cor_primaria: DEFAULT_PRIMARY_HEX
   })
 
   // 🔗 COLOQUE O SEU LINK DE AFILIADO DA HOTMART AQUI
@@ -75,13 +79,14 @@ export default function Configuracoes() {
   }
 
   if (loading) {
-    return <div className="p-8 text-center text-emerald-600 font-bold">Carregando preferências...</div>
+    return <div className="p-8 text-center text-primary-600 font-bold">Carregando preferências...</div>
   }
 
   const abas = [
     { id: 'coleta', label: 'Formulário & Coleta', icon: '📝' },
     { id: 'preferencias', label: 'Protocolos & Margens', icon: '⚡' },
     { id: 'privacidade', label: 'Visibilidade', icon: '👁️' },
+    { id: 'aparencia', label: 'Aparência', icon: '🎨' },
     { id: 'afiliados', label: 'Indique & Ganhe', icon: '🤝' },
     { id: 'backup', label: 'Backup & Dados', icon: '💾' }
   ]
@@ -89,20 +94,20 @@ export default function Configuracoes() {
   return (
     <div className="max-w-5xl mx-auto space-y-6 pb-12 w-full max-w-full overflow-x-hidden min-w-0 px-1">
       <div>
-        <h2 className="text-2xl font-black text-gray-800">Preferências do Sistema</h2>
-        <p className="text-sm text-gray-500">Personalize regras de medição, campos de formulário e a experiência do aluno.</p>
+        <h2 className="text-2xl font-black text-gray-800 dark:text-slate-100">Preferências do Sistema</h2>
+        <p className="text-sm text-gray-500 dark:text-slate-400">Personalize regras de medição, campos de formulário e a experiência do aluno.</p>
       </div>
 
       {/* MENU DE ABAS */}
-      <div className="grid grid-cols-2 sm:flex sm:flex-wrap gap-2 border-b border-gray-200 pb-3 w-full min-w-0">
+      <div className="grid grid-cols-2 sm:flex sm:flex-wrap gap-2 border-b border-gray-200 dark:border-slate-800 pb-3 w-full min-w-0">
         {abas.map(aba => (
           <button
             key={aba.id}
             onClick={() => setAbaAtiva(aba.id)}
             className={`flex items-center justify-center sm:justify-start gap-2 px-3 sm:px-4 py-2.5 font-bold text-[11px] sm:text-xs rounded-lg transition-colors w-full sm:w-auto text-center ${
               abaAtiva === aba.id
-                ? 'bg-emerald-600 text-white shadow-sm'
-                : 'bg-white border border-gray-100 text-gray-600 hover:bg-gray-50'
+                ? 'bg-primary-600 text-white shadow-sm'
+                : 'bg-white dark:bg-slate-900 border border-gray-100 dark:border-slate-800 text-gray-600 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-slate-800'
             }`}
           >
             <span>{aba.icon}</span>
@@ -128,51 +133,55 @@ export default function Configuracoes() {
           <VisibilidadePublicaForm config={config} setConfig={setConfig} onSave={handleSalvarTudo} saving={saving} />
         )}
 
+        {abaAtiva === 'aparencia' && (
+          <TemaForm config={config} setConfig={setConfig} onSave={handleSalvarTudo} saving={saving} />
+        )}
+
         {/* 🤝 ABA: PROGRAMA DE INDICAÇÃO / AFILIADOS */}
         {abaAtiva === 'afiliados' && (
-          <div className="bg-white p-6 rounded-xl border border-gray-100 shadow-sm space-y-6">
-            <div className="border-b pb-4">
-              <h3 className="text-base font-bold text-gray-800 flex items-center gap-2">
+          <div className="bg-white dark:bg-slate-900 p-6 rounded-xl border border-gray-100 dark:border-slate-800 shadow-sm space-y-6">
+            <div className="border-b dark:border-slate-800 pb-4">
+              <h3 className="text-base font-bold text-gray-800 dark:text-slate-100 flex items-center gap-2">
                 <span>🤝</span> Programa de Parceria & Indicação EvaluaOS
               </h3>
-              <p className="text-xs text-gray-500 mt-1">
+              <p className="text-xs text-gray-500 dark:text-slate-400 mt-1">
                 Indique o EvaluaOS para colegas nutricionistas, estudantes e antropometristas e receba comissões diretas a cada assinatura.
               </p>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="p-4 bg-emerald-50/60 border border-emerald-100 rounded-xl space-y-1">
+              <div className="p-4 bg-primary-50/60 dark:bg-primary-900/20 dark:bg-primary-900/20 border border-primary-100 dark:border-primary-900/40 rounded-xl space-y-1">
                 <span className="text-2xl">💰</span>
-                <h4 className="text-xs font-bold text-emerald-900">Comissões Recorrentes</h4>
-                <p className="text-[11px] text-emerald-700">Ganhe por cada mensalidade ou anuidade gerada pelas suas indicações.</p>
+                <h4 className="text-xs font-bold text-primary-900 dark:text-primary-300">Comissões Recorrentes</h4>
+                <p className="text-[11px] text-primary-700 dark:text-primary-400">Ganhe por cada mensalidade ou anuidade gerada pelas suas indicações.</p>
               </div>
 
-              <div className="p-4 bg-blue-50/60 border border-blue-100 rounded-xl space-y-1">
+              <div className="p-4 bg-blue-50/60 dark:bg-blue-950/30 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-900/40 rounded-xl space-y-1">
                 <span className="text-2xl">⚡</span>
-                <h4 className="text-xs font-bold text-blue-900">Gestão via Hotmart</h4>
-                <p className="text-[11px] text-blue-700">Acompanhamento transparente de cliques, conversões e pagamentos garantidos.</p>
+                <h4 className="text-xs font-bold text-blue-900 dark:text-blue-300">Gestão via Hotmart</h4>
+                <p className="text-[11px] text-blue-700 dark:text-blue-400">Acompanhamento transparente de cliques, conversões e pagamentos garantidos.</p>
               </div>
 
-              <div className="p-4 bg-purple-50/60 border border-purple-100 rounded-xl space-y-1">
+              <div className="p-4 bg-purple-50/60 dark:bg-purple-950/30 dark:bg-purple-900/20 border border-purple-100 dark:border-purple-900/40 rounded-xl space-y-1">
                 <span className="text-2xl">📊</span>
-                <h4 className="text-xs font-bold text-purple-900">Indicação Natural</h4>
-                <p className="text-[11px] text-purple-700">Mostre seus laudos interativos para colegas do consultório ou da faculdade.</p>
+                <h4 className="text-xs font-bold text-purple-900 dark:text-purple-300">Indicação Natural</h4>
+                <p className="text-[11px] text-purple-700 dark:text-purple-400">Mostre seus laudos interativos para colegas do consultório ou da faculdade.</p>
               </div>
             </div>
 
-            <div className="bg-gray-50 p-5 rounded-xl border border-gray-200 flex flex-col sm:flex-row justify-between items-center gap-4">
+            <div className="bg-gray-50 dark:bg-slate-800 p-5 rounded-xl border border-gray-200 dark:border-slate-700 flex flex-col sm:flex-row justify-between items-center gap-4">
               <div>
-                <h4 className="text-xs font-bold text-gray-800">Como se tornar um parceiro?</h4>
-                <p className="text-xs text-gray-500 mt-0.5">
+                <h4 className="text-xs font-bold text-gray-800 dark:text-slate-100">Como se tornar um parceiro?</h4>
+                <p className="text-xs text-gray-500 dark:text-slate-400 mt-0.5">
                   Ao se cadastrar no programa via Hotmart, você obtém seu link exclusivo de divulgação para indicar quando quiser.
                 </p>
               </div>
-              
+
               <a
                 href={LINK_AFILIADO_HOTMART}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="w-full sm:w-auto px-6 py-3 bg-emerald-600 text-white rounded-xl text-xs font-bold hover:bg-emerald-700 shadow-sm flex items-center justify-center gap-2 transition-all shrink-0"
+                className="w-full sm:w-auto px-6 py-3 bg-primary-600 text-white rounded-xl text-xs font-bold hover:bg-primary-700 shadow-sm flex items-center justify-center gap-2 transition-all shrink-0"
               >
                 <span>🚀</span> Quero me Tornar um Afiliado
               </a>

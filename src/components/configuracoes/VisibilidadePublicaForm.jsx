@@ -289,13 +289,13 @@ export default function VisibilidadePublicaForm({ config, setConfig, onSave, sav
     const todosAtivos = listaChaves.every(k => getIsChecked(k))
 
     return (
-      <div key={grupo.titulo} className="bg-gray-50/50 p-4 rounded-xl border border-gray-100 space-y-3">
-        <div className="flex justify-between items-center border-b border-gray-100 pb-2">
-          <span className="text-xs font-black text-gray-700 uppercase tracking-wider">{grupo.titulo}</span>
+      <div key={grupo.titulo} className="bg-gray-50/50 dark:bg-slate-800/70 p-4 rounded-xl border border-gray-100 dark:border-slate-800 space-y-3">
+        <div className="flex justify-between items-center border-b border-gray-100 dark:border-slate-800 pb-2">
+          <span className="text-xs font-black text-gray-700 dark:text-slate-300 uppercase tracking-wider">{grupo.titulo}</span>
           <button
             type="button"
             onClick={() => handleToggleGrupo(listaChaves, !todosAtivos)}
-            className="text-[10px] font-bold text-emerald-700 hover:text-emerald-900 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-100 transition-colors"
+            className="text-[10px] font-bold text-primary-700 dark:text-primary-400 hover:text-primary-900 bg-primary-50 dark:bg-primary-900/20 dark:bg-primary-900/20 px-2 py-0.5 rounded border border-primary-100 dark:border-primary-900/40 transition-colors"
           >
             {todosAtivos ? 'Desmarcar Todos' : 'Marcar Todos'}
           </button>
@@ -312,21 +312,21 @@ export default function VisibilidadePublicaForm({ config, setConfig, onSave, sav
                 onClick={() => handleToggle(opt.key)}
                 className={`flex items-center justify-between p-2.5 rounded-lg border cursor-pointer select-none transition-all ${
                   isChecked
-                    ? 'bg-white border-emerald-200 text-gray-800 shadow-2xs'
-                    : 'bg-gray-100/50 border-gray-200 text-gray-400 opacity-60'
+                    ? 'bg-white dark:bg-slate-900 border-primary-200 dark:border-primary-800 text-gray-800 dark:text-slate-100 shadow-2xs'
+                    : 'bg-gray-100/50 dark:bg-slate-800/70 border-gray-200 dark:border-slate-700 text-gray-400 dark:text-slate-400 opacity-60'
                 }`}
               >
                 <div className="flex flex-col min-w-0 pr-2">
                   <span className="text-xs font-semibold truncate">{opt.label}</span>
                   {herdaGlobal && (
-                    <span className="text-[9px] text-gray-400 font-normal">(padrão global)</span>
+                    <span className="text-[9px] text-gray-400 dark:text-slate-400 font-normal">(padrão global)</span>
                   )}
                 </div>
                 <input
                   type="checkbox"
                   checked={isChecked}
                   onChange={() => {}}
-                  className="w-4 h-4 text-emerald-600 rounded border-gray-300 focus:ring-emerald-500 shrink-0"
+                  className="w-4 h-4 text-primary-600 rounded border-gray-300 focus:ring-primary-500 shrink-0"
                 />
               </label>
             )
@@ -339,16 +339,16 @@ export default function VisibilidadePublicaForm({ config, setConfig, onSave, sav
   const nomePacienteAtual = pacientes.find(p => p.id === pacienteSelecionado)?.nome_completo
 
   return (
-    <div className="bg-white p-6 rounded-xl border border-gray-100 shadow-sm space-y-6">
+    <div className="bg-white dark:bg-slate-900 p-6 rounded-xl border border-gray-100 dark:border-slate-800 shadow-sm space-y-6">
       <div>
-        <h3 className="text-sm font-bold text-gray-800 uppercase tracking-wider">Visibilidade e Exibição de Campos</h3>
-        <p className="text-xs text-gray-500 mt-0.5">
+        <h3 className="text-sm font-bold text-gray-800 dark:text-slate-100 uppercase tracking-wider">Visibilidade e Exibição de Campos</h3>
+        <p className="text-xs text-gray-500 dark:text-slate-400 mt-0.5">
           Configure a visibilidade padrão para **Todos os Pacientes** ou selecione um paciente específico para aplicar regras personalizadas.
         </p>
       </div>
 
-      <div className="bg-emerald-50/60 p-4 rounded-xl border border-emerald-100 space-y-3">
-        <label className="block text-xs font-bold text-emerald-900 uppercase tracking-wider">
+      <div className="bg-primary-50/60 dark:bg-primary-900/20 p-4 rounded-xl border border-primary-100 dark:border-primary-900/40 space-y-3">
+        <label className="block text-xs font-bold text-primary-900 dark:text-primary-300 uppercase tracking-wider">
           Configurar Regra de Visibilidade Para:
         </label>
 
@@ -356,7 +356,7 @@ export default function VisibilidadePublicaForm({ config, setConfig, onSave, sav
           <select
             value={pacienteSelecionado}
             onChange={(e) => setPacienteSelecionado(e.target.value)}
-            className="flex-1 px-3 py-2 bg-white border border-gray-300 rounded-lg text-sm font-semibold text-gray-800 focus:ring-2 focus:ring-emerald-500 outline-none shadow-2xs"
+            className="flex-1 px-3 py-2 bg-white dark:bg-slate-900 border border-gray-300 rounded-lg text-sm font-semibold text-gray-800 dark:text-slate-100 focus:ring-2 focus:ring-primary-500 outline-none shadow-2xs"
           >
             <option value="global">🌐 Todos os Pacientes (Configuração Global)</option>
             {pacientesFiltrados.map(p => (
@@ -371,25 +371,25 @@ export default function VisibilidadePublicaForm({ config, setConfig, onSave, sav
             placeholder="Filtrar paciente..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="sm:w-48 px-3 py-2 bg-white border border-gray-200 rounded-lg text-xs outline-none focus:border-emerald-500"
+            className="sm:w-48 px-3 py-2 bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-700 rounded-lg text-xs outline-none focus:border-primary-500"
           />
         </div>
 
         <div className="flex justify-between items-center pt-1">
           {pacienteSelecionado === 'global' ? (
-            <span className="text-[11px] font-bold text-emerald-800 flex items-center gap-1">
+            <span className="text-[11px] font-bold text-primary-800 dark:text-primary-300 flex items-center gap-1">
               <span>🌐</span> Editando padrão global para todos os alunos.
             </span>
           ) : (
             <div className="flex items-center justify-between w-full">
-              <span className="text-[11px] font-bold text-blue-800 flex items-center gap-1">
+              <span className="text-[11px] font-bold text-blue-800 dark:text-blue-300 flex items-center gap-1">
                 <span>👤</span> Editando exceção para: <span className="underline">{nomePacienteAtual}</span>
               </span>
               {temRegraPersonalizada && (
                 <button
                   type="button"
                   onClick={handleResetarPaciente}
-                  className="text-[10px] font-bold text-red-600 hover:text-red-800 bg-red-50 px-2 py-1 rounded border border-red-100 transition-colors"
+                  className="text-[10px] font-bold text-red-600 hover:text-red-800 bg-red-50 dark:bg-red-900/20 dark:bg-red-900/20 px-2 py-1 rounded border border-red-100 dark:border-red-900/40 transition-colors"
                   title="Remove exceções e volta a obedecer a regra Global"
                 >
                   Restaurar para Padrão Global
@@ -401,9 +401,9 @@ export default function VisibilidadePublicaForm({ config, setConfig, onSave, sav
       </div>
 
       <div className="space-y-4">
-        <div className="flex items-center gap-2 border-b border-gray-200 pb-2">
+        <div className="flex items-center gap-2 border-b border-gray-200 dark:border-slate-700 pb-2">
           <span className="text-lg">📈</span>
-          <h4 className="text-xs font-black text-emerald-800 uppercase tracking-wider">
+          <h4 className="text-xs font-black text-primary-800 dark:text-primary-300 uppercase tracking-wider">
             1. PÁGINA DE EVOLUÇÃO
           </h4>
         </div>
@@ -412,10 +412,10 @@ export default function VisibilidadePublicaForm({ config, setConfig, onSave, sav
         </div>
       </div>
 
-      <div className="space-y-4 pt-4 border-t border-gray-200">
-        <div className="flex items-center gap-2 border-b border-gray-200 pb-2">
+      <div className="space-y-4 pt-4 border-t border-gray-200 dark:border-slate-700">
+        <div className="flex items-center gap-2 border-b border-gray-200 dark:border-slate-700 pb-2">
           <span className="text-lg">📋</span>
-          <h4 className="text-xs font-black text-emerald-800 uppercase tracking-wider">
+          <h4 className="text-xs font-black text-primary-800 dark:text-primary-300 uppercase tracking-wider">
             2. LAUDO ANTROPOMÉTRICO
           </h4>
         </div>
@@ -424,11 +424,11 @@ export default function VisibilidadePublicaForm({ config, setConfig, onSave, sav
         </div>
       </div>
 
-      <div className="flex justify-end pt-4 border-t border-gray-100">
+      <div className="flex justify-end pt-4 border-t border-gray-100 dark:border-slate-800">
         <button
           onClick={onSave}
           disabled={saving}
-          className="px-6 py-2.5 bg-emerald-600 text-white rounded-lg text-xs font-bold hover:bg-emerald-700 disabled:opacity-50 transition-colors shadow-sm"
+          className="px-6 py-2.5 bg-primary-600 text-white rounded-lg text-xs font-bold hover:bg-primary-700 disabled:opacity-50 transition-colors shadow-sm"
         >
           {saving ? 'Salvando...' : 'Salvar Todas as Preferências'}
         </button>

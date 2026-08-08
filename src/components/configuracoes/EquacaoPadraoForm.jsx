@@ -78,23 +78,23 @@ const listaMasculinaNomes = [
 
 export default function EquacaoPadraoForm({ config, setConfig, onSave, saving }) {
   return (
-    <div className="bg-white p-6 rounded-xl border border-gray-100 shadow-sm space-y-4">
+    <div className="bg-white dark:bg-slate-900 p-6 rounded-xl border border-gray-100 dark:border-slate-800 shadow-sm space-y-4">
       <div>
-        <h3 className="text-sm font-bold text-gray-800 uppercase tracking-wider">Equações de Regressão Favoritas</h3>
-        <p className="text-xs text-gray-500 mt-0.5">
+        <h3 className="text-sm font-bold text-gray-800 dark:text-slate-100 uppercase tracking-wider">Equações de Regressão Favoritas</h3>
+        <p className="text-xs text-gray-500 dark:text-slate-400 mt-0.5">
           Defina quais protocolos serão sugeridos por padrão na etapa de cálculo de % de Gordura.
         </p>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
         <div>
-          <label className="block text-xs font-semibold text-gray-700 mb-1">
+          <label className="block text-xs font-semibold text-gray-700 dark:text-slate-300 mb-1">
             Protocolo Padrão - Masculino
           </label>
           <select
             value={config.equacao_padrao_masculina || ''}
             onChange={(e) => setConfig(prev => ({ ...prev, equacao_padrao_masculina: e.target.value }))}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white focus:ring-2 focus:ring-emerald-500 outline-none"
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white dark:bg-slate-900 focus:ring-2 focus:ring-primary-500 outline-none"
           >
             {listaMasculinaNomes.map((eq, i) => (
               <option key={i} value={eq}>{eq}</option>
@@ -103,13 +103,13 @@ export default function EquacaoPadraoForm({ config, setConfig, onSave, saving })
         </div>
 
         <div>
-          <label className="block text-xs font-semibold text-gray-700 mb-1">
+          <label className="block text-xs font-semibold text-gray-700 dark:text-slate-300 mb-1">
             Protocolo Padrão - Feminino
           </label>
           <select
             value={config.equacao_padrao_feminina || ''}
             onChange={(e) => setConfig(prev => ({ ...prev, equacao_padrao_feminina: e.target.value }))}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white focus:ring-2 focus:ring-emerald-500 outline-none"
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white dark:bg-slate-900 focus:ring-2 focus:ring-primary-500 outline-none"
           >
             {listaFemininaNomes.map((eq, i) => (
               <option key={i} value={eq}>{eq}</option>
@@ -122,7 +122,7 @@ export default function EquacaoPadraoForm({ config, setConfig, onSave, saving })
         <button
           onClick={onSave}
           disabled={saving}
-          className="px-4 py-2 bg-emerald-600 text-white rounded-lg text-xs font-semibold hover:bg-emerald-700 disabled:opacity-50 transition-colors shadow-sm"
+          className="px-4 py-2 bg-primary-600 text-white rounded-lg text-xs font-semibold hover:bg-primary-700 disabled:opacity-50 transition-colors shadow-sm"
         >
           {saving ? 'Salvando...' : 'Salvar Equações Favoritas'}
         </button>

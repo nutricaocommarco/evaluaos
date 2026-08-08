@@ -257,10 +257,10 @@ const MeasureRow = ({ label, field, categoryType, state, setter, isSingleMode, h
           onChange={(e) => handleChangeMeasure(key, e.target.value)} 
           className={`w-full px-2 py-1.5 border rounded-md text-sm text-center transition-all ${
             isFieldLocked 
-              ? 'bg-slate-100 font-bold text-slate-800 border-slate-300 cursor-not-allowed opacity-90' 
+              ? 'bg-slate-100 dark:bg-slate-800 font-bold text-slate-800 dark:text-slate-200 border-slate-300 cursor-not-allowed opacity-90' 
               : isThirdDisabled 
-                ? 'opacity-40 bg-gray-100 cursor-not-allowed'
-                : 'bg-white font-normal focus:border-emerald-500'
+                ? 'opacity-40 bg-gray-100 dark:bg-slate-800 cursor-not-allowed'
+                : 'bg-white dark:bg-slate-900 font-normal focus:border-primary-500'
           }`} 
           placeholder={key === 'm1' ? (isSingleMode ? "Valor" : "1ª") : key === 'm2' ? "2ª" : "3ª"} 
         />
@@ -268,7 +268,7 @@ const MeasureRow = ({ label, field, categoryType, state, setter, isSingleMode, h
           <button
             type="button"
             onClick={() => requestUnlockDirect(key, ref)}
-            className="absolute right-1 text-[10px] bg-slate-200 hover:bg-slate-300 text-slate-700 px-1.5 py-0.5 rounded font-bold transition-colors cursor-pointer"
+            className="absolute right-1 text-[10px] bg-slate-200 hover:bg-slate-300 text-slate-700 dark:text-slate-300 px-1.5 py-0.5 rounded font-bold transition-colors cursor-pointer"
             title="Clique para liberar e alterar esta medida"
           >
             🔒
@@ -279,8 +279,8 @@ const MeasureRow = ({ label, field, categoryType, state, setter, isSingleMode, h
   }
 
   return (
-    <div className="flex flex-col md:grid md:grid-cols-12 gap-2 md:items-center border-b border-gray-100 py-3 md:py-2 hover:bg-gray-50 px-2 rounded transition-colors">
-      <div className="col-span-4 text-sm md:text-xs font-medium text-gray-700 flex flex-wrap items-center justify-between gap-1">
+    <div className="flex flex-col md:grid md:grid-cols-12 gap-2 md:items-center border-b border-gray-100 dark:border-slate-800 py-3 md:py-2 hover:bg-gray-50 dark:hover:bg-slate-800 px-2 rounded transition-colors">
+      <div className="col-span-4 text-sm md:text-xs font-medium text-gray-700 dark:text-slate-300 flex flex-wrap items-center justify-between gap-1">
         <span>{label}</span>
         {field === 'altura_sentado_paciente' && alturaBanco > 0 && temMedidas && (
           <button
@@ -288,8 +288,8 @@ const MeasureRow = ({ label, field, categoryType, state, setter, isSingleMode, h
             onClick={handleDescontarBanco}
             className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full transition-all flex items-center gap-1 shadow-sm ${
               haMedidasPendiente 
-                ? 'bg-amber-100 hover:bg-amber-200 text-amber-900 animate-pulse' 
-                : 'bg-emerald-100 text-emerald-800'
+                ? 'bg-amber-100 dark:bg-amber-900/30 dark:bg-amber-900/20 hover:bg-amber-200 text-amber-900 dark:text-amber-300 animate-pulse' 
+                : 'bg-primary-100 dark:bg-primary-900/30 dark:bg-primary-900/20 text-primary-800 dark:text-primary-300'
             }`}
             title={`Subtrai os ${alturaBanco} cm do banco apenas das medidas pendentes`}
           >
@@ -309,8 +309,8 @@ const MeasureRow = ({ label, field, categoryType, state, setter, isSingleMode, h
       </div>
       
       <div className="col-span-2 text-right md:text-center mt-1 md:mt-0">
-        <span className="text-xs text-gray-500 md:hidden mr-2">Resultado:</span>
-        <span className="text-sm font-bold text-emerald-700 bg-emerald-50 px-2 py-1 rounded">{finalValue}</span>
+        <span className="text-xs text-gray-500 dark:text-slate-400 md:hidden mr-2">Resultado:</span>
+        <span className="text-sm font-bold text-primary-700 dark:text-primary-400 bg-primary-50 dark:bg-primary-900/20 dark:bg-primary-900/20 px-2 py-1 rounded">{finalValue}</span>
       </div>
     </div>
   )
@@ -493,9 +493,9 @@ export default function AvaliacaoForm() {
   if (!paciente) {
     return (
       <div className="flex flex-col items-center justify-center h-full space-y-4 p-8">
-        <h2 className="text-xl font-bold text-gray-800">Nenhum paciente selecionado</h2>
-        <p className="text-gray-500">Selecione um paciente na lista para iniciar a avaliação.</p>
-        <button onClick={() => navigate('/pacientes')} className="px-6 py-2 bg-emerald-600 text-white rounded-lg">
+        <h2 className="text-xl font-bold text-gray-800 dark:text-slate-100">Nenhum paciente selecionado</h2>
+        <p className="text-gray-500 dark:text-slate-400">Selecione um paciente na lista para iniciar a avaliação.</p>
+        <button onClick={() => navigate('/pacientes')} className="px-6 py-2 bg-primary-600 text-white rounded-lg">
           Ir para Meus Pacientes
         </button>
       </div>
@@ -706,25 +706,25 @@ export default function AvaliacaoForm() {
     if (keysFiltradas.length === 0) return null
   
     return (
-      <div className="bg-white p-4 md:p-6 rounded-xl border border-gray-100 shadow-sm space-y-2">
-        <h3 className="text-sm font-bold text-gray-800 uppercase tracking-wider mb-4 border-b pb-2">{title}</h3>
+      <div className="bg-white dark:bg-slate-900 p-4 md:p-6 rounded-xl border border-gray-100 dark:border-slate-800 shadow-sm space-y-2">
+        <h3 className="text-sm font-bold text-gray-800 dark:text-slate-100 uppercase tracking-wider mb-4 border-b pb-2">{title}</h3>
         
         {/* DICA RESUMIDA DE ALTURA DO BANCO */}
         {type === 'basicas' && alturaBanco > 0 && (
-          <div className="bg-amber-50 border border-amber-200/80 rounded-lg p-2.5 mb-3 text-xs text-amber-900 flex items-center justify-between gap-2">
+          <div className="bg-amber-50 dark:bg-amber-900/20 dark:bg-amber-900/20 border border-amber-200/80 rounded-lg p-2.5 mb-3 text-xs text-amber-900 dark:text-amber-300 flex items-center justify-between gap-2">
             <span>💡 <strong>Banco cadastrado ({alturaBanco} cm):</strong> Digite a altura total e use o botão na linha da Altura Sentado para descontar a altura do banco.</span>
           </div>
         )}
 
         <div className="w-full">
-          <div className="hidden md:grid grid-cols-12 gap-2 items-center pb-2 text-xs font-bold text-gray-400 uppercase tracking-wider border-b px-2">
+          <div className="hidden md:grid grid-cols-12 gap-2 items-center pb-2 text-xs font-bold text-gray-400 dark:text-slate-400 uppercase tracking-wider border-b px-2">
             <div className="col-span-4">Local da Medida</div>
             <div className="col-span-6 grid grid-cols-3 gap-2 text-center">
               <div>{isSingleMode ? 'Valor (Edição/Único)' : '1ª Medida'}</div>
               {!isSingleMode && <div>2ª Medida</div>}
               {!isSingleMode && <div className="text-red-400">3ª (Tira-teima)</div>}
             </div>
-            <div className="col-span-2 text-center text-emerald-600">Calculado</div>
+            <div className="col-span-2 text-center text-primary-600">Calculado</div>
           </div>
           {keysFiltradas.map((key) => (
             <MeasureRow 
@@ -748,23 +748,23 @@ export default function AvaliacaoForm() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center bg-white p-4 rounded-xl border border-gray-100 shadow-sm gap-4">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center bg-white dark:bg-slate-900 p-4 rounded-xl border border-gray-100 dark:border-slate-800 shadow-sm gap-4">
         <div>
-          <button onClick={() => navigate('/pacientes')} className="text-xs text-emerald-600 font-semibold hover:underline mb-1 inline-block">← Voltar</button>
-          <h2 className="text-xl font-bold text-gray-800">
+          <button onClick={() => navigate('/pacientes')} className="text-xs text-primary-600 font-semibold hover:underline mb-1 inline-block">← Voltar</button>
+          <h2 className="text-xl font-bold text-gray-800 dark:text-slate-100">
             {avaliacaoIdParaEditar ? `Editando Medidas de ${paciente.nome_completo}` : `Novas Medidas: ${paciente.nome_completo}`}
           </h2>
         </div>
-        <span className="text-xs font-semibold px-3 py-1.5 bg-emerald-50 text-emerald-700 rounded-full">Sexo: {paciente.sexo === 'M' ? 'Masculino' : 'Feminino'}</span>
+        <span className="text-xs font-semibold px-3 py-1.5 bg-primary-50 dark:bg-primary-900/20 dark:bg-primary-900/20 text-primary-700 dark:text-primary-400 rounded-full">Sexo: {paciente.sexo === 'M' ? 'Masculino' : 'Feminino'}</span>
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-6">
-        <div className="bg-white p-6 rounded-xl border border-gray-100 shadow-sm space-y-4">
+        <div className="bg-white dark:bg-slate-900 p-6 rounded-xl border border-gray-100 dark:border-slate-800 shadow-sm space-y-4">
           <div className="flex flex-col md:flex-row justify-between items-start md:items-center border-b pb-4 gap-3">
-            <h3 className="text-sm font-bold text-gray-800 uppercase tracking-wider">1. Dados Gerais</h3>
+            <h3 className="text-sm font-bold text-gray-800 dark:text-slate-100 uppercase tracking-wider">1. Dados Gerais</h3>
             
             <div className="flex flex-col items-end gap-1">
-              <label className="flex items-center space-x-2 text-xs font-bold text-red-600 bg-red-50 px-3 py-1.5 rounded-lg cursor-pointer">
+              <label className="flex items-center space-x-2 text-xs font-bold text-red-600 bg-red-50 dark:bg-red-900/20 dark:bg-red-900/20 px-3 py-1.5 rounded-lg cursor-pointer">
                 <input type="checkbox" checked={isSingleMode} onChange={(e) => setIsSingleMode(e.target.checked)} className="rounded text-red-600 focus:ring-red-500" />
                 <span>Habilitar Modo Único / Edição</span>
               </label>
@@ -777,17 +777,17 @@ export default function AvaliacaoForm() {
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs font-semibold text-gray-700">Data</label>
+              <label className="block text-xs font-semibold text-gray-700 dark:text-slate-300">Data</label>
               <input type="date" required tabIndex={10} value={dataAvaliacao} onChange={(e) => setDataAvaliacao(e.target.value)} className="mt-1 w-full px-3 py-2 border rounded-md text-sm" />
             </div>
             <div>
-              <label className="block text-xs font-semibold text-gray-700">Hora</label>
+              <label className="block text-xs font-semibold text-gray-700 dark:text-slate-300">Hora</label>
               <input type="time" required tabIndex={11} value={horaAvaliacao} onChange={(e) => setHoraAvaliacao(e.target.value)} className="mt-1 w-full px-3 py-2 border rounded-md text-sm" />
             </div>
           </div>
 
-          <div className="pt-3 border-t border-gray-100">
-            <label className="block text-xs font-bold text-gray-700 mb-1">
+          <div className="pt-3 border-t border-gray-100 dark:border-slate-800">
+            <label className="block text-xs font-bold text-gray-700 dark:text-slate-300 mb-1">
               🎥 Vídeo de Orientações do Laudo (YouTube - Opcional)
             </label>
             <input 
@@ -796,9 +796,9 @@ export default function AvaliacaoForm() {
               value={videoUrl} 
               onChange={(e) => setVideoUrl(e.target.value)} 
               placeholder="https://www.youtube.com/watch?v=... ou https://youtu.be/..." 
-              className="w-full px-3 py-2 border rounded-md text-sm bg-gray-50 focus:bg-white focus:ring-2 focus:ring-emerald-500 outline-none transition-all" 
+              className="w-full px-3 py-2 border rounded-md text-sm bg-gray-50 dark:bg-slate-800 focus:bg-white focus:ring-2 focus:ring-primary-500 outline-none transition-all" 
             />
-            <p className="text-[11px] text-gray-400 mt-1">
+            <p className="text-[11px] text-gray-400 dark:text-slate-400 mt-1">
               Cole o link de um vídeo do YouTube (público ou não listado) gravado para este paciente explicando os resultados deste laudo.
             </p>
           </div>
@@ -810,9 +810,9 @@ export default function AvaliacaoForm() {
         {renderMeasureBlock(`4. Perímetros / Circunferências (cm) - Tolerância ${configAvaliador.tolerancia_perimetros ?? 1}%`, perimetroKeys, 'perimetros', perimetros, setPerimetros)}
         {renderMeasureBlock(`5. Diâmetros Ósseos (cm) - Tolerância ${configAvaliador.tolerancia_diametros ?? 1}%`, diametroKeys, 'diametros', diametros, setDiametros)}
 
-        <div className="flex justify-end gap-3 pt-4 sticky bottom-4 bg-white/80 p-4 border-t backdrop-blur-md rounded-xl z-10">
-          <button type="button" tabIndex={400} onClick={() => navigate('/pacientes')} className="px-6 py-2.5 border border-gray-300 text-gray-700 rounded-lg text-sm font-semibold hover:bg-gray-50">Cancelar</button>
-          <button type="submit" tabIndex={401} disabled={loading} className="px-6 py-2.5 bg-emerald-600 text-white rounded-lg text-sm font-semibold hover:bg-emerald-700 shadow disabled:opacity-50">
+        <div className="flex justify-end gap-3 pt-4 sticky bottom-4 bg-white/80 dark:bg-slate-900/60 p-4 border-t backdrop-blur-md rounded-xl z-10">
+          <button type="button" tabIndex={400} onClick={() => navigate('/pacientes')} className="px-6 py-2.5 border border-gray-300 text-gray-700 dark:text-slate-300 rounded-lg text-sm font-semibold hover:bg-gray-50 dark:hover:bg-slate-800">Cancelar</button>
+          <button type="submit" tabIndex={401} disabled={loading} className="px-6 py-2.5 bg-primary-600 text-white rounded-lg text-sm font-semibold hover:bg-primary-700 shadow disabled:opacity-50">
             {loading ? 'Salvando...' : (avaliacaoIdParaEditar ? 'Atualizar Medidas' : 'Salvar e Escolher Equação')}
           </button>
         </div>
