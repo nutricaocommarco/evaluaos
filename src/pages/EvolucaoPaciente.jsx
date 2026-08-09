@@ -24,6 +24,7 @@ export default function EvolucaoPaciente() {
   const [historico, setHistorico] = useState([])
   const [avaliador, setAvaliador] = useState(null)
   const [configVisibilidade, setConfigVisibilidade] = useState({})
+  const [excluindoMetaId, setExcluindoMetaId] = useState(null)
 
   // Cores padronizadas para as bolinhas da Somatocarta e Legendas
   const coresAvaliacoes = ['#10b981', '#3b82f6', '#f59e0b', '#ec4899', '#8b5cf6', '#ef4444', '#14b8a6', '#64748b']
@@ -297,7 +298,8 @@ export default function EvolucaoPaciente() {
     const totalAvaliacoes = historico.length;
     const primeiraAv = Number(historico[0][chaveDado]);
     const ultimaAv = Number(historico[totalAvaliacoes - 1][chaveDado]);
-    const deltaTotal = (ultimaAv - primeiraAv).toFixed(casasDecimais);
+    const temDeltaTotal = primeiraAv > 0 && ultimaAv > 0;
+    const deltaTotal = temDeltaTotal ? (ultimaAv - primeiraAv).toFixed(casasDecimais) : null;
 
     const isVertical = totalAvaliacoes >= 3;
 
@@ -320,7 +322,7 @@ export default function EvolucaoPaciente() {
             <h4 className="text-gray-600 dark:text-slate-400 font-black text-xs uppercase tracking-wider truncate">{titulo}</h4>
             {unidade && <span className="text-[10px] bg-gray-100 dark:bg-slate-800 text-gray-500 dark:text-slate-400 px-2 py-0.5 rounded-full font-bold mt-1 inline-block">{unidade}</span>}
           </div>
-          {totalAvaliacoes >= 2 && (
+          {totalAvaliacoes >= 2 && temDeltaTotal && (
             <div className="flex flex-col items-end shrink-0">
               <span className="text-[10px] uppercase text-gray-500 dark:text-slate-300 font-bold mb-0.5">Delta Total</span>
               {renderBadge(deltaTotal)}
@@ -335,8 +337,10 @@ export default function EvolucaoPaciente() {
               let deltaUI = null;
               if (idx > 0) {
                 const valorAnterior = Number(historico[idx - 1][chaveDado]);
-                const diferenca = (valorAtual - valorAnterior);
-                deltaUI = renderBadge(diferenca);
+                if (valorAtual > 0 && valorAnterior > 0) {
+                  const diferenca = (valorAtual - valorAnterior);
+                  deltaUI = renderBadge(diferenca);
+                }
               }
               return (
                 <div key={idx} className="flex justify-between items-center bg-gray-50 dark:bg-slate-800/60 dark:bg-slate-800/70 border border-gray-100 dark:border-slate-700 p-2.5 rounded-lg w-full">
@@ -345,7 +349,7 @@ export default function EvolucaoPaciente() {
                       <span className="text-[11px] font-bold uppercase" style={{ color: av.cor }}>{av.nome_avaliacao}</span>
                       <span className="text-[10px] text-gray-500 dark:text-slate-400 font-medium">{av.dataStr_curta}</span>
                     </div>
-                    <span className="text-base font-black text-gray-800 dark:text-slate-100">{valorAtual.toFixed(casasDecimais)}</span>
+                    <span className="text-base font-black text-gray-800 dark:text-slate-100">{valorAtual > 0 ? valorAtual.toFixed(casasDecimais) : '-'}</span>
                   </div>
                   {deltaUI && <div>{deltaUI}</div>}
                 </div>
@@ -359,8 +363,10 @@ export default function EvolucaoPaciente() {
               let deltaUI = null;
               if (idx > 0) {
                 const valorAnterior = Number(historico[idx - 1][chaveDado]);
-                const diferenca = (valorAtual - valorAnterior);
-                deltaUI = renderBadge(diferenca, "ml-1");
+                if (valorAtual > 0 && valorAnterior > 0) {
+                  const diferenca = (valorAtual - valorAnterior);
+                  deltaUI = renderBadge(diferenca, "ml-1");
+                }
               }
               return (
                 <div key={idx} className="flex items-center flex-1">
@@ -369,7 +375,7 @@ export default function EvolucaoPaciente() {
                       <span className="text-[11px] font-bold uppercase" style={{ color: av.cor }}>{av.nome_avaliacao}</span>
                       <span className="text-[10px] text-gray-500 dark:text-slate-400 font-medium">{av.dataStr_curta}</span>
                     </div>
-                    <span className="text-lg font-black text-gray-800 dark:text-slate-100">{valorAtual.toFixed(casasDecimais)}</span>
+                    <span className="text-lg font-black text-gray-800 dark:text-slate-100">{valorAtual > 0 ? valorAtual.toFixed(casasDecimais) : '-'}</span>
                   </div>
                   {deltaUI}
                   {idx < historico.length - 1 && <div className="w-4 h-[1px] bg-gray-200 dark:bg-slate-700 mx-1 shrink-0"></div>}
@@ -429,7 +435,7 @@ export default function EvolucaoPaciente() {
     };
   };
 
-  const renderLinhaMeta = (titulo, unidade, inicial, alvo, atual, progresso, casasDecimais = 1) => {
+  const renderLinhaMeta = (titulo, unidade, inicial, alvo, atual, progresso, casasDecimais = 1, onExcluir = null, excluindo = false) => {
     const superou = progresso.progressoPct > 100;
     const seAfastou = progresso.alcancado !== 0 && Math.sign(progresso.alcancado) !== Math.sign(progresso.totalPlanejado);
     const pctBarra = Math.max(4, Math.min(100, progresso.progressoPct));
@@ -437,7 +443,23 @@ export default function EvolucaoPaciente() {
     return (
       <div className="space-y-2">
         <div className="flex justify-between items-baseline">
-          <span className="text-xs font-black text-gray-700 dark:text-slate-300 uppercase tracking-wider">{titulo}</span>
+          <div className="flex items-center gap-1.5">
+            <span className="text-xs font-black text-gray-700 dark:text-slate-300 uppercase tracking-wider">{titulo}</span>
+            {onExcluir && (
+              <button
+                onClick={onExcluir}
+                disabled={excluindo}
+                title={`Excluir meta de ${titulo}`}
+                className="text-gray-300 hover:text-red-600 dark:text-slate-600 dark:hover:text-red-400 transition-colors disabled:opacity-40 shrink-0"
+              >
+                {excluindo ? (
+                  <svg className="w-3 h-3 animate-spin" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg>
+                ) : (
+                  <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+                )}
+              </button>
+            )}
+          </div>
           <span className={`text-xs font-bold ${superou ? 'text-emerald-600 dark:text-emerald-400' : seAfastou ? 'text-red-600 dark:text-red-400' : 'text-primary-700 dark:text-primary-400'}`}>
             {superou ? '🎉 Meta superada' : seAfastou ? 'Se afastou da meta' : `${Math.max(0, progresso.progressoPct).toFixed(0)}%`}
           </span>
@@ -460,7 +482,28 @@ export default function EvolucaoPaciente() {
     );
   };
 
+  const handleExcluirMeta = async (idAvaliacaoMeta, campo) => {
+    const rotulo = campo === 'peso_alvo' ? 'de Peso' : campo === 'meta_bf_percentual' ? 'de % Gordura' : '';
+    if (!window.confirm(`Excluir a meta ${rotulo} definida nesta avaliação? Isso não afeta as medidas registradas.`)) return;
+
+    const excluirId = `${idAvaliacaoMeta}:${campo}`;
+    setExcluindoMetaId(excluirId);
+    const { error } = await supabase
+      .from('dados_calculados')
+      .update({ [campo]: null })
+      .eq('id_avaliacao', idAvaliacaoMeta);
+    setExcluindoMetaId(null);
+
+    if (error) {
+      alert('Erro ao excluir a meta: ' + error.message);
+      return;
+    }
+
+    setHistorico(prev => prev.map(av => av.id === idAvaliacaoMeta ? { ...av, [campo]: null } : av));
+  };
+
   const MetaProgressoCard = ({ avMeta, avAtual }) => {
+    const aguardandoAcompanhamento = avMeta.id === avAtual.id;
     const progressoPeso = avMeta.peso_alvo ? calcularProgressoMeta(Number(avMeta.peso), avMeta.peso_alvo, Number(avAtual.peso)) : null;
     const progressoBf = avMeta.meta_bf_percentual ? calcularProgressoMeta(Number(avMeta.gordura_perc), avMeta.meta_bf_percentual, Number(avAtual.gordura_perc)) : null;
 
@@ -470,16 +513,34 @@ export default function EvolucaoPaciente() {
       <div className="bg-white dark:bg-slate-900 rounded-xl border border-gray-100 dark:border-slate-800 p-4 shadow-sm flex flex-col gap-4 w-full">
         <div className="flex items-center justify-between border-b border-gray-100 dark:border-slate-800 pb-2 flex-wrap gap-1">
           <span className="text-[10px] font-bold text-gray-500 dark:text-slate-400">Meta de {avMeta.dataStr_curta}</span>
-          <span className="text-[10px] font-bold text-gray-500 dark:text-slate-400">→ Avaliação de {avAtual.dataStr_curta}</span>
+          <span className="text-[10px] font-bold text-gray-500 dark:text-slate-400">
+            {aguardandoAcompanhamento ? 'Aguardando avaliação de acompanhamento' : `→ Avaliação de ${avAtual.dataStr_curta}`}
+          </span>
         </div>
-        {progressoPeso && renderLinhaMeta('Peso', ' kg', avMeta.peso, avMeta.peso_alvo, avAtual.peso, progressoPeso)}
-        {progressoBf && renderLinhaMeta('% Gordura', '%', avMeta.gordura_perc, avMeta.meta_bf_percentual, avAtual.gordura_perc, progressoBf)}
+        {progressoPeso && renderLinhaMeta(
+          'Peso', ' kg', avMeta.peso, avMeta.peso_alvo, avAtual.peso, progressoPeso, 1,
+          isPublicView ? null : () => handleExcluirMeta(avMeta.id, 'peso_alvo'),
+          excluindoMetaId === `${avMeta.id}:peso_alvo`
+        )}
+        {progressoBf && renderLinhaMeta(
+          '% Gordura', '%', avMeta.gordura_perc, avMeta.meta_bf_percentual, avAtual.gordura_perc, progressoBf, 1,
+          isPublicView ? null : () => handleExcluirMeta(avMeta.id, 'meta_bf_percentual'),
+          excluindoMetaId === `${avMeta.id}:meta_bf_percentual`
+        )}
       </div>
     );
   };
 
   const paresComMeta = historico.slice(1).map((av, i) => ({ avMeta: historico[i], avAtual: av }))
     .filter(p => p.avMeta.peso_alvo || p.avMeta.meta_bf_percentual);
+
+  // Meta definida na avaliação mais recente ainda não tem uma avaliação seguinte pra
+  // comparar (não é coberta pelo pareamento consecutivo acima) — mostra mesmo assim,
+  // comparando com ela mesma (0% de progresso), em vez de sumir até a próxima avaliação.
+  const ultimaAvaliacaoDoHistorico = historico[historico.length - 1];
+  if (ultimaAvaliacaoDoHistorico && (ultimaAvaliacaoDoHistorico.peso_alvo || ultimaAvaliacaoDoHistorico.meta_bf_percentual)) {
+    paresComMeta.push({ avMeta: ultimaAvaliacaoDoHistorico, avAtual: ultimaAvaliacaoDoHistorico });
+  }
 
   const exibeBlocoComposicao = podeExibir('evo_peso') || podeExibir('evo_gordura_perc') || podeExibir('evo_massa_gorda') || podeExibir('evo_massa_muscular') || podeExibir('evo_massa_magra') || podeExibir('evo_imc');
   const exibeBlocoDobras = podeExibir('evo_dobra_triceps') || podeExibir('evo_dobra_subescapular') || podeExibir('evo_dobra_biceps') || podeExibir('evo_dobra_crista_iliaca') || podeExibir('evo_dobra_supraespinhal') || podeExibir('evo_dobra_abdominal') || podeExibir('evo_dobra_coxa') || podeExibir('evo_dobra_panturrilha');
@@ -986,12 +1047,13 @@ export default function EvolucaoPaciente() {
       )}
 
       <div className="flex justify-end gap-2 w-full mt-6 no-print">
-        <BotaoExportarEvolucaoPDF 
-          historico={historico} 
-          paciente={pacienteLocal} 
-          avaliador={avaliador} 
+        <BotaoExportarEvolucaoPDF
+          historico={historico}
+          paciente={pacienteLocal}
+          avaliador={avaliador}
           idade={idade}
           isPublicView={isPublicView}
+          configVisibilidade={configVisibilidade}
         />
       </div>
     </div>
