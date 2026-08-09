@@ -166,7 +166,7 @@ function AdicionarItemForm({ refeicaoId, opcaoNumero, onItemAdicionado, onCancel
   )
 }
 
-function OpcaoCard({ refeicaoId, opcaoNumero, itens, onItemExcluido, onItemAdicionado, mostrarFormInicial, aoFecharForm }) {
+function OpcaoCard({ refeicaoId, opcaoNumero, itens, onItemExcluido, onItemAdicionado, mostrarFormInicial, aoFecharForm, onDuplicar }) {
   const [mostrarForm, setMostrarForm] = useState(!!mostrarFormInicial)
   const macros = somarMacros(itens.map(calcularMacrosItem))
 
@@ -183,9 +183,20 @@ function OpcaoCard({ refeicaoId, opcaoNumero, itens, onItemExcluido, onItemAdici
         <span className="text-xs font-black text-gray-700 dark:text-slate-300 uppercase tracking-wider">
           Opção {opcaoNumero}
         </span>
-        <span className="text-[11px] text-gray-400 dark:text-slate-500">
-          {fmt(macros.kcal)} kcal
-        </span>
+        <div className="flex items-center gap-2">
+          {itens.length > 0 && onDuplicar && (
+            <button
+              onClick={onDuplicar}
+              className="text-[11px] font-semibold text-primary-600 hover:underline"
+              title="Duplicar esta opção em uma nova opção"
+            >
+              duplicar
+            </button>
+          )}
+          <span className="text-[11px] text-gray-400 dark:text-slate-500">
+            {fmt(macros.kcal)} kcal
+          </span>
+        </div>
       </div>
 
       {itens.length === 0 && !mostrarForm && (
@@ -193,19 +204,25 @@ function OpcaoCard({ refeicaoId, opcaoNumero, itens, onItemExcluido, onItemAdici
       )}
 
       <ul className="space-y-1 mb-2">
-        {itens.map((item) => (
-          <li key={item.id} className="flex items-center justify-between gap-2 text-xs text-gray-700 dark:text-slate-300">
-            <span className="truncate">
-              {item.tabela_alimentos?.nome || 'Alimento removido'} — {item.quantidade_g}g
-            </span>
-            <button
-              onClick={() => handleExcluirItem(item.id)}
-              className="text-red-500 hover:underline shrink-0"
-            >
-              remover
-            </button>
-          </li>
-        ))}
+        {itens.map((item) => {
+          const m = calcularMacrosItem(item)
+          return (
+            <li key={item.id} className="flex items-center justify-between gap-2 text-xs text-gray-700 dark:text-slate-300">
+              <span className="truncate">
+                {item.tabela_alimentos?.nome || 'Alimento removido'} — {item.quantidade_g}g
+                <span className="text-gray-400 dark:text-slate-500 ml-1">
+                  ({fmt(m.kcal)}kcal · P{fmt(m.proteina)} · C{fmt(m.carbo)} · L{fmt(m.lipidio)})
+                </span>
+              </span>
+              <button
+                onClick={() => handleExcluirItem(item.id)}
+                className="text-red-500 hover:underline shrink-0"
+              >
+                remover
+              </button>
+            </li>
+          )
+        })}
       </ul>
 
       {itens.length > 0 && (
@@ -233,7 +250,7 @@ function OpcaoCard({ refeicaoId, opcaoNumero, itens, onItemExcluido, onItemAdici
   )
 }
 
-function RefeicaoCard({ refeicao, onAtualizarCampo, onExcluir, onItensChange }) {
+function RefeicaoCard({ refeicao, onAtualizarCampo, onExcluir, onItensChange, onMover, podeSubir, podeDescer }) {
   const [novaOpcaoAberta, setNovaOpcaoAberta] = useState(false)
 
   const opcoesExistentes = [...new Set(refeicao.itens_refeicao.map((i) => i.opcao_numero))].sort((a, b) => a - b)
@@ -249,10 +266,45 @@ function RefeicaoCard({ refeicao, onAtualizarCampo, onExcluir, onItensChange }) 
     onItensChange(refeicao.itens_refeicao.filter((i) => i.id !== itemId))
   }
 
+  const handleDuplicarOpcao = async (opcaoOrigem) => {
+    const itensOrigem = refeicao.itens_refeicao.filter((i) => i.opcao_numero === opcaoOrigem)
+    if (itensOrigem.length === 0) return
+
+    const novaOpcao = Math.max(...refeicao.itens_refeicao.map((i) => i.opcao_numero)) + 1
+    const inserts = itensOrigem.map((i) => ({
+      id_refeicao: refeicao.id,
+      id_alimento: i.id_alimento,
+      quantidade_g: i.quantidade_g,
+      opcao_numero: novaOpcao,
+    }))
+
+    const { data, error } = await supabase.from('itens_refeicao').insert(inserts).select('*, tabela_alimentos(*)')
+    if (error) { alert('Erro ao duplicar opção: ' + error.message); return }
+    onItensChange([...refeicao.itens_refeicao, ...data])
+  }
+
   return (
     <div className="bg-white dark:bg-slate-900 rounded-xl border border-gray-100 dark:border-slate-800 shadow-sm p-4 space-y-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <div className="flex items-center gap-2 flex-1 min-w-[200px]">
+        <div className="flex items-center gap-1 flex-1 min-w-[200px]">
+          <div className="flex flex-col shrink-0">
+            <button
+              onClick={() => onMover('cima')}
+              disabled={!podeSubir}
+              title="Mover refeição pra cima"
+              className="text-gray-300 dark:text-slate-600 hover:text-primary-600 disabled:opacity-30 disabled:hover:text-gray-300 leading-none text-xs px-1"
+            >
+              ▲
+            </button>
+            <button
+              onClick={() => onMover('baixo')}
+              disabled={!podeDescer}
+              title="Mover refeição pra baixo"
+              className="text-gray-300 dark:text-slate-600 hover:text-primary-600 disabled:opacity-30 disabled:hover:text-gray-300 leading-none text-xs px-1"
+            >
+              ▼
+            </button>
+          </div>
           <input
             type="time"
             value={refeicao.horario || ''}
@@ -283,6 +335,7 @@ function RefeicaoCard({ refeicao, onAtualizarCampo, onExcluir, onItensChange }) 
             itens={refeicao.itens_refeicao.filter((i) => i.opcao_numero === n)}
             onItemAdicionado={handleItemAdicionado}
             onItemExcluido={handleItemExcluido}
+            onDuplicar={() => handleDuplicarOpcao(n)}
           />
         ))}
 
@@ -328,8 +381,10 @@ export default function PlanoAlimentar({ userId }) {
   const [idAvaliacaoRecente, setIdAvaliacaoRecente] = useState(null)
 
   const [showModalNovoPlano, setShowModalNovoPlano] = useState(false)
+  const [editingPlanoId, setEditingPlanoId] = useState(null)
   const [formPlano, setFormPlano] = useState(CAMPOS_PLANO_VAZIOS)
   const [salvandoPlano, setSalvandoPlano] = useState(false)
+  const [pesoOverride, setPesoOverride] = useState('')
 
   const carregarPaciente = async () => {
     const { data } = await supabase.from('pacientes').select('*').eq('id', id).maybeSingle()
@@ -404,6 +459,7 @@ export default function PlanoAlimentar({ userId }) {
   }, [planoSelecionadoId])
 
   const abrirNovoPlano = () => {
+    setEditingPlanoId(null)
     setFormPlano({
       ...CAMPOS_PLANO_VAZIOS,
       vet_target: vetSugerido ? String(Math.round(vetSugerido)) : '',
@@ -411,13 +467,46 @@ export default function PlanoAlimentar({ userId }) {
     setShowModalNovoPlano(true)
   }
 
-  const handleCriarPlano = async (e) => {
+  const abrirEditarMetas = (plano) => {
+    setEditingPlanoId(plano.id)
+    setFormPlano({
+      titulo: plano.titulo || 'Plano Alimentar',
+      vet_target: plano.vet_target ?? '',
+      proteina_target_g_kg: plano.proteina_target_g_kg ?? '',
+      carbo_target_g_kg: plano.carbo_target_g_kg ?? '',
+      lipidio_target_g_kg: plano.lipidio_target_g_kg ?? '',
+    })
+    setShowModalNovoPlano(true)
+  }
+
+  const handleImportarVet = () => {
+    if (!vetSugerido) return
+    setFormPlano((prev) => ({ ...prev, vet_target: String(Math.round(vetSugerido)) }))
+  }
+
+  const handleSalvarPlano = async (e) => {
     e.preventDefault()
     setSalvandoPlano(true)
 
-    await supabase.from('planos_alimentares').update({ ativo: false }).eq('id_paciente', id).eq('ativo', true)
-
     const numerico = (v) => (v === '' ? null : Number(v))
+    const payload = {
+      titulo: formPlano.titulo || 'Plano Alimentar',
+      vet_target: numerico(formPlano.vet_target),
+      proteina_target_g_kg: numerico(formPlano.proteina_target_g_kg),
+      carbo_target_g_kg: numerico(formPlano.carbo_target_g_kg),
+      lipidio_target_g_kg: numerico(formPlano.lipidio_target_g_kg),
+    }
+
+    if (editingPlanoId) {
+      const { error } = await supabase.from('planos_alimentares').update(payload).eq('id', editingPlanoId)
+      setSalvandoPlano(false)
+      if (error) { alert('Erro ao atualizar metas: ' + error.message); return }
+      setShowModalNovoPlano(false)
+      await carregarPlanos()
+      return
+    }
+
+    await supabase.from('planos_alimentares').update({ ativo: false }).eq('id_paciente', id).eq('ativo', true)
 
     const { data, error } = await supabase
       .from('planos_alimentares')
@@ -425,11 +514,7 @@ export default function PlanoAlimentar({ userId }) {
         id_paciente: id,
         id_avaliador: userId,
         id_avaliacao: idAvaliacaoRecente || null,
-        titulo: formPlano.titulo || 'Plano Alimentar',
-        vet_target: numerico(formPlano.vet_target),
-        proteina_target_g_kg: numerico(formPlano.proteina_target_g_kg),
-        carbo_target_g_kg: numerico(formPlano.carbo_target_g_kg),
-        lipidio_target_g_kg: numerico(formPlano.lipidio_target_g_kg),
+        ...payload,
         ativo: true,
       })
       .select()
@@ -444,6 +529,20 @@ export default function PlanoAlimentar({ userId }) {
     setShowModalNovoPlano(false)
     await carregarPlanos()
     setPlanoSelecionadoId(data.id)
+  }
+
+  const handleExcluirPlano = async () => {
+    const alvo = planos.find((p) => p.id === planoSelecionadoId)
+    if (!alvo) return
+    if (!window.confirm(`Excluir o plano "${alvo.titulo}"? Isso apaga também as refeições e itens dele — não pode ser desfeito.`)) return
+
+    const { error } = await supabase.from('planos_alimentares').delete().eq('id', alvo.id)
+    if (error) { alert('Erro ao excluir plano: ' + error.message); return }
+
+    const restantes = planos.filter((p) => p.id !== alvo.id)
+    setPlanos(restantes)
+    const proximo = restantes.find((p) => p.ativo) || restantes[0] || null
+    setPlanoSelecionadoId(proximo ? proximo.id : null)
   }
 
   const handleNovaRefeicao = async () => {
@@ -477,6 +576,28 @@ export default function PlanoAlimentar({ userId }) {
     setRefeicoes((prev) => prev.map((r) => (r.id === refeicaoId ? { ...r, itens_refeicao: novosItens } : r)))
   }
 
+  const handleMoverRefeicao = async (refeicaoId, direcao) => {
+    const ordenadas = [...refeicoes].sort((a, b) => a.ordem - b.ordem)
+    const idx = ordenadas.findIndex((r) => r.id === refeicaoId)
+    const alvoIdx = direcao === 'cima' ? idx - 1 : idx + 1
+    if (alvoIdx < 0 || alvoIdx >= ordenadas.length) return
+
+    const atual = ordenadas[idx]
+    const alvo = ordenadas[alvoIdx]
+
+    setRefeicoes((prev) => {
+      const atualizadas = prev.map((r) => {
+        if (r.id === atual.id) return { ...r, ordem: alvo.ordem }
+        if (r.id === alvo.id) return { ...r, ordem: atual.ordem }
+        return r
+      })
+      return atualizadas.sort((a, b) => a.ordem - b.ordem)
+    })
+
+    await supabase.from('refeicoes_prescritas').update({ ordem: alvo.ordem }).eq('id', atual.id)
+    await supabase.from('refeicoes_prescritas').update({ ordem: atual.ordem }).eq('id', alvo.id)
+  }
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -502,7 +623,7 @@ export default function PlanoAlimentar({ userId }) {
     refeicoes.flatMap((r) => r.itens_refeicao.filter((i) => i.opcao_numero === 1).map(calcularMacrosItem))
   )
 
-  const pesoParaConversao = pesoAtual ? Number(pesoAtual) : null
+  const pesoParaConversao = pesoOverride !== '' ? Number(pesoOverride) : (pesoAtual ? Number(pesoAtual) : null)
   const metaProteinaG = planoSelecionado?.proteina_target_g_kg && pesoParaConversao
     ? planoSelecionado.proteina_target_g_kg * pesoParaConversao
     : null
@@ -569,9 +690,41 @@ export default function PlanoAlimentar({ userId }) {
         {planoSelecionado && (
           <>
             <div className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-gray-100 dark:border-slate-800 shadow-sm">
-              <p className="text-[10px] font-bold text-gray-400 dark:text-slate-500 uppercase tracking-wider mb-2">
-                Meta vs. Calculado (Opção 1 de cada refeição)
-              </p>
+              <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
+                <p className="text-[10px] font-bold text-gray-400 dark:text-slate-500 uppercase tracking-wider">
+                  Meta vs. Calculado (Opção 1 de cada refeição)
+                </p>
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={() => abrirEditarMetas(planoSelecionado)}
+                    className="text-xs font-semibold text-primary-600 hover:underline"
+                  >
+                    Editar metas
+                  </button>
+                  <button
+                    onClick={handleExcluirPlano}
+                    className="text-xs font-semibold text-red-600 hover:underline"
+                  >
+                    Excluir plano
+                  </button>
+                </div>
+              </div>
+              <div className="flex items-center gap-2 mb-3">
+                <label className="text-xs text-gray-500 dark:text-slate-400">Peso considerado (kg):</label>
+                <input
+                  type="number"
+                  step="any"
+                  value={pesoOverride}
+                  onChange={(e) => setPesoOverride(e.target.value)}
+                  placeholder={pesoAtual ? String(pesoAtual) : '-'}
+                  className="w-20 px-2 py-1 border border-gray-300 rounded text-xs outline-none focus:ring-2 focus:ring-primary-500"
+                />
+                {pesoAtual && (
+                  <span className="text-[11px] text-gray-400 dark:text-slate-500">
+                    (última avaliação: {pesoAtual}kg)
+                  </span>
+                )}
+              </div>
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm">
                 <div>
                   <p className="text-gray-400 dark:text-slate-500 text-xs">Calorias</p>
@@ -609,13 +762,16 @@ export default function PlanoAlimentar({ userId }) {
               <p className="text-sm text-primary-600 font-semibold text-center py-6 animate-pulse">Carregando refeições...</p>
             ) : (
               <div className="space-y-3">
-                {refeicoes.map((refeicao) => (
+                {refeicoes.map((refeicao, index) => (
                   <RefeicaoCard
                     key={refeicao.id}
                     refeicao={refeicao}
                     onAtualizarCampo={handleAtualizarCampoRefeicao}
                     onExcluir={handleExcluirRefeicao}
                     onItensChange={(novosItens) => handleItensChange(refeicao.id, novosItens)}
+                    onMover={(direcao) => handleMoverRefeicao(refeicao.id, direcao)}
+                    podeSubir={index > 0}
+                    podeDescer={index < refeicoes.length - 1}
                   />
                 ))}
 
@@ -641,12 +797,14 @@ export default function PlanoAlimentar({ userId }) {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 overflow-y-auto">
           <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-xl w-full max-w-lg max-h-[90vh] flex flex-col overflow-hidden">
             <div className="flex justify-between items-center px-6 py-4 border-b border-gray-100 dark:border-slate-800">
-              <h3 className="text-lg font-bold text-gray-800 dark:text-slate-100">Novo Plano Alimentar</h3>
+              <h3 className="text-lg font-bold text-gray-800 dark:text-slate-100">
+                {editingPlanoId ? 'Editar Metas do Plano' : 'Novo Plano Alimentar'}
+              </h3>
               <button onClick={() => setShowModalNovoPlano(false)} className="text-gray-400 dark:text-slate-400 hover:text-gray-600 p-1 rounded-lg">✕</button>
             </div>
 
-            <form onSubmit={handleCriarPlano} className="p-6 space-y-4 overflow-y-auto flex-1">
-              {planos.some((p) => p.ativo) && (
+            <form onSubmit={handleSalvarPlano} className="p-6 space-y-4 overflow-y-auto flex-1">
+              {!editingPlanoId && planos.some((p) => p.ativo) && (
                 <p className="text-xs text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg p-2">
                   Já existe um plano ativo — ele será marcado como inativo (mas continua no histórico) quando este for criado.
                 </p>
@@ -665,10 +823,20 @@ export default function PlanoAlimentar({ userId }) {
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-gray-700 dark:text-slate-300 uppercase tracking-wider mb-1">
-                  Meta Calórica — VET (kcal)
-                  {vetSugerido && <span className="text-primary-600 normal-case font-normal ml-1">(sugerido do Planejamento Calórico)</span>}
-                </label>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="block text-xs font-bold text-gray-700 dark:text-slate-300 uppercase tracking-wider">
+                    Meta Calórica — VET (kcal)
+                  </label>
+                  {vetSugerido && (
+                    <button
+                      type="button"
+                      onClick={handleImportarVet}
+                      className="text-[11px] font-semibold text-primary-600 hover:underline"
+                    >
+                      Importar do Planejamento Calórico
+                    </button>
+                  )}
+                </div>
                 <input
                   type="number"
                   step="any"
@@ -733,7 +901,7 @@ export default function PlanoAlimentar({ userId }) {
                   disabled={salvandoPlano}
                   className="px-5 py-2 bg-primary-600 text-white text-sm font-semibold rounded-lg hover:bg-primary-700 shadow disabled:opacity-50"
                 >
-                  {salvandoPlano ? 'Salvando...' : 'Criar Plano'}
+                  {salvandoPlano ? 'Salvando...' : editingPlanoId ? 'Salvar Metas' : 'Criar Plano'}
                 </button>
               </div>
             </form>
