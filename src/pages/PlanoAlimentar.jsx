@@ -10,7 +10,13 @@ const CAMPOS_PLANO_VAZIOS = {
   proteina_target_g_kg: '',
   carbo_target_g_kg: '',
   lipidio_target_g_kg: '',
+  proteina_target_pct: '',
+  carbo_target_pct: '',
+  lipidio_target_pct: '',
 }
+
+// Fatores de Atwater (kcal por grama) — padrão usado pela TACO/TBCA/IBGE.
+const KCAL_POR_G = { proteina: 4, carbo: 4, lipidio: 9 }
 
 function formatarData(dataStr) {
   if (!dataStr) return '-'
@@ -250,7 +256,7 @@ function OpcaoCard({ refeicaoId, opcaoNumero, itens, onItemExcluido, onItemAdici
   )
 }
 
-function RefeicaoCard({ refeicao, onAtualizarCampo, onExcluir, onItensChange, onMover, podeSubir, podeDescer }) {
+function RefeicaoCard({ refeicao, onAtualizarCampo, onExcluir, onItensChange, onMover, podeSubir, podeDescer, onDuplicarRefeicao }) {
   const [novaOpcaoAberta, setNovaOpcaoAberta] = useState(false)
 
   const opcoesExistentes = [...new Set(refeicao.itens_refeicao.map((i) => i.opcao_numero))].sort((a, b) => a - b)
@@ -318,12 +324,20 @@ function RefeicaoCard({ refeicao, onAtualizarCampo, onExcluir, onItensChange, on
             className="flex-1 px-2 py-1 border border-transparent hover:border-gray-200 dark:hover:border-slate-700 rounded text-sm font-black bg-transparent focus:border-primary-500 outline-none text-gray-800 dark:text-slate-100"
           />
         </div>
-        <button
-          onClick={() => onExcluir(refeicao.id)}
-          className="text-xs font-semibold text-red-600 hover:underline shrink-0"
-        >
-          Excluir refeição
-        </button>
+        <div className="flex items-center gap-3 shrink-0">
+          <button
+            onClick={() => onDuplicarRefeicao(refeicao)}
+            className="text-xs font-semibold text-primary-600 hover:underline"
+          >
+            Duplicar refeição
+          </button>
+          <button
+            onClick={() => onExcluir(refeicao.id)}
+            className="text-xs font-semibold text-red-600 hover:underline"
+          >
+            Excluir refeição
+          </button>
+        </div>
       </div>
 
       <div className="flex flex-wrap gap-3">
@@ -385,6 +399,9 @@ export default function PlanoAlimentar({ userId }) {
   const [formPlano, setFormPlano] = useState(CAMPOS_PLANO_VAZIOS)
   const [salvandoPlano, setSalvandoPlano] = useState(false)
   const [pesoOverride, setPesoOverride] = useState('')
+  const [modoMeta, setModoMeta] = useState('g_kg') // 'g_kg' | 'percentual'
+
+  const pesoParaConversao = pesoOverride !== '' ? Number(pesoOverride) : (pesoAtual ? Number(pesoAtual) : null)
 
   const carregarPaciente = async () => {
     const { data } = await supabase.from('pacientes').select('*').eq('id', id).maybeSingle()
@@ -460,6 +477,7 @@ export default function PlanoAlimentar({ userId }) {
 
   const abrirNovoPlano = () => {
     setEditingPlanoId(null)
+    setModoMeta('g_kg')
     setFormPlano({
       ...CAMPOS_PLANO_VAZIOS,
       vet_target: vetSugerido ? String(Math.round(vetSugerido)) : '',
@@ -469,12 +487,17 @@ export default function PlanoAlimentar({ userId }) {
 
   const abrirEditarMetas = (plano) => {
     setEditingPlanoId(plano.id)
+    const usaPercentual = plano.proteina_target_pct != null || plano.carbo_target_pct != null || plano.lipidio_target_pct != null
+    setModoMeta(usaPercentual ? 'percentual' : 'g_kg')
     setFormPlano({
       titulo: plano.titulo || 'Plano Alimentar',
       vet_target: plano.vet_target ?? '',
       proteina_target_g_kg: plano.proteina_target_g_kg ?? '',
       carbo_target_g_kg: plano.carbo_target_g_kg ?? '',
       lipidio_target_g_kg: plano.lipidio_target_g_kg ?? '',
+      proteina_target_pct: plano.proteina_target_pct ?? '',
+      carbo_target_pct: plano.carbo_target_pct ?? '',
+      lipidio_target_pct: plano.lipidio_target_pct ?? '',
     })
     setShowModalNovoPlano(true)
   }
@@ -484,17 +507,72 @@ export default function PlanoAlimentar({ userId }) {
     setFormPlano((prev) => ({ ...prev, vet_target: String(Math.round(vetSugerido)) }))
   }
 
+  // Modo g/kg: o VET recalcula sozinho a partir dos 3 macros × peso × fator
+  // de Atwater (4/4/9 kcal por g) toda vez que um macro muda.
+  const handleChangeMacroGKg = (campo, valor) => {
+    setFormPlano((prev) => {
+      const proximo = { ...prev, [campo]: valor }
+      if (pesoParaConversao) {
+        const p = Number(proximo.proteina_target_g_kg) || 0
+        const c = Number(proximo.carbo_target_g_kg) || 0
+        const l = Number(proximo.lipidio_target_g_kg) || 0
+        const vetCalculado = pesoParaConversao * (p * KCAL_POR_G.proteina + c * KCAL_POR_G.carbo + l * KCAL_POR_G.lipidio)
+        proximo.vet_target = vetCalculado > 0 ? String(Math.round(vetCalculado)) : ''
+      }
+      return proximo
+    })
+  }
+
+  const handleChangeMacroPct = (campo, valor) => {
+    setFormPlano((prev) => ({ ...prev, [campo]: valor }))
+  }
+
+  // Gramas equivalentes a um percentual do VET, pro texto de ajuda no modo %.
+  const gramasDoPercentual = (pct, macro) => {
+    const vet = Number(formPlano.vet_target)
+    const p = Number(pct)
+    if (!vet || !p) return null
+    return (vet * (p / 100)) / KCAL_POR_G[macro]
+  }
+
   const handleSalvarPlano = async (e) => {
     e.preventDefault()
     setSalvandoPlano(true)
 
     const numerico = (v) => (v === '' ? null : Number(v))
-    const payload = {
-      titulo: formPlano.titulo || 'Plano Alimentar',
-      vet_target: numerico(formPlano.vet_target),
-      proteina_target_g_kg: numerico(formPlano.proteina_target_g_kg),
-      carbo_target_g_kg: numerico(formPlano.carbo_target_g_kg),
-      lipidio_target_g_kg: numerico(formPlano.lipidio_target_g_kg),
+    const vet = numerico(formPlano.vet_target)
+
+    let payload
+    if (modoMeta === 'percentual') {
+      const pctP = numerico(formPlano.proteina_target_pct)
+      const pctC = numerico(formPlano.carbo_target_pct)
+      const pctL = numerico(formPlano.lipidio_target_pct)
+      const gKg = (pct, fator) =>
+        pct != null && vet && pesoParaConversao
+          ? (vet * (pct / 100) / fator) / pesoParaConversao
+          : null
+
+      payload = {
+        titulo: formPlano.titulo || 'Plano Alimentar',
+        vet_target: vet,
+        proteina_target_pct: pctP,
+        carbo_target_pct: pctC,
+        lipidio_target_pct: pctL,
+        proteina_target_g_kg: gKg(pctP, KCAL_POR_G.proteina),
+        carbo_target_g_kg: gKg(pctC, KCAL_POR_G.carbo),
+        lipidio_target_g_kg: gKg(pctL, KCAL_POR_G.lipidio),
+      }
+    } else {
+      payload = {
+        titulo: formPlano.titulo || 'Plano Alimentar',
+        vet_target: vet,
+        proteina_target_g_kg: numerico(formPlano.proteina_target_g_kg),
+        carbo_target_g_kg: numerico(formPlano.carbo_target_g_kg),
+        lipidio_target_g_kg: numerico(formPlano.lipidio_target_g_kg),
+        proteina_target_pct: null,
+        carbo_target_pct: null,
+        lipidio_target_pct: null,
+      }
     }
 
     if (editingPlanoId) {
@@ -560,6 +638,42 @@ export default function PlanoAlimentar({ userId }) {
     setRefeicoes((prev) => [...prev, data])
   }
 
+  const handleDuplicarRefeicao = async (refeicao) => {
+    const { data: novaRefeicao, error: erroRefeicao } = await supabase
+      .from('refeicoes_prescritas')
+      .insert({
+        id_plano: planoSelecionadoId,
+        nome_refeicao: `${refeicao.nome_refeicao} (cópia)`,
+        horario: refeicao.horario,
+        ordem: refeicoes.length,
+      })
+      .select('*, itens_refeicao(*, tabela_alimentos(*))')
+      .single()
+
+    if (erroRefeicao) { alert('Erro ao duplicar refeição: ' + erroRefeicao.message); return }
+
+    if (refeicao.itens_refeicao.length > 0) {
+      const inserts = refeicao.itens_refeicao.map((i) => ({
+        id_refeicao: novaRefeicao.id,
+        id_alimento: i.id_alimento,
+        quantidade_g: i.quantidade_g,
+        opcao_numero: i.opcao_numero,
+      }))
+      const { data: novosItens, error: erroItens } = await supabase
+        .from('itens_refeicao')
+        .insert(inserts)
+        .select('*, tabela_alimentos(*)')
+
+      if (erroItens) {
+        alert('Refeição duplicada, mas houve erro ao copiar os itens: ' + erroItens.message)
+      } else {
+        novaRefeicao.itens_refeicao = novosItens || []
+      }
+    }
+
+    setRefeicoes((prev) => [...prev, novaRefeicao])
+  }
+
   const handleExcluirRefeicao = async (refeicaoId) => {
     if (!window.confirm('Excluir esta refeição e todos os itens dela?')) return
     const { error } = await supabase.from('refeicoes_prescritas').delete().eq('id', refeicaoId)
@@ -623,7 +737,6 @@ export default function PlanoAlimentar({ userId }) {
     refeicoes.flatMap((r) => r.itens_refeicao.filter((i) => i.opcao_numero === 1).map(calcularMacrosItem))
   )
 
-  const pesoParaConversao = pesoOverride !== '' ? Number(pesoOverride) : (pesoAtual ? Number(pesoAtual) : null)
   const metaProteinaG = planoSelecionado?.proteina_target_g_kg && pesoParaConversao
     ? planoSelecionado.proteina_target_g_kg * pesoParaConversao
     : null
@@ -768,6 +881,7 @@ export default function PlanoAlimentar({ userId }) {
                     refeicao={refeicao}
                     onAtualizarCampo={handleAtualizarCampoRefeicao}
                     onExcluir={handleExcluirRefeicao}
+                    onDuplicarRefeicao={handleDuplicarRefeicao}
                     onItensChange={(novosItens) => handleItensChange(refeicao.id, novosItens)}
                     onMover={(direcao) => handleMoverRefeicao(refeicao.id, direcao)}
                     podeSubir={index > 0}
@@ -822,10 +936,30 @@ export default function PlanoAlimentar({ userId }) {
                 />
               </div>
 
+              <div className="flex bg-gray-100 dark:bg-slate-800 p-1 rounded-lg text-xs font-semibold">
+                <button
+                  type="button"
+                  onClick={() => setModoMeta('g_kg')}
+                  className={`flex-1 py-1.5 rounded-md transition-colors ${modoMeta === 'g_kg' ? 'bg-white dark:bg-slate-900 text-primary-600 shadow' : 'text-gray-500 dark:text-slate-400'}`}
+                >
+                  Gramas por kg
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setModoMeta('percentual')}
+                  className={`flex-1 py-1.5 rounded-md transition-colors ${modoMeta === 'percentual' ? 'bg-white dark:bg-slate-900 text-primary-600 shadow' : 'text-gray-500 dark:text-slate-400'}`}
+                >
+                  Percentual do VET
+                </button>
+              </div>
+
               <div>
                 <div className="flex items-center justify-between mb-1">
                   <label className="block text-xs font-bold text-gray-700 dark:text-slate-300 uppercase tracking-wider">
                     Meta Calórica — VET (kcal)
+                    {modoMeta === 'g_kg' && (
+                      <span className="text-primary-600 normal-case font-normal ml-1">(calculado a partir dos macros)</span>
+                    )}
                   </label>
                   {vetSugerido && (
                     <button
@@ -846,47 +980,93 @@ export default function PlanoAlimentar({ userId }) {
                 />
               </div>
 
-              <p className="text-[10px] font-bold text-gray-400 dark:text-slate-500 uppercase tracking-wider pt-1">
-                Metas de macro (g por kg de peso corporal)
-              </p>
-              <div className="grid grid-cols-3 gap-3">
-                <div>
-                  <label className="block text-xs font-bold text-gray-700 dark:text-slate-300 uppercase tracking-wider mb-1">
-                    Proteína
-                  </label>
-                  <input
-                    type="number"
-                    step="any"
-                    value={formPlano.proteina_target_g_kg}
-                    onChange={(e) => setFormPlano({ ...formPlano, proteina_target_g_kg: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-primary-500"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-gray-700 dark:text-slate-300 uppercase tracking-wider mb-1">
-                    Carbo
-                  </label>
-                  <input
-                    type="number"
-                    step="any"
-                    value={formPlano.carbo_target_g_kg}
-                    onChange={(e) => setFormPlano({ ...formPlano, carbo_target_g_kg: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-primary-500"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-gray-700 dark:text-slate-300 uppercase tracking-wider mb-1">
-                    Lipídio
-                  </label>
-                  <input
-                    type="number"
-                    step="any"
-                    value={formPlano.lipidio_target_g_kg}
-                    onChange={(e) => setFormPlano({ ...formPlano, lipidio_target_g_kg: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-primary-500"
-                  />
-                </div>
-              </div>
+              {modoMeta === 'g_kg' ? (
+                <>
+                  <p className="text-[10px] font-bold text-gray-400 dark:text-slate-500 uppercase tracking-wider pt-1">
+                    Metas de macro (g por kg de peso corporal)
+                    {!pesoParaConversao && <span className="text-amber-600 normal-case font-normal ml-1">— sem peso, VET não calcula sozinho</span>}
+                  </p>
+                  <div className="grid grid-cols-3 gap-3">
+                    <div>
+                      <label className="block text-xs font-bold text-gray-700 dark:text-slate-300 uppercase tracking-wider mb-1">
+                        Proteína
+                      </label>
+                      <input
+                        type="number"
+                        step="any"
+                        value={formPlano.proteina_target_g_kg}
+                        onChange={(e) => handleChangeMacroGKg('proteina_target_g_kg', e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-primary-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold text-gray-700 dark:text-slate-300 uppercase tracking-wider mb-1">
+                        Carbo
+                      </label>
+                      <input
+                        type="number"
+                        step="any"
+                        value={formPlano.carbo_target_g_kg}
+                        onChange={(e) => handleChangeMacroGKg('carbo_target_g_kg', e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-primary-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold text-gray-700 dark:text-slate-300 uppercase tracking-wider mb-1">
+                        Lipídio
+                      </label>
+                      <input
+                        type="number"
+                        step="any"
+                        value={formPlano.lipidio_target_g_kg}
+                        onChange={(e) => handleChangeMacroGKg('lipidio_target_g_kg', e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-primary-500"
+                      />
+                    </div>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <p className="text-[10px] font-bold text-gray-400 dark:text-slate-500 uppercase tracking-wider pt-1">
+                    Metas de macro (% do VET)
+                  </p>
+                  <div className="grid grid-cols-3 gap-3">
+                    {[
+                      { campo: 'proteina_target_pct', macro: 'proteina', label: 'Proteína' },
+                      { campo: 'carbo_target_pct', macro: 'carbo', label: 'Carbo' },
+                      { campo: 'lipidio_target_pct', macro: 'lipidio', label: 'Lipídio' },
+                    ].map(({ campo, macro, label }) => {
+                      const gramas = gramasDoPercentual(formPlano[campo], macro)
+                      return (
+                        <div key={campo}>
+                          <label className="block text-xs font-bold text-gray-700 dark:text-slate-300 uppercase tracking-wider mb-1">
+                            {label}
+                          </label>
+                          <input
+                            type="number"
+                            step="any"
+                            value={formPlano[campo]}
+                            onChange={(e) => handleChangeMacroPct(campo, e.target.value)}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-primary-500"
+                          />
+                          <p className="text-[10px] text-gray-400 dark:text-slate-500 mt-1">
+                            {gramas !== null ? `≈ ${gramas.toFixed(0)}g${pesoParaConversao ? ` (${(gramas / pesoParaConversao).toFixed(2)} g/kg)` : ''}` : '—'}
+                          </p>
+                        </div>
+                      )
+                    })}
+                  </div>
+                  {(() => {
+                    const total = ['proteina_target_pct', 'carbo_target_pct', 'lipidio_target_pct']
+                      .reduce((acc, c) => acc + (Number(formPlano[c]) || 0), 0)
+                    return total > 0 && Math.abs(total - 100) > 0.5 ? (
+                      <p className="text-[11px] text-amber-600 dark:text-amber-400">
+                        Os percentuais somam {total.toFixed(0)}%, não 100%.
+                      </p>
+                    ) : null
+                  })()}
+                </>
+              )}
 
               <div className="flex justify-end gap-3 pt-2">
                 <button
