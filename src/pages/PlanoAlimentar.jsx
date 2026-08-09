@@ -13,12 +13,6 @@ const CAMPOS_PLANO_VAZIOS = {
   proteina_target_pct: '',
   carbo_target_pct: '',
   lipidio_target_pct: '',
-  proteina_target_g_kg_min: '',
-  proteina_target_g_kg_max: '',
-  carbo_target_g_kg_min: '',
-  carbo_target_g_kg_max: '',
-  lipidio_target_g_kg_min: '',
-  lipidio_target_g_kg_max: '',
 }
 
 // Fatores de Atwater (kcal por grama) — padrão usado pela TACO/TBCA/IBGE.
@@ -898,12 +892,6 @@ export default function PlanoAlimentar({ userId }) {
       proteina_target_pct: plano.proteina_target_pct ?? '',
       carbo_target_pct: plano.carbo_target_pct ?? '',
       lipidio_target_pct: plano.lipidio_target_pct ?? '',
-      proteina_target_g_kg_min: plano.proteina_target_g_kg_min ?? '',
-      proteina_target_g_kg_max: plano.proteina_target_g_kg_max ?? '',
-      carbo_target_g_kg_min: plano.carbo_target_g_kg_min ?? '',
-      carbo_target_g_kg_max: plano.carbo_target_g_kg_max ?? '',
-      lipidio_target_g_kg_min: plano.lipidio_target_g_kg_min ?? '',
-      lipidio_target_g_kg_max: plano.lipidio_target_g_kg_max ?? '',
     })
     setShowModalNovoPlano(true)
   }
@@ -948,17 +936,6 @@ export default function PlanoAlimentar({ userId }) {
     const numerico = (v) => (v === '' ? null : Number(v))
     const vet = numerico(formPlano.vet_target)
 
-    // Faixa de referência (g/kg) é independente do modo g/kg vs % — só um
-    // texto de apoio exibido junto do macro, não entra em nenhum cálculo.
-    const faixas = {
-      proteina_target_g_kg_min: numerico(formPlano.proteina_target_g_kg_min),
-      proteina_target_g_kg_max: numerico(formPlano.proteina_target_g_kg_max),
-      carbo_target_g_kg_min: numerico(formPlano.carbo_target_g_kg_min),
-      carbo_target_g_kg_max: numerico(formPlano.carbo_target_g_kg_max),
-      lipidio_target_g_kg_min: numerico(formPlano.lipidio_target_g_kg_min),
-      lipidio_target_g_kg_max: numerico(formPlano.lipidio_target_g_kg_max),
-    }
-
     let payload
     if (modoMeta === 'percentual') {
       const pctP = numerico(formPlano.proteina_target_pct)
@@ -978,7 +955,6 @@ export default function PlanoAlimentar({ userId }) {
         proteina_target_g_kg: gKg(pctP, KCAL_POR_G.proteina),
         carbo_target_g_kg: gKg(pctC, KCAL_POR_G.carbo),
         lipidio_target_g_kg: gKg(pctL, KCAL_POR_G.lipidio),
-        ...faixas,
       }
     } else {
       payload = {
@@ -990,7 +966,6 @@ export default function PlanoAlimentar({ userId }) {
         proteina_target_pct: null,
         carbo_target_pct: null,
         lipidio_target_pct: null,
-        ...faixas,
       }
     }
 
@@ -1155,12 +1130,20 @@ export default function PlanoAlimentar({ userId }) {
     refeicoes.flatMap((r) => r.itens_refeicao.filter((i) => i.opcao_numero === 1).map(calcularMacrosItem))
   )
 
-  // Consumido em g/kg (pra comparar na mesma unidade da meta, que é g/kg de
-  // peso corporal) — null quando não há peso pra converter.
+  const metaProteinaG = planoSelecionado?.proteina_target_g_kg && pesoParaConversao
+    ? planoSelecionado.proteina_target_g_kg * pesoParaConversao
+    : null
+  const metaCarboG = planoSelecionado?.carbo_target_g_kg && pesoParaConversao
+    ? planoSelecionado.carbo_target_g_kg * pesoParaConversao
+    : null
+  const metaLipidioG = planoSelecionado?.lipidio_target_g_kg && pesoParaConversao
+    ? planoSelecionado.lipidio_target_g_kg * pesoParaConversao
+    : null
+
+  // Consumido em g/kg — linha secundária, pra comparar na mesma unidade da
+  // meta (que é digitada em g/kg de peso corporal). Null quando não há peso.
   const gKgAtual = (totalG) => (pesoParaConversao ? totalG / pesoParaConversao : null)
   const fmtGKg = (n) => (Number.isFinite(n) ? n.toFixed(2) : '-')
-
-  const faixaTexto = (min, max) => (min != null || max != null ? `Meta: ${min ?? '?'}–${max ?? '?'} g/kg` : null)
 
   // Exibição sempre por horário (sem horário vai pro fim); dentro do mesmo
   // horário, a ordem manual (setas ▲▼) continua valendo como desempate.
@@ -1267,43 +1250,37 @@ export default function PlanoAlimentar({ userId }) {
                 <div>
                   <p className="text-gray-400 dark:text-slate-500 text-xs">Proteína</p>
                   <p className="font-black text-gray-800 dark:text-slate-100">
+                    {fmt(totalDia.proteina)} {metaProteinaG ? `/ ${fmt(metaProteinaG)}` : ''} g
+                  </p>
+                  <p className="text-[10px] text-gray-400 dark:text-slate-500">
                     {fmtGKg(gKgAtual(totalDia.proteina))}
                     {planoSelecionado.proteina_target_g_kg ? ` / ${fmtGKg(planoSelecionado.proteina_target_g_kg)}` : ''} g/kg
                   </p>
-                  {faixaTexto(planoSelecionado.proteina_target_g_kg_min, planoSelecionado.proteina_target_g_kg_max) && (
-                    <p className="text-[10px] text-gray-400 dark:text-slate-500">
-                      {faixaTexto(planoSelecionado.proteina_target_g_kg_min, planoSelecionado.proteina_target_g_kg_max)}
-                    </p>
-                  )}
                 </div>
                 <div>
                   <p className="text-gray-400 dark:text-slate-500 text-xs">Carboidrato</p>
                   <p className="font-black text-gray-800 dark:text-slate-100">
+                    {fmt(totalDia.carbo)} {metaCarboG ? `/ ${fmt(metaCarboG)}` : ''} g
+                  </p>
+                  <p className="text-[10px] text-gray-400 dark:text-slate-500">
                     {fmtGKg(gKgAtual(totalDia.carbo))}
                     {planoSelecionado.carbo_target_g_kg ? ` / ${fmtGKg(planoSelecionado.carbo_target_g_kg)}` : ''} g/kg
                   </p>
-                  {faixaTexto(planoSelecionado.carbo_target_g_kg_min, planoSelecionado.carbo_target_g_kg_max) && (
-                    <p className="text-[10px] text-gray-400 dark:text-slate-500">
-                      {faixaTexto(planoSelecionado.carbo_target_g_kg_min, planoSelecionado.carbo_target_g_kg_max)}
-                    </p>
-                  )}
                 </div>
                 <div>
                   <p className="text-gray-400 dark:text-slate-500 text-xs">Lipídio</p>
                   <p className="font-black text-gray-800 dark:text-slate-100">
+                    {fmt(totalDia.lipidio)} {metaLipidioG ? `/ ${fmt(metaLipidioG)}` : ''} g
+                  </p>
+                  <p className="text-[10px] text-gray-400 dark:text-slate-500">
                     {fmtGKg(gKgAtual(totalDia.lipidio))}
                     {planoSelecionado.lipidio_target_g_kg ? ` / ${fmtGKg(planoSelecionado.lipidio_target_g_kg)}` : ''} g/kg
                   </p>
-                  {faixaTexto(planoSelecionado.lipidio_target_g_kg_min, planoSelecionado.lipidio_target_g_kg_max) && (
-                    <p className="text-[10px] text-gray-400 dark:text-slate-500">
-                      {faixaTexto(planoSelecionado.lipidio_target_g_kg_min, planoSelecionado.lipidio_target_g_kg_max)}
-                    </p>
-                  )}
                 </div>
               </div>
               {!pesoParaConversao && (planoSelecionado.proteina_target_g_kg || planoSelecionado.carbo_target_g_kg || planoSelecionado.lipidio_target_g_kg) && (
                 <p className="text-[11px] text-amber-600 dark:text-amber-400 mt-2">
-                  Sem peso de avaliação recente pra calcular o consumo em g/kg.
+                  Sem peso de avaliação recente pra converter metas g/kg em gramas.
                 </p>
               )}
             </div>
@@ -1505,44 +1482,6 @@ export default function PlanoAlimentar({ userId }) {
                   })()}
                 </>
               )}
-
-              <div>
-                <p className="text-[10px] font-bold text-gray-400 dark:text-slate-500 uppercase tracking-wider pt-1">
-                  Faixa de referência (g/kg) — opcional, só exibida como apoio (não recalcula nada)
-                </p>
-                <div className="grid grid-cols-3 gap-3 mt-1">
-                  {[
-                    { min: 'proteina_target_g_kg_min', max: 'proteina_target_g_kg_max', label: 'Proteína' },
-                    { min: 'carbo_target_g_kg_min', max: 'carbo_target_g_kg_max', label: 'Carbo' },
-                    { min: 'lipidio_target_g_kg_min', max: 'lipidio_target_g_kg_max', label: 'Lipídio' },
-                  ].map(({ min, max, label }) => (
-                    <div key={min}>
-                      <label className="block text-[10px] font-bold text-gray-500 dark:text-slate-400 uppercase tracking-wider mb-1">
-                        {label}
-                      </label>
-                      <div className="flex items-center gap-1">
-                        <input
-                          type="number"
-                          step="any"
-                          placeholder="de"
-                          value={formPlano[min]}
-                          onChange={(e) => setFormPlano({ ...formPlano, [min]: e.target.value })}
-                          className="w-full px-2 py-1.5 border border-gray-300 rounded-lg text-xs outline-none focus:ring-2 focus:ring-primary-500"
-                        />
-                        <span className="text-gray-400 text-xs shrink-0">–</span>
-                        <input
-                          type="number"
-                          step="any"
-                          placeholder="até"
-                          value={formPlano[max]}
-                          onChange={(e) => setFormPlano({ ...formPlano, [max]: e.target.value })}
-                          className="w-full px-2 py-1.5 border border-gray-300 rounded-lg text-xs outline-none focus:ring-2 focus:ring-primary-500"
-                        />
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
 
               <div className="flex justify-end gap-3 pt-2">
                 <button
