@@ -35,7 +35,6 @@ export default function Login({ onLoginSuccess }) {
               auth_id: authData.user.id,
               email: email,
               nome_completo: nome,
-              crn_numep: crnNumep,
               plano_status: 'gratis',
             },
           ])
@@ -55,21 +54,14 @@ export default function Login({ onLoginSuccess }) {
         if (error) throw error
 
         if (data?.user) {
-          const { data: avalExistente } = await supabase
-            .from('avaliadores')
-            .select('id')
-            .eq('auth_id', data.user.id)
-            .maybeSingle()
-
-          if (!avalExistente) {
-            await supabase.from('avaliadores').insert([
-              {
-                auth_id: data.user.id,
-                email: data.user.email,
-                plano_status: 'gratis',
-              },
-            ])
-          }
+          await supabase.from('avaliadores').upsert(
+            {
+              auth_id: data.user.id,
+              email: data.user.email,
+              plano_status: 'gratis',
+            },
+            { onConflict: 'auth_id', ignoreDuplicates: true }
+          )
 
           if (onLoginSuccess) onLoginSuccess(data.user)
         }
