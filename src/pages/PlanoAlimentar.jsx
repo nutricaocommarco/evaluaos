@@ -2,7 +2,6 @@ import React, { useState, useEffect, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { supabase } from '../supabaseClient'
 import SidebarPaciente from '../components/SidebarPaciente'
-import EmConstrucao from '../components/EmConstrucao'
 
 const CAMPOS_PLANO_VAZIOS = {
   titulo: 'Plano Alimentar',
@@ -1154,11 +1153,6 @@ export default function PlanoAlimentar({ userId }) {
       <SidebarPaciente paciente={paciente} itemAtivo={itemAtivo} onSelecionarItem={setItemAtivo} />
 
       <div className="flex-1 min-w-0 space-y-4">
-        {itemAtivo !== 'planos' ? (
-          <div className="bg-white dark:bg-slate-900 rounded-xl border border-gray-100 dark:border-slate-800 shadow-sm min-h-[400px]">
-            <EmConstrucao />
-          </div>
-        ) : (
         <>
         <div className="bg-white dark:bg-slate-900 p-5 rounded-xl border border-gray-100 dark:border-slate-800 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div>
@@ -1319,7 +1313,6 @@ export default function PlanoAlimentar({ userId }) {
           </>
         )}
         </>
-        )}
       </div>
 
       {showModalNovoPlano && (

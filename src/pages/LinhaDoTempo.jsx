@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { supabase } from '../supabaseClient'
 import SidebarPaciente from '../components/SidebarPaciente'
-import EmConstrucao from '../components/EmConstrucao'
 
 // Datas de colunas `date` puras vêm do Supabase como 'YYYY-MM-DD' (10
 // chars) — precisam do truque +T12:00:00 pra não voltar um dia por fuso.
@@ -100,12 +99,7 @@ export default function LinhaDoTempo() {
       <SidebarPaciente paciente={paciente} itemAtivo={itemAtivo} onSelecionarItem={setItemAtivo} />
 
       <div className="flex-1 min-w-0 space-y-4">
-        {itemAtivo !== 'linha_tempo' ? (
-          <div className="bg-white dark:bg-slate-900 rounded-xl border border-gray-100 dark:border-slate-800 shadow-sm min-h-[400px]">
-            <EmConstrucao />
-          </div>
-        ) : (
-          <>
+        <>
             <div className="bg-white dark:bg-slate-900 p-5 rounded-xl border border-gray-100 dark:border-slate-800 shadow-sm">
               <h2 className="text-lg font-black text-gray-800 dark:text-slate-100">Linha do Tempo — {paciente.nome_completo}</h2>
               <p className="text-xs text-gray-500 dark:text-slate-400 mt-0.5">
@@ -142,8 +136,7 @@ export default function LinhaDoTempo() {
                 ))}
               </div>
             )}
-          </>
-        )}
+        </>
       </div>
     </div>
   )

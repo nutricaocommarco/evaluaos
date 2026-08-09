@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { supabase } from '../supabaseClient'
 import SidebarPaciente from '../components/SidebarPaciente'
-import EmConstrucao from '../components/EmConstrucao'
 import RichTextEditor, { sanitizarHtmlEditor } from '../components/RichTextEditor'
 
 const CAMPOS_VAZIOS = {
@@ -164,12 +163,7 @@ export default function Anamnese({ userId }) {
       <SidebarPaciente paciente={paciente} itemAtivo={itemAtivo} onSelecionarItem={setItemAtivo} />
 
       <div className="flex-1 min-w-0 space-y-4">
-        {itemAtivo !== 'anamneses' ? (
-          <div className="bg-white dark:bg-slate-900 rounded-xl border border-gray-100 dark:border-slate-800 shadow-sm min-h-[400px]">
-            <EmConstrucao />
-          </div>
-        ) : (
-          <>
+        <>
             <div className="bg-white dark:bg-slate-900 p-5 rounded-xl border border-gray-100 dark:border-slate-800 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div>
                 <h2 className="text-lg font-black text-gray-800 dark:text-slate-100">Anamnese — {paciente.nome_completo}</h2>
@@ -228,8 +222,7 @@ export default function Anamnese({ userId }) {
                 ))}
               </div>
             )}
-          </>
-        )}
+        </>
       </div>
 
       {showModal && (
