@@ -22,6 +22,7 @@ import CalculadoraGastoCalorico from './pages/CalculadoraGastoCalorico';
 import ProntuarioPaciente from './pages/ProntuarioPaciente';
 import TabelaAlimentos from './pages/TabelaAlimentos';
 import PlanoAlimentar from './pages/PlanoAlimentar';
+import Anamnese from './pages/Anamnese';
 import EmConstrucao from './components/EmConstrucao';
 
 function MainApp() {
@@ -237,6 +238,7 @@ function MainApp() {
             <Route path="/pacientes" element={<Pacientes userId={session.user.id} />} />
             <Route path="/pacientes/:id/prontuario" element={<ProntuarioPaciente userId={session.user.id} />} />
             <Route path="/pacientes/:id/plano-alimentar" element={<PlanoAlimentar userId={session.user.id} />} />
+            <Route path="/pacientes/:id/anamnese" element={<Anamnese userId={session.user.id} />} />
             <Route path="/alimentos" element={<TabelaAlimentos userId={session.user.id} />} />
             <Route path="/nova-avaliacao" element={<AvaliacaoForm />} />
             <Route path="/equacoes-de-regressao" element={<EscolhaPercGordura />} />
