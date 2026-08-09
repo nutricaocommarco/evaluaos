@@ -219,7 +219,7 @@ export default function Anamnese({ userId }) {
                         </div>
                       </div>
                       {a.conteudo ? (
-                        <div className="text-sm text-gray-700 dark:text-slate-300" dangerouslySetInnerHTML={{ __html: a.conteudo }} />
+                        <div className="rte-html text-sm text-gray-700 dark:text-slate-300" dangerouslySetInnerHTML={{ __html: a.conteudo }} />
                       ) : (
                         <p className="text-sm text-gray-400 dark:text-slate-500">-</p>
                       )}

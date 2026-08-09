@@ -4,6 +4,7 @@ import { supabase } from '../supabaseClient'
 import SidebarPaciente from '../components/SidebarPaciente'
 import EmConstrucao from '../components/EmConstrucao'
 import RichTextEditor, { sanitizarHtmlEditor } from '../components/RichTextEditor'
+import { ChevronDown, ChevronRight } from 'lucide-react'
 
 const CAMPOS_VAZIOS = { titulo: 'Orientação', conteudo: '', salvarComoModelo: false }
 
@@ -22,6 +23,7 @@ export default function OrientacoesNutricionais({ userId }) {
 
   const [orientacoes, setOrientacoes] = useState([])
   const [modelos, setModelos] = useState([])
+  const [abertos, setAbertos] = useState(new Set())
 
   const [showModal, setShowModal] = useState(false)
   const [editingId, setEditingId] = useState(null)
@@ -67,6 +69,15 @@ export default function OrientacoesNutricionais({ userId }) {
     setEditingId(o.id)
     setForm({ titulo: o.titulo || 'Orientação', conteudo: o.conteudo || '', salvarComoModelo: false })
     setShowModal(true)
+  }
+
+  const toggleAberto = (orientacaoId) => {
+    setAbertos((prev) => {
+      const novo = new Set(prev)
+      if (novo.has(orientacaoId)) novo.delete(orientacaoId)
+      else novo.add(orientacaoId)
+      return novo
+    })
   }
 
   const handleEscolherModelo = (modelo) => {
@@ -170,25 +181,43 @@ export default function OrientacoesNutricionais({ userId }) {
               </div>
             ) : (
               <div className="space-y-3">
-                {orientacoes.map((o) => (
-                  <div key={o.id} className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-gray-100 dark:border-slate-800 shadow-sm space-y-2">
-                    <div className="flex justify-between items-start gap-3">
-                      <div>
-                        <span className="text-sm font-black text-gray-800 dark:text-slate-100">{o.titulo}</span>
-                        <p className="text-[10px] text-gray-400 dark:text-slate-500">Criada em {formatarDataHora(o.created_at)}</p>
+                {orientacoes.map((o) => {
+                  const aberto = abertos.has(o.id)
+                  return (
+                    <div key={o.id} className="bg-white dark:bg-slate-900 rounded-xl border border-gray-100 dark:border-slate-800 shadow-sm overflow-hidden">
+                      <div className="flex justify-between items-center gap-3 p-4">
+                        <button
+                          type="button"
+                          onClick={() => toggleAberto(o.id)}
+                          className="flex-1 flex items-center gap-2 text-left min-w-0"
+                        >
+                          {aberto ? (
+                            <ChevronDown size={16} className="text-gray-400 dark:text-slate-500 shrink-0" />
+                          ) : (
+                            <ChevronRight size={16} className="text-gray-400 dark:text-slate-500 shrink-0" />
+                          )}
+                          <div className="min-w-0">
+                            <span className="text-sm font-black text-gray-800 dark:text-slate-100 truncate block">{o.titulo}</span>
+                            <p className="text-[10px] text-gray-400 dark:text-slate-500">Criada em {formatarDataHora(o.created_at)}</p>
+                          </div>
+                        </button>
+                        <div className="flex gap-3 shrink-0">
+                          <button onClick={() => abrirEdicaoOrientacao(o)} className="text-xs font-semibold text-primary-600 hover:underline">Editar</button>
+                          <button onClick={() => handleExcluir(o.id)} className="text-xs font-semibold text-red-600 hover:underline">Excluir</button>
+                        </div>
                       </div>
-                      <div className="flex gap-3 shrink-0">
-                        <button onClick={() => abrirEdicaoOrientacao(o)} className="text-xs font-semibold text-primary-600 hover:underline">Editar</button>
-                        <button onClick={() => handleExcluir(o.id)} className="text-xs font-semibold text-red-600 hover:underline">Excluir</button>
-                      </div>
+                      {aberto && (
+                        <div className="px-4 pb-4">
+                          {o.conteudo ? (
+                            <div className="rte-html text-sm text-gray-700 dark:text-slate-300" dangerouslySetInnerHTML={{ __html: o.conteudo }} />
+                          ) : (
+                            <p className="text-sm text-gray-400 dark:text-slate-500">-</p>
+                          )}
+                        </div>
+                      )}
                     </div>
-                    {o.conteudo ? (
-                      <div className="text-sm text-gray-700 dark:text-slate-300" dangerouslySetInnerHTML={{ __html: o.conteudo }} />
-                    ) : (
-                      <p className="text-sm text-gray-400 dark:text-slate-500">-</p>
-                    )}
-                  </div>
-                ))}
+                  )
+                })}
               </div>
             )}
           </>

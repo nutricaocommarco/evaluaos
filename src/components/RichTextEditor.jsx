@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react'
-import { Bold, Italic, Underline, Strikethrough, Palette, Eraser, Undo2, Redo2, Wand2, Trash2 } from 'lucide-react'
+import { Bold, Italic, Underline, Strikethrough, Palette, Eraser, Undo2, Redo2, Wand2, Trash2, List, ListOrdered } from 'lucide-react'
 
 // Editor de texto rico minimalista — contentEditable + execCommand, sem
 // depender de uma biblioteca de editor (TipTap/Quill/etc). Cobre só o que a
@@ -154,6 +154,9 @@ export default function RichTextEditor({ initialHtml, onChange, modelos = [], on
         </div>
         <BotaoToolbar onClick={() => exec('removeFormat')} title="Limpar formatação"><Eraser size={14} /></BotaoToolbar>
         <span className="w-px h-4 bg-gray-300 dark:bg-slate-700 mx-1" />
+        <BotaoToolbar onClick={() => exec('insertUnorderedList')} title="Tópicos (lista com marcadores)"><List size={14} /></BotaoToolbar>
+        <BotaoToolbar onClick={() => exec('insertOrderedList')} title="Lista numerada"><ListOrdered size={14} /></BotaoToolbar>
+        <span className="w-px h-4 bg-gray-300 dark:bg-slate-700 mx-1" />
         <BotaoToolbar onClick={() => exec('undo')} title="Desfazer"><Undo2 size={14} /></BotaoToolbar>
         <BotaoToolbar onClick={() => exec('redo')} title="Refazer"><Redo2 size={14} /></BotaoToolbar>
       </div>
@@ -164,7 +167,7 @@ export default function RichTextEditor({ initialHtml, onChange, modelos = [], on
         suppressContentEditableWarning
         onInput={dispararChange}
         data-placeholder={placeholder}
-        className="rte-content min-h-[220px] max-h-[480px] overflow-y-auto px-3 py-2 text-sm leading-relaxed outline-none bg-white dark:bg-slate-950 text-gray-800 dark:text-slate-100"
+        className="rte-content rte-html min-h-[220px] max-h-[480px] overflow-y-auto px-3 py-2 text-sm leading-relaxed outline-none bg-white dark:bg-slate-950 text-gray-800 dark:text-slate-100"
       />
       <style>{`
         .rte-content:empty:before {
