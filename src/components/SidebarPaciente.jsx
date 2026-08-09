@@ -1,10 +1,11 @@
 import React from 'react'
 import { useNavigate } from 'react-router-dom'
 
-// tipo determina a navegação: os 3 "vivos" (prontuario/evolucao/gasto_calorico)
-// navegam de verdade; 'pacientes' aponta pro fallback atual (perfil/histórico
-// ainda vivem como modal em Pacientes.jsx); os demais chamam onSelecionarItem
-// pra trocar só o conteúdo principal por <EmConstrucao/>, sem sair da rota.
+// tipo determina a navegação: os "vivos" (prontuario/plano_alimentar/
+// evolucao/gasto_calorico) navegam de verdade; 'pacientes' aponta pro
+// fallback atual (perfil/histórico ainda vivem como modal em
+// Pacientes.jsx); os demais chamam onSelecionarItem pra trocar só o
+// conteúdo principal por <EmConstrucao/>, sem sair da rota.
 const GRUPOS = [
   {
     titulo: 'Geral',
@@ -30,7 +31,7 @@ const GRUPOS = [
   {
     titulo: 'Prescrição',
     itens: [
-      { key: 'planos', label: 'Planos Alimentares', tipo: 'construcao' },
+      { key: 'planos', label: 'Planos Alimentares', tipo: 'plano_alimentar' },
       { key: 'listas', label: 'Listas de Recomendações', tipo: 'construcao' },
       { key: 'orientacoes', label: 'Orientações Nutricionais', tipo: 'construcao' },
       { key: 'receitas', label: 'Receitas', tipo: 'construcao' },
@@ -61,6 +62,9 @@ export default function SidebarPaciente({ paciente, itemAtivo, onSelecionarItem 
     if (item.tipo === 'prontuario') {
       onSelecionarItem?.(item.key)
       navigate(`/pacientes/${paciente.id}/prontuario`)
+    } else if (item.tipo === 'plano_alimentar') {
+      onSelecionarItem?.(item.key)
+      navigate(`/pacientes/${paciente.id}/plano-alimentar`)
     } else if (item.tipo === 'evolucao') {
       navigate('/evolucao', { state: { paciente } })
     } else if (item.tipo === 'gasto_calorico') {
