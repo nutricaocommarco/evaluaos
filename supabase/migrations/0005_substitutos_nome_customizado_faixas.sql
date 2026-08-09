@@ -24,6 +24,10 @@ alter table public.substitutos_item enable row level security;
 
 -- Sem id_avaliador direto — dono verificado subindo item -> refeição -> plano,
 -- mesmo padrão já usado em itens_refeicao/refeicoes_prescritas.
+-- drop+create (em vez de "if not exists", que não existe pra policy) deixa
+-- o arquivo seguro pra rodar de novo se uma tentativa anterior parou no meio.
+drop policy if exists "substitutos_isolamento_via_item" on public.substitutos_item;
+
 create policy "substitutos_isolamento_via_item" on public.substitutos_item
   for all using (
     exists (
