@@ -4,6 +4,27 @@ import { supabase } from '../supabaseClient'
 import SidebarPaciente from '../components/SidebarPaciente'
 import EmConstrucao from '../components/EmConstrucao'
 
+const CAMPOS_VAZIOS = {
+  id_prontuario: '',
+  conteudo: '',
+}
+
+function formatarData(dataStr) {
+  if (!dataStr) return '-'
+  return new Date(dataStr + 'T12:00:00').toLocaleDateString('pt-BR')
+}
+
+function formatarDataHora(dataStr) {
+  if (!dataStr) return '-'
+  return new Date(dataStr).toLocaleString('pt-BR')
+}
+
+function rotuloConsulta(prontuario) {
+  if (!prontuario) return 'Consulta removida'
+  const data = formatarData(prontuario.data_consulta)
+  return prontuario.queixa_principal ? `${data} — ${prontuario.queixa_principal}` : data
+}
+
 export default function Anamnese({ userId }) {
   const { id } = useParams()
   const navigate = useNavigate()
@@ -12,10 +33,13 @@ export default function Anamnese({ userId }) {
   const [itemAtivo, setItemAtivo] = useState('anamneses')
   const [loading, setLoading] = useState(true)
 
-  const [conteudo, setConteudo] = useState('')
-  const [conteudoSalvo, setConteudoSalvo] = useState('')
-  const [atualizadoEm, setAtualizadoEm] = useState(null)
-  const [salvando, setSalvando] = useState(false)
+  const [anamneses, setAnamneses] = useState([])
+  const [prontuarios, setProntuarios] = useState([])
+
+  const [showModal, setShowModal] = useState(false)
+  const [editingId, setEditingId] = useState(null)
+  const [form, setForm] = useState(CAMPOS_VAZIOS)
+  const [saving, setSaving] = useState(false)
 
   const carregarDados = async () => {
     setLoading(true)
@@ -24,15 +48,19 @@ export default function Anamnese({ userId }) {
     setPaciente(pac || null)
 
     if (pac) {
-      const { data: registro } = await supabase
-        .from('anamneses')
-        .select('*')
+      const { data: listaProntuarios } = await supabase
+        .from('prontuarios')
+        .select('id, data_consulta, queixa_principal')
         .eq('id_paciente', id)
-        .maybeSingle()
+        .order('data_consulta', { ascending: false })
+      setProntuarios(listaProntuarios || [])
 
-      setConteudo(registro?.conteudo || '')
-      setConteudoSalvo(registro?.conteudo || '')
-      setAtualizadoEm(registro?.updated_at || null)
+      const { data: listaAnamneses } = await supabase
+        .from('anamneses')
+        .select('*, prontuarios(id, data_consulta, queixa_principal)')
+        .eq('id_paciente', id)
+        .order('created_at', { ascending: false })
+      setAnamneses(listaAnamneses || [])
     }
 
     setLoading(false)
@@ -43,29 +71,56 @@ export default function Anamnese({ userId }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id])
 
-  const alterado = conteudo !== conteudoSalvo
+  const abrirNovaAnamnese = () => {
+    setEditingId(null)
+    setForm({ id_prontuario: prontuarios[0]?.id ?? '', conteudo: '' })
+    setShowModal(true)
+  }
 
-  const handleSalvar = async () => {
-    setSalvando(true)
-    const { data, error } = await supabase
-      .from('anamneses')
-      .upsert(
-        { id_paciente: id, id_avaliador: userId, conteudo, updated_at: new Date().toISOString() },
-        { onConflict: 'id_paciente' }
-      )
-      .select()
-      .single()
+  const abrirEdicaoAnamnese = (a) => {
+    setEditingId(a.id)
+    setForm({ id_prontuario: a.id_prontuario ?? '', conteudo: a.conteudo || '' })
+    setShowModal(true)
+  }
 
-    setSalvando(false)
-    if (error) { alert('Erro ao salvar anamnese: ' + error.message); return }
-    setConteudoSalvo(data.conteudo || '')
-    setAtualizadoEm(data.updated_at)
+  const handleSubmit = async (e) => {
+    e.preventDefault()
+    if (!form.id_prontuario) return
+    setSaving(true)
+
+    const payload = {
+      id_prontuario: form.id_prontuario,
+      conteudo: form.conteudo,
+      updated_at: new Date().toISOString(),
+    }
+
+    if (editingId) {
+      const { error } = await supabase.from('anamneses').update(payload).eq('id', editingId)
+      setSaving(false)
+      if (error) { alert('Erro ao atualizar anamnese: ' + error.message); return }
+    } else {
+      const { error } = await supabase
+        .from('anamneses')
+        .insert({ ...payload, id_paciente: id, id_avaliador: userId })
+      setSaving(false)
+      if (error) { alert('Erro ao salvar anamnese: ' + error.message); return }
+    }
+
+    setShowModal(false)
+    carregarDados()
+  }
+
+  const handleExcluir = async (anamneseId) => {
+    if (!window.confirm('Excluir esta anamnese? Essa ação não pode ser desfeita.')) return
+    const { error } = await supabase.from('anamneses').delete().eq('id', anamneseId)
+    if (error) { alert('Erro ao excluir anamnese: ' + error.message); return }
+    setAnamneses((prev) => prev.filter((a) => a.id !== anamneseId))
   }
 
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <p className="text-primary-600 font-bold animate-pulse">Carregando anamnese...</p>
+        <p className="text-primary-600 font-bold animate-pulse">Carregando anamneses...</p>
       </div>
     )
   }
@@ -91,39 +146,126 @@ export default function Anamnese({ userId }) {
             <EmConstrucao />
           </div>
         ) : (
-          <div className="bg-white dark:bg-slate-900 p-5 rounded-xl border border-gray-100 dark:border-slate-800 shadow-sm space-y-3">
-            <div className="flex flex-wrap items-center justify-between gap-2">
+          <>
+            <div className="bg-white dark:bg-slate-900 p-5 rounded-xl border border-gray-100 dark:border-slate-800 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div>
                 <h2 className="text-lg font-black text-gray-800 dark:text-slate-100">Anamnese — {paciente.nome_completo}</h2>
-                <p className="text-xs text-gray-500 dark:text-slate-400 mt-0.5">
-                  {atualizadoEm
-                    ? `Última atualização: ${new Date(atualizadoEm).toLocaleString('pt-BR')}`
-                    : 'Ainda não preenchida'}
-                </p>
+                <p className="text-xs text-gray-500 dark:text-slate-400 mt-0.5">Histórico de anamneses, cada uma vinculada a uma consulta do Prontuário</p>
               </div>
               <button
-                onClick={handleSalvar}
-                disabled={!alterado || salvando}
-                className="px-4 py-2 bg-primary-600 text-white text-sm font-semibold rounded-lg hover:bg-primary-700 shadow disabled:opacity-50 shrink-0"
+                onClick={abrirNovaAnamnese}
+                disabled={prontuarios.length === 0}
+                title={prontuarios.length === 0 ? 'Registre uma consulta no Prontuário primeiro' : ''}
+                className="px-4 py-2 bg-primary-600 text-white text-sm font-semibold rounded-lg hover:bg-primary-700 shadow transition-colors shrink-0 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {salvando ? 'Salvando...' : 'Salvar'}
+                + Nova Anamnese
               </button>
             </div>
 
-            <textarea
-              value={conteudo}
-              onChange={(e) => setConteudo(e.target.value)}
-              placeholder="Histórico de saúde, hábitos alimentares, rotina, queixas, contexto familiar e social, expectativas do paciente..."
-              rows={24}
-              className="w-full px-4 py-3 border border-gray-300 dark:border-slate-700 rounded-lg text-sm leading-relaxed outline-none focus:ring-2 focus:ring-primary-500 bg-white dark:bg-slate-950 text-gray-800 dark:text-slate-100 resize-y"
-            />
-
-            {alterado && (
-              <p className="text-[11px] text-amber-600 dark:text-amber-400">Alterações não salvas.</p>
+            {prontuarios.length === 0 && (
+              <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 p-4 rounded-xl text-sm text-amber-700 dark:text-amber-400">
+                Toda anamnese precisa estar vinculada a uma consulta. Registre a primeira consulta no{' '}
+                <button onClick={() => navigate(`/pacientes/${id}/prontuario`)} className="font-semibold underline">
+                  Prontuário
+                </button>{' '}
+                pra poder criar uma anamnese.
+              </div>
             )}
-          </div>
+
+            {anamneses.length === 0 ? (
+              <div className="bg-white dark:bg-slate-900 p-8 rounded-xl border border-gray-100 dark:border-slate-800 shadow-sm text-center">
+                <p className="text-gray-500 dark:text-slate-400 text-sm">Nenhuma anamnese registrada ainda.</p>
+              </div>
+            ) : (
+              <div className="relative pl-6 space-y-4">
+                <div className="absolute left-[7px] top-2 bottom-2 w-px bg-gray-200 dark:bg-slate-700"></div>
+
+                {anamneses.map((a) => (
+                  <div key={a.id} className="relative">
+                    <div className="absolute -left-6 top-1.5 w-3.5 h-3.5 rounded-full bg-primary-600 border-2 border-white dark:border-slate-950"></div>
+
+                    <div className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-gray-100 dark:border-slate-800 shadow-sm space-y-2">
+                      <div className="flex justify-between items-start gap-3">
+                        <div>
+                          <span className="text-sm font-black text-gray-800 dark:text-slate-100">{rotuloConsulta(a.prontuarios)}</span>
+                          <p className="text-[10px] text-gray-400 dark:text-slate-500">Registrada em {formatarDataHora(a.created_at)}</p>
+                        </div>
+                        <div className="flex gap-3 shrink-0">
+                          <button onClick={() => abrirEdicaoAnamnese(a)} className="text-xs font-semibold text-primary-600 hover:underline">Editar</button>
+                          <button onClick={() => handleExcluir(a.id)} className="text-xs font-semibold text-red-600 hover:underline">Excluir</button>
+                        </div>
+                      </div>
+                      <p className="text-sm text-gray-700 dark:text-slate-300 whitespace-pre-wrap">{a.conteudo || '-'}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </>
         )}
       </div>
+
+      {showModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 overflow-y-auto">
+          <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-xl w-full max-w-lg max-h-[90vh] flex flex-col overflow-hidden">
+            <div className="flex justify-between items-center px-6 py-4 border-b border-gray-100 dark:border-slate-800">
+              <h3 className="text-lg font-bold text-gray-800 dark:text-slate-100">
+                {editingId ? 'Editar Anamnese' : 'Nova Anamnese'}
+              </h3>
+              <button onClick={() => setShowModal(false)} className="text-gray-400 dark:text-slate-400 hover:text-gray-600 p-1 rounded-lg">✕</button>
+            </div>
+
+            <form onSubmit={handleSubmit} className="p-6 space-y-4 overflow-y-auto flex-1">
+              <div>
+                <label className="block text-xs font-bold text-gray-700 dark:text-slate-300 uppercase tracking-wider mb-1">
+                  Consulta vinculada *
+                </label>
+                <select
+                  required
+                  value={form.id_prontuario}
+                  onChange={(e) => setForm({ ...form, id_prontuario: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm outline-none bg-gray-50/50 dark:bg-slate-800/70 focus:bg-white focus:ring-2 focus:ring-primary-500"
+                >
+                  <option value="" disabled>Selecione a consulta...</option>
+                  {prontuarios.map((p) => (
+                    <option key={p.id} value={p.id}>{rotuloConsulta(p)}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-gray-700 dark:text-slate-300 uppercase tracking-wider mb-1">
+                  Anamnese
+                </label>
+                <textarea
+                  value={form.conteudo}
+                  onChange={(e) => setForm({ ...form, conteudo: e.target.value })}
+                  placeholder="Histórico de saúde, hábitos alimentares, rotina, queixas, contexto familiar e social, expectativas do paciente..."
+                  rows={16}
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-slate-700 rounded-lg text-sm leading-relaxed outline-none focus:ring-2 focus:ring-primary-500 bg-white dark:bg-slate-950 text-gray-800 dark:text-slate-100 resize-y"
+                />
+              </div>
+
+              <div className="flex justify-end gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setShowModal(false)}
+                  className="px-5 py-2 border border-gray-300 text-gray-700 dark:text-slate-300 text-sm font-semibold rounded-lg hover:bg-gray-50 dark:hover:bg-slate-800"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={saving || !form.id_prontuario}
+                  className="px-5 py-2 bg-primary-600 text-white text-sm font-semibold rounded-lg hover:bg-primary-700 shadow disabled:opacity-50"
+                >
+                  {saving ? 'Salvando...' : editingId ? 'Atualizar Anamnese' : 'Salvar Anamnese'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
