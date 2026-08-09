@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { supabase } from '../supabaseClient'
 import SidebarPaciente from '../components/SidebarPaciente'
 import EmConstrucao from '../components/EmConstrucao'
+import RichTextEditor, { sanitizarHtmlEditor } from '../components/RichTextEditor'
 
 const CAMPOS_VAZIOS = { titulo: 'Orientação', conteudo: '', salvarComoModelo: false }
 
@@ -68,19 +69,18 @@ export default function OrientacoesNutricionais({ userId }) {
     setShowModal(true)
   }
 
-  const handleEscolherModelo = (modeloId) => {
-    const modelo = modelos.find((m) => String(m.id) === String(modeloId))
-    if (!modelo) return
-    setForm((prev) => ({ ...prev, titulo: modelo.titulo, conteudo: modelo.conteudo || '' }))
+  const handleEscolherModelo = (modelo) => {
+    setForm((prev) => ({ ...prev, titulo: modelo.titulo }))
   }
 
   const handleSubmit = async (e) => {
     e.preventDefault()
     setSaving(true)
 
+    const conteudoLimpo = sanitizarHtmlEditor(form.conteudo)
     const payload = {
       titulo: form.titulo || 'Orientação',
-      conteudo: form.conteudo,
+      conteudo: conteudoLimpo,
       updated_at: new Date().toISOString(),
     }
 
@@ -97,7 +97,7 @@ export default function OrientacoesNutricionais({ userId }) {
     if (form.salvarComoModelo) {
       await supabase
         .from('modelos_orientacoes')
-        .insert({ id_avaliador: userId, titulo: form.titulo || 'Modelo', conteudo: form.conteudo })
+        .insert({ id_avaliador: userId, titulo: form.titulo || 'Modelo', conteudo: conteudoLimpo })
     }
 
     setSaving(false)
@@ -182,7 +182,11 @@ export default function OrientacoesNutricionais({ userId }) {
                         <button onClick={() => handleExcluir(o.id)} className="text-xs font-semibold text-red-600 hover:underline">Excluir</button>
                       </div>
                     </div>
-                    <p className="text-sm text-gray-700 dark:text-slate-300 whitespace-pre-wrap">{o.conteudo || '-'}</p>
+                    {o.conteudo ? (
+                      <div className="text-sm text-gray-700 dark:text-slate-300" dangerouslySetInnerHTML={{ __html: o.conteudo }} />
+                    ) : (
+                      <p className="text-sm text-gray-400 dark:text-slate-500">-</p>
+                    )}
                   </div>
                 ))}
               </div>
@@ -202,36 +206,6 @@ export default function OrientacoesNutricionais({ userId }) {
             </div>
 
             <form onSubmit={handleSubmit} className="p-6 space-y-4 overflow-y-auto flex-1">
-              {!editingId && modelos.length > 0 && (
-                <div>
-                  <label className="block text-xs font-bold text-gray-700 dark:text-slate-300 uppercase tracking-wider mb-1">
-                    Começar de um modelo (opcional)
-                  </label>
-                  <select
-                    defaultValue=""
-                    onChange={(e) => handleEscolherModelo(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm outline-none bg-gray-50/50 dark:bg-slate-800/70 focus:bg-white focus:ring-2 focus:ring-primary-500"
-                  >
-                    <option value="">Começar em branco</option>
-                    {modelos.map((m) => (
-                      <option key={m.id} value={m.id}>{m.titulo}</option>
-                    ))}
-                  </select>
-                  <div className="flex flex-wrap gap-x-3 gap-y-1 mt-1">
-                    {modelos.map((m) => (
-                      <button
-                        key={m.id}
-                        type="button"
-                        onClick={() => handleExcluirModelo(m.id)}
-                        className="text-[10px] text-gray-400 dark:text-slate-500 hover:text-red-600"
-                      >
-                        remover modelo "{m.titulo}"
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
-
               <div>
                 <label className="block text-xs font-bold text-gray-700 dark:text-slate-300 uppercase tracking-wider mb-1">
                   Título
@@ -248,11 +222,12 @@ export default function OrientacoesNutricionais({ userId }) {
                 <label className="block text-xs font-bold text-gray-700 dark:text-slate-300 uppercase tracking-wider mb-1">
                   Texto
                 </label>
-                <textarea
-                  value={form.conteudo}
-                  onChange={(e) => setForm({ ...form, conteudo: e.target.value })}
-                  rows={14}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-slate-700 rounded-lg text-sm leading-relaxed outline-none focus:ring-2 focus:ring-primary-500 bg-white dark:bg-slate-950 text-gray-800 dark:text-slate-100 resize-y"
+                <RichTextEditor
+                  initialHtml={form.conteudo}
+                  onChange={(html) => setForm((f) => ({ ...f, conteudo: html }))}
+                  modelos={modelos}
+                  onEscolherModelo={handleEscolherModelo}
+                  onExcluirModelo={handleExcluirModelo}
                 />
               </div>
 

@@ -3,10 +3,13 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { supabase } from '../supabaseClient'
 import SidebarPaciente from '../components/SidebarPaciente'
 import EmConstrucao from '../components/EmConstrucao'
+import RichTextEditor, { sanitizarHtmlEditor } from '../components/RichTextEditor'
 
 const CAMPOS_VAZIOS = {
   id_prontuario: '',
   conteudo: '',
+  salvarComoModelo: false,
+  tituloModelo: '',
 }
 
 function formatarData(dataStr) {
@@ -35,6 +38,7 @@ export default function Anamnese({ userId }) {
 
   const [anamneses, setAnamneses] = useState([])
   const [prontuarios, setProntuarios] = useState([])
+  const [modelos, setModelos] = useState([])
 
   const [showModal, setShowModal] = useState(false)
   const [editingId, setEditingId] = useState(null)
@@ -61,6 +65,12 @@ export default function Anamnese({ userId }) {
         .eq('id_paciente', id)
         .order('created_at', { ascending: false })
       setAnamneses(listaAnamneses || [])
+
+      const { data: listaModelos } = await supabase
+        .from('modelos_anamneses')
+        .select('*')
+        .order('titulo')
+      setModelos(listaModelos || [])
     }
 
     setLoading(false)
@@ -73,13 +83,13 @@ export default function Anamnese({ userId }) {
 
   const abrirNovaAnamnese = () => {
     setEditingId(null)
-    setForm({ id_prontuario: prontuarios[0]?.id ?? '', conteudo: '' })
+    setForm({ id_prontuario: prontuarios[0]?.id ?? '', conteudo: '', salvarComoModelo: false, tituloModelo: '' })
     setShowModal(true)
   }
 
   const abrirEdicaoAnamnese = (a) => {
     setEditingId(a.id)
-    setForm({ id_prontuario: a.id_prontuario ?? '', conteudo: a.conteudo || '' })
+    setForm({ id_prontuario: a.id_prontuario ?? '', conteudo: a.conteudo || '', salvarComoModelo: false, tituloModelo: '' })
     setShowModal(true)
   }
 
@@ -88,24 +98,30 @@ export default function Anamnese({ userId }) {
     if (!form.id_prontuario) return
     setSaving(true)
 
+    const conteudoLimpo = sanitizarHtmlEditor(form.conteudo)
     const payload = {
       id_prontuario: form.id_prontuario,
-      conteudo: form.conteudo,
+      conteudo: conteudoLimpo,
       updated_at: new Date().toISOString(),
     }
 
     if (editingId) {
       const { error } = await supabase.from('anamneses').update(payload).eq('id', editingId)
-      setSaving(false)
-      if (error) { alert('Erro ao atualizar anamnese: ' + error.message); return }
+      if (error) { setSaving(false); alert('Erro ao atualizar anamnese: ' + error.message); return }
     } else {
       const { error } = await supabase
         .from('anamneses')
         .insert({ ...payload, id_paciente: id, id_avaliador: userId })
-      setSaving(false)
-      if (error) { alert('Erro ao salvar anamnese: ' + error.message); return }
+      if (error) { setSaving(false); alert('Erro ao salvar anamnese: ' + error.message); return }
     }
 
+    if (form.salvarComoModelo && form.tituloModelo.trim()) {
+      await supabase
+        .from('modelos_anamneses')
+        .insert({ id_avaliador: userId, titulo: form.tituloModelo.trim(), conteudo: conteudoLimpo })
+    }
+
+    setSaving(false)
     setShowModal(false)
     carregarDados()
   }
@@ -115,6 +131,13 @@ export default function Anamnese({ userId }) {
     const { error } = await supabase.from('anamneses').delete().eq('id', anamneseId)
     if (error) { alert('Erro ao excluir anamnese: ' + error.message); return }
     setAnamneses((prev) => prev.filter((a) => a.id !== anamneseId))
+  }
+
+  const handleExcluirModelo = async (modeloId) => {
+    if (!window.confirm('Excluir este modelo? Isso não afeta anamneses já criadas a partir dele.')) return
+    const { error } = await supabase.from('modelos_anamneses').delete().eq('id', modeloId)
+    if (error) { alert('Erro ao excluir modelo: ' + error.message); return }
+    setModelos((prev) => prev.filter((m) => m.id !== modeloId))
   }
 
   if (loading) {
@@ -195,7 +218,11 @@ export default function Anamnese({ userId }) {
                           <button onClick={() => handleExcluir(a.id)} className="text-xs font-semibold text-red-600 hover:underline">Excluir</button>
                         </div>
                       </div>
-                      <p className="text-sm text-gray-700 dark:text-slate-300 whitespace-pre-wrap">{a.conteudo || '-'}</p>
+                      {a.conteudo ? (
+                        <div className="text-sm text-gray-700 dark:text-slate-300" dangerouslySetInnerHTML={{ __html: a.conteudo }} />
+                      ) : (
+                        <p className="text-sm text-gray-400 dark:text-slate-500">-</p>
+                      )}
                     </div>
                   </div>
                 ))}
@@ -237,13 +264,35 @@ export default function Anamnese({ userId }) {
                 <label className="block text-xs font-bold text-gray-700 dark:text-slate-300 uppercase tracking-wider mb-1">
                   Anamnese
                 </label>
-                <textarea
-                  value={form.conteudo}
-                  onChange={(e) => setForm({ ...form, conteudo: e.target.value })}
+                <RichTextEditor
+                  initialHtml={form.conteudo}
+                  onChange={(html) => setForm((f) => ({ ...f, conteudo: html }))}
+                  modelos={modelos}
+                  onExcluirModelo={handleExcluirModelo}
                   placeholder="Histórico de saúde, hábitos alimentares, rotina, queixas, contexto familiar e social, expectativas do paciente..."
-                  rows={16}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-slate-700 rounded-lg text-sm leading-relaxed outline-none focus:ring-2 focus:ring-primary-500 bg-white dark:bg-slate-950 text-gray-800 dark:text-slate-100 resize-y"
                 />
+              </div>
+
+              <div className="space-y-2">
+                <label className="flex items-center gap-2 cursor-pointer w-fit">
+                  <input
+                    type="checkbox"
+                    checked={form.salvarComoModelo}
+                    onChange={(e) => setForm({ ...form, salvarComoModelo: e.target.checked })}
+                    className="w-4 h-4 accent-primary-600"
+                  />
+                  <span className="text-xs font-semibold text-gray-700 dark:text-slate-300">Salvar também como modelo (reutilizável em outros pacientes)</span>
+                </label>
+                {form.salvarComoModelo && (
+                  <input
+                    type="text"
+                    required
+                    value={form.tituloModelo}
+                    onChange={(e) => setForm({ ...form, tituloModelo: e.target.value })}
+                    placeholder="Nome do modelo..."
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-primary-500"
+                  />
+                )}
               </div>
 
               <div className="flex justify-end gap-3 pt-2">
