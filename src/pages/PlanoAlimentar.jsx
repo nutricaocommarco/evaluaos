@@ -13,6 +13,12 @@ const CAMPOS_PLANO_VAZIOS = {
   proteina_target_pct: '',
   carbo_target_pct: '',
   lipidio_target_pct: '',
+  proteina_target_g_kg_min: '',
+  proteina_target_g_kg_max: '',
+  carbo_target_g_kg_min: '',
+  carbo_target_g_kg_max: '',
+  lipidio_target_g_kg_min: '',
+  lipidio_target_g_kg_max: '',
 }
 
 // Fatores de Atwater (kcal por grama) — padrão usado pela TACO/TBCA/IBGE.
@@ -49,6 +55,57 @@ function somarMacros(lista) {
 
 function fmt(n) {
   return Number.isFinite(n) ? n.toFixed(1).replace(/\.0$/, '') : '0'
+}
+
+// Sem horário vai pro fim da lista; em caso de empate, usa 'ordem' (a mesma
+// coluna que as setas ▲▼ já manipulam) como critério de desempate manual.
+function compararRefeicoes(a, b) {
+  const ha = a.horario || '99:99'
+  const hb = b.horario || '99:99'
+  if (ha !== hb) return ha < hb ? -1 : 1
+  return a.ordem - b.ordem
+}
+
+// Duplica itens (de uma opção ou de uma refeição inteira) preservando os
+// substitutos de cada item. Um insert por item (em vez de insert em lote)
+// pra poder amarrar com segurança o id do item novo aos substitutos dele.
+async function duplicarItensComSubstitutos(itensOrigem, idRefeicaoDestino, mapOpcao) {
+  const resultados = await Promise.all(
+    itensOrigem.map(async (origem) => {
+      const { data: novoItem, error } = await supabase
+        .from('itens_refeicao')
+        .insert({
+          id_refeicao: idRefeicaoDestino,
+          id_alimento: origem.id_alimento,
+          quantidade_g: origem.quantidade_g,
+          opcao_numero: mapOpcao ? mapOpcao(origem.opcao_numero) : origem.opcao_numero,
+          nome_customizado: origem.nome_customizado || null,
+        })
+        .select('*, tabela_alimentos(*)')
+        .single()
+
+      if (error || !novoItem) return null
+
+      let substitutos = []
+      const subsOrigem = origem.substitutos_item || []
+      if (subsOrigem.length > 0) {
+        const inserts = subsOrigem.map((s) => ({
+          id_item_original: novoItem.id,
+          id_alimento: s.id_alimento,
+          quantidade_g: s.quantidade_g,
+          ordem: s.ordem,
+        }))
+        const { data: novosSubs } = await supabase
+          .from('substitutos_item')
+          .insert(inserts)
+          .select('*, tabela_alimentos(*)')
+        substitutos = novosSubs || []
+      }
+
+      return { ...novoItem, substitutos_item: substitutos }
+    })
+  )
+  return resultados.filter(Boolean)
 }
 
 // Busca de alimento com debounce + adiciona item a uma refeição/opção.
@@ -172,7 +229,358 @@ function AdicionarItemForm({ refeicaoId, opcaoNumero, onItemAdicionado, onCancel
   )
 }
 
-function OpcaoCard({ refeicaoId, opcaoNumero, itens, onItemExcluido, onItemAdicionado, mostrarFormInicial, aoFecharForm, onDuplicar }) {
+// Uma linha de item da refeição, com menu "..." pra renomear (só neste
+// plano), abrir substitutos ou excluir.
+function ItemLinha({ item, onExcluir, onRenomear, onAbrirSubstitutos }) {
+  const [menuAberto, setMenuAberto] = useState(false)
+  const [renomeando, setRenomeando] = useState(false)
+  const [nomeEdit, setNomeEdit] = useState('')
+  const menuRef = useRef(null)
+
+  useEffect(() => {
+    const handleClickFora = (e) => {
+      if (menuRef.current && !menuRef.current.contains(e.target)) setMenuAberto(false)
+    }
+    document.addEventListener('mousedown', handleClickFora)
+    return () => document.removeEventListener('mousedown', handleClickFora)
+  }, [])
+
+  const m = calcularMacrosItem(item)
+  const nomeOriginal = item.tabela_alimentos?.nome || 'Alimento removido'
+  const nomeExibido = item.nome_customizado || nomeOriginal
+  const numSubstitutos = item.substitutos_item?.length || 0
+
+  const iniciarRenomear = () => {
+    setNomeEdit(item.nome_customizado || nomeOriginal)
+    setRenomeando(true)
+    setMenuAberto(false)
+  }
+
+  const salvarRenomear = async () => {
+    const digitado = nomeEdit.trim()
+    const valor = digitado && digitado !== nomeOriginal ? digitado : null
+    setRenomeando(false)
+    if (valor === (item.nome_customizado || null)) return
+    onRenomear(item.id, valor)
+    await supabase.from('itens_refeicao').update({ nome_customizado: valor }).eq('id', item.id)
+  }
+
+  if (renomeando) {
+    return (
+      <li className="text-xs">
+        <input
+          autoFocus
+          type="text"
+          value={nomeEdit}
+          onChange={(e) => setNomeEdit(e.target.value)}
+          onKeyDown={(e) => { if (e.key === 'Enter') e.currentTarget.blur(); if (e.key === 'Escape') setRenomeando(false) }}
+          onBlur={salvarRenomear}
+          className="w-full px-2 py-1 border border-primary-300 rounded text-xs outline-none focus:ring-2 focus:ring-primary-500"
+        />
+      </li>
+    )
+  }
+
+  return (
+    <li className="flex items-center justify-between gap-2 text-xs text-gray-700 dark:text-slate-300">
+      <span className="truncate">
+        {nomeExibido}
+        {item.nome_customizado && (
+          <span className="text-gray-400 dark:text-slate-500 italic" title={`Alimento original: ${nomeOriginal}`}> *</span>
+        )}
+        {' '}— {item.quantidade_g}g
+        {numSubstitutos > 0 && (
+          <span className="text-primary-500 dark:text-primary-400 ml-1" title={`${numSubstitutos} substituto(s)`}>
+            ⇄{numSubstitutos}
+          </span>
+        )}
+        <span className="text-gray-400 dark:text-slate-500 ml-1">
+          ({fmt(m.kcal)}kcal · P{fmt(m.proteina)} · C{fmt(m.carbo)} · L{fmt(m.lipidio)})
+        </span>
+      </span>
+      <div className="relative shrink-0" ref={menuRef}>
+        <button
+          onClick={() => setMenuAberto((v) => !v)}
+          className="text-gray-400 hover:text-gray-600 dark:text-slate-500 dark:hover:text-slate-300 px-1 leading-none"
+        >
+          •••
+        </button>
+        {menuAberto && (
+          <ul className="absolute right-0 z-20 mt-1 w-48 bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-700 rounded-lg shadow-xl overflow-hidden">
+            <li>
+              <button
+                onClick={iniciarRenomear}
+                className="w-full text-left px-3 py-2 text-xs text-gray-700 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-slate-800"
+              >
+                Renomear nesta refeição
+              </button>
+            </li>
+            <li>
+              <button
+                onClick={() => { setMenuAberto(false); onAbrirSubstitutos(item) }}
+                className="w-full text-left px-3 py-2 text-xs text-gray-700 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-slate-800"
+              >
+                Adicionar substitutos{numSubstitutos > 0 ? ` (${numSubstitutos})` : ''}
+              </button>
+            </li>
+            <li>
+              <button
+                onClick={() => { setMenuAberto(false); onExcluir(item.id) }}
+                className="w-full text-left px-3 py-2 text-xs text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20"
+              >
+                Excluir
+              </button>
+            </li>
+          </ul>
+        )}
+      </div>
+    </li>
+  )
+}
+
+// Busca de alimento pra escolher um substituto — seleção adiciona na hora
+// (a quantidade é calculada/ajustada depois pelo chamador).
+function BuscarSubstitutoForm({ onSelecionar, onCancelar }) {
+  const [busca, setBusca] = useState('')
+  const [resultados, setResultados] = useState([])
+  const ref = useRef(null)
+
+  useEffect(() => {
+    if (busca.trim().length < 2) { setResultados([]); return }
+    const delay = setTimeout(async () => {
+      const { data } = await supabase
+        .from('tabela_alimentos')
+        .select('*')
+        .ilike('nome', `%${busca.trim()}%`)
+        .order('nome')
+        .limit(15)
+      setResultados(data || [])
+    }, 300)
+    return () => clearTimeout(delay)
+  }, [busca])
+
+  useEffect(() => {
+    const handleClickFora = (e) => { if (ref.current && !ref.current.contains(e.target)) onCancelar() }
+    document.addEventListener('mousedown', handleClickFora)
+    return () => document.removeEventListener('mousedown', handleClickFora)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  return (
+    <div className="relative" ref={ref}>
+      <input
+        autoFocus
+        type="text"
+        value={busca}
+        onChange={(e) => setBusca(e.target.value)}
+        placeholder="Buscar alimento substituto..."
+        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-primary-500"
+      />
+      {resultados.length > 0 && (
+        <ul className="absolute z-20 w-full mt-1 bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-700 rounded-lg shadow-xl max-h-52 overflow-y-auto">
+          {resultados.map((r) => (
+            <li
+              key={r.id}
+              onClick={() => onSelecionar(r)}
+              className="px-3 py-2 cursor-pointer hover:bg-primary-50 dark:hover:bg-primary-900/20 text-xs border-b border-gray-100 dark:border-slate-800 last:border-0"
+            >
+              <span className="font-semibold">{r.nome}</span>
+              <span className="text-gray-400 dark:text-slate-500 ml-2">{r.energia_kcal ?? '-'} kcal/100g</span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  )
+}
+
+// Modal "Substitutos do alimento" — lista o item principal (travado) + os
+// substitutos, com Média/Desvio padrão por coluna (igual ao Amplinutri).
+function SubstitutosModal({ item, onFechar, onSubstitutosChange }) {
+  const [substitutos, setSubstitutos] = useState(item.substitutos_item || [])
+  const [equivalenciaAuto, setEquivalenciaAuto] = useState(true)
+  const [mostrarForm, setMostrarForm] = useState(false)
+
+  const nomePrincipal = item.nome_customizado || item.tabela_alimentos?.nome || 'Alimento'
+  const entradas = [{ tabela_alimentos: item.tabela_alimentos, quantidade_g: item.quantidade_g }, ...substitutos]
+  const linhas = entradas.map((e) => ({ quantidade: Number(e.quantidade_g) || 0, ...calcularMacrosItem(e) }))
+
+  const media = (campo) => linhas.reduce((s, l) => s + l[campo], 0) / linhas.length
+  const desvio = (campo) => {
+    if (linhas.length < 2) return 0
+    const m = media(campo)
+    return Math.sqrt(linhas.reduce((s, l) => s + (l[campo] - m) ** 2, 0) / linhas.length)
+  }
+
+  const handleAdicionarSubstituto = async (alimento) => {
+    let quantidade = Number(item.quantidade_g) || 0
+    if (equivalenciaAuto && alimento.energia_kcal) {
+      const kcalAlvo = (item.tabela_alimentos?.energia_kcal || 0) * (quantidade / 100)
+      quantidade = (kcalAlvo * 100) / alimento.energia_kcal
+    }
+    const { data, error } = await supabase
+      .from('substitutos_item')
+      .insert({
+        id_item_original: item.id,
+        id_alimento: alimento.id,
+        quantidade_g: Number(quantidade.toFixed(2)),
+        ordem: substitutos.length,
+      })
+      .select('*, tabela_alimentos(*)')
+      .single()
+
+    if (error) { alert('Erro ao adicionar substituto: ' + error.message); return }
+    const novos = [...substitutos, data]
+    setSubstitutos(novos)
+    onSubstitutosChange(novos)
+    setMostrarForm(false)
+  }
+
+  const handleQuantidadeChange = (substitutoId, valor) => {
+    const novos = substitutos.map((s) => (s.id === substitutoId ? { ...s, quantidade_g: valor } : s))
+    setSubstitutos(novos)
+    onSubstitutosChange(novos)
+  }
+
+  const handleQuantidadeBlur = async (substitutoId, valor) => {
+    await supabase.from('substitutos_item').update({ quantidade_g: Number(valor) || 0 }).eq('id', substitutoId)
+  }
+
+  const handleRemoverSubstituto = async (substitutoId) => {
+    const { error } = await supabase.from('substitutos_item').delete().eq('id', substitutoId)
+    if (error) { alert('Erro ao remover substituto: ' + error.message); return }
+    const novos = substitutos.filter((s) => s.id !== substitutoId)
+    setSubstitutos(novos)
+    onSubstitutosChange(novos)
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 overflow-y-auto">
+      <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-xl w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden">
+        <div className="flex justify-between items-center px-6 py-4 border-b border-gray-100 dark:border-slate-800">
+          <div>
+            <h3 className="text-lg font-bold text-gray-800 dark:text-slate-100">Substitutos do alimento</h3>
+            <p className="text-xs text-gray-500 dark:text-slate-400">{nomePrincipal}</p>
+          </div>
+          <button onClick={onFechar} className="text-gray-400 dark:text-slate-400 hover:text-gray-600 p-1 rounded-lg">✕</button>
+        </div>
+
+        <div className="p-6 space-y-4 overflow-y-auto flex-1">
+          <label className="flex items-center gap-2 cursor-pointer w-fit">
+            <input
+              type="checkbox"
+              checked={equivalenciaAuto}
+              onChange={(e) => setEquivalenciaAuto(e.target.checked)}
+              className="w-4 h-4 accent-primary-600"
+            />
+            <span className="text-sm font-semibold text-gray-700 dark:text-slate-300">Equivalência automática</span>
+          </label>
+          <p className="text-[11px] text-gray-400 dark:text-slate-500 -mt-3">
+            Ao adicionar um substituto, a quantidade é calculada pra ter energia semelhante à do alimento principal (editável depois).
+          </p>
+
+          <div className="overflow-x-auto">
+            <table className="w-full text-xs">
+              <thead>
+                <tr className="text-gray-400 dark:text-slate-500 border-b border-gray-100 dark:border-slate-800">
+                  <th className="text-left py-2 font-semibold">Alimento</th>
+                  <th className="text-right py-2 font-semibold">Qtd</th>
+                  <th className="text-right py-2 font-semibold">PRO</th>
+                  <th className="text-right py-2 font-semibold">LIP</th>
+                  <th className="text-right py-2 font-semibold">CHO</th>
+                  <th className="text-right py-2 font-semibold">Energia</th>
+                  <th className="w-16"></th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr className="border-b border-gray-50 dark:border-slate-800/50">
+                  <td className="py-2 text-gray-700 dark:text-slate-300">
+                    <span title="Alimento principal (não editável aqui)">🔒 {nomePrincipal}</span>
+                  </td>
+                  <td className="text-right">{fmt(linhas[0].quantidade)}g</td>
+                  <td className="text-right">{fmt(linhas[0].proteina)}g</td>
+                  <td className="text-right">{fmt(linhas[0].lipidio)}g</td>
+                  <td className="text-right">{fmt(linhas[0].carbo)}g</td>
+                  <td className="text-right">{fmt(linhas[0].kcal)}kcal</td>
+                  <td></td>
+                </tr>
+                {substitutos.map((s, idx) => {
+                  const l = linhas[idx + 1]
+                  return (
+                    <tr key={s.id} className="border-b border-gray-50 dark:border-slate-800/50">
+                      <td className="py-2 text-gray-700 dark:text-slate-300 truncate max-w-[160px]">{s.tabela_alimentos?.nome}</td>
+                      <td className="text-right whitespace-nowrap">
+                        <input
+                          type="number"
+                          step="any"
+                          value={s.quantidade_g}
+                          onChange={(e) => handleQuantidadeChange(s.id, e.target.value)}
+                          onBlur={(e) => handleQuantidadeBlur(s.id, e.target.value)}
+                          className="w-14 px-1 py-0.5 border border-gray-200 dark:border-slate-700 rounded text-right text-xs bg-transparent outline-none focus:ring-1 focus:ring-primary-500"
+                        />g
+                      </td>
+                      <td className="text-right">{fmt(l.proteina)}g</td>
+                      <td className="text-right">{fmt(l.lipidio)}g</td>
+                      <td className="text-right">{fmt(l.carbo)}g</td>
+                      <td className="text-right">{fmt(l.kcal)}kcal</td>
+                      <td className="text-right">
+                        <button onClick={() => handleRemoverSubstituto(s.id)} className="text-red-500 hover:underline">remover</button>
+                      </td>
+                    </tr>
+                  )
+                })}
+                {entradas.length > 1 && (
+                  <>
+                    <tr className="text-gray-500 dark:text-slate-400 font-semibold border-t border-gray-100 dark:border-slate-800">
+                      <td className="py-2">Média</td>
+                      <td className="text-right">{fmt(media('quantidade'))}g</td>
+                      <td className="text-right">{fmt(media('proteina'))}g</td>
+                      <td className="text-right">{fmt(media('lipidio'))}g</td>
+                      <td className="text-right">{fmt(media('carbo'))}g</td>
+                      <td className="text-right">{fmt(media('kcal'))}kcal</td>
+                      <td></td>
+                    </tr>
+                    <tr className="text-gray-400 dark:text-slate-500">
+                      <td className="py-1">Desvio padrão</td>
+                      <td className="text-right">± {fmt(desvio('quantidade'))}g</td>
+                      <td className="text-right">± {fmt(desvio('proteina'))}g</td>
+                      <td className="text-right">± {fmt(desvio('lipidio'))}g</td>
+                      <td className="text-right">± {fmt(desvio('carbo'))}g</td>
+                      <td className="text-right">± {fmt(desvio('kcal'))}kcal</td>
+                      <td></td>
+                    </tr>
+                  </>
+                )}
+              </tbody>
+            </table>
+          </div>
+
+          {mostrarForm ? (
+            <BuscarSubstitutoForm onSelecionar={handleAdicionarSubstituto} onCancelar={() => setMostrarForm(false)} />
+          ) : (
+            <button
+              onClick={() => setMostrarForm(true)}
+              className="text-xs font-semibold text-primary-600 hover:underline"
+            >
+              + Adicionar substituto
+            </button>
+          )}
+        </div>
+
+        <div className="flex justify-end px-6 py-4 border-t border-gray-100 dark:border-slate-800">
+          <button
+            onClick={onFechar}
+            className="px-5 py-2 bg-primary-600 text-white text-sm font-semibold rounded-lg hover:bg-primary-700 shadow"
+          >
+            Fechar
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function OpcaoCard({ refeicaoId, opcaoNumero, itens, onItemExcluido, onItemAdicionado, onItemAtualizado, onAbrirSubstitutos, mostrarFormInicial, aoFecharForm, onDuplicar }) {
   const [mostrarForm, setMostrarForm] = useState(!!mostrarFormInicial)
   const macros = somarMacros(itens.map(calcularMacrosItem))
 
@@ -210,25 +618,15 @@ function OpcaoCard({ refeicaoId, opcaoNumero, itens, onItemExcluido, onItemAdici
       )}
 
       <ul className="space-y-1 mb-2">
-        {itens.map((item) => {
-          const m = calcularMacrosItem(item)
-          return (
-            <li key={item.id} className="flex items-center justify-between gap-2 text-xs text-gray-700 dark:text-slate-300">
-              <span className="truncate">
-                {item.tabela_alimentos?.nome || 'Alimento removido'} — {item.quantidade_g}g
-                <span className="text-gray-400 dark:text-slate-500 ml-1">
-                  ({fmt(m.kcal)}kcal · P{fmt(m.proteina)} · C{fmt(m.carbo)} · L{fmt(m.lipidio)})
-                </span>
-              </span>
-              <button
-                onClick={() => handleExcluirItem(item.id)}
-                className="text-red-500 hover:underline shrink-0"
-              >
-                remover
-              </button>
-            </li>
-          )
-        })}
+        {itens.map((item) => (
+          <ItemLinha
+            key={item.id}
+            item={item}
+            onExcluir={handleExcluirItem}
+            onRenomear={(itemId, valor) => onItemAtualizado(itemId, { nome_customizado: valor })}
+            onAbrirSubstitutos={onAbrirSubstitutos}
+          />
+        ))}
       </ul>
 
       {itens.length > 0 && (
@@ -256,7 +654,7 @@ function OpcaoCard({ refeicaoId, opcaoNumero, itens, onItemExcluido, onItemAdici
   )
 }
 
-function RefeicaoCard({ refeicao, onAtualizarCampo, onExcluir, onItensChange, onMover, podeSubir, podeDescer, onDuplicarRefeicao }) {
+function RefeicaoCard({ refeicao, onAtualizarCampo, onExcluir, onItensChange, onMover, podeSubir, podeDescer, onDuplicarRefeicao, onAbrirSubstitutos }) {
   const [novaOpcaoAberta, setNovaOpcaoAberta] = useState(false)
 
   const opcoesExistentes = [...new Set(refeicao.itens_refeicao.map((i) => i.opcao_numero))].sort((a, b) => a - b)
@@ -272,21 +670,18 @@ function RefeicaoCard({ refeicao, onAtualizarCampo, onExcluir, onItensChange, on
     onItensChange(refeicao.itens_refeicao.filter((i) => i.id !== itemId))
   }
 
+  const handleItemAtualizado = (itemId, patch) => {
+    onItensChange(refeicao.itens_refeicao.map((i) => (i.id === itemId ? { ...i, ...patch } : i)))
+  }
+
   const handleDuplicarOpcao = async (opcaoOrigem) => {
     const itensOrigem = refeicao.itens_refeicao.filter((i) => i.opcao_numero === opcaoOrigem)
     if (itensOrigem.length === 0) return
 
     const novaOpcao = Math.max(...refeicao.itens_refeicao.map((i) => i.opcao_numero)) + 1
-    const inserts = itensOrigem.map((i) => ({
-      id_refeicao: refeicao.id,
-      id_alimento: i.id_alimento,
-      quantidade_g: i.quantidade_g,
-      opcao_numero: novaOpcao,
-    }))
-
-    const { data, error } = await supabase.from('itens_refeicao').insert(inserts).select('*, tabela_alimentos(*)')
-    if (error) { alert('Erro ao duplicar opção: ' + error.message); return }
-    onItensChange([...refeicao.itens_refeicao, ...data])
+    const novosItens = await duplicarItensComSubstitutos(itensOrigem, refeicao.id, () => novaOpcao)
+    if (novosItens.length === 0) { alert('Erro ao duplicar opção.'); return }
+    onItensChange([...refeicao.itens_refeicao, ...novosItens])
   }
 
   return (
@@ -349,6 +744,8 @@ function RefeicaoCard({ refeicao, onAtualizarCampo, onExcluir, onItensChange, on
             itens={refeicao.itens_refeicao.filter((i) => i.opcao_numero === n)}
             onItemAdicionado={handleItemAdicionado}
             onItemExcluido={handleItemExcluido}
+            onItemAtualizado={handleItemAtualizado}
+            onAbrirSubstitutos={onAbrirSubstitutos}
             onDuplicar={() => handleDuplicarOpcao(n)}
           />
         ))}
@@ -360,6 +757,8 @@ function RefeicaoCard({ refeicao, onAtualizarCampo, onExcluir, onItensChange, on
             itens={[]}
             onItemAdicionado={handleItemAdicionado}
             onItemExcluido={handleItemExcluido}
+            onItemAtualizado={handleItemAtualizado}
+            onAbrirSubstitutos={onAbrirSubstitutos}
             mostrarFormInicial
             aoFecharForm={() => setNovaOpcaoAberta(false)}
           />
@@ -400,6 +799,7 @@ export default function PlanoAlimentar({ userId }) {
   const [salvandoPlano, setSalvandoPlano] = useState(false)
   const [pesoOverride, setPesoOverride] = useState('')
   const [modoMeta, setModoMeta] = useState('g_kg') // 'g_kg' | 'percentual'
+  const [modalSubstitutos, setModalSubstitutos] = useState(null) // { refeicaoId, item } | null
 
   const pesoParaConversao = pesoOverride !== '' ? Number(pesoOverride) : (pesoAtual ? Number(pesoAtual) : null)
 
@@ -446,7 +846,7 @@ export default function PlanoAlimentar({ userId }) {
     setCarregandoRefeicoes(true)
     const { data, error } = await supabase
       .from('refeicoes_prescritas')
-      .select('*, itens_refeicao(*, tabela_alimentos(*))')
+      .select('*, itens_refeicao(*, tabela_alimentos(*), substitutos_item(*, tabela_alimentos(*)))')
       .eq('id_plano', planoId)
       .order('ordem')
 
@@ -498,6 +898,12 @@ export default function PlanoAlimentar({ userId }) {
       proteina_target_pct: plano.proteina_target_pct ?? '',
       carbo_target_pct: plano.carbo_target_pct ?? '',
       lipidio_target_pct: plano.lipidio_target_pct ?? '',
+      proteina_target_g_kg_min: plano.proteina_target_g_kg_min ?? '',
+      proteina_target_g_kg_max: plano.proteina_target_g_kg_max ?? '',
+      carbo_target_g_kg_min: plano.carbo_target_g_kg_min ?? '',
+      carbo_target_g_kg_max: plano.carbo_target_g_kg_max ?? '',
+      lipidio_target_g_kg_min: plano.lipidio_target_g_kg_min ?? '',
+      lipidio_target_g_kg_max: plano.lipidio_target_g_kg_max ?? '',
     })
     setShowModalNovoPlano(true)
   }
@@ -542,6 +948,17 @@ export default function PlanoAlimentar({ userId }) {
     const numerico = (v) => (v === '' ? null : Number(v))
     const vet = numerico(formPlano.vet_target)
 
+    // Faixa de referência (g/kg) é independente do modo g/kg vs % — só um
+    // texto de apoio exibido junto do macro, não entra em nenhum cálculo.
+    const faixas = {
+      proteina_target_g_kg_min: numerico(formPlano.proteina_target_g_kg_min),
+      proteina_target_g_kg_max: numerico(formPlano.proteina_target_g_kg_max),
+      carbo_target_g_kg_min: numerico(formPlano.carbo_target_g_kg_min),
+      carbo_target_g_kg_max: numerico(formPlano.carbo_target_g_kg_max),
+      lipidio_target_g_kg_min: numerico(formPlano.lipidio_target_g_kg_min),
+      lipidio_target_g_kg_max: numerico(formPlano.lipidio_target_g_kg_max),
+    }
+
     let payload
     if (modoMeta === 'percentual') {
       const pctP = numerico(formPlano.proteina_target_pct)
@@ -561,6 +978,7 @@ export default function PlanoAlimentar({ userId }) {
         proteina_target_g_kg: gKg(pctP, KCAL_POR_G.proteina),
         carbo_target_g_kg: gKg(pctC, KCAL_POR_G.carbo),
         lipidio_target_g_kg: gKg(pctL, KCAL_POR_G.lipidio),
+        ...faixas,
       }
     } else {
       payload = {
@@ -572,6 +990,7 @@ export default function PlanoAlimentar({ userId }) {
         proteina_target_pct: null,
         carbo_target_pct: null,
         lipidio_target_pct: null,
+        ...faixas,
       }
     }
 
@@ -647,31 +1066,26 @@ export default function PlanoAlimentar({ userId }) {
         horario: refeicao.horario,
         ordem: refeicoes.length,
       })
-      .select('*, itens_refeicao(*, tabela_alimentos(*))')
+      .select('*, itens_refeicao(*, tabela_alimentos(*), substitutos_item(*, tabela_alimentos(*)))')
       .single()
 
     if (erroRefeicao) { alert('Erro ao duplicar refeição: ' + erroRefeicao.message); return }
 
     if (refeicao.itens_refeicao.length > 0) {
-      const inserts = refeicao.itens_refeicao.map((i) => ({
-        id_refeicao: novaRefeicao.id,
-        id_alimento: i.id_alimento,
-        quantidade_g: i.quantidade_g,
-        opcao_numero: i.opcao_numero,
-      }))
-      const { data: novosItens, error: erroItens } = await supabase
-        .from('itens_refeicao')
-        .insert(inserts)
-        .select('*, tabela_alimentos(*)')
-
-      if (erroItens) {
-        alert('Refeição duplicada, mas houve erro ao copiar os itens: ' + erroItens.message)
-      } else {
-        novaRefeicao.itens_refeicao = novosItens || []
-      }
+      novaRefeicao.itens_refeicao = await duplicarItensComSubstitutos(refeicao.itens_refeicao, novaRefeicao.id)
     }
 
     setRefeicoes((prev) => [...prev, novaRefeicao])
+  }
+
+  const handleAtualizarSubstitutos = (refeicaoId, itemId, substitutos) => {
+    setRefeicoes((prev) =>
+      prev.map((r) =>
+        r.id !== refeicaoId
+          ? r
+          : { ...r, itens_refeicao: r.itens_refeicao.map((i) => (i.id === itemId ? { ...i, substitutos_item: substitutos } : i)) }
+      )
+    )
   }
 
   const handleExcluirRefeicao = async (refeicaoId) => {
@@ -690,14 +1104,18 @@ export default function PlanoAlimentar({ userId }) {
     setRefeicoes((prev) => prev.map((r) => (r.id === refeicaoId ? { ...r, itens_refeicao: novosItens } : r)))
   }
 
+  // Só troca 'ordem' entre vizinhos de MESMO horário — quando os horários
+  // diferem, a posição já é ditada pela ordenação por horário sozinha
+  // (refeicoesOrdenadas, no render), então as setas ficam desabilitadas.
   const handleMoverRefeicao = async (refeicaoId, direcao) => {
-    const ordenadas = [...refeicoes].sort((a, b) => a.ordem - b.ordem)
+    const ordenadas = [...refeicoes].sort(compararRefeicoes)
     const idx = ordenadas.findIndex((r) => r.id === refeicaoId)
     const alvoIdx = direcao === 'cima' ? idx - 1 : idx + 1
     if (alvoIdx < 0 || alvoIdx >= ordenadas.length) return
 
     const atual = ordenadas[idx]
     const alvo = ordenadas[alvoIdx]
+    if (atual.horario !== alvo.horario) return
 
     setRefeicoes((prev) => {
       const atualizadas = prev.map((r) => {
@@ -705,7 +1123,7 @@ export default function PlanoAlimentar({ userId }) {
         if (r.id === alvo.id) return { ...r, ordem: atual.ordem }
         return r
       })
-      return atualizadas.sort((a, b) => a.ordem - b.ordem)
+      return atualizadas.sort(compararRefeicoes)
     })
 
     await supabase.from('refeicoes_prescritas').update({ ordem: alvo.ordem }).eq('id', atual.id)
@@ -746,6 +1164,12 @@ export default function PlanoAlimentar({ userId }) {
   const metaLipidioG = planoSelecionado?.lipidio_target_g_kg && pesoParaConversao
     ? planoSelecionado.lipidio_target_g_kg * pesoParaConversao
     : null
+
+  const faixaTexto = (min, max) => (min != null || max != null ? `Meta: ${min ?? '?'}–${max ?? '?'} g/kg` : null)
+
+  // Exibição sempre por horário (sem horário vai pro fim); dentro do mesmo
+  // horário, a ordem manual (setas ▲▼) continua valendo como desempate.
+  const refeicoesOrdenadas = [...refeicoes].sort(compararRefeicoes)
 
   return (
     <div className="w-full max-w-6xl mx-auto flex flex-col md:flex-row gap-6">
@@ -850,18 +1274,33 @@ export default function PlanoAlimentar({ userId }) {
                   <p className="font-black text-gray-800 dark:text-slate-100">
                     {fmt(totalDia.proteina)} {metaProteinaG ? `/ ${fmt(metaProteinaG)}` : ''} g
                   </p>
+                  {faixaTexto(planoSelecionado.proteina_target_g_kg_min, planoSelecionado.proteina_target_g_kg_max) && (
+                    <p className="text-[10px] text-gray-400 dark:text-slate-500">
+                      {faixaTexto(planoSelecionado.proteina_target_g_kg_min, planoSelecionado.proteina_target_g_kg_max)}
+                    </p>
+                  )}
                 </div>
                 <div>
                   <p className="text-gray-400 dark:text-slate-500 text-xs">Carboidrato</p>
                   <p className="font-black text-gray-800 dark:text-slate-100">
                     {fmt(totalDia.carbo)} {metaCarboG ? `/ ${fmt(metaCarboG)}` : ''} g
                   </p>
+                  {faixaTexto(planoSelecionado.carbo_target_g_kg_min, planoSelecionado.carbo_target_g_kg_max) && (
+                    <p className="text-[10px] text-gray-400 dark:text-slate-500">
+                      {faixaTexto(planoSelecionado.carbo_target_g_kg_min, planoSelecionado.carbo_target_g_kg_max)}
+                    </p>
+                  )}
                 </div>
                 <div>
                   <p className="text-gray-400 dark:text-slate-500 text-xs">Lipídio</p>
                   <p className="font-black text-gray-800 dark:text-slate-100">
                     {fmt(totalDia.lipidio)} {metaLipidioG ? `/ ${fmt(metaLipidioG)}` : ''} g
                   </p>
+                  {faixaTexto(planoSelecionado.lipidio_target_g_kg_min, planoSelecionado.lipidio_target_g_kg_max) && (
+                    <p className="text-[10px] text-gray-400 dark:text-slate-500">
+                      {faixaTexto(planoSelecionado.lipidio_target_g_kg_min, planoSelecionado.lipidio_target_g_kg_max)}
+                    </p>
+                  )}
                 </div>
               </div>
               {!pesoParaConversao && (planoSelecionado.proteina_target_g_kg || planoSelecionado.carbo_target_g_kg || planoSelecionado.lipidio_target_g_kg) && (
@@ -875,7 +1314,7 @@ export default function PlanoAlimentar({ userId }) {
               <p className="text-sm text-primary-600 font-semibold text-center py-6 animate-pulse">Carregando refeições...</p>
             ) : (
               <div className="space-y-3">
-                {refeicoes.map((refeicao, index) => (
+                {refeicoesOrdenadas.map((refeicao, index) => (
                   <RefeicaoCard
                     key={refeicao.id}
                     refeicao={refeicao}
@@ -884,8 +1323,9 @@ export default function PlanoAlimentar({ userId }) {
                     onDuplicarRefeicao={handleDuplicarRefeicao}
                     onItensChange={(novosItens) => handleItensChange(refeicao.id, novosItens)}
                     onMover={(direcao) => handleMoverRefeicao(refeicao.id, direcao)}
-                    podeSubir={index > 0}
-                    podeDescer={index < refeicoes.length - 1}
+                    onAbrirSubstitutos={(item) => setModalSubstitutos({ refeicaoId: refeicao.id, item })}
+                    podeSubir={index > 0 && refeicoesOrdenadas[index - 1].horario === refeicao.horario}
+                    podeDescer={index < refeicoesOrdenadas.length - 1 && refeicoesOrdenadas[index + 1].horario === refeicao.horario}
                   />
                 ))}
 
@@ -1068,6 +1508,44 @@ export default function PlanoAlimentar({ userId }) {
                 </>
               )}
 
+              <div>
+                <p className="text-[10px] font-bold text-gray-400 dark:text-slate-500 uppercase tracking-wider pt-1">
+                  Faixa de referência (g/kg) — opcional, só exibida como apoio (não recalcula nada)
+                </p>
+                <div className="grid grid-cols-3 gap-3 mt-1">
+                  {[
+                    { min: 'proteina_target_g_kg_min', max: 'proteina_target_g_kg_max', label: 'Proteína' },
+                    { min: 'carbo_target_g_kg_min', max: 'carbo_target_g_kg_max', label: 'Carbo' },
+                    { min: 'lipidio_target_g_kg_min', max: 'lipidio_target_g_kg_max', label: 'Lipídio' },
+                  ].map(({ min, max, label }) => (
+                    <div key={min}>
+                      <label className="block text-[10px] font-bold text-gray-500 dark:text-slate-400 uppercase tracking-wider mb-1">
+                        {label}
+                      </label>
+                      <div className="flex items-center gap-1">
+                        <input
+                          type="number"
+                          step="any"
+                          placeholder="de"
+                          value={formPlano[min]}
+                          onChange={(e) => setFormPlano({ ...formPlano, [min]: e.target.value })}
+                          className="w-full px-2 py-1.5 border border-gray-300 rounded-lg text-xs outline-none focus:ring-2 focus:ring-primary-500"
+                        />
+                        <span className="text-gray-400 text-xs shrink-0">–</span>
+                        <input
+                          type="number"
+                          step="any"
+                          placeholder="até"
+                          value={formPlano[max]}
+                          onChange={(e) => setFormPlano({ ...formPlano, [max]: e.target.value })}
+                          className="w-full px-2 py-1.5 border border-gray-300 rounded-lg text-xs outline-none focus:ring-2 focus:ring-primary-500"
+                        />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
               <div className="flex justify-end gap-3 pt-2">
                 <button
                   type="button"
@@ -1087,6 +1565,14 @@ export default function PlanoAlimentar({ userId }) {
             </form>
           </div>
         </div>
+      )}
+
+      {modalSubstitutos && (
+        <SubstitutosModal
+          item={modalSubstitutos.item}
+          onFechar={() => setModalSubstitutos(null)}
+          onSubstitutosChange={(novos) => handleAtualizarSubstitutos(modalSubstitutos.refeicaoId, modalSubstitutos.item.id, novos)}
+        />
       )}
     </div>
   )
