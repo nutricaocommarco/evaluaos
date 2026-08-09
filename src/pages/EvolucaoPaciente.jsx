@@ -503,6 +503,7 @@ export default function EvolucaoPaciente() {
   };
 
   const MetaProgressoCard = ({ avMeta, avAtual }) => {
+    const aguardandoAcompanhamento = avMeta.id === avAtual.id;
     const progressoPeso = avMeta.peso_alvo ? calcularProgressoMeta(Number(avMeta.peso), avMeta.peso_alvo, Number(avAtual.peso)) : null;
     const progressoBf = avMeta.meta_bf_percentual ? calcularProgressoMeta(Number(avMeta.gordura_perc), avMeta.meta_bf_percentual, Number(avAtual.gordura_perc)) : null;
 
@@ -512,7 +513,9 @@ export default function EvolucaoPaciente() {
       <div className="bg-white dark:bg-slate-900 rounded-xl border border-gray-100 dark:border-slate-800 p-4 shadow-sm flex flex-col gap-4 w-full">
         <div className="flex items-center justify-between border-b border-gray-100 dark:border-slate-800 pb-2 flex-wrap gap-1">
           <span className="text-[10px] font-bold text-gray-500 dark:text-slate-400">Meta de {avMeta.dataStr_curta}</span>
-          <span className="text-[10px] font-bold text-gray-500 dark:text-slate-400">→ Avaliação de {avAtual.dataStr_curta}</span>
+          <span className="text-[10px] font-bold text-gray-500 dark:text-slate-400">
+            {aguardandoAcompanhamento ? 'Aguardando avaliação de acompanhamento' : `→ Avaliação de ${avAtual.dataStr_curta}`}
+          </span>
         </div>
         {progressoPeso && renderLinhaMeta(
           'Peso', ' kg', avMeta.peso, avMeta.peso_alvo, avAtual.peso, progressoPeso, 1,
@@ -530,6 +533,14 @@ export default function EvolucaoPaciente() {
 
   const paresComMeta = historico.slice(1).map((av, i) => ({ avMeta: historico[i], avAtual: av }))
     .filter(p => p.avMeta.peso_alvo || p.avMeta.meta_bf_percentual);
+
+  // Meta definida na avaliação mais recente ainda não tem uma avaliação seguinte pra
+  // comparar (não é coberta pelo pareamento consecutivo acima) — mostra mesmo assim,
+  // comparando com ela mesma (0% de progresso), em vez de sumir até a próxima avaliação.
+  const ultimaAvaliacaoDoHistorico = historico[historico.length - 1];
+  if (ultimaAvaliacaoDoHistorico && (ultimaAvaliacaoDoHistorico.peso_alvo || ultimaAvaliacaoDoHistorico.meta_bf_percentual)) {
+    paresComMeta.push({ avMeta: ultimaAvaliacaoDoHistorico, avAtual: ultimaAvaliacaoDoHistorico });
+  }
 
   const exibeBlocoComposicao = podeExibir('evo_peso') || podeExibir('evo_gordura_perc') || podeExibir('evo_massa_gorda') || podeExibir('evo_massa_muscular') || podeExibir('evo_massa_magra') || podeExibir('evo_imc');
   const exibeBlocoDobras = podeExibir('evo_dobra_triceps') || podeExibir('evo_dobra_subescapular') || podeExibir('evo_dobra_biceps') || podeExibir('evo_dobra_crista_iliaca') || podeExibir('evo_dobra_supraespinhal') || podeExibir('evo_dobra_abdominal') || podeExibir('evo_dobra_coxa') || podeExibir('evo_dobra_panturrilha');
