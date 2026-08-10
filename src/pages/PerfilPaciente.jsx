@@ -1,0 +1,353 @@
+import React, { useState, useEffect } from 'react'
+import { useParams, useNavigate } from 'react-router-dom'
+import { supabase } from '../supabaseClient'
+import SidebarPaciente from '../components/SidebarPaciente'
+import { User, Mail, Phone, Briefcase, Activity, FileText, TrendingUp, CreditCard, Pencil } from 'lucide-react'
+
+function calcularIdade(dataNascimento) {
+  if (!dataNascimento) return null
+  const nasc = new Date(dataNascimento + 'T12:00:00')
+  const hoje = new Date()
+  let idade = hoje.getFullYear() - nasc.getFullYear()
+  const m = hoje.getMonth() - nasc.getMonth()
+  if (m < 0 || (m === 0 && hoje.getDate() < nasc.getDate())) idade--
+  return idade
+}
+
+function formatarData(dataStr) {
+  if (!dataStr) return '-'
+  return new Date(dataStr + 'T12:00:00').toLocaleDateString('pt-BR')
+}
+
+const CAMPOS_VAZIOS = {
+  nome_completo: '', data_nascimento: '', sexo: 'M', etnia: '', nacionalidade: 'Brasileira',
+  email: '', telefone: '', ocupacao: '', pratica_esporte: false, modalidade_esportiva: '', nivel_pratica: '', observacoes: '',
+}
+
+function CardInfo({ icone: Icone, label, valor }) {
+  return (
+    <div className="flex items-start gap-3">
+      <div className="w-9 h-9 rounded-full bg-gray-50 dark:bg-slate-800 flex items-center justify-center shrink-0 text-gray-400 dark:text-slate-500">
+        <Icone size={16} />
+      </div>
+      <div className="min-w-0">
+        <p className="text-[10px] font-bold text-gray-400 dark:text-slate-500 uppercase tracking-wider">{label}</p>
+        <p className="text-sm font-semibold text-gray-800 dark:text-slate-100 truncate">{valor || '-'}</p>
+      </div>
+    </div>
+  )
+}
+
+export default function PerfilPaciente() {
+  const { id } = useParams()
+  const navigate = useNavigate()
+
+  const [paciente, setPaciente] = useState(null)
+  const [loading, setLoading] = useState(true)
+  const [itemAtivo] = useState('perfil')
+
+  const [showModal, setShowModal] = useState(false)
+  const [form, setForm] = useState(CAMPOS_VAZIOS)
+  const [saving, setSaving] = useState(false)
+
+  const carregarPaciente = async () => {
+    setLoading(true)
+    const { data } = await supabase.from('pacientes').select('*').eq('id', id).maybeSingle()
+    setPaciente(data || null)
+    setLoading(false)
+  }
+
+  useEffect(() => {
+    carregarPaciente()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id])
+
+  const abrirEdicao = () => {
+    setForm({
+      nome_completo: paciente.nome_completo || '',
+      data_nascimento: paciente.data_nascimento || '',
+      sexo: paciente.sexo || 'M',
+      etnia: paciente.etnia || '',
+      nacionalidade: paciente.nacionalidade || 'Brasileira',
+      email: paciente.email || '',
+      telefone: paciente.telefone || '',
+      ocupacao: paciente.ocupacao || '',
+      pratica_esporte: paciente.pratica_esporte === true || paciente.pratica_esporte === 'true',
+      modalidade_esportiva: paciente.modalidade_esportiva || '',
+      nivel_pratica: paciente.nivel_pratica || '',
+      observacoes: paciente.observacoes || '',
+    })
+    setShowModal(true)
+  }
+
+  const handleSalvar = async (e) => {
+    e.preventDefault()
+    setSaving(true)
+    const payload = {
+      ...form,
+      data_nascimento: form.data_nascimento || null,
+      modalidade_esportiva: form.pratica_esporte ? form.modalidade_esportiva : null,
+      nivel_pratica: form.pratica_esporte ? form.nivel_pratica : null,
+    }
+    const { error } = await supabase.from('pacientes').update(payload).eq('id', paciente.id)
+    setSaving(false)
+    if (error) { alert('Erro ao atualizar paciente: ' + error.message); return }
+    setShowModal(false)
+    carregarPaciente()
+  }
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <p className="text-primary-600 font-bold animate-pulse">Carregando perfil...</p>
+      </div>
+    )
+  }
+
+  if (!paciente) {
+    return (
+      <div className="flex flex-col items-center justify-center h-64 text-center gap-3">
+        <p className="text-gray-600 dark:text-slate-300 font-semibold">Paciente não encontrado.</p>
+        <button onClick={() => navigate('/pacientes')} className="text-primary-600 font-semibold text-sm hover:underline">
+          ← Voltar para Pacientes
+        </button>
+      </div>
+    )
+  }
+
+  const idade = calcularIdade(paciente.data_nascimento)
+
+  return (
+    <div className="w-full max-w-6xl mx-auto flex flex-col md:flex-row gap-6">
+      <SidebarPaciente paciente={paciente} itemAtivo={itemAtivo} onSelecionarItem={() => {}} />
+
+      <div className="flex-1 min-w-0 space-y-4">
+        <div className="bg-white dark:bg-slate-900 p-5 rounded-xl border border-gray-100 dark:border-slate-800 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="w-12 h-12 rounded-full bg-primary-50 dark:bg-primary-900/20 flex items-center justify-center text-primary-600 shrink-0">
+              <User size={22} />
+            </div>
+            <div className="min-w-0">
+              <h2 className="text-lg font-black text-gray-800 dark:text-slate-100 truncate">{paciente.nome_completo}</h2>
+              <p className="text-xs text-gray-500 dark:text-slate-400 mt-0.5">
+                {paciente.sexo === 'M' ? 'Masculino' : 'Feminino'}{idade != null ? ` · ${idade} anos` : ''} · Paciente desde {formatarData(paciente.created_at?.slice(0, 10))}
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={abrirEdicao}
+            className="flex items-center gap-1.5 px-4 py-2 bg-primary-600 text-white text-sm font-semibold rounded-lg hover:bg-primary-700 shadow transition-colors shrink-0"
+          >
+            <Pencil size={14} /> Editar Dados
+          </button>
+        </div>
+
+        <div className="bg-white dark:bg-slate-900 p-5 rounded-xl border border-gray-100 dark:border-slate-800 shadow-sm">
+          <p className="text-[10px] font-bold text-gray-400 dark:text-slate-500 uppercase tracking-wider mb-4">Dados Pessoais</p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <CardInfo icone={Mail} label="E-mail" valor={paciente.email} />
+            <CardInfo icone={Phone} label="Telefone" valor={paciente.telefone} />
+            <CardInfo icone={Briefcase} label="Ocupação" valor={paciente.ocupacao} />
+            <CardInfo icone={User} label="Etnia / Nacionalidade" valor={[paciente.etnia, paciente.nacionalidade].filter(Boolean).join(' · ')} />
+            {(paciente.pratica_esporte === true || paciente.pratica_esporte === 'true') && (
+              <CardInfo icone={Activity} label="Esporte" valor={[paciente.modalidade_esportiva, paciente.nivel_pratica].filter(Boolean).join(' · ') || 'Sim'} />
+            )}
+          </div>
+          {paciente.observacoes && (
+            <div className="mt-4 pt-4 border-t border-gray-100 dark:border-slate-800">
+              <p className="text-[10px] font-bold text-gray-400 dark:text-slate-500 uppercase tracking-wider mb-1">Observações</p>
+              <p className="text-sm text-gray-700 dark:text-slate-300 whitespace-pre-wrap">{paciente.observacoes}</p>
+            </div>
+          )}
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <button
+            onClick={() => navigate('/evolucao', { state: { paciente } })}
+            className="bg-white dark:bg-slate-900 p-5 rounded-xl border border-gray-100 dark:border-slate-800 shadow-sm flex items-center gap-3 text-left hover:border-primary-300 dark:hover:border-primary-700 transition-colors"
+          >
+            <div className="w-10 h-10 rounded-full bg-emerald-50 dark:bg-emerald-900/20 flex items-center justify-center text-emerald-600 shrink-0">
+              <TrendingUp size={18} />
+            </div>
+            <div>
+              <p className="text-sm font-bold text-gray-800 dark:text-slate-100">Gráficos de Evolução</p>
+              <p className="text-xs text-gray-500 dark:text-slate-400">Ver comparativo antropométrico</p>
+            </div>
+          </button>
+
+          <div className="bg-white dark:bg-slate-900 p-5 rounded-xl border border-dashed border-gray-200 dark:border-slate-700 shadow-sm flex items-center gap-3 opacity-60">
+            <div className="w-10 h-10 rounded-full bg-gray-50 dark:bg-slate-800 flex items-center justify-center text-gray-400 dark:text-slate-500 shrink-0">
+              <CreditCard size={18} />
+            </div>
+            <div>
+              <p className="text-sm font-bold text-gray-600 dark:text-slate-300">Pagamentos</p>
+              <p className="text-xs text-gray-400 dark:text-slate-500">Em breve</p>
+            </div>
+          </div>
+        </div>
+
+        <p className="text-[11px] text-gray-400 dark:text-slate-500 text-center flex items-center justify-center gap-1">
+          <FileText size={12} /> Histórico de avaliações, planos e documentos ficam nos itens do menu ao lado.
+        </p>
+      </div>
+
+      {showModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 overflow-y-auto">
+          <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-xl w-full max-w-lg max-h-[90vh] flex flex-col overflow-hidden">
+            <div className="flex justify-between items-center px-6 py-4 border-b border-gray-100 dark:border-slate-800">
+              <h3 className="text-lg font-bold text-gray-800 dark:text-slate-100">Editar Dados do Paciente</h3>
+              <button onClick={() => setShowModal(false)} className="text-gray-400 dark:text-slate-400 hover:text-gray-600 p-1 rounded-lg">✕</button>
+            </div>
+
+            <form onSubmit={handleSalvar} className="p-6 space-y-4 overflow-y-auto flex-1">
+              <div>
+                <label className="block text-xs font-bold text-gray-700 dark:text-slate-300 uppercase tracking-wider mb-1">Nome Completo</label>
+                <input
+                  type="text" required
+                  value={form.nome_completo}
+                  onChange={(e) => setForm({ ...form, nome_completo: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-primary-500"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 dark:text-slate-300 uppercase tracking-wider mb-1">Nascimento</label>
+                  <input
+                    type="date"
+                    value={form.data_nascimento}
+                    onChange={(e) => setForm({ ...form, data_nascimento: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-primary-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 dark:text-slate-300 uppercase tracking-wider mb-1">Sexo</label>
+                  <select
+                    value={form.sexo}
+                    onChange={(e) => setForm({ ...form, sexo: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-primary-500"
+                  >
+                    <option value="M">Masculino</option>
+                    <option value="F">Feminino</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 dark:text-slate-300 uppercase tracking-wider mb-1">E-mail</label>
+                  <input
+                    type="email"
+                    value={form.email}
+                    onChange={(e) => setForm({ ...form, email: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-primary-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 dark:text-slate-300 uppercase tracking-wider mb-1">Telefone</label>
+                  <input
+                    type="text"
+                    value={form.telefone}
+                    onChange={(e) => setForm({ ...form, telefone: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-primary-500"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 dark:text-slate-300 uppercase tracking-wider mb-1">Etnia</label>
+                  <input
+                    type="text"
+                    value={form.etnia}
+                    onChange={(e) => setForm({ ...form, etnia: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-primary-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 dark:text-slate-300 uppercase tracking-wider mb-1">Nacionalidade</label>
+                  <input
+                    type="text"
+                    value={form.nacionalidade}
+                    onChange={(e) => setForm({ ...form, nacionalidade: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-primary-500"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-gray-700 dark:text-slate-300 uppercase tracking-wider mb-1">Ocupação</label>
+                <input
+                  type="text"
+                  value={form.ocupacao}
+                  onChange={(e) => setForm({ ...form, ocupacao: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-primary-500"
+                />
+              </div>
+
+              <label className="flex items-center gap-2 cursor-pointer w-fit">
+                <input
+                  type="checkbox"
+                  checked={form.pratica_esporte}
+                  onChange={(e) => setForm({ ...form, pratica_esporte: e.target.checked })}
+                  className="w-4 h-4 accent-primary-600"
+                />
+                <span className="text-xs font-semibold text-gray-700 dark:text-slate-300">Pratica esporte</span>
+              </label>
+
+              {form.pratica_esporte && (
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-bold text-gray-700 dark:text-slate-300 uppercase tracking-wider mb-1">Modalidade</label>
+                    <input
+                      type="text"
+                      value={form.modalidade_esportiva}
+                      onChange={(e) => setForm({ ...form, modalidade_esportiva: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-primary-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-gray-700 dark:text-slate-300 uppercase tracking-wider mb-1">Nível</label>
+                    <input
+                      type="text"
+                      value={form.nivel_pratica}
+                      onChange={(e) => setForm({ ...form, nivel_pratica: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-primary-500"
+                    />
+                  </div>
+                </div>
+              )}
+
+              <div>
+                <label className="block text-xs font-bold text-gray-700 dark:text-slate-300 uppercase tracking-wider mb-1">Observações</label>
+                <textarea
+                  rows={3}
+                  value={form.observacoes}
+                  onChange={(e) => setForm({ ...form, observacoes: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-primary-500"
+                />
+              </div>
+
+              <div className="flex justify-end gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setShowModal(false)}
+                  className="px-5 py-2 border border-gray-300 text-gray-700 dark:text-slate-300 text-sm font-semibold rounded-lg hover:bg-gray-50 dark:hover:bg-slate-800"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={saving}
+                  className="px-5 py-2 bg-primary-600 text-white text-sm font-semibold rounded-lg hover:bg-primary-700 shadow disabled:opacity-50"
+                >
+                  {saving ? 'Salvando...' : 'Salvar'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}

@@ -2,6 +2,8 @@ import React, { useState, useEffect, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { supabase } from '../supabaseClient'
 import SidebarPaciente from '../components/SidebarPaciente'
+import GeradorPdfNutricional from '../components/GeradorPdfNutricional'
+import { FileDown } from 'lucide-react'
 
 const CAMPOS_PLANO_VAZIOS = {
   titulo: 'Plano Alimentar',
@@ -17,6 +19,25 @@ const CAMPOS_PLANO_VAZIOS = {
 // Fatores de Atwater (kcal por grama) — padrão usado pela TACO/TBCA/IBGE.
 const KCAL_POR_G = { proteina: 4, carbo: 4, lipidio: 9 }
 
+// Medidas caseiras — só ajudam a digitar a quantidade (o peso final em
+// gramas é sempre o que vai pro cálculo, editável antes de salvar). Os
+// gramas por unidade são aproximações usuais; variam por alimento na
+// prática, por isso o campo de gramas fica sempre aberto pra ajuste.
+const UNIDADES_MEDIDA = [
+  { valor: 'g', label: 'Gramas (g)', fatorG: 1 },
+  { valor: 'ml', label: 'Mililitros (ml)', fatorG: 1 },
+  { valor: 'colher_sopa', label: 'Colher de sopa (~15g)', fatorG: 15 },
+  { valor: 'colher_cha', label: 'Colher de chá (~5g)', fatorG: 5 },
+  { valor: 'colher_cafe', label: 'Colher de café (~3g)', fatorG: 3 },
+  { valor: 'copo_americano', label: 'Copo americano (~200ml)', fatorG: 200 },
+  { valor: 'xicara_cha', label: 'Xícara de chá (~240ml)', fatorG: 240 },
+  { valor: 'concha', label: 'Concha média (~80g)', fatorG: 80 },
+]
+
+function labelUnidade(valor) {
+  return UNIDADES_MEDIDA.find((u) => u.valor === valor)?.label.replace(/\s*\(~.*\)/, '') || valor
+}
+
 function formatarData(dataStr) {
   if (!dataStr) return '-'
   return new Date(dataStr).toLocaleDateString('pt-BR')
@@ -24,13 +45,14 @@ function formatarData(dataStr) {
 
 function calcularMacrosItem(item) {
   const alimento = item.tabela_alimentos
-  if (!alimento || item.ignorar_nos_calculos) return { kcal: 0, proteina: 0, carbo: 0, lipidio: 0 }
+  if (!alimento || item.ignorar_nos_calculos) return { kcal: 0, proteina: 0, carbo: 0, lipidio: 0, fibra: 0 }
   const fator = (Number(item.quantidade_g) || 0) / 100
   return {
     kcal: (alimento.energia_kcal || 0) * fator,
     proteina: (alimento.proteina_g || 0) * fator,
     carbo: (alimento.carboidrato_g || 0) * fator,
     lipidio: (alimento.lipidios_g || 0) * fator,
+    fibra: (alimento.fibra_g || 0) * fator,
   }
 }
 
@@ -41,9 +63,17 @@ function somarMacros(lista) {
       proteina: acc.proteina + m.proteina,
       carbo: acc.carbo + m.carbo,
       lipidio: acc.lipidio + m.lipidio,
+      fibra: acc.fibra + (m.fibra || 0),
     }),
-    { kcal: 0, proteina: 0, carbo: 0, lipidio: 0 }
+    { kcal: 0, proteina: 0, carbo: 0, lipidio: 0, fibra: 0 }
   )
+}
+
+// Recomendação padrão de fibra alimentar: 14g a cada 1000kcal do VET
+// prescrito (base usada por diretrizes de ingestão dietética).
+function calcularFibraRecomendada(vetTarget) {
+  const vet = Number(vetTarget)
+  return vet > 0 ? (vet / 1000) * 14 : null
 }
 
 function fmt(n) {
@@ -73,6 +103,8 @@ async function duplicarItensComSubstitutos(itensOrigem, idRefeicaoDestino, mapOp
           quantidade_g: origem.quantidade_g,
           opcao_numero: mapOpcao ? mapOpcao(origem.opcao_numero) : origem.opcao_numero,
           nome_customizado: origem.nome_customizado || null,
+          unidade_medida: origem.unidade_medida || null,
+          quantidade_medida: origem.quantidade_medida || null,
         })
         .select('*, tabela_alimentos(*)')
         .single()
@@ -108,9 +140,28 @@ function AdicionarItemForm({ refeicaoId, opcaoNumero, onItemAdicionado, onCancel
   const [resultados, setResultados] = useState([])
   const [showDropdown, setShowDropdown] = useState(false)
   const [selecionado, setSelecionado] = useState(null)
+  const [unidade, setUnidade] = useState('g')
+  const [quantidadeMedida, setQuantidadeMedida] = useState('')
   const [quantidade, setQuantidade] = useState('')
   const [salvando, setSalvando] = useState(false)
   const dropdownRef = useRef(null)
+
+  const fatorUnidade = UNIDADES_MEDIDA.find((u) => u.valor === unidade)?.fatorG || 1
+
+  const handleChangeUnidade = (novaUnidade) => {
+    setUnidade(novaUnidade)
+    const fator = UNIDADES_MEDIDA.find((u) => u.valor === novaUnidade)?.fatorG || 1
+    if (novaUnidade === 'g') { setQuantidadeMedida(''); return }
+    const qtdMedida = Number(quantidadeMedida) || Number(quantidade) || ''
+    setQuantidadeMedida(qtdMedida === '' ? '' : String(qtdMedida))
+    if (qtdMedida !== '') setQuantidade(String((Number(qtdMedida) * fator).toFixed(2).replace(/\.00$/, '')))
+  }
+
+  const handleChangeQuantidadeMedida = (valor) => {
+    setQuantidadeMedida(valor)
+    if (valor === '') { setQuantidade(''); return }
+    setQuantidade(String((Number(valor) * fatorUnidade).toFixed(2).replace(/\.00$/, '')))
+  }
 
   useEffect(() => {
     if (busca.trim().length < 2) { setResultados([]); return }
@@ -145,6 +196,8 @@ function AdicionarItemForm({ refeicaoId, opcaoNumero, onItemAdicionado, onCancel
         id_alimento: selecionado.id,
         quantidade_g: Number(quantidade),
         opcao_numero: opcaoNumero,
+        unidade_medida: unidade !== 'g' && quantidadeMedida !== '' ? unidade : null,
+        quantidade_medida: unidade !== 'g' && quantidadeMedida !== '' ? Number(quantidadeMedida) : null,
       })
       .select('*, tabela_alimentos(*)')
       .single()
@@ -157,6 +210,8 @@ function AdicionarItemForm({ refeicaoId, opcaoNumero, onItemAdicionado, onCancel
     onItemAdicionado(data)
     setBusca('')
     setSelecionado(null)
+    setUnidade('g')
+    setQuantidadeMedida('')
     setQuantidade('')
   }
 
@@ -190,9 +245,39 @@ function AdicionarItemForm({ refeicaoId, opcaoNumero, onItemAdicionado, onCancel
         )}
       </div>
 
+      <div className="w-40">
+        <label className="block text-[10px] font-bold text-gray-500 dark:text-slate-400 uppercase tracking-wider mb-1">
+          Medida
+        </label>
+        <select
+          value={unidade}
+          onChange={(e) => handleChangeUnidade(e.target.value)}
+          className="w-full px-2 py-2 border border-gray-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-primary-500"
+        >
+          {UNIDADES_MEDIDA.map((u) => (
+            <option key={u.valor} value={u.valor}>{u.label}</option>
+          ))}
+        </select>
+      </div>
+
+      {unidade !== 'g' && (
+        <div className="w-20">
+          <label className="block text-[10px] font-bold text-gray-500 dark:text-slate-400 uppercase tracking-wider mb-1">
+            Qtd
+          </label>
+          <input
+            type="number"
+            step="any"
+            value={quantidadeMedida}
+            onChange={(e) => handleChangeQuantidadeMedida(e.target.value)}
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-primary-500"
+          />
+        </div>
+      )}
+
       <div className="w-24">
         <label className="block text-[10px] font-bold text-gray-500 dark:text-slate-400 uppercase tracking-wider mb-1">
-          Qtd (g)
+          {unidade !== 'g' ? '≈ Gramas' : 'Qtd (g)'}
         </label>
         <input
           type="number"
@@ -281,14 +366,16 @@ function ItemLinha({ item, onExcluir, onRenomear, onAbrirSubstitutos }) {
         {item.nome_customizado && (
           <span className="text-gray-400 dark:text-slate-500 italic" title={`Alimento original: ${nomeOriginal}`}> *</span>
         )}
-        {' '}— {item.quantidade_g}g
+        {' '}— {item.unidade_medida && item.quantidade_medida
+          ? `${item.quantidade_medida} ${labelUnidade(item.unidade_medida)} (≈${item.quantidade_g}g)`
+          : `${item.quantidade_g}g`}
         {numSubstitutos > 0 && (
           <span className="text-primary-500 dark:text-primary-400 ml-1" title={`${numSubstitutos} substituto(s)`}>
             ⇄{numSubstitutos}
           </span>
         )}
         <span className="text-gray-400 dark:text-slate-500 ml-1">
-          ({fmt(m.kcal)}kcal · P{fmt(m.proteina)} · C{fmt(m.carbo)} · L{fmt(m.lipidio)})
+          ({fmt(m.kcal)}kcal · P{fmt(m.proteina)} · C{fmt(m.carbo)} · L{fmt(m.lipidio)} · Fb{fmt(m.fibra)})
         </span>
       </span>
       <div className="relative shrink-0" ref={menuRef}>
@@ -624,7 +711,7 @@ function OpcaoCard({ refeicaoId, opcaoNumero, itens, onItemExcluido, onItemAdici
 
       {itens.length > 0 && (
         <p className="text-[11px] text-gray-500 dark:text-slate-400 mb-2">
-          P: {fmt(macros.proteina)}g · C: {fmt(macros.carbo)}g · L: {fmt(macros.lipidio)}g
+          P: {fmt(macros.proteina)}g · C: {fmt(macros.carbo)}g · L: {fmt(macros.lipidio)}g · Fibra: {fmt(macros.fibra)}g
         </p>
       )}
 
@@ -793,6 +880,7 @@ export default function PlanoAlimentar({ userId }) {
   const [pesoOverride, setPesoOverride] = useState('')
   const [modoMeta, setModoMeta] = useState('g_kg') // 'g_kg' | 'percentual'
   const [modalSubstitutos, setModalSubstitutos] = useState(null) // { refeicaoId, item } | null
+  const [showGeradorPdf, setShowGeradorPdf] = useState(false)
 
   const pesoParaConversao = pesoOverride !== '' ? Number(pesoOverride) : (pesoAtual ? Number(pesoAtual) : null)
 
@@ -1138,6 +1226,7 @@ export default function PlanoAlimentar({ userId }) {
   const metaLipidioG = planoSelecionado?.lipidio_target_g_kg && pesoParaConversao
     ? planoSelecionado.lipidio_target_g_kg * pesoParaConversao
     : null
+  const fibraRecomendada = calcularFibraRecomendada(planoSelecionado?.vet_target)
 
   // Consumido em g/kg — linha secundária, pra comparar na mesma unidade da
   // meta (que é digitada em g/kg de peso corporal). Null quando não há peso.
@@ -1159,12 +1248,20 @@ export default function PlanoAlimentar({ userId }) {
             <h2 className="text-lg font-black text-gray-800 dark:text-slate-100">Plano Alimentar — {paciente.nome_completo}</h2>
             <p className="text-xs text-gray-500 dark:text-slate-400 mt-0.5">Prescrição de refeições e itens com cálculo de macros</p>
           </div>
-          <button
-            onClick={abrirNovoPlano}
-            className="px-4 py-2 bg-primary-600 text-white text-sm font-semibold rounded-lg hover:bg-primary-700 shadow transition-colors shrink-0"
-          >
-            + Novo Plano
-          </button>
+          <div className="flex gap-2 shrink-0">
+            <button
+              onClick={() => setShowGeradorPdf(true)}
+              className="flex items-center gap-1.5 px-4 py-2 border border-gray-300 dark:border-slate-700 text-gray-700 dark:text-slate-300 text-sm font-semibold rounded-lg hover:bg-gray-50 dark:hover:bg-slate-800 transition-colors"
+            >
+              <FileDown size={15} /> Gerar PDF
+            </button>
+            <button
+              onClick={abrirNovoPlano}
+              className="px-4 py-2 bg-primary-600 text-white text-sm font-semibold rounded-lg hover:bg-primary-700 shadow transition-colors"
+            >
+              + Novo Plano
+            </button>
+          </div>
         </div>
 
         {planos.length === 0 ? (
@@ -1234,7 +1331,7 @@ export default function PlanoAlimentar({ userId }) {
                   </span>
                 )}
               </div>
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm">
+              <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 text-sm">
                 <div>
                   <p className="text-gray-400 dark:text-slate-500 text-xs">Calorias</p>
                   <p className="font-black text-gray-800 dark:text-slate-100">
@@ -1269,6 +1366,15 @@ export default function PlanoAlimentar({ userId }) {
                   <p className="text-[10px] text-gray-400 dark:text-slate-500">
                     {fmtGKg(gKgAtual(totalDia.lipidio))}
                     {planoSelecionado.lipidio_target_g_kg ? ` / ${fmtGKg(planoSelecionado.lipidio_target_g_kg)}` : ''} g/kg
+                  </p>
+                </div>
+                <div>
+                  <p className="text-gray-400 dark:text-slate-500 text-xs">Fibra</p>
+                  <p className="font-black text-gray-800 dark:text-slate-100">
+                    {fmt(totalDia.fibra)} {fibraRecomendada ? `/ ${fmt(fibraRecomendada)}` : ''} g
+                  </p>
+                  <p className="text-[10px] text-gray-400 dark:text-slate-500">
+                    {fibraRecomendada ? 'Ref: 14g/1000kcal' : 'Defina o VET pra calcular a referência'}
                   </p>
                 </div>
               </div>
@@ -1502,6 +1608,14 @@ export default function PlanoAlimentar({ userId }) {
           item={modalSubstitutos.item}
           onFechar={() => setModalSubstitutos(null)}
           onSubstitutosChange={(novos) => handleAtualizarSubstitutos(modalSubstitutos.refeicaoId, modalSubstitutos.item.id, novos)}
+        />
+      )}
+
+      {showGeradorPdf && (
+        <GeradorPdfNutricional
+          paciente={paciente}
+          avaliadorUserId={userId}
+          aoFechar={() => setShowGeradorPdf(false)}
         />
       )}
     </div>

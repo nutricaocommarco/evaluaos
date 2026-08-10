@@ -28,6 +28,7 @@ import Anamnese from './pages/Anamnese';
 import OrientacoesNutricionais from './pages/OrientacoesNutricionais';
 import LinhaDoTempo from './pages/LinhaDoTempo';
 import ListasRecomendacoes from './pages/ListasRecomendacoes';
+import PerfilPaciente from './pages/PerfilPaciente';
 import Roadmap from './pages/Roadmap';
 import EmConstrucao from './components/EmConstrucao';
 import LayoutComPaciente from './components/LayoutComPaciente';
@@ -213,6 +214,7 @@ function MainApp() {
             <Route path="/login" element={<Navigate to="/pacientes" replace />} />
             
             <Route path="/pacientes" element={<Pacientes userId={session.user.id} />} />
+            <Route path="/pacientes/:id/perfil" element={<PerfilPaciente userId={session.user.id} />} />
             <Route path="/pacientes/:id/prontuario" element={<ProntuarioPaciente userId={session.user.id} />} />
             <Route path="/pacientes/:id/plano-alimentar" element={<PlanoAlimentar userId={session.user.id} />} />
             <Route path="/pacientes/:id/anamnese" element={<Anamnese userId={session.user.id} />} />

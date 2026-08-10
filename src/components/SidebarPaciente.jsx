@@ -23,6 +23,7 @@ const GRUPOS_TODOS = [
     beta: false,
     itens: [
       { key: 'perfil', label: 'Perfil do Paciente', tipo: 'pacientes' },
+      { key: 'linha_tempo', label: 'Linha do Tempo', tipo: 'linha_tempo' },
       { key: 'prontuario', label: 'Prontuário', tipo: 'prontuario' },
     ]
   },
@@ -42,7 +43,6 @@ const GRUPOS_TODOS = [
     beta: true,
     itens: [
       { key: 'anamneses', label: 'Anamneses', tipo: 'anamnese' },
-      { key: 'linha_tempo', label: 'Linha do Tempo', tipo: 'linha_tempo' },
       { key: 'planos', label: 'Planos Alimentares', tipo: 'plano_alimentar' },
       { key: 'listas', label: 'Listas de Recomendações', tipo: 'listas' },
       { key: 'orientacoes', label: 'Orientações Nutricionais', tipo: 'orientacoes' },
@@ -97,7 +97,8 @@ export default function SidebarPaciente({ paciente, itemAtivo, onSelecionarItem 
       if (!data) { alert('Este paciente ainda não tem nenhuma avaliação registrada.'); return }
       navigate('/laudo-antropometrico', { state: { avaliacaoId: data.id, paciente } })
     } else if (item.tipo === 'pacientes') {
-      navigate('/pacientes')
+      onSelecionarItem?.(item.key)
+      navigate(`/pacientes/${paciente.id}/perfil`)
     } else {
       onSelecionarItem?.(item.key)
     }
