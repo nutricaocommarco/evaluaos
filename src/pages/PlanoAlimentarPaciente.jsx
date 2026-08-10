@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { supabase } from '../supabaseClient'
 import { useTheme } from '../contexts/ThemeContext'
 import CabecalhoPortalPaciente from '../components/CabecalhoPortalPaciente'
+import NavegacaoPortalPaciente from '../components/NavegacaoPortalPaciente'
 
 // Mesmas funções puras de src/pages/PlanoAlimentar.jsx (duplicadas de
 // propósito em vez de importadas — essa página é pública/paciente e não
@@ -70,10 +71,15 @@ export default function PlanoAlimentarPaciente() {
   const [nomeAvaliador, setNomeAvaliador] = useState('')
   const [logomarcaUrl, setLogomarcaUrl] = useState('')
   const [plano, setPlano] = useState(null)
+  const [sessaoAtiva, setSessaoAtiva] = useState(false)
+  const [tokenLaudo, setTokenLaudo] = useState('')
 
   useEffect(() => {
     const carregar = async () => {
       setLoading(true)
+
+      const { data: authData } = await supabase.auth.getUser()
+      setSessaoAtiva(!!authData?.user)
 
       const { data: pacData } = await supabase
         .from('pacientes')
@@ -109,14 +115,24 @@ export default function PlanoAlimentarPaciente() {
         }
       }
 
-      const { data: planoData } = await supabase
-        .from('planos_alimentares')
-        .select('*, refeicoes_prescritas(*, itens_refeicao(*, tabela_alimentos(*)))')
-        .eq('id_paciente', pacData.id)
-        .eq('ativo', true)
-        .maybeSingle()
+      const [planoRes, avalRes] = await Promise.all([
+        supabase
+          .from('planos_alimentares')
+          .select('*, refeicoes_prescritas(*, itens_refeicao(*, tabela_alimentos(*)))')
+          .eq('id_paciente', pacData.id)
+          .eq('ativo', true)
+          .maybeSingle(),
+        supabase
+          .from('avaliacoes')
+          .select('token_publico')
+          .eq('id_paciente', pacData.id)
+          .order('data_avaliacao', { ascending: false })
+          .limit(1)
+          .maybeSingle(),
+      ])
 
-      setPlano(planoData || null)
+      setPlano(planoRes.data || null)
+      setTokenLaudo(avalRes.data?.token_publico || '')
       setLoading(false)
     }
     carregar()
@@ -155,6 +171,10 @@ export default function PlanoAlimentarPaciente() {
           nomeAvaliador={nomeAvaliador}
           aoVoltar={() => navigate(`/area/${tokenUrl}`)}
         />
+
+        {!sessaoAtiva && (
+          <NavegacaoPortalPaciente tokenPaciente={tokenUrl} tokenLaudo={tokenLaudo} ativo="plano" />
+        )}
 
         <div>
           <h2 className="text-xl font-black text-gray-800 dark:text-slate-100">Plano Alimentar</h2>

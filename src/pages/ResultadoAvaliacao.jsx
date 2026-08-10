@@ -4,6 +4,7 @@ import { supabase } from '../supabaseClient'
 import { obterUrlEmbedYouTube } from '../utils/youtube'
 import { useTheme } from '../contexts/ThemeContext'
 import BotaoExportarPDF from '../components/BotaoExportarPDF'
+import NavegacaoPortalPaciente from '../components/NavegacaoPortalPaciente'
 import { 
   PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend,
   ComposedChart, Area, Line, XAxis, YAxis, CartesianGrid
@@ -185,6 +186,7 @@ export default function ResultadoAvaliacao() {
   const [tokenPublico, setTokenPublico] = useState('')
   const [configVisibilidade, setConfigVisibilidade] = useState({})
   const [equipamentos, setEquipamentos] = useState(null)
+  const [sessaoAtiva, setSessaoAtiva] = useState(false)
 
   if (!tokenUrl && !avaliacaoId) {
     return (
@@ -201,6 +203,9 @@ export default function ResultadoAvaliacao() {
   useEffect(() => {
     async function processarERecarregarResultados() {
       setLoading(true)
+
+      const { data: sessaoData } = await supabase.auth.getUser()
+      setSessaoAtiva(!!sessaoData?.user)
 
       let query = supabase.from('avaliacoes').select(`*, pacientes ( * )`);
 
@@ -658,6 +663,12 @@ export default function ResultadoAvaliacao() {
             )}
           </div>
         </div>
+
+        {isPublicView && !sessaoAtiva && (
+          <div className="mb-6">
+            <NavegacaoPortalPaciente tokenPaciente={pac.token_publico} tokenLaudo={tokenPublico} ativo="laudo" />
+          </div>
+        )}
 
         <div className="mb-6">
           <h2 className="text-2xl font-black text-gray-800 dark:text-slate-100">Laudo Antropométrico</h2>

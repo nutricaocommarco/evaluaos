@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { supabase } from '../supabaseClient'
 import { useTheme } from '../contexts/ThemeContext'
 import CabecalhoPortalPaciente from '../components/CabecalhoPortalPaciente'
+import NavegacaoPortalPaciente from '../components/NavegacaoPortalPaciente'
 import { TrendingUp, FileText, ClipboardList, MessageSquare, Utensils } from 'lucide-react'
 
 function CardAcao({ icone: Icone, cor, titulo, subtitulo, onClick, desabilitado }) {
@@ -37,10 +38,14 @@ export default function AreaPaciente() {
   const [temPlanoAtivo, setTemPlanoAtivo] = useState(false)
   const [qtdOrientacoes, setQtdOrientacoes] = useState(0)
   const [qtdQuestionariosPendentes, setQtdQuestionariosPendentes] = useState(0)
+  const [sessaoAtiva, setSessaoAtiva] = useState(false)
 
   useEffect(() => {
     const carregar = async () => {
       setLoading(true)
+
+      const { data: authData } = await supabase.auth.getUser()
+      setSessaoAtiva(!!authData?.user)
 
       const { data: pacData } = await supabase
         .from('pacientes')
@@ -134,6 +139,10 @@ export default function AreaPaciente() {
     <div className="min-h-screen bg-gray-50 dark:bg-slate-950 py-8 px-4">
       <div className="max-w-3xl mx-auto space-y-4">
         <CabecalhoPortalPaciente logomarcaUrl={logomarcaUrl} nomeEmpresa={nomeEmpresa} nomeAvaliador={nomeAvaliador} />
+
+        {!sessaoAtiva && (
+          <NavegacaoPortalPaciente tokenPaciente={tokenUrl} tokenLaudo={avaliacaoRecente?.token_publico} ativo="inicio" />
+        )}
 
         <div>
           <h2 className="text-xl font-black text-gray-800 dark:text-slate-100">Olá, {paciente.nome_completo?.split(' ')[0]}!</h2>

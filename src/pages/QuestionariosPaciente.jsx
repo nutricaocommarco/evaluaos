@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { supabase } from '../supabaseClient'
 import { useTheme } from '../contexts/ThemeContext'
 import CabecalhoPortalPaciente from '../components/CabecalhoPortalPaciente'
+import NavegacaoPortalPaciente from '../components/NavegacaoPortalPaciente'
 
 const STATUS_LABEL = {
   aguardando: 'Aguardando resposta',
@@ -32,10 +33,15 @@ export default function QuestionariosPaciente() {
   const [nomeAvaliador, setNomeAvaliador] = useState('')
   const [logomarcaUrl, setLogomarcaUrl] = useState('')
   const [envios, setEnvios] = useState([])
+  const [sessaoAtiva, setSessaoAtiva] = useState(false)
+  const [tokenLaudo, setTokenLaudo] = useState('')
 
   useEffect(() => {
     const carregar = async () => {
       setLoading(true)
+
+      const { data: authData } = await supabase.auth.getUser()
+      setSessaoAtiva(!!authData?.user)
 
       const { data: pacData } = await supabase
         .from('pacientes')
@@ -71,13 +77,23 @@ export default function QuestionariosPaciente() {
         }
       }
 
-      const { data: listaEnvios } = await supabase
-        .from('questionario_envios')
-        .select('*, questionarios(titulo)')
-        .eq('id_paciente', pacData.id)
-        .order('created_at', { ascending: false })
+      const [enviosRes, avalRes] = await Promise.all([
+        supabase
+          .from('questionario_envios')
+          .select('*, questionarios(titulo)')
+          .eq('id_paciente', pacData.id)
+          .order('created_at', { ascending: false }),
+        supabase
+          .from('avaliacoes')
+          .select('token_publico')
+          .eq('id_paciente', pacData.id)
+          .order('data_avaliacao', { ascending: false })
+          .limit(1)
+          .maybeSingle(),
+      ])
 
-      setEnvios(listaEnvios || [])
+      setEnvios(enviosRes.data || [])
+      setTokenLaudo(avalRes.data?.token_publico || '')
       setLoading(false)
     }
     carregar()
@@ -111,6 +127,10 @@ export default function QuestionariosPaciente() {
           nomeAvaliador={nomeAvaliador}
           aoVoltar={() => navigate(`/area/${tokenUrl}`)}
         />
+
+        {!sessaoAtiva && (
+          <NavegacaoPortalPaciente tokenPaciente={tokenUrl} tokenLaudo={tokenLaudo} ativo="questionarios" />
+        )}
 
         <div>
           <h2 className="text-xl font-black text-gray-800 dark:text-slate-100">Questionários</h2>

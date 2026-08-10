@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { supabase } from '../supabaseClient'
 import { useTheme } from '../contexts/ThemeContext'
 import CabecalhoPortalPaciente from '../components/CabecalhoPortalPaciente'
+import NavegacaoPortalPaciente from '../components/NavegacaoPortalPaciente'
 import { ChevronDown, ChevronRight } from 'lucide-react'
 
 function formatarData(dataStr) {
@@ -22,10 +23,15 @@ export default function OrientacoesPaciente() {
   const [logomarcaUrl, setLogomarcaUrl] = useState('')
   const [orientacoes, setOrientacoes] = useState([])
   const [abertas, setAbertas] = useState(new Set())
+  const [sessaoAtiva, setSessaoAtiva] = useState(false)
+  const [tokenLaudo, setTokenLaudo] = useState('')
 
   useEffect(() => {
     const carregar = async () => {
       setLoading(true)
+
+      const { data: authData } = await supabase.auth.getUser()
+      setSessaoAtiva(!!authData?.user)
 
       const { data: pacData } = await supabase
         .from('pacientes')
@@ -61,14 +67,25 @@ export default function OrientacoesPaciente() {
         }
       }
 
-      const { data: lista } = await supabase
-        .from('orientacoes_nutricionais')
-        .select('*')
-        .eq('id_paciente', pacData.id)
-        .order('created_at', { ascending: false })
+      const [orientRes, avalRes] = await Promise.all([
+        supabase
+          .from('orientacoes_nutricionais')
+          .select('*')
+          .eq('id_paciente', pacData.id)
+          .order('created_at', { ascending: false }),
+        supabase
+          .from('avaliacoes')
+          .select('token_publico')
+          .eq('id_paciente', pacData.id)
+          .order('data_avaliacao', { ascending: false })
+          .limit(1)
+          .maybeSingle(),
+      ])
 
+      const lista = orientRes.data
       setOrientacoes(lista || [])
       if (lista?.length === 1) setAbertas(new Set([lista[0].id]))
+      setTokenLaudo(avalRes.data?.token_publico || '')
       setLoading(false)
     }
     carregar()
@@ -111,6 +128,10 @@ export default function OrientacoesPaciente() {
           nomeAvaliador={nomeAvaliador}
           aoVoltar={() => navigate(`/area/${tokenUrl}`)}
         />
+
+        {!sessaoAtiva && (
+          <NavegacaoPortalPaciente tokenPaciente={tokenUrl} tokenLaudo={tokenLaudo} ativo="orientacoes" />
+        )}
 
         <div>
           <h2 className="text-xl font-black text-gray-800 dark:text-slate-100">Orientações Nutricionais</h2>

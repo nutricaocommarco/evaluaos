@@ -6,6 +6,7 @@ import {
   ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend
 } from 'recharts'
 import BotaoExportarEvolucaoPDF from '../components/BotaoExportarEvolucaoPDF'
+import NavegacaoPortalPaciente from '../components/NavegacaoPortalPaciente'
 import { classificarArgoref, classificarApVat, calcularIndiceConicidade, classificarConicidade, classificarImo } from '../utils/escalasNormativas'
 import { useTheme } from '../contexts/ThemeContext'
 
@@ -25,6 +26,8 @@ export default function EvolucaoPaciente() {
   const [avaliador, setAvaliador] = useState(null)
   const [configVisibilidade, setConfigVisibilidade] = useState({})
   const [excluindoMetaId, setExcluindoMetaId] = useState(null)
+  const [sessaoAtiva, setSessaoAtiva] = useState(false)
+  const [tokenLaudo, setTokenLaudo] = useState('')
 
   // Cores padronizadas para as bolinhas da Somatocarta e Legendas
   const coresAvaliacoes = ['#10b981', '#3b82f6', '#f59e0b', '#ec4899', '#8b5cf6', '#ef4444', '#14b8a6', '#64748b']
@@ -60,6 +63,19 @@ export default function EvolucaoPaciente() {
 
       // A) Se usuário está logado no sistema
       const { data: authData } = await supabase.auth.getUser();
+      setSessaoAtiva(!!authData?.user);
+
+      if (tokenUrl) {
+        const { data: avalRecente } = await supabase
+          .from('avaliacoes')
+          .select('token_publico')
+          .eq('id_paciente', pacienteAtual.id)
+          .order('data_avaliacao', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        setTokenLaudo(avalRecente?.token_publico || '');
+      }
+
       if (authData?.user?.email) {
         const { data } = await supabase
           .from('avaliadores')
@@ -604,6 +620,10 @@ export default function EvolucaoPaciente() {
             )}
           </div>
         </div>
+
+        {isPublicView && !sessaoAtiva && (
+          <NavegacaoPortalPaciente tokenPaciente={tokenUrl} tokenLaudo={tokenLaudo} ativo="evolucao" />
+        )}
 
         <div className="w-full min-w-0">
           <h2 className="text-sm font-bold text-gray-500 dark:text-slate-400 uppercase tracking-wider mb-1">Evolução Antropométrica de</h2>
