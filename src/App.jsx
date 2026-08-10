@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react'
 import { BrowserRouter, Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom'
 import { supabase } from './supabaseClient'
 import { ThemeProvider } from './contexts/ThemeContext'
+import { PlanoProvider, usePlano } from './contexts/PlanoContext'
+import { Users, Apple, UserCheck, Star, BookOpen, Settings, Map } from 'lucide-react'
 
 // Importando suas telas 
 import HomePublica from './pages/HomePublica'
@@ -18,7 +20,17 @@ import Aprendizado from './pages/Aprendizado'
 import ArtigoDetalhe from './pages/ArtigoDetalhe'
 import Precos from './pages/Precos'
 import Contato from './pages/Contato'
-import CalculadoraGastoCalorico from './pages/CalculadoraGastoCalorico'
+import CalculadoraGastoCalorico from './pages/CalculadoraGastoCalorico';
+import ProntuarioPaciente from './pages/ProntuarioPaciente';
+import TabelaAlimentos from './pages/TabelaAlimentos';
+import PlanoAlimentar from './pages/PlanoAlimentar';
+import Anamnese from './pages/Anamnese';
+import OrientacoesNutricionais from './pages/OrientacoesNutricionais';
+import LinhaDoTempo from './pages/LinhaDoTempo';
+import ListasRecomendacoes from './pages/ListasRecomendacoes';
+import Roadmap from './pages/Roadmap';
+import EmConstrucao from './components/EmConstrucao';
+import LayoutComPaciente from './components/LayoutComPaciente';
 
 // RASTREADOR AUTOMÁTICO DE NAVEGAÇÃO DE ROTAS (PAGEVIEWS NO GA4)
 function AnalyticsTracker() {
@@ -39,7 +51,8 @@ function MainApp() {
   const [session, setSession] = useState(null)
   const [loading, setLoading] = useState(true)
   const [isSidebarOpen, setIsSidebarOpen] = useState(false)
-  
+  const { isBeta } = usePlano()
+
   const navigate = useNavigate()
   const location = useLocation()
   const currentPath = location.pathname
@@ -62,47 +75,20 @@ function MainApp() {
     await supabase.auth.signOut()
   }
 
+  // Antropometria (Nova Avaliação/Equações/Laudo/Gasto Calórico/Evolução)
+  // saiu daqui — agora mora dentro do menu do paciente (SidebarPaciente.jsx),
+  // já que é sempre uma ação sobre UM paciente específico. O menu global
+  // fica só com o que não é por-paciente.
   const menuItems = [
-    { 
-      name: 'Pacientes', path: '/pacientes',
-      icon: <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg> 
-    },
-    { 
-      name: 'Nova Avaliação', path: '/nova-avaliacao',
-      icon: <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="12" y1="18" x2="12" y2="12"></line><line x1="9" y1="15" x2="15" y2="15"></line></svg> 
-    },
-    { 
-      name: 'Equações', path: '/equacoes-de-regressao',
-      icon: <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="4" y="4" width="16" height="16" rx="2" ry="2"></rect><path d="M9 17c2 0 2.8-1 2.8-2.8V10c0-2 1-3.3 3.2-3"></path><path d="M9 11.2h5.7"></path></svg> 
-    },
-    { 
-      name: 'Gasto Calórico', path: '/planejamento-calorico',
-      icon: <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"></path></svg> 
-    },
-    { 
-      name: 'Laudo', path: '/laudo-antropometrico',
-      icon: <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="20" x2="18" y2="10"></line><line x1="12" y1="20" x2="12" y2="4"></line><line x1="6" y1="20" x2="6" y2="14"></line></svg> 
-    },
-    { 
-      name: 'Evolução', path: '/evolucao',
-      icon: <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"></polyline><polyline points="17 6 23 6 23 12"></polyline></svg> 
-    },
-    { 
-      name: 'Avaliador', path: '/avaliador',
-      icon: <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle><polyline points="16 11 18 13 22 9"></polyline></svg> 
-    },
-    { 
-      name: 'Meu Plano', path: '/meu-plano',
-      icon: <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>
-    },
-    { 
-      name: 'Aprendizado', path: '/aprendizado',
-      icon: <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path></svg> 
-    },
-    { 
-      name: 'Configurações', path: '/configuracoes',
-      icon: <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg> 
-    }
+    { name: 'Pacientes', path: '/pacientes', icon: <Users size={20} /> },
+    ...(isBeta ? [{ name: 'Alimentos', path: '/alimentos', icon: <Apple size={20} /> }] : []),
+    { name: 'Avaliador', path: '/avaliador', icon: <UserCheck size={20} /> },
+    { name: 'Meu Plano', path: '/meu-plano', icon: <Star size={20} /> },
+    { name: 'Aprendizado', path: '/aprendizado', icon: <BookOpen size={20} /> },
+    // Roadmap fica visível só pro Beta: o conteúdo detalha exatamente as
+    // features de Nutrição que ainda estamos escondendo do gratis/pro.
+    ...(isBeta ? [{ name: 'Roadmap', path: '/roadmap', icon: <Map size={20} /> }] : []),
+    { name: 'Configurações', path: '/configuracoes', icon: <Settings size={20} /> },
   ]
 
   if (loading) {
@@ -244,31 +230,34 @@ function MainApp() {
             <Route path="/login" element={<Navigate to="/pacientes" replace />} />
             
             <Route path="/pacientes" element={<Pacientes userId={session.user.id} />} />
-            <Route path="/nova-avaliacao" element={<AvaliacaoForm />} />
-            <Route path="/equacoes-de-regressao" element={<EscolhaPercGordura />} />
-            <Route path="/laudo-antropometrico" element={<ResultadoAvaliacao />} />
-            <Route path="/evolucao" element={<EvolucaoPaciente />} />
+            <Route path="/pacientes/:id/prontuario" element={<ProntuarioPaciente userId={session.user.id} />} />
+            <Route path="/pacientes/:id/plano-alimentar" element={<PlanoAlimentar userId={session.user.id} />} />
+            <Route path="/pacientes/:id/anamnese" element={<Anamnese userId={session.user.id} />} />
+            <Route path="/pacientes/:id/orientacoes-nutricionais" element={<OrientacoesNutricionais userId={session.user.id} />} />
+            <Route path="/pacientes/:id/linha-do-tempo" element={<LinhaDoTempo />} />
+            <Route path="/pacientes/:id/listas-recomendacoes" element={<ListasRecomendacoes userId={session.user.id} />} />
+            <Route path="/alimentos" element={<TabelaAlimentos userId={session.user.id} />} />
+            <Route path="/nova-avaliacao" element={<LayoutComPaciente itemAtivo="nova_avaliacao"><AvaliacaoForm /></LayoutComPaciente>} />
+            <Route path="/equacoes-de-regressao" element={<LayoutComPaciente itemAtivo="equacoes"><EscolhaPercGordura /></LayoutComPaciente>} />
+            <Route path="/laudo-antropometrico" element={<LayoutComPaciente itemAtivo="laudo"><ResultadoAvaliacao /></LayoutComPaciente>} />
+            <Route path="/evolucao" element={<LayoutComPaciente itemAtivo="evolucao"><EvolucaoPaciente /></LayoutComPaciente>} />
             <Route path="/avaliador" element={<Avaliador userId={session.user.id} />} />
             <Route path="/meu-plano" element={<MeuPlano />} />
-            <Route path="/laudo/:tokenUrl" element={<ResultadoAvaliacao />} />
+            <Route path="/roadmap" element={isBeta ? <Roadmap /> : <Navigate to="/pacientes" replace />} />
+            {/* Mesma url de /laudo/:tokenUrl e /evolucao/:tokenUrl que o paciente usa
+                sem login — mas isso aqui só existe dentro do bloco autenticado
+                (session existe), então o menu do paciente só aparece pra quem
+                está logado. A versão registrada lá embaixo, no bloco `!session`
+                (visitante sem login), é a mesma página SEM este wrapper. */}
+            <Route path="/laudo/:tokenUrl" element={<LayoutComPaciente itemAtivo="laudo" tokenViaAvaliacao><ResultadoAvaliacao /></LayoutComPaciente>} />
             <Route path="/configuracoes" element={<Configuracoes />} />
-            <Route path="/evolucao/:tokenUrl" element={<EvolucaoPaciente />} />
-            <Route path="/planejamento-calorico" element={<CalculadoraGastoCalorico />} />
+            <Route path="/evolucao/:tokenUrl" element={<LayoutComPaciente itemAtivo="evolucao"><EvolucaoPaciente /></LayoutComPaciente>} />
+            <Route path="/planejamento-calorico" element={<LayoutComPaciente itemAtivo="gasto_energetico"><CalculadoraGastoCalorico /></LayoutComPaciente>} />
             
             <Route path="/aprendizado" element={<Aprendizado />} />
             <Route path="/aprendizado/:artigoId" element={<ArtigoDetalhe />} />
 
-            <Route path="*" element={
-              <div className="flex flex-col items-center justify-center h-full text-center p-6">
-                <div className="w-24 h-24 bg-gray-100 dark:bg-slate-800 rounded-full flex items-center justify-center text-gray-300 dark:text-slate-600 mb-6">
-                  <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2v20"></path><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg>
-                </div>
-                <h2 className="text-2xl font-black text-gray-800 dark:text-slate-100 mb-2">Página em Construção</h2>
-                <p className="text-gray-500 dark:text-slate-400 max-w-md">
-                  A seção selecionada está sendo desenvolvida. Em breve você poderá acessá-la por aqui!
-                </p>
-              </div>
-            } />
+            <Route path="*" element={<EmConstrucao />} />
           </Routes>
         </main>
       </div>
@@ -281,7 +270,9 @@ export default function App() {
   return (
     <BrowserRouter>
       <ThemeProvider>
-        <MainApp />
+        <PlanoProvider>
+          <MainApp />
+        </PlanoProvider>
       </ThemeProvider>
     </BrowserRouter>
   )

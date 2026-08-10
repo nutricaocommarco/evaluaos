@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react'
 import { supabase } from '../supabaseClient'
+import { usePlano } from '../contexts/PlanoContext'
 
 export default function MeuPlano() {
+  const { planoStatus, isPro, isBeta } = usePlano()
   const [loading, setLoading] = useState(true)
-  const [planoStatus, setPlanoStatus] = useState('gratis')
   const [userEmail, setUserEmail] = useState('')
   const [totalPacientes, setTotalPacientes] = useState(0)
 
@@ -33,18 +34,8 @@ export default function MeuPlano() {
       const email = session.user.email
       setUserEmail(email)
 
-      // 1. Busca plano do avaliador
-      const { data: avalData } = await supabase
-        .from('avaliadores')
-        .select('plano_status')
-        .eq('email', email)
-        .maybeSingle()
-
-      if (avalData?.plano_status) {
-        setPlanoStatus(avalData.plano_status.toLowerCase())
-      }
-
-      // 2. Busca total de pacientes para a barra de uso
+      // plano_status em si já vem do PlanoContext — aqui só falta o total
+      // de pacientes, pra barra de uso do plano Grátis.
       const { count } = await supabase
         .from('pacientes')
         .select('*', { count: 'exact', head: true })
@@ -55,8 +46,6 @@ export default function MeuPlano() {
 
     carregarDadosPlano()
   }, [])
-
-  const isPro = planoStatus === 'pro' || planoStatus === 'ativo'
 
   // Redireciona para o checkout injetando o e-mail do cliente
   const handleGoToCheckout = (baseUrl) => {
@@ -124,16 +113,18 @@ export default function MeuPlano() {
             <span className="text-xs font-bold text-gray-400 dark:text-slate-400 uppercase tracking-wider block">Status Atual</span>
             <div className="flex items-center gap-2 mt-1">
               <h3 className="text-xl font-extrabold text-gray-900 dark:text-slate-100">
-                {isPro ? 'Plano EvaluaOS Pro' : 'Plano Gratuito'}
+                {isBeta ? 'Plano Beta (Pro liberado)' : isPro ? 'Plano EvaluaOS Pro' : 'Plano Gratuito'}
               </h3>
               <span className={`text-xs font-bold px-3 py-1 rounded-full border ${
-                isPro 
-                  ? 'bg-primary-50 dark:bg-primary-900/20 dark:bg-primary-900/20 text-primary-700 dark:text-primary-400 border-primary-200 dark:border-primary-800' 
+                isBeta
+                  ? 'bg-violet-50 dark:bg-violet-900/20 text-violet-700 dark:text-violet-400 border-violet-200 dark:border-violet-800'
+                  : isPro
+                  ? 'bg-primary-50 dark:bg-primary-900/20 dark:bg-primary-900/20 text-primary-700 dark:text-primary-400 border-primary-200 dark:border-primary-800'
                   : planoStatus === 'suspenso'
                   ? 'bg-red-50 dark:bg-red-900/20 dark:bg-red-900/20 text-red-700 dark:text-red-400 border-red-200 dark:border-red-800'
                   : 'bg-amber-50 dark:bg-amber-900/20 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400 border-amber-200 dark:border-amber-800'
               }`}>
-                {isPro ? '⭐ ATIVO' : planoStatus === 'suspenso' ? '⚠️ SUSPENSO' : '🌱 GRATUITO'}
+                {isBeta ? '🧪 BETA' : isPro ? '⭐ ATIVO' : planoStatus === 'suspenso' ? '⚠️ SUSPENSO' : '🌱 GRATUITO'}
               </span>
             </div>
           </div>

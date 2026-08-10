@@ -1,20 +1,19 @@
 import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../supabaseClient'
+import { usePlano } from '../contexts/PlanoContext'
 
 export default function Pacientes({ userId }) {
   const navigate = useNavigate()
+  const { isPro } = usePlano()
 
   const [pacientes, setPacientes] = useState([])
   const [loading, setLoading] = useState(true)
   const [showModal, setShowModal] = useState(false)
   const [showUpgradeModal, setShowUpgradeModal] = useState(false)
-  
+
   // Motivo do modal de upgrade ('limite' ou 'exclusao')
   const [upgradeReason, setUpgradeReason] = useState('limite')
-
-  // Status do plano do avaliador
-  const [planoStatus, setPlanoStatus] = useState('gratis')
 
   const [historicoPaciente, setHistoricoPaciente] = useState(null)
   const [avaliacoesList, setAvaliacoesList] = useState([])
@@ -44,23 +43,6 @@ export default function Pacientes({ userId }) {
   const fetchPacientes = async () => {
     setLoading(true)
 
-    const { data: authUser } = await supabase.auth.getUser()
-    const currentAuthId = authUser?.user?.id || userId
-
-    if (currentAuthId) {
-      const { data: avalData } = await supabase
-        .from('avaliadores')
-        .select('plano_status')
-        .eq('auth_id', currentAuthId)
-        .maybeSingle()
-
-      if (avalData?.plano_status) {
-        setPlanoStatus(avalData.plano_status.toLowerCase())
-      } else {
-        setPlanoStatus('gratis')
-      }
-    }
-
     const { data, error } = await supabase
       .from('pacientes')
       .select('*')
@@ -78,7 +60,7 @@ export default function Pacientes({ userId }) {
     fetchPacientes()
   }, [])
 
-  const isFreeAccount = planoStatus !== 'pro' && planoStatus !== 'ativo'
+  const isFreeAccount = !isPro
 
   // Trava do 8º paciente (Cota de 7)
   const handleOpenNovoPaciente = () => {
@@ -358,7 +340,15 @@ export default function Pacientes({ userId }) {
                         Evolução
                       </button>
 
-                      <button 
+                      <button
+                        onClick={() => navigate(`/pacientes/${p.id}/prontuario`)}
+                        className="py-2 px-3 text-indigo-700 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-800 bg-indigo-50 dark:bg-indigo-900/20 hover:bg-indigo-100 dark:hover:bg-indigo-900/30 rounded-lg transition-colors flex items-center justify-center gap-1 font-semibold text-xs text-center col-span-2"
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line></svg>
+                        Prontuário
+                      </button>
+
+                      <button
                         onClick={() => navigate('/nova-avaliacao', { state: { paciente: p } })}
                         className="py-2 px-3 bg-primary-600 text-white hover:bg-primary-700 font-semibold text-xs rounded-lg text-center shadow-sm col-span-2"
                       >
@@ -436,8 +426,17 @@ export default function Pacientes({ userId }) {
                             Evolução
                           </button>
 
-                          <button 
-                            onClick={() => navigate('/nova-avaliacao', { state: { paciente: p } })} 
+                          <button
+                            onClick={() => navigate(`/pacientes/${p.id}/prontuario`)}
+                            className="text-indigo-700 dark:text-indigo-400 font-medium text-xs border border-indigo-100 dark:border-indigo-900/40 bg-indigo-50 dark:bg-indigo-900/20 hover:bg-indigo-100 dark:hover:bg-indigo-900/30 px-3 py-1.5 rounded transition-colors flex items-center gap-1"
+                            title="Prontuário Clínico"
+                          >
+                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line></svg>
+                            Prontuário
+                          </button>
+
+                          <button
+                            onClick={() => navigate('/nova-avaliacao', { state: { paciente: p } })}
                             className="text-white font-medium text-xs bg-primary-600 hover:bg-primary-700 px-3 py-1.5 rounded transition-colors"
                           >
                             + Avaliação

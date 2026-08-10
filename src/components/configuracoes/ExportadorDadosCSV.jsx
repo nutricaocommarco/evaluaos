@@ -1,13 +1,21 @@
 import React, { useState } from 'react'
 import { supabase } from '../../supabaseClient'
 import { useNavigate } from 'react-router-dom'
+import { usePlano } from '../../contexts/PlanoContext'
 
 export default function ExportadorDadosCSV() {
   const [exportando, setExportando] = useState(false)
   const [modalUpgradeAberto, setModalUpgradeAberto] = useState(false)
   const navigate = useNavigate()
+  const { isPro } = usePlano()
 
   const exportarBackupCompletoCSV = async () => {
+    // 🔒 TRAVA PLANO PRO (Beta conta como Pro — ver PlanoContext.jsx)
+    if (!isPro) {
+      setModalUpgradeAberto(true)
+      return
+    }
+
     setExportando(true)
     try {
       // 1. Pega o usuário logado atual
@@ -17,21 +25,7 @@ export default function ExportadorDadosCSV() {
       }
       const userId = authData.user.id
 
-      // 2. Consulta o status do plano na tabela 'avaliadores'
-      const { data: avaliadorData, error: avaliadorError } = await supabase
-        .from('avaliadores')
-        .select('plano_status')
-        .eq('id', userId) // ou 'user_id', conforme sua chave primária
-        .single()
-
-      // 🔒 TRAVA PLANO PRO: Se não for 'pro', bloqueia a exportação e exibe o modal
-      if (avaliadorError || avaliadorData?.plano_status !== 'pro') {
-        setExportando(false)
-        setModalUpgradeAberto(true)
-        return
-      }
-
-      // 3. Consulta unificada trazendo todas as colunas das 3 tabelas
+      // 2. Consulta unificada trazendo todas as colunas das 3 tabelas
       const { data, error } = await supabase
         .from('avaliacoes')
         .select(`
@@ -199,7 +193,7 @@ export default function ExportadorDadosCSV() {
           disabled={exportando}
           className="px-4 py-2.5 bg-gray-800 text-white rounded-lg text-xs font-semibold hover:bg-gray-900 disabled:opacity-50 transition-colors shadow-sm flex items-center gap-2 whitespace-nowrap"
         >
-          {exportando ? 'Verificando permissão...' : 'Baixar Backup Completo (CSV)'}
+          {exportando ? 'Exportando...' : 'Baixar Backup Completo (CSV)'}
         </button>
       </div>
 
