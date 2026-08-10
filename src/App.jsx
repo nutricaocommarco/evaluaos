@@ -35,6 +35,10 @@ import Questionarios from './pages/Questionarios';
 import QuestionarioBuilder from './pages/QuestionarioBuilder';
 import QuestionarioPublico from './pages/QuestionarioPublico';
 import PacienteQuestionarios from './pages/PacienteQuestionarios';
+import AreaPaciente from './pages/AreaPaciente';
+import PlanoAlimentarPaciente from './pages/PlanoAlimentarPaciente';
+import OrientacoesPaciente from './pages/OrientacoesPaciente';
+import QuestionariosPaciente from './pages/QuestionariosPaciente';
 import EmConstrucao from './components/EmConstrucao';
 import LayoutComPaciente from './components/LayoutComPaciente';
 
@@ -103,6 +107,10 @@ function MainApp() {
         <Route path="/laudo/:tokenUrl" element={<ResultadoAvaliacao />} />
         <Route path="/evolucao/:tokenUrl" element={<EvolucaoPaciente />} />
         <Route path="/questionario/:tokenUrl" element={<QuestionarioPublico />} />
+        <Route path="/area/:tokenUrl" element={<AreaPaciente />} />
+        <Route path="/area/:tokenUrl/plano" element={<PlanoAlimentarPaciente />} />
+        <Route path="/area/:tokenUrl/orientacoes" element={<OrientacoesPaciente />} />
+        <Route path="/area/:tokenUrl/questionarios" element={<QuestionariosPaciente />} />
 
         {/* INSTITUCIONAL & SEO */}
         <Route path="/aprendizado" element={<Aprendizado />} />
@@ -238,6 +246,14 @@ function MainApp() {
                 se o nutri clicar no próprio link gerado estando logado, vê a
                 mesma tela chromeless que o paciente veria. */}
             <Route path="/questionario/:tokenUrl" element={<QuestionarioPublico />} />
+            {/* Mesmas urls públicas de /area/:tokenUrl e sub-rotas — sem
+                wrapper aqui também, mesmo raciocínio do /questionario acima:
+                se o nutri clicar no próprio link estando logado, vê a mesma
+                tela chromeless que o paciente veria. */}
+            <Route path="/area/:tokenUrl" element={<AreaPaciente />} />
+            <Route path="/area/:tokenUrl/plano" element={<PlanoAlimentarPaciente />} />
+            <Route path="/area/:tokenUrl/orientacoes" element={<OrientacoesPaciente />} />
+            <Route path="/area/:tokenUrl/questionarios" element={<QuestionariosPaciente />} />
             <Route path="/contato" element={<Contato />} />
             <Route path="/nova-avaliacao" element={<LayoutComPaciente itemAtivo="nova_avaliacao"><AvaliacaoForm /></LayoutComPaciente>} />
             <Route path="/equacoes-de-regressao" element={<LayoutComPaciente itemAtivo="equacoes"><EscolhaPercGordura /></LayoutComPaciente>} />

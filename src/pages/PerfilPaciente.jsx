@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { supabase } from '../supabaseClient'
 import SidebarPaciente from '../components/SidebarPaciente'
 import GeradorPdfCompleto from '../components/GeradorPdfCompleto'
-import { User, Mail, Phone, Briefcase, Activity, FileText, TrendingUp, CreditCard, Pencil, FileDown, History, PlusCircle, ClipboardList } from 'lucide-react'
+import { User, Mail, Phone, Briefcase, Activity, FileText, TrendingUp, CreditCard, Pencil, FileDown, History, PlusCircle, ClipboardList, Link2, Check } from 'lucide-react'
 
 function calcularIdade(dataNascimento) {
   if (!dataNascimento) return null
@@ -51,6 +51,7 @@ export default function PerfilPaciente({ userId }) {
   const [form, setForm] = useState(CAMPOS_VAZIOS)
   const [saving, setSaving] = useState(false)
   const [showGeradorPdf, setShowGeradorPdf] = useState(false)
+  const [linkCopiado, setLinkCopiado] = useState(false)
 
   const [showHistorico, setShowHistorico] = useState(false)
   const [avaliacoesList, setAvaliacoesList] = useState([])
@@ -83,6 +84,13 @@ export default function PerfilPaciente({ userId }) {
       observacoes: paciente.observacoes || '',
     })
     setShowModal(true)
+  }
+
+  const handleCopiarLinkArea = async () => {
+    const link = `${window.location.origin}/area/${paciente.token_publico}`
+    await navigator.clipboard.writeText(link)
+    setLinkCopiado(true)
+    setTimeout(() => setLinkCopiado(false), 2000)
   }
 
   const abrirHistorico = async () => {
@@ -166,6 +174,13 @@ export default function PerfilPaciente({ userId }) {
             </div>
           </div>
           <div className="flex gap-2 shrink-0">
+            <button
+              onClick={handleCopiarLinkArea}
+              title="Copiar link da Área do Paciente pra mandar pro paciente"
+              className="flex items-center gap-1.5 px-4 py-2 border border-gray-300 dark:border-slate-700 text-gray-700 dark:text-slate-300 text-sm font-semibold rounded-lg hover:bg-gray-50 dark:hover:bg-slate-800 transition-colors"
+            >
+              {linkCopiado ? <Check size={15} /> : <Link2 size={15} />} {linkCopiado ? 'Copiado!' : 'Link da Área do Paciente'}
+            </button>
             <button
               onClick={() => setShowGeradorPdf(true)}
               className="flex items-center gap-1.5 px-4 py-2 border border-gray-300 dark:border-slate-700 text-gray-700 dark:text-slate-300 text-sm font-semibold rounded-lg hover:bg-gray-50 dark:hover:bg-slate-800 transition-colors"
