@@ -463,7 +463,7 @@ const RelatorioPDF = ({ dados, idade, statusCintura, iamVal, imoVal, nomeEmpresa
 
         {/* RODAPÉ E MARCA D'ÁGUA FIXA */}
         <View style={styles.footer} fixed>
-          <Text>Documento gerado pelo sistema EvaluaOS - {consultorio} | {dataFormatada}</Text>
+          <Text>Documento gerado pelo sistema EvaluaOS | {dataFormatada}</Text>
         </View>
 
       </Page>

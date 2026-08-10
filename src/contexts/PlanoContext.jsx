@@ -14,6 +14,9 @@ export function usePlano() {
 // plano sem precisar de prop-drilling pelas páginas que o renderizam.
 export function PlanoProvider({ children }) {
   const [planoStatus, setPlanoStatus] = useState('gratis')
+  // Começa false pra rotas guardadas (ex: /roadmap) não redirecionar cedo
+  // demais num reload direto na URL, antes da busca abaixo responder.
+  const [carregado, setCarregado] = useState(false)
 
   useEffect(() => {
     async function carregarPlano(userId) {
@@ -24,10 +27,12 @@ export function PlanoProvider({ children }) {
         .maybeSingle()
 
       setPlanoStatus(data?.plano_status ? data.plano_status.toLowerCase() : 'gratis')
+      setCarregado(true)
     }
 
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session?.user?.id) carregarPlano(session.user.id)
+      else setCarregado(true)
     })
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
@@ -35,6 +40,7 @@ export function PlanoProvider({ children }) {
         carregarPlano(session.user.id)
       } else if (event === 'SIGNED_OUT') {
         setPlanoStatus('gratis')
+        setCarregado(true)
       }
     })
 
@@ -48,7 +54,7 @@ export function PlanoProvider({ children }) {
   const isPro = planoStatus === 'pro' || planoStatus === 'ativo' || planoStatus === 'beta'
   const isBeta = planoStatus === 'beta'
 
-  const value = { planoStatus, isPro, isBeta }
+  const value = { planoStatus, isPro, isBeta, carregado }
 
   return (
     <PlanoContext.Provider value={value}>

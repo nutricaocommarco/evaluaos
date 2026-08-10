@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { supabase } from '../supabaseClient'
 import SidebarPaciente from '../components/SidebarPaciente'
-import { User, Mail, Phone, Briefcase, Activity, FileText, TrendingUp, CreditCard, Pencil } from 'lucide-react'
+import GeradorPdfCompleto from '../components/GeradorPdfCompleto'
+import { User, Mail, Phone, Briefcase, Activity, FileText, TrendingUp, CreditCard, Pencil, FileDown } from 'lucide-react'
 
 function calcularIdade(dataNascimento) {
   if (!dataNascimento) return null
@@ -38,7 +39,7 @@ function CardInfo({ icone: Icone, label, valor }) {
   )
 }
 
-export default function PerfilPaciente() {
+export default function PerfilPaciente({ userId }) {
   const { id } = useParams()
   const navigate = useNavigate()
 
@@ -49,6 +50,7 @@ export default function PerfilPaciente() {
   const [showModal, setShowModal] = useState(false)
   const [form, setForm] = useState(CAMPOS_VAZIOS)
   const [saving, setSaving] = useState(false)
+  const [showGeradorPdf, setShowGeradorPdf] = useState(false)
 
   const carregarPaciente = async () => {
     setLoading(true)
@@ -134,12 +136,20 @@ export default function PerfilPaciente() {
               </p>
             </div>
           </div>
-          <button
-            onClick={abrirEdicao}
-            className="flex items-center gap-1.5 px-4 py-2 bg-primary-600 text-white text-sm font-semibold rounded-lg hover:bg-primary-700 shadow transition-colors shrink-0"
-          >
-            <Pencil size={14} /> Editar Dados
-          </button>
+          <div className="flex gap-2 shrink-0">
+            <button
+              onClick={() => setShowGeradorPdf(true)}
+              className="flex items-center gap-1.5 px-4 py-2 border border-gray-300 dark:border-slate-700 text-gray-700 dark:text-slate-300 text-sm font-semibold rounded-lg hover:bg-gray-50 dark:hover:bg-slate-800 transition-colors"
+            >
+              <FileDown size={15} /> Gerar PDF
+            </button>
+            <button
+              onClick={abrirEdicao}
+              className="flex items-center gap-1.5 px-4 py-2 bg-primary-600 text-white text-sm font-semibold rounded-lg hover:bg-primary-700 shadow transition-colors"
+            >
+              <Pencil size={14} /> Editar Dados
+            </button>
+          </div>
         </div>
 
         <div className="bg-white dark:bg-slate-900 p-5 rounded-xl border border-gray-100 dark:border-slate-800 shadow-sm">
@@ -347,6 +357,14 @@ export default function PerfilPaciente() {
             </form>
           </div>
         </div>
+      )}
+
+      {showGeradorPdf && (
+        <GeradorPdfCompleto
+          paciente={paciente}
+          avaliadorUserId={userId}
+          aoFechar={() => setShowGeradorPdf(false)}
+        />
       )}
     </div>
   )

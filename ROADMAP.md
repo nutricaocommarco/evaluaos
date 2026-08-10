@@ -7,9 +7,6 @@ formos decidir a próxima etapa.
 
 ## Prescrição & Nutrição (continuação da Fase 3/4)
 
-- **Exportação em PDF do Plano Alimentar** — builder está pronto,
-  exportação não. Seguir o mesmo padrão já usado em
-  `BotaoExportarPDF.jsx` / `BotaoExportarEvolucaoPDF.jsx`.
 - **Grupos de Alimentos** — listas reutilizáveis tipo "Carboidratos",
   "Proteínas", "Frutas" (inspirado no Amplinutri) que o nutricionista
   monta uma vez e reaproveita em várias refeições/pacientes, deixando o

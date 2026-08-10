@@ -1,5 +1,5 @@
 import React from 'react'
-import { Utensils, Construction, Layers } from 'lucide-react'
+import { Utensils, Sparkles, Layers } from 'lucide-react'
 
 const SECOES = [
   {
@@ -8,61 +8,53 @@ const SECOES = [
     cor: 'text-primary-600 bg-primary-50 dark:bg-primary-900/20 dark:text-primary-400',
     itens: [
       {
-        titulo: 'Exportação em PDF do Plano Alimentar',
-        texto: 'O builder já está pronto — falta gerar o PDF pro paciente, no mesmo padrão do Laudo/Evolução.',
-      },
-      {
         titulo: 'Grupos de Alimentos',
-        texto: 'Listas reutilizáveis ("Carboidratos", "Proteínas", "Frutas"...) que o paciente escolhe dentro da opção, em vez de um alimento fixo.',
+        texto: 'Listas reutilizáveis (como "Carboidratos", "Proteínas", "Frutas") pra montar planos mais rápido, deixando o paciente escolher entre as opções do grupo.',
       },
       {
-        titulo: 'Comparação com DRI / micronutrientes',
-        texto: 'Comparar o plano contra referências de vitaminas e minerais, não só macro.',
+        titulo: 'Comparação com micronutrientes',
+        texto: 'Compare o plano também com referências de vitaminas e minerais, além dos macronutrientes.',
       },
       {
         titulo: 'Plano tipo "Qualitativo"',
-        texto: 'Modo alternativo de prescrição em texto livre, sem cálculo de macros.',
+        texto: 'Um modo alternativo de prescrição em texto livre, pra quando você não precisa calcular macros.',
       },
       {
-        titulo: 'Enriquecimento com dados da TBCA',
-        texto: 'Açúcares/amido/fibra detalhados — depende de licenciamento comercial com a USP/FoRC ou de uma chave de correspondência confiável com a TACO.',
+        titulo: 'Mais detalhamento nutricional',
+        texto: 'Informações mais completas de açúcares, amido e fibra nos alimentos cadastrados.',
       },
       {
-        titulo: 'Mais suplementos',
-        texto: 'Hoje só 17 itens cadastrados (Growth, Integralmédica, Dr Peanut, YoPRO, genéricos) — cobertura pode crescer bastante.',
+        titulo: 'Mais marcas de suplementos',
+        texto: 'Ampliação da base de suplementos cadastrados, cobrindo mais marcas do mercado.',
       },
     ],
   },
   {
-    titulo: 'Em Construção',
-    icone: Construction,
+    titulo: 'Próximos Recursos',
+    icone: Sparkles,
     cor: 'text-amber-600 bg-amber-50 dark:bg-amber-900/20 dark:text-amber-400',
     itens: [
-      { titulo: 'Exames Laboratoriais' },
-      { titulo: 'Exames de Bioimpedância' },
-      { titulo: 'Acompanhamento Gestacional' },
-      { titulo: 'Acompanhamento Infantil' },
-      { titulo: 'Fotos Comparativas' },
-      { titulo: 'Receitas' },
-      { titulo: 'Materiais de Apoio' },
-      { titulo: 'Fórmulas Manipuladas' },
-      { titulo: 'Diário Alimentício', texto: 'Paciente registra o que comeu de fato, pra comparar com o Plano Alimentar prescrito.' },
-      { titulo: 'Pasta do Paciente' },
-      { titulo: 'Configurações do Paciente' },
+      { titulo: 'Exames Laboratoriais', texto: 'Registre e acompanhe os exames laboratoriais do paciente direto no prontuário.' },
+      { titulo: 'Exames de Bioimpedância', texto: 'Importe e compare resultados de bioimpedância ao longo do tempo.' },
+      { titulo: 'Acompanhamento Gestacional', texto: 'Telas e cálculos pensados especificamente pra avaliação de gestantes.' },
+      { titulo: 'Acompanhamento Infantil', texto: 'Curvas de crescimento e avaliação específica pra crianças.' },
+      { titulo: 'Fotos Comparativas', texto: 'Compare fotos do paciente ao longo do tempo, lado a lado.' },
+      { titulo: 'Receitas', texto: 'Cadastre e vincule receitas culinárias aos planos alimentares.' },
+      { titulo: 'Materiais de Apoio', texto: 'Compartilhe PDFs, vídeos e outros materiais direto com seus pacientes.' },
+      { titulo: 'Fórmulas Manipuladas', texto: 'Prescreva fórmulas manipuladas dentro do plano do paciente.' },
+      { titulo: 'Diário Alimentício', texto: 'O paciente registra o que realmente comeu, pra comparar com o que foi prescrito.' },
+      { titulo: 'Pasta do Paciente', texto: 'Um espaço só pra guardar documentos e arquivos de cada paciente.' },
+      { titulo: 'Configurações do Paciente', texto: 'Mais controle sobre preferências e notificações por paciente.' },
     ],
   },
   {
-    titulo: 'Menus & Plano Beta',
+    titulo: 'Plano Beta',
     icone: Layers,
     cor: 'text-violet-600 bg-violet-50 dark:bg-violet-900/20 dark:text-violet-400',
     itens: [
       {
-        titulo: 'Fluxo de upgrade/compra pro plano Beta',
-        texto: 'Hoje é liberado manualmente via SQL — ainda não existe um checkout nem um botão "vire Beta" dentro do app.',
-      },
-      {
-        titulo: 'Guarda de rota pra páginas Beta',
-        texto: 'Esconder do menu não impede acesso direto por URL. Não é risco de segurança (RLS isola por avaliador), só uma tela que "não deveria" aparecer pra quem não é Beta.',
+        titulo: 'Assinatura do Beta pelo app',
+        texto: 'Em breve você vai poder assinar o plano Beta direto por aqui, sem precisar falar com a gente.',
       },
     ],
   },
@@ -77,7 +69,7 @@ export default function Roadmap() {
           <span className="text-xl">🗺️</span>
         </h2>
         <p className="text-sm text-gray-500 dark:text-slate-400 mt-1">
-          Catálogo do que já discutimos e ainda não construímos — não é uma lista priorizada, é só pra não perder o fio.
+          Estas são as próximas novidades que estamos preparando pra você. A ordem de exibição não indica prioridade nem data de lançamento.
         </p>
       </div>
 
@@ -107,7 +99,7 @@ export default function Roadmap() {
       })}
 
       <p className="text-[11px] text-gray-400 dark:text-slate-500 text-center pt-2">
-        Isso aqui é só um catálogo — prioridade continua sendo conversa, não algo decidido sozinho.
+        Tem uma sugestão ou uma funcionalidade que faria diferença no seu dia a dia? Fale com a gente.
       </p>
     </div>
   )

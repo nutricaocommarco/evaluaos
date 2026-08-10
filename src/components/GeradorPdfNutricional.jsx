@@ -14,13 +14,11 @@ import { ArrowUp, ArrowDown, FileDown } from 'lucide-react'
 // o mesmo modal é chamado de 3 telas diferentes (Plano Alimentar, Orientações,
 // Listas de Recomendações) sem duplicar lógica de fetch em cada uma.
 
-const KCAL_POR_G = { proteina: 4, carbo: 4, lipidio: 9 }
-
-function fmt(n) {
+export function fmt(n) {
   return Number.isFinite(n) ? n.toFixed(1).replace(/\.0$/, '') : '0'
 }
 
-function calcularMacrosItem(item) {
+export function calcularMacrosItem(item) {
   const alimento = item.tabela_alimentos
   if (!alimento || item.ignorar_nos_calculos) return { kcal: 0, proteina: 0, carbo: 0, lipidio: 0, fibra: 0 }
   const fator = (Number(item.quantidade_g) || 0) / 100
@@ -33,7 +31,7 @@ function calcularMacrosItem(item) {
   }
 }
 
-function somarMacros(lista) {
+export function somarMacros(lista) {
   return lista.reduce(
     (acc, m) => ({
       kcal: acc.kcal + m.kcal,
@@ -46,7 +44,7 @@ function somarMacros(lista) {
   )
 }
 
-function calcularFibraRecomendada(vetTarget) {
+export function calcularFibraRecomendada(vetTarget) {
   const vet = Number(vetTarget)
   return vet > 0 ? (vet / 1000) * 14 : null
 }
@@ -58,7 +56,7 @@ const LABEL_UNIDADE = {
 
 function textoQuantidade(item) {
   if (item.unidade_medida && item.quantidade_medida) {
-    return `${item.quantidade_medida} ${LABEL_UNIDADE[item.unidade_medida] || item.unidade_medida} (≈${item.quantidade_g}g)`
+    return `${item.quantidade_medida} ${LABEL_UNIDADE[item.unidade_medida] || item.unidade_medida} (~${item.quantidade_g}g)`
   }
   return `${item.quantidade_g}g`
 }
@@ -107,7 +105,7 @@ function renderInlinePdf(node, estilo, keyBase) {
   return partes
 }
 
-function converterHtmlParaPdf(html, keyPrefix, estiloTexto) {
+export function converterHtmlParaPdf(html, keyPrefix, estiloTexto) {
   const vazio = [<Text key={`${keyPrefix}-vazio`} style={estiloTexto}>-</Text>]
   if (!html || !html.trim()) return vazio
 
@@ -147,7 +145,7 @@ function converterHtmlParaPdf(html, keyPrefix, estiloTexto) {
 }
 
 // --- ESTILOS DO PDF ---
-const styles = StyleSheet.create({
+export const styles = StyleSheet.create({
   page: { paddingTop: 35, paddingBottom: 50, paddingLeft: 40, paddingRight: 40, backgroundColor: '#FAFAFA', fontFamily: 'Helvetica' },
   headerContainer: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 18 },
   headerLeft: { flex: 1 },
@@ -186,7 +184,7 @@ const styles = StyleSheet.create({
 })
 
 // --- BLOCO: Plano Alimentar (meta vs consumido + refeições) ---
-function BlocoPlanoAlimentar({ plano, refeicoes, pesoAtual, incluirFibra }) {
+export function BlocoPlanoAlimentar({ plano, refeicoes, pesoAtual, incluirMacros = true, incluirFibra }) {
   const itensOpcao1 = refeicoes.flatMap((r) => r.itens_refeicao.filter((i) => i.opcao_numero === 1))
   const totalDia = somarMacros(itensOpcao1.map(calcularMacrosItem))
   const fibraRecomendada = calcularFibraRecomendada(plano?.vet_target)
@@ -201,31 +199,37 @@ function BlocoPlanoAlimentar({ plano, refeicoes, pesoAtual, incluirFibra }) {
     <View>
       <Text style={styles.docTitulo}>🍽️ Plano Alimentar — {plano?.titulo || 'Plano'}</Text>
 
-      <View style={styles.metaGrid}>
-        <View style={styles.metaItem}>
-          <Text style={styles.metaLabel}>Calorias</Text>
-          <Text style={styles.metaValue}>{fmt(totalDia.kcal)}{plano?.vet_target ? ` / ${plano.vet_target}` : ''} kcal</Text>
+      {(incluirMacros || incluirFibra) && (
+        <View style={styles.metaGrid}>
+          {incluirMacros && (
+            <>
+              <View style={styles.metaItem}>
+                <Text style={styles.metaLabel}>Calorias</Text>
+                <Text style={styles.metaValue}>{fmt(totalDia.kcal)}{plano?.vet_target ? ` / ${plano.vet_target}` : ''} kcal</Text>
+              </View>
+              <View style={styles.metaItem}>
+                <Text style={styles.metaLabel}>Proteína</Text>
+                <Text style={styles.metaValue}>{fmt(totalDia.proteina)}{metaProteinaG ? ` / ${fmt(metaProteinaG)}` : ''} g</Text>
+              </View>
+              <View style={styles.metaItem}>
+                <Text style={styles.metaLabel}>Carboidrato</Text>
+                <Text style={styles.metaValue}>{fmt(totalDia.carbo)}{metaCarboG ? ` / ${fmt(metaCarboG)}` : ''} g</Text>
+              </View>
+              <View style={styles.metaItem}>
+                <Text style={styles.metaLabel}>Lipídio</Text>
+                <Text style={styles.metaValue}>{fmt(totalDia.lipidio)}{metaLipidioG ? ` / ${fmt(metaLipidioG)}` : ''} g</Text>
+              </View>
+            </>
+          )}
+          {incluirFibra && (
+            <View style={styles.metaItem}>
+              <Text style={styles.metaLabel}>Fibra</Text>
+              <Text style={styles.metaValue}>{fmt(totalDia.fibra)}{fibraRecomendada ? ` / ${fmt(fibraRecomendada)}` : ''} g</Text>
+              {fibraRecomendada && <Text style={styles.metaRef}>Ref: 14g/1000kcal</Text>}
+            </View>
+          )}
         </View>
-        <View style={styles.metaItem}>
-          <Text style={styles.metaLabel}>Proteína</Text>
-          <Text style={styles.metaValue}>{fmt(totalDia.proteina)}{metaProteinaG ? ` / ${fmt(metaProteinaG)}` : ''} g</Text>
-        </View>
-        <View style={styles.metaItem}>
-          <Text style={styles.metaLabel}>Carboidrato</Text>
-          <Text style={styles.metaValue}>{fmt(totalDia.carbo)}{metaCarboG ? ` / ${fmt(metaCarboG)}` : ''} g</Text>
-        </View>
-        <View style={styles.metaItem}>
-          <Text style={styles.metaLabel}>Lipídio</Text>
-          <Text style={styles.metaValue}>{fmt(totalDia.lipidio)}{metaLipidioG ? ` / ${fmt(metaLipidioG)}` : ''} g</Text>
-        </View>
-        {incluirFibra && (
-          <View style={styles.metaItem}>
-            <Text style={styles.metaLabel}>Fibra</Text>
-            <Text style={styles.metaValue}>{fmt(totalDia.fibra)}{fibraRecomendada ? ` / ${fmt(fibraRecomendada)}` : ''} g</Text>
-            {fibraRecomendada && <Text style={styles.metaRef}>Ref: 14g/1000kcal</Text>}
-          </View>
-        )}
-      </View>
+      )}
 
       {refeicoesOrdenadas.map((refeicao) => {
         const itensRef = refeicao.itens_refeicao.filter((i) => i.opcao_numero === 1)
@@ -242,24 +246,29 @@ function BlocoPlanoAlimentar({ plano, refeicoes, pesoAtual, incluirFibra }) {
               itensRef.map((item) => {
                 const m = calcularMacrosItem(item)
                 const nome = item.nome_customizado || item.tabela_alimentos?.nome || 'Alimento removido'
+                const partesItem = []
+                if (incluirMacros) partesItem.push(`${fmt(m.kcal)}kcal · P${fmt(m.proteina)} · C${fmt(m.carbo)} · L${fmt(m.lipidio)}`)
+                if (incluirFibra) partesItem.push(`Fb${fmt(m.fibra)}`)
                 return (
                   <View key={item.id} style={styles.itemRow}>
                     <Text style={styles.itemNome}>{nome}</Text>
                     <Text style={styles.itemQtd}>{textoQuantidade(item)}</Text>
-                    <Text style={styles.itemMacro}>
-                      {fmt(m.kcal)}kcal · P{fmt(m.proteina)} · C{fmt(m.carbo)} · L{fmt(m.lipidio)}{incluirFibra ? ` · Fb${fmt(m.fibra)}` : ''}
-                    </Text>
+                    {partesItem.length > 0 && <Text style={styles.itemMacro}>{partesItem.join(' · ')}</Text>}
                   </View>
                 )
               })
             )}
-            {itensRef.length > 0 && (
-              <View style={styles.refeicaoSubtotal}>
-                <Text style={styles.refeicaoSubtotalTexto}>
-                  Subtotal: {fmt(macrosRef.kcal)}kcal · P{fmt(macrosRef.proteina)}g · C{fmt(macrosRef.carbo)}g · L{fmt(macrosRef.lipidio)}g{incluirFibra ? ` · Fibra${fmt(macrosRef.fibra)}g` : ''}
-                </Text>
-              </View>
-            )}
+            {itensRef.length > 0 && (() => {
+              const partesSub = []
+              if (incluirMacros) partesSub.push(`${fmt(macrosRef.kcal)}kcal · P${fmt(macrosRef.proteina)}g · C${fmt(macrosRef.carbo)}g · L${fmt(macrosRef.lipidio)}g`)
+              if (incluirFibra) partesSub.push(`Fibra${fmt(macrosRef.fibra)}g`)
+              if (partesSub.length === 0) return null
+              return (
+                <View style={styles.refeicaoSubtotal}>
+                  <Text style={styles.refeicaoSubtotalTexto}>Subtotal: {partesSub.join(' · ')}</Text>
+                </View>
+              )
+            })()}
           </View>
         )
       })}
@@ -267,40 +276,76 @@ function BlocoPlanoAlimentar({ plano, refeicoes, pesoAtual, incluirFibra }) {
   )
 }
 
-// --- DOCUMENTO FINAL ---
-function DocumentoPdfNutricional({ paciente, avaliador, blocos, plano, refeicoes, pesoAtual }) {
+function CabecalhoPdf({ titulo, paciente, avaliador }) {
   const consultorio = avaliador?.empresa || 'Consultório'
+  return (
+    <View style={styles.headerContainer}>
+      <View style={styles.headerLeft}>
+        <Text style={styles.title}>{titulo}</Text>
+        <Text style={[styles.title, { fontSize: 14, color: '#4B5563', marginBottom: 4 }]}>{paciente?.nome_completo}</Text>
+        <Text style={styles.subtitle}>{consultorio}{avaliador?.nome_completo ? ` | ${avaliador.nome_completo}` : ''}</Text>
+      </View>
+      <View style={styles.headerRight}>
+        {avaliador?.logomarca_url ? <Image src={avaliador.logomarca_url} style={styles.logoImage} /> : null}
+        <Text style={styles.watermark}>Gerado via <Text style={styles.watermarkBold}>EvaluaOS</Text></Text>
+      </View>
+    </View>
+  )
+}
 
+function renderBlocoConteudo(bloco, plano, refeicoes, pesoAtual) {
+  if (bloco.tipo === 'plano') {
+    if (!plano) return null
+    return (
+      <BlocoPlanoAlimentar
+        plano={plano}
+        refeicoes={refeicoes}
+        pesoAtual={pesoAtual}
+        incluirMacros={bloco.incluirMacros}
+        incluirFibra={bloco.incluirFibra}
+      />
+    )
+  }
+  return (
+    <View>
+      <Text style={styles.docTitulo}>{bloco.tipo === 'orientacao' ? '📋' : '📝'} {bloco.label}</Text>
+      {converterHtmlParaPdf(bloco.dados.conteudo, bloco.id, styles.textoBase)}
+    </View>
+  )
+}
+
+// --- DOCUMENTO ÚNICO (todos os blocos incluídos, na ordem escolhida) ---
+function DocumentoPdfNutricional({ paciente, avaliador, blocos, plano, refeicoes, pesoAtual }) {
   return (
     <Document>
       <Page size="A4" style={styles.page} wrap>
-        <View style={styles.headerContainer}>
-          <View style={styles.headerLeft}>
-            <Text style={styles.title}>Plano Nutricional</Text>
-            <Text style={[styles.title, { fontSize: 14, color: '#4B5563', marginBottom: 4 }]}>{paciente?.nome_completo}</Text>
-            <Text style={styles.subtitle}>{consultorio}{avaliador?.nome_completo ? ` | ${avaliador.nome_completo}` : ''}</Text>
-          </View>
-          <View style={styles.headerRight}>
-            {avaliador?.logomarca_url ? <Image src={avaliador.logomarca_url} style={styles.logoImage} /> : null}
-            <Text style={styles.watermark}>Gerado via <Text style={styles.watermarkBold}>EvaluaOS</Text></Text>
-          </View>
-        </View>
+        <CabecalhoPdf titulo="Plano Nutricional" paciente={paciente} avaliador={avaliador} />
 
-        {blocos.filter((b) => b.incluido).map((bloco) => {
-          if (bloco.tipo === 'plano') {
-            if (!plano) return null
-            return <BlocoPlanoAlimentar key={bloco.id} plano={plano} refeicoes={refeicoes} pesoAtual={pesoAtual} incluirFibra={bloco.incluirFibra} />
-          }
-          return (
-            <View key={bloco.id} style={styles.docCard} wrap>
-              <Text style={styles.docTitulo}>{bloco.tipo === 'orientacao' ? '📋' : '📝'} {bloco.label}</Text>
-              {converterHtmlParaPdf(bloco.dados.conteudo, bloco.id, styles.textoBase)}
-            </View>
-          )
-        })}
+        {blocos.filter((b) => b.incluido).map((bloco) => (
+          <View key={bloco.id} style={bloco.tipo === 'plano' ? undefined : styles.docCard} wrap>
+            {renderBlocoConteudo(bloco, plano, refeicoes, pesoAtual)}
+          </View>
+        ))}
 
         <View style={styles.footer} fixed>
-          <Text>Documento gerado pelo sistema EvaluaOS - {consultorio} | {new Date().toLocaleDateString('pt-BR')}</Text>
+          <Text>Documento gerado pelo sistema EvaluaOS | {new Date().toLocaleDateString('pt-BR')}</Text>
+        </View>
+      </Page>
+    </Document>
+  )
+}
+
+const TITULO_BLOCO = { plano: 'Plano Nutricional', orientacao: 'Orientação Nutricional', lista: 'Lista de Recomendações' }
+
+// --- DOCUMENTO INDIVIDUAL (um bloco só, pro modo "arquivos separados") ---
+function DocumentoIndividual({ paciente, avaliador, bloco, plano, refeicoes, pesoAtual }) {
+  return (
+    <Document>
+      <Page size="A4" style={styles.page} wrap>
+        <CabecalhoPdf titulo={TITULO_BLOCO[bloco.tipo]} paciente={paciente} avaliador={avaliador} />
+        {renderBlocoConteudo(bloco, plano, refeicoes, pesoAtual)}
+        <View style={styles.footer} fixed>
+          <Text>Documento gerado pelo sistema EvaluaOS | {new Date().toLocaleDateString('pt-BR')}</Text>
         </View>
       </Page>
     </Document>
@@ -310,6 +355,7 @@ function DocumentoPdfNutricional({ paciente, avaliador, blocos, plano, refeicoes
 // --- MODAL DE CONFIGURAÇÃO ---
 export default function GeradorPdfNutricional({ paciente, avaliadorUserId, aoFechar }) {
   const [loading, setLoading] = useState(true)
+  const [modo, setModo] = useState('unico') // 'unico' | 'separado'
   const [plano, setPlano] = useState(null)
   const [refeicoes, setRefeicoes] = useState([])
   const [pesoAtual, setPesoAtual] = useState(null)
@@ -370,7 +416,7 @@ export default function GeradorPdfNutricional({ paciente, avaliadorUserId, aoFec
       const blocosIniciais = [
         {
           id: 'plano', tipo: 'plano', label: 'Plano Alimentar (refeições, macros e fibra)',
-          incluido: !!planoAtivo, incluirFibra: true, disponivel: !!planoAtivo,
+          incluido: !!planoAtivo, incluirMacros: true, incluirFibra: true, disponivel: !!planoAtivo,
         },
         ...(orientacoes || []).map((o) => ({ id: `orientacao-${o.id}`, tipo: 'orientacao', label: o.titulo, incluido: true, disponivel: true, dados: o })),
         ...(listas || []).map((l) => ({ id: `lista-${l.id}`, tipo: 'lista', label: l.titulo, incluido: true, disponivel: true, dados: l })),
@@ -385,6 +431,10 @@ export default function GeradorPdfNutricional({ paciente, avaliadorUserId, aoFec
 
   const toggleIncluido = (id) => {
     setBlocos((prev) => prev.map((b) => (b.id === id ? { ...b, incluido: !b.incluido } : b)))
+  }
+
+  const toggleMacros = () => {
+    setBlocos((prev) => prev.map((b) => (b.tipo === 'plano' ? { ...b, incluirMacros: !b.incluirMacros } : b)))
   }
 
   const toggleFibra = () => {
@@ -411,7 +461,7 @@ export default function GeradorPdfNutricional({ paciente, avaliadorUserId, aoFec
         <div className="flex justify-between items-center px-6 py-4 border-b border-gray-100 dark:border-slate-800">
           <div>
             <h3 className="text-lg font-bold text-gray-800 dark:text-slate-100">Gerar PDF Nutricional</h3>
-            <p className="text-xs text-gray-500 dark:text-slate-400">Escolha o que entra e a ordem do documento</p>
+            <p className="text-xs text-gray-500 dark:text-slate-400">Escolha o que entra, a ordem e como baixar</p>
           </div>
           <button onClick={aoFechar} className="text-gray-400 dark:text-slate-400 hover:text-gray-600 p-1 rounded-lg">✕</button>
         </div>
@@ -425,6 +475,23 @@ export default function GeradorPdfNutricional({ paciente, avaliadorUserId, aoFec
             </p>
           ) : (
             <>
+              <div className="flex bg-gray-100 dark:bg-slate-800 p-1 rounded-lg text-xs font-semibold w-fit">
+                <button
+                  type="button"
+                  onClick={() => setModo('unico')}
+                  className={`px-3 py-1.5 rounded-md transition-colors ${modo === 'unico' ? 'bg-white dark:bg-slate-900 text-primary-600 shadow' : 'text-gray-500 dark:text-slate-400'}`}
+                >
+                  Um arquivo único
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setModo('separado')}
+                  className={`px-3 py-1.5 rounded-md transition-colors ${modo === 'separado' ? 'bg-white dark:bg-slate-900 text-primary-600 shadow' : 'text-gray-500 dark:text-slate-400'}`}
+                >
+                  Arquivos separados
+                </button>
+              </div>
+
               {blocos.map((bloco, idx) => (
                 <div
                   key={bloco.id}
@@ -444,26 +511,52 @@ export default function GeradorPdfNutricional({ paciente, avaliadorUserId, aoFec
                     <span className="text-[9px] font-bold uppercase text-gray-400 dark:text-slate-500 shrink-0">
                       {bloco.tipo === 'plano' ? 'Plano' : bloco.tipo === 'orientacao' ? 'Orientação' : 'Lista'}
                     </span>
-                    <div className="flex flex-col shrink-0">
-                      <button
-                        type="button"
-                        onClick={() => mover(bloco.id, 'cima')}
-                        disabled={idx === 0}
-                        className="text-gray-300 dark:text-slate-600 hover:text-primary-600 disabled:opacity-30 leading-none p-0.5"
-                        title="Mover pra cima"
-                      >
-                        <ArrowUp size={12} />
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => mover(bloco.id, 'baixo')}
-                        disabled={idx === blocos.length - 1}
-                        className="text-gray-300 dark:text-slate-600 hover:text-primary-600 disabled:opacity-30 leading-none p-0.5"
-                        title="Mover pra baixo"
-                      >
-                        <ArrowDown size={12} />
-                      </button>
-                    </div>
+                    {modo === 'unico' ? (
+                      <div className="flex flex-col shrink-0">
+                        <button
+                          type="button"
+                          onClick={() => mover(bloco.id, 'cima')}
+                          disabled={idx === 0}
+                          className="text-gray-300 dark:text-slate-600 hover:text-primary-600 disabled:opacity-30 leading-none p-0.5"
+                          title="Mover pra cima"
+                        >
+                          <ArrowUp size={12} />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => mover(bloco.id, 'baixo')}
+                          disabled={idx === blocos.length - 1}
+                          className="text-gray-300 dark:text-slate-600 hover:text-primary-600 disabled:opacity-30 leading-none p-0.5"
+                          title="Mover pra baixo"
+                        >
+                          <ArrowDown size={12} />
+                        </button>
+                      </div>
+                    ) : (
+                      bloco.incluido && (bloco.tipo !== 'plano' || plano) && (
+                        <PDFDownloadLink
+                          document={
+                            <DocumentoIndividual
+                              paciente={paciente}
+                              avaliador={avaliador}
+                              bloco={bloco}
+                              plano={plano}
+                              refeicoes={refeicoes}
+                              pesoAtual={pesoAtual}
+                            />
+                          }
+                          fileName={`${TITULO_BLOCO[bloco.tipo].replace(/\s+/g, '_')}_${nomeArquivo}.pdf`}
+                          className="flex items-center gap-1 px-2 py-1 bg-primary-50 dark:bg-primary-900/20 text-primary-700 dark:text-primary-400 text-[11px] font-semibold rounded-lg hover:bg-primary-100 shrink-0"
+                        >
+                          {({ loading: gerando }) => (
+                            <>
+                              <FileDown size={12} />
+                              {gerando ? '...' : 'Baixar'}
+                            </>
+                          )}
+                        </PDFDownloadLink>
+                      )
+                    )}
                   </div>
 
                   {bloco.tipo === 'plano' && !bloco.disponivel && (
@@ -474,6 +567,18 @@ export default function GeradorPdfNutricional({ paciente, avaliadorUserId, aoFec
 
                   {bloco.tipo === 'plano' && bloco.disponivel && (
                     <label className="flex items-center gap-2 mt-2 ml-6 cursor-pointer w-fit">
+                      <input
+                        type="checkbox"
+                        checked={bloco.incluirMacros}
+                        disabled={!bloco.incluido}
+                        onChange={toggleMacros}
+                        className="w-3.5 h-3.5 accent-primary-600"
+                      />
+                      <span className="text-xs text-gray-600 dark:text-slate-400">Incluir Macronutrientes (calorias, proteína, carboidrato, lipídio)</span>
+                    </label>
+                  )}
+                  {bloco.tipo === 'plano' && bloco.disponivel && (
+                    <label className="flex items-center gap-2 mt-1 ml-6 cursor-pointer w-fit">
                       <input
                         type="checkbox"
                         checked={bloco.incluirFibra}
@@ -501,9 +606,9 @@ export default function GeradorPdfNutricional({ paciente, avaliadorUserId, aoFec
             onClick={aoFechar}
             className="px-5 py-2 border border-gray-300 text-gray-700 dark:text-slate-300 text-sm font-semibold rounded-lg hover:bg-gray-50 dark:hover:bg-slate-800"
           >
-            Cancelar
+            {modo === 'separado' ? 'Fechar' : 'Cancelar'}
           </button>
-          {!loading && algumIncluido && (
+          {!loading && modo === 'unico' && algumIncluido && (
             <PDFDownloadLink
               document={
                 <DocumentoPdfNutricional
