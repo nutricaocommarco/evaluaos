@@ -4,6 +4,17 @@
   "outputDirectory": "dist",
   "rewrites": [
     {
+      "source": "/area/:token",
+      "has": [
+        {
+          "type": "header",
+          "key": "user-agent",
+          "value": ".*(facebookexternalhit|WhatsApp|Twitterbot|LinkedInBot|Slackbot|TelegramBot|Discordbot|Googlebot|Bingbot|Pinterest|redditbot|SkypeUriPreview).*"
+        }
+      ],
+      "destination": "/api/og-preview?token=:token"
+    },
+    {
       "source": "/(.*)",
       "destination": "/index.html"
     }
