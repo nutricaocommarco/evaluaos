@@ -41,7 +41,11 @@ export function PlanoProvider({ children }) {
     return () => subscription.unsubscribe()
   }, [])
 
-  const isPro = planoStatus === 'pro' || planoStatus === 'ativo'
+  // Beta é um superconjunto do Pro: quem está em beta testando a leva
+  // nutricional também deve ter tudo que o Pro libera (backup CSV, sem
+  // limite de pacientes, logomarca/empresa no laudo, etc.) — só a
+  // visibilidade do menu Nutrição é exclusiva de isBeta.
+  const isPro = planoStatus === 'pro' || planoStatus === 'ativo' || planoStatus === 'beta'
   const isBeta = planoStatus === 'beta'
 
   const value = { planoStatus, isPro, isBeta }

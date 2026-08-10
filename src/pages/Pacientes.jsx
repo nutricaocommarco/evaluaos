@@ -1,20 +1,19 @@
 import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../supabaseClient'
+import { usePlano } from '../contexts/PlanoContext'
 
 export default function Pacientes({ userId }) {
   const navigate = useNavigate()
+  const { isPro } = usePlano()
 
   const [pacientes, setPacientes] = useState([])
   const [loading, setLoading] = useState(true)
   const [showModal, setShowModal] = useState(false)
   const [showUpgradeModal, setShowUpgradeModal] = useState(false)
-  
+
   // Motivo do modal de upgrade ('limite' ou 'exclusao')
   const [upgradeReason, setUpgradeReason] = useState('limite')
-
-  // Status do plano do avaliador
-  const [planoStatus, setPlanoStatus] = useState('gratis')
 
   const [historicoPaciente, setHistoricoPaciente] = useState(null)
   const [avaliacoesList, setAvaliacoesList] = useState([])
@@ -44,23 +43,6 @@ export default function Pacientes({ userId }) {
   const fetchPacientes = async () => {
     setLoading(true)
 
-    const { data: authUser } = await supabase.auth.getUser()
-    const currentAuthId = authUser?.user?.id || userId
-
-    if (currentAuthId) {
-      const { data: avalData } = await supabase
-        .from('avaliadores')
-        .select('plano_status')
-        .eq('auth_id', currentAuthId)
-        .maybeSingle()
-
-      if (avalData?.plano_status) {
-        setPlanoStatus(avalData.plano_status.toLowerCase())
-      } else {
-        setPlanoStatus('gratis')
-      }
-    }
-
     const { data, error } = await supabase
       .from('pacientes')
       .select('*')
@@ -78,7 +60,7 @@ export default function Pacientes({ userId }) {
     fetchPacientes()
   }, [])
 
-  const isFreeAccount = planoStatus !== 'pro' && planoStatus !== 'ativo'
+  const isFreeAccount = !isPro
 
   // Trava do 8º paciente (Cota de 7)
   const handleOpenNovoPaciente = () => {

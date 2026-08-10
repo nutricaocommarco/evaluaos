@@ -29,6 +29,7 @@ import OrientacoesNutricionais from './pages/OrientacoesNutricionais';
 import LinhaDoTempo from './pages/LinhaDoTempo';
 import ListasRecomendacoes from './pages/ListasRecomendacoes';
 import EmConstrucao from './components/EmConstrucao';
+import LayoutComPaciente from './components/LayoutComPaciente';
 
 function MainApp() {
   const [session, setSession] = useState(null)
@@ -215,16 +216,21 @@ function MainApp() {
             <Route path="/pacientes/:id/linha-do-tempo" element={<LinhaDoTempo />} />
             <Route path="/pacientes/:id/listas-recomendacoes" element={<ListasRecomendacoes userId={session.user.id} />} />
             <Route path="/alimentos" element={<TabelaAlimentos userId={session.user.id} />} />
-            <Route path="/nova-avaliacao" element={<AvaliacaoForm />} />
-            <Route path="/equacoes-de-regressao" element={<EscolhaPercGordura />} />
-            <Route path="/laudo-antropometrico" element={<ResultadoAvaliacao />} />
-            <Route path="/evolucao" element={<EvolucaoPaciente />} />
+            <Route path="/nova-avaliacao" element={<LayoutComPaciente itemAtivo="nova_avaliacao"><AvaliacaoForm /></LayoutComPaciente>} />
+            <Route path="/equacoes-de-regressao" element={<LayoutComPaciente itemAtivo="equacoes"><EscolhaPercGordura /></LayoutComPaciente>} />
+            <Route path="/laudo-antropometrico" element={<LayoutComPaciente itemAtivo="laudo"><ResultadoAvaliacao /></LayoutComPaciente>} />
+            <Route path="/evolucao" element={<LayoutComPaciente itemAtivo="evolucao"><EvolucaoPaciente /></LayoutComPaciente>} />
             <Route path="/avaliador" element={<Avaliador userId={session.user.id} />} />
             <Route path="/meu-plano" element={<MeuPlano />} />
-            <Route path="/laudo/:tokenUrl" element={<ResultadoAvaliacao />} />
+            {/* Mesma url de /laudo/:tokenUrl e /evolucao/:tokenUrl que o paciente usa
+                sem login — mas isso aqui só existe dentro do bloco autenticado
+                (session existe), então o menu do paciente só aparece pra quem
+                está logado. A versão registrada lá embaixo, no bloco `!session`
+                (visitante sem login), é a mesma página SEM este wrapper. */}
+            <Route path="/laudo/:tokenUrl" element={<LayoutComPaciente itemAtivo="laudo" tokenViaAvaliacao><ResultadoAvaliacao /></LayoutComPaciente>} />
             <Route path="/configuracoes" element={<Configuracoes />} />
-            <Route path="/evolucao/:tokenUrl" element={<EvolucaoPaciente />} />
-            <Route path="/planejamento-calorico" element={<CalculadoraGastoCalorico />} />
+            <Route path="/evolucao/:tokenUrl" element={<LayoutComPaciente itemAtivo="evolucao"><EvolucaoPaciente /></LayoutComPaciente>} />
+            <Route path="/planejamento-calorico" element={<LayoutComPaciente itemAtivo="gasto_energetico"><CalculadoraGastoCalorico /></LayoutComPaciente>} />
             
             {/* Central de Aprendizado acessível internamente */}
             <Route path="/aprendizado" element={<Aprendizado />} />

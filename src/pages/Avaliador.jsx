@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../supabaseClient'
+import { usePlano } from '../contexts/PlanoContext'
 
 export default function Avaliador() {
   const navigate = useNavigate()
+  const { isPro } = usePlano()
 
   const [loading, setLoading] = useState(true)
   const [savingPerfil, setSavingPerfil] = useState(false)
@@ -18,7 +20,6 @@ export default function Avaliador() {
   const [instagram, setInstagram] = useState('')
   const [empresa, setEmpresa] = useState('')
   const [videoUrlPadrao, setVideoUrlPadrao] = useState('') // 📹 Novo estado
-  const [planoStatus, setPlanoStatus] = useState('gratis')
 
   // Estados dos Equipamentos
   const [equipId, setEquipId] = useState(null)
@@ -69,7 +70,6 @@ export default function Avaliador() {
         setInstagram(perfilData.instagram || '')
         setEmpresa(perfilData.empresa || '')
         setVideoUrlPadrao(perfilData.video_url_padrao || '')
-        setPlanoStatus(perfilData.plano_status ? perfilData.plano_status.toLowerCase() : 'gratis')
         setLogoUrl(perfilData.logomarca_url || '')
 
         // 2. Busca equipamentos vinculados ao ID do avaliador
@@ -98,8 +98,6 @@ export default function Avaliador() {
 
     carregarDadosAvaliador()
   }, [])
-
-  const isPro = planoStatus === 'pro' || planoStatus === 'ativo'
 
   // Salvar Perfil
   const handleSalvarPerfil = async (e) => {

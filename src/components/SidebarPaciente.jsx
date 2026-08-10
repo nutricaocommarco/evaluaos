@@ -95,7 +95,7 @@ export default function SidebarPaciente({ paciente, itemAtivo, onSelecionarItem 
         .limit(1)
         .maybeSingle()
       if (!data) { alert('Este paciente ainda não tem nenhuma avaliação registrada.'); return }
-      navigate('/laudo-antropometrico', { state: { avaliacaoId: data.id } })
+      navigate('/laudo-antropometrico', { state: { avaliacaoId: data.id, paciente } })
     } else if (item.tipo === 'pacientes') {
       navigate('/pacientes')
     } else {
