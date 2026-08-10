@@ -27,12 +27,14 @@ export default function BotaoInstalarPWA() {
     if (!detectarMobile() || detectarStandalone()) return
     setVisivel(true)
 
-    const handler = (e) => {
-      e.preventDefault()
-      setPromptEvento(e)
-    }
-    window.addEventListener('beforeinstallprompt', handler)
-    return () => window.removeEventListener('beforeinstallprompt', handler)
+    // O evento pode já ter disparado antes desta tela montar (ele só
+    // acontece uma vez por carregamento — src/main.jsx captura cedo e
+    // guarda em window.__pwaInstallPrompt pra não perder).
+    if (window.__pwaInstallPrompt) setPromptEvento(window.__pwaInstallPrompt)
+
+    const handler = () => setPromptEvento(window.__pwaInstallPrompt)
+    window.addEventListener('pwa-install-disponivel', handler)
+    return () => window.removeEventListener('pwa-install-disponivel', handler)
   }, [])
 
   if (!visivel) return null
@@ -41,8 +43,9 @@ export default function BotaoInstalarPWA() {
   const handleClick = async () => {
     if (promptEvento) {
       promptEvento.prompt()
-      const { outcome } = await promptEvento.userChoice
-      if (outcome === 'accepted') setPromptEvento(null)
+      await promptEvento.userChoice
+      window.__pwaInstallPrompt = null
+      setPromptEvento(null)
       return
     }
     setMostrarInstrucoesIOS(true)
