@@ -24,11 +24,6 @@ const SECOES = [
         texto: 'Um modo alternativo de prescrição em texto livre, pra quando você não precisa calcular macros.',
       },
       {
-        chave: 'detalhamento-nutricional',
-        titulo: 'Mais detalhamento nutricional',
-        texto: 'Informações mais completas de açúcares, amido e fibra nos alimentos cadastrados.',
-      },
-      {
         chave: 'mais-suplementos',
         titulo: 'Mais marcas de suplementos',
         texto: 'Ampliação da base de suplementos cadastrados, cobrindo mais marcas do mercado.',
