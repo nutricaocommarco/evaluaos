@@ -1,0 +1,260 @@
+import React, { useState, useEffect } from 'react'
+import { useParams, useNavigate } from 'react-router-dom'
+import { supabase } from '../supabaseClient'
+import { useTheme } from '../contexts/ThemeContext'
+import CabecalhoPortalPaciente from '../components/CabecalhoPortalPaciente'
+import NavegacaoPortalPaciente from '../components/NavegacaoPortalPaciente'
+
+// Mesmas funções puras de src/pages/PlanoAlimentar.jsx (duplicadas de
+// propósito em vez de importadas — essa página é pública/paciente e não
+// deveria puxar o bundle inteiro do editor do nutri).
+const UNIDADES_MEDIDA = [
+  { valor: 'g', label: 'Gramas (g)', fatorG: 1 },
+  { valor: 'ml', label: 'Mililitros (ml)', fatorG: 1 },
+  { valor: 'colher_sopa', label: 'Colher de sopa (~15g)', fatorG: 15 },
+  { valor: 'colher_cha', label: 'Colher de chá (~5g)', fatorG: 5 },
+  { valor: 'colher_cafe', label: 'Colher de café (~3g)', fatorG: 3 },
+  { valor: 'copo_americano', label: 'Copo americano (~200ml)', fatorG: 200 },
+  { valor: 'xicara_cha', label: 'Xícara de chá (~240ml)', fatorG: 240 },
+  { valor: 'concha', label: 'Concha média (~80g)', fatorG: 80 },
+]
+
+function labelUnidade(valor) {
+  return UNIDADES_MEDIDA.find((u) => u.valor === valor)?.label.replace(/\s*\(~.*\)/, '') || valor
+}
+
+function calcularMacrosItem(item) {
+  const alimento = item.tabela_alimentos
+  if (!alimento || item.ignorar_nos_calculos) return { kcal: 0, proteina: 0, carbo: 0, lipidio: 0, fibra: 0 }
+  const fator = (Number(item.quantidade_g) || 0) / 100
+  return {
+    kcal: (alimento.energia_kcal || 0) * fator,
+    proteina: (alimento.proteina_g || 0) * fator,
+    carbo: (alimento.carboidrato_g || 0) * fator,
+    lipidio: (alimento.lipidios_g || 0) * fator,
+    fibra: (alimento.fibra_g || 0) * fator,
+  }
+}
+
+function somarMacros(lista) {
+  return lista.reduce(
+    (acc, m) => ({
+      kcal: acc.kcal + m.kcal,
+      proteina: acc.proteina + m.proteina,
+      carbo: acc.carbo + m.carbo,
+      lipidio: acc.lipidio + m.lipidio,
+      fibra: acc.fibra + (m.fibra || 0),
+    }),
+    { kcal: 0, proteina: 0, carbo: 0, lipidio: 0, fibra: 0 }
+  )
+}
+
+function fmt(n) {
+  return Number.isFinite(n) ? n.toFixed(1).replace(/\.0$/, '') : '0'
+}
+
+function compararRefeicoes(a, b) {
+  const ha = a.horario || '99:99'
+  const hb = b.horario || '99:99'
+  if (ha !== hb) return ha < hb ? -1 : 1
+  return a.ordem - b.ordem
+}
+
+export default function PlanoAlimentarPaciente() {
+  const { tokenUrl } = useParams()
+  const navigate = useNavigate()
+  const { setDarkMode, setCorPrimaria } = useTheme()
+
+  const [loading, setLoading] = useState(true)
+  const [paciente, setPaciente] = useState(null)
+  const [nomeEmpresa, setNomeEmpresa] = useState('')
+  const [nomeAvaliador, setNomeAvaliador] = useState('')
+  const [logomarcaUrl, setLogomarcaUrl] = useState('')
+  const [plano, setPlano] = useState(null)
+  const [sessaoAtiva, setSessaoAtiva] = useState(false)
+  const [tokenLaudo, setTokenLaudo] = useState('')
+
+  useEffect(() => {
+    const carregar = async () => {
+      setLoading(true)
+
+      const { data: authData } = await supabase.auth.getUser()
+      setSessaoAtiva(!!authData?.user)
+
+      const { data: pacData } = await supabase
+        .from('pacientes')
+        .select('*')
+        .eq('token_publico', tokenUrl)
+        .maybeSingle()
+
+      if (!pacData) { setLoading(false); return }
+      setPaciente(pacData)
+
+      if (pacData.id_avaliador) {
+        const { data: avalData } = await supabase
+          .from('avaliadores')
+          .select('auth_id, empresa, nome_completo, logomarca_url')
+          .eq('auth_id', pacData.id_avaliador)
+          .maybeSingle()
+
+        if (avalData) {
+          setNomeEmpresa(avalData.empresa || '')
+          setNomeAvaliador(avalData.nome_completo || '')
+          setLogomarcaUrl(avalData.logomarca_url || '')
+
+          const { data: configData } = await supabase
+            .from('configuracoes_avaliador')
+            .select('dark_mode, cor_primaria')
+            .eq('auth_id', avalData.auth_id)
+            .maybeSingle()
+
+          if (configData) {
+            setDarkMode(!!configData.dark_mode)
+            if (configData.cor_primaria) setCorPrimaria(configData.cor_primaria)
+          }
+        }
+      }
+
+      const [planoRes, avalRes] = await Promise.all([
+        supabase
+          .from('planos_alimentares')
+          .select('*, refeicoes_prescritas(*, itens_refeicao(*, tabela_alimentos(*)))')
+          .eq('id_paciente', pacData.id)
+          .eq('ativo', true)
+          .maybeSingle(),
+        supabase
+          .from('avaliacoes')
+          .select('token_publico')
+          .eq('id_paciente', pacData.id)
+          .order('data_avaliacao', { ascending: false })
+          .limit(1)
+          .maybeSingle(),
+      ])
+
+      setPlano(planoRes.data || null)
+      setTokenLaudo(avalRes.data?.token_publico || '')
+      setLoading(false)
+    }
+    carregar()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tokenUrl])
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-slate-950">
+        <p className="text-primary-600 font-bold animate-pulse">Carregando plano alimentar...</p>
+      </div>
+    )
+  }
+
+  if (!paciente) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-slate-950 p-4">
+        <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-xl p-8 max-w-md text-center">
+          <p className="text-gray-700 dark:text-slate-300 font-semibold">Link inválido.</p>
+        </div>
+      </div>
+    )
+  }
+
+  const refeicoesOrdenadas = plano ? [...(plano.refeicoes_prescritas || [])].sort(compararRefeicoes) : []
+  const totalDia = somarMacros(
+    refeicoesOrdenadas.flatMap((r) => (r.itens_refeicao || []).filter((i) => i.opcao_numero === 1).map(calcularMacrosItem))
+  )
+
+  return (
+    <div className="min-h-screen bg-gray-50 dark:bg-slate-950 py-8 px-4">
+      <div className="max-w-3xl mx-auto space-y-4">
+        <CabecalhoPortalPaciente
+          logomarcaUrl={logomarcaUrl}
+          nomeEmpresa={nomeEmpresa}
+          nomeAvaliador={nomeAvaliador}
+          aoVoltar={() => navigate(`/area/${tokenUrl}`)}
+        />
+
+        {!sessaoAtiva && (
+          <NavegacaoPortalPaciente tokenPaciente={tokenUrl} tokenLaudo={tokenLaudo} ativo="plano" />
+        )}
+
+        <div>
+          <h2 className="text-xl font-black text-gray-800 dark:text-slate-100">Plano Alimentar</h2>
+          <p className="text-sm text-gray-500 dark:text-slate-400 mt-0.5">{paciente.nome_completo}</p>
+        </div>
+
+        {!plano ? (
+          <div className="bg-white dark:bg-slate-900 p-8 rounded-xl border border-gray-100 dark:border-slate-800 shadow-sm text-center">
+            <p className="text-gray-500 dark:text-slate-400 text-sm">Nenhum plano alimentar ativo no momento.</p>
+          </div>
+        ) : (
+          <>
+            <div className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-gray-100 dark:border-slate-800 shadow-sm">
+              <p className="text-[10px] font-bold text-gray-400 dark:text-slate-500 uppercase tracking-wider mb-2">{plano.titulo}</p>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm">
+                <div>
+                  <p className="text-gray-400 dark:text-slate-500 text-xs">Calorias</p>
+                  <p className="font-black text-gray-800 dark:text-slate-100">
+                    {fmt(totalDia.kcal)} {plano.vet_target ? `/ ${plano.vet_target}` : ''} kcal
+                  </p>
+                </div>
+                <div>
+                  <p className="text-gray-400 dark:text-slate-500 text-xs">Proteína</p>
+                  <p className="font-black text-gray-800 dark:text-slate-100">{fmt(totalDia.proteina)}g</p>
+                </div>
+                <div>
+                  <p className="text-gray-400 dark:text-slate-500 text-xs">Carboidrato</p>
+                  <p className="font-black text-gray-800 dark:text-slate-100">{fmt(totalDia.carbo)}g</p>
+                </div>
+                <div>
+                  <p className="text-gray-400 dark:text-slate-500 text-xs">Lipídio</p>
+                  <p className="font-black text-gray-800 dark:text-slate-100">{fmt(totalDia.lipidio)}g</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="space-y-3">
+              {refeicoesOrdenadas.map((refeicao) => {
+                const opcoes = [...new Set((refeicao.itens_refeicao || []).map((i) => i.opcao_numero))].sort((a, b) => a - b)
+                return (
+                  <div key={refeicao.id} className="bg-white dark:bg-slate-900 rounded-xl border border-gray-100 dark:border-slate-800 shadow-sm p-4">
+                    <div className="flex items-center gap-2 mb-3">
+                      {refeicao.horario && <span className="text-xs font-semibold text-gray-400 dark:text-slate-500">{refeicao.horario.slice(0, 5)}</span>}
+                      <h3 className="text-sm font-black text-gray-800 dark:text-slate-100">{refeicao.nome_refeicao}</h3>
+                    </div>
+                    <div className="flex flex-wrap gap-3">
+                      {(opcoes.length > 0 ? opcoes : [1]).map((n) => {
+                        const itensOpcao = (refeicao.itens_refeicao || []).filter((i) => i.opcao_numero === n)
+                        const macrosOpcao = somarMacros(itensOpcao.map(calcularMacrosItem))
+                        return (
+                          <div key={n} className="rounded-lg border border-gray-100 dark:border-slate-800 p-3 flex-1 min-w-[220px]">
+                            {opcoes.length > 1 && (
+                              <p className="text-[11px] font-black text-gray-500 dark:text-slate-400 uppercase tracking-wider mb-1">Opção {n}</p>
+                            )}
+                            <ul className="space-y-1">
+                              {itensOpcao.map((item) => (
+                                <li key={item.id} className="text-xs text-gray-700 dark:text-slate-300">
+                                  {item.nome_customizado || item.tabela_alimentos?.nome || 'Alimento'}
+                                  <span className="text-gray-400 dark:text-slate-500">
+                                    {' '}— {item.unidade_medida && item.quantidade_medida
+                                      ? `${item.quantidade_medida} ${labelUnidade(item.unidade_medida)} (≈${item.quantidade_g}g)`
+                                      : `${item.quantidade_g}g`}
+                                  </span>
+                                </li>
+                              ))}
+                            </ul>
+                            <p className="text-[11px] text-gray-400 dark:text-slate-500 mt-2">
+                              {fmt(macrosOpcao.kcal)}kcal · P{fmt(macrosOpcao.proteina)} · C{fmt(macrosOpcao.carbo)} · L{fmt(macrosOpcao.lipidio)}
+                            </p>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  )
+}

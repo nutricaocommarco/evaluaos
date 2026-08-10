@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { supabase } from '../supabaseClient'
 import SidebarPaciente from '../components/SidebarPaciente'
 import GeradorPdfCompleto from '../components/GeradorPdfCompleto'
-import { User, Mail, Phone, Briefcase, Activity, FileText, TrendingUp, CreditCard, Pencil, FileDown } from 'lucide-react'
+import { User, Mail, Phone, Briefcase, Activity, FileText, TrendingUp, CreditCard, Pencil, FileDown, History, PlusCircle, ClipboardList, Link2, Check } from 'lucide-react'
 
 function calcularIdade(dataNascimento) {
   if (!dataNascimento) return null
@@ -51,6 +51,10 @@ export default function PerfilPaciente({ userId }) {
   const [form, setForm] = useState(CAMPOS_VAZIOS)
   const [saving, setSaving] = useState(false)
   const [showGeradorPdf, setShowGeradorPdf] = useState(false)
+  const [linkCopiado, setLinkCopiado] = useState(false)
+
+  const [showHistorico, setShowHistorico] = useState(false)
+  const [avaliacoesList, setAvaliacoesList] = useState([])
 
   const carregarPaciente = async () => {
     setLoading(true)
@@ -80,6 +84,39 @@ export default function PerfilPaciente({ userId }) {
       observacoes: paciente.observacoes || '',
     })
     setShowModal(true)
+  }
+
+  const handleCopiarLinkArea = async () => {
+    const link = `${window.location.origin}/area/${paciente.token_publico}`
+    await navigator.clipboard.writeText(link)
+    setLinkCopiado(true)
+    setTimeout(() => setLinkCopiado(false), 2000)
+  }
+
+  const abrirHistorico = async () => {
+    setShowHistorico(true)
+    const { data } = await supabase
+      .from('avaliacoes')
+      .select('id, data_avaliacao, equacao_de_regressao_escolhida, peso_paciente')
+      .eq('id_paciente', id)
+      .order('data_avaliacao', { ascending: false })
+    setAvaliacoesList(data || [])
+  }
+
+  const handleExcluirAvaliacao = async (idAvaliacao) => {
+    const digitado = window.prompt('⚠️ Ação irreversível!\n\nPara confirmar a exclusão desta avaliação, digite exatamente a palavra APAGAR:')
+    if (digitado !== 'APAGAR') {
+      if (digitado !== null) alert('Palavra incorreta. A exclusão foi cancelada.')
+      return
+    }
+    try {
+      await supabase.from('dados_calculados').delete().eq('id_avaliacao', idAvaliacao)
+      const { error } = await supabase.from('avaliacoes').delete().eq('id', idAvaliacao)
+      if (error) throw error
+      setAvaliacoesList((prev) => prev.filter((a) => a.id !== idAvaliacao))
+    } catch (err) {
+      alert('Erro ao excluir avaliação: ' + err.message)
+    }
   }
 
   const handleSalvar = async (e) => {
@@ -138,6 +175,13 @@ export default function PerfilPaciente({ userId }) {
           </div>
           <div className="flex gap-2 shrink-0">
             <button
+              onClick={handleCopiarLinkArea}
+              title="Copiar link da Área do Paciente pra mandar pro paciente"
+              className="flex items-center gap-1.5 px-4 py-2 border border-gray-300 dark:border-slate-700 text-gray-700 dark:text-slate-300 text-sm font-semibold rounded-lg hover:bg-gray-50 dark:hover:bg-slate-800 transition-colors"
+            >
+              {linkCopiado ? <Check size={15} /> : <Link2 size={15} />} {linkCopiado ? 'Copiado!' : 'Link da Área do Paciente'}
+            </button>
+            <button
               onClick={() => setShowGeradorPdf(true)}
               className="flex items-center gap-1.5 px-4 py-2 border border-gray-300 dark:border-slate-700 text-gray-700 dark:text-slate-300 text-sm font-semibold rounded-lg hover:bg-gray-50 dark:hover:bg-slate-800 transition-colors"
             >
@@ -173,6 +217,32 @@ export default function PerfilPaciente({ userId }) {
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <button
+            onClick={() => navigate('/nova-avaliacao', { state: { paciente } })}
+            className="bg-white dark:bg-slate-900 p-5 rounded-xl border border-gray-100 dark:border-slate-800 shadow-sm flex items-center gap-3 text-left hover:border-primary-300 dark:hover:border-primary-700 transition-colors"
+          >
+            <div className="w-10 h-10 rounded-full bg-primary-50 dark:bg-primary-900/20 flex items-center justify-center text-primary-600 shrink-0">
+              <PlusCircle size={18} />
+            </div>
+            <div>
+              <p className="text-sm font-bold text-gray-800 dark:text-slate-100">Nova Avaliação</p>
+              <p className="text-xs text-gray-500 dark:text-slate-400">Registrar uma nova avaliação antropométrica</p>
+            </div>
+          </button>
+
+          <button
+            onClick={abrirHistorico}
+            className="bg-white dark:bg-slate-900 p-5 rounded-xl border border-gray-100 dark:border-slate-800 shadow-sm flex items-center gap-3 text-left hover:border-primary-300 dark:hover:border-primary-700 transition-colors"
+          >
+            <div className="w-10 h-10 rounded-full bg-gray-50 dark:bg-slate-800 flex items-center justify-center text-gray-500 dark:text-slate-400 shrink-0">
+              <History size={18} />
+            </div>
+            <div>
+              <p className="text-sm font-bold text-gray-800 dark:text-slate-100">Histórico de Avaliações</p>
+              <p className="text-xs text-gray-500 dark:text-slate-400">Ver, editar ou excluir avaliações antigas</p>
+            </div>
+          </button>
+
+          <button
             onClick={() => navigate('/evolucao', { state: { paciente } })}
             className="bg-white dark:bg-slate-900 p-5 rounded-xl border border-gray-100 dark:border-slate-800 shadow-sm flex items-center gap-3 text-left hover:border-primary-300 dark:hover:border-primary-700 transition-colors"
           >
@@ -182,6 +252,19 @@ export default function PerfilPaciente({ userId }) {
             <div>
               <p className="text-sm font-bold text-gray-800 dark:text-slate-100">Gráficos de Evolução</p>
               <p className="text-xs text-gray-500 dark:text-slate-400">Ver comparativo antropométrico</p>
+            </div>
+          </button>
+
+          <button
+            onClick={() => navigate(`/pacientes/${paciente.id}/questionarios`)}
+            className="bg-white dark:bg-slate-900 p-5 rounded-xl border border-gray-100 dark:border-slate-800 shadow-sm flex items-center gap-3 text-left hover:border-primary-300 dark:hover:border-primary-700 transition-colors"
+          >
+            <div className="w-10 h-10 rounded-full bg-violet-50 dark:bg-violet-900/20 flex items-center justify-center text-violet-600 shrink-0">
+              <ClipboardList size={18} />
+            </div>
+            <div>
+              <p className="text-sm font-bold text-gray-800 dark:text-slate-100">Questionários</p>
+              <p className="text-xs text-gray-500 dark:text-slate-400">Enviar e ver respostas</p>
             </div>
           </button>
 
@@ -365,6 +448,63 @@ export default function PerfilPaciente({ userId }) {
           avaliadorUserId={userId}
           aoFechar={() => setShowGeradorPdf(false)}
         />
+      )}
+
+      {showHistorico && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+          <div className="bg-white dark:bg-slate-900 rounded-2xl max-w-md w-full p-6 space-y-4 shadow-xl">
+            <div className="flex justify-between items-center border-b border-gray-100 dark:border-slate-800 pb-3">
+              <h3 className="text-lg font-bold text-gray-800 dark:text-slate-100">Histórico: {paciente.nome_completo}</h3>
+              <button onClick={() => setShowHistorico(false)} className="text-gray-400 dark:text-slate-400 hover:text-gray-600 p-1 rounded">✕</button>
+            </div>
+
+            {avaliacoesList.length === 0 ? (
+              <div className="py-8 flex flex-col items-center justify-center text-gray-500 dark:text-slate-400">
+                <p className="text-sm">Nenhuma avaliação realizada ainda.</p>
+              </div>
+            ) : (
+              <div className="space-y-2 max-h-64 overflow-y-auto pr-2">
+                {avaliacoesList.map((a) => (
+                  <div key={a.id} className="flex justify-between items-center p-3 border border-gray-100 dark:border-slate-800 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-800">
+                    <div>
+                      <p className="text-sm font-bold text-gray-800 dark:text-slate-100">
+                        {a.data_avaliacao ? new Date(a.data_avaliacao).toLocaleDateString('pt-BR', { timeZone: 'UTC' }) : '-'}
+                      </p>
+                      <p className="text-xs font-medium text-gray-500 dark:text-slate-400 mt-0.5">{a.equacao_de_regressao_escolhida || 'Sem Equação'} • {a.peso_paciente}kg</p>
+                    </div>
+                    <div className="flex gap-2 items-center">
+                      <button
+                        onClick={() => navigate('/nova-avaliacao', { state: { paciente, avaliacaoIdParaEditar: a.id } })}
+                        className="p-1.5 text-blue-500 hover:bg-blue-100 dark:hover:bg-blue-900/30 dark:bg-blue-900/20 rounded transition-colors"
+                        title="Editar Avaliação"
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"></path>
+                        </svg>
+                      </button>
+                      <button
+                        onClick={() => handleExcluirAvaliacao(a.id)}
+                        className="p-1.5 text-red-500 hover:bg-red-100 dark:hover:bg-red-900/30 dark:bg-red-900/20 rounded transition-colors"
+                        title="Excluir Avaliação"
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <polyline points="3 6 5 6 21 6"></polyline>
+                          <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                        </svg>
+                      </button>
+                      <button
+                        onClick={() => navigate('/laudo-antropometrico', { state: { avaliacaoId: a.id } })}
+                        className="px-3 py-1.5 bg-primary-600 text-white rounded-md text-xs font-semibold hover:bg-primary-700 shadow-sm transition-colors ml-1"
+                      >
+                        Laudo
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
       )}
     </div>
   )

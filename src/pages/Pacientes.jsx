@@ -3,6 +3,12 @@ import { useNavigate } from 'react-router-dom'
 import { supabase } from '../supabaseClient'
 import { usePlano } from '../contexts/PlanoContext'
 
+function linkWhatsApp(paciente) {
+  const limpo = paciente.telefone?.replace(/\D/g, '')
+  if (!limpo) return null
+  return `https://wa.me/${limpo.startsWith('55') ? limpo : '55' + limpo}`
+}
+
 export default function Pacientes({ userId }) {
   const navigate = useNavigate()
   const { isPro } = usePlano()
@@ -14,9 +20,6 @@ export default function Pacientes({ userId }) {
 
   // Motivo do modal de upgrade ('limite' ou 'exclusao')
   const [upgradeReason, setUpgradeReason] = useState('limite')
-
-  const [historicoPaciente, setHistoricoPaciente] = useState(null)
-  const [avaliacoesList, setAvaliacoesList] = useState([])
 
   // --- ESTADOS DE BUSCA E FILTROS ---
   const [searchTerm, setSearchTerm] = useState('')
@@ -153,36 +156,6 @@ export default function Pacientes({ userId }) {
       }
     }
     setSaving(false)
-  }
-
-  const handleVerHistorico = async (paciente) => {
-    setHistoricoPaciente(paciente)
-    const { data } = await supabase
-      .from('avaliacoes')
-      .select('id, data_avaliacao, equacao_de_regressao_escolhida, peso_paciente')
-      .eq('id_paciente', paciente.id)
-      .order('data_avaliacao', { ascending: false })
-
-    setAvaliacoesList(data || [])
-  }
-
-  const handleDeleteAvaliacao = async (idAvaliacao) => {
-    const digitado = window.prompt("⚠️ Ação irreversível!\n\nPara confirmar a exclusão desta avaliação, digite exatamente a palavra APAGAR:")
-
-    if (digitado === "APAGAR") {
-      try {
-        await supabase.from('dados_calculados').delete().eq('id_avaliacao', idAvaliacao)
-        const { error } = await supabase.from('avaliacoes').delete().eq('id', idAvaliacao)
-        if (error) throw error
-
-        setAvaliacoesList(avaliacoesList.filter(a => a.id !== idAvaliacao))
-        alert('Avaliação excluída com sucesso!')
-      } catch (err) {
-        alert('Erro ao excluir avaliação: ' + err.message)
-      }
-    } else if (digitado !== null) {
-      alert('Palavra incorreta. A exclusão foi cancelada.')
-    }
   }
 
   const handleDeletePaciente = async (idPaciente) => {
@@ -325,37 +298,29 @@ export default function Pacientes({ userId }) {
                     </div>
 
                     <div className="grid grid-cols-2 gap-2 mt-3 pt-2 border-t border-gray-50">
-                      <button 
-                        onClick={() => handleVerHistorico(p)}
-                        className="py-2 px-3 border border-gray-200 dark:border-slate-700 text-gray-700 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-slate-800 font-semibold text-xs rounded-lg text-center"
-                      >
-                        Histórico
-                      </button>
-
-                      <button 
-                        onClick={() => navigate('/evolucao', { state: { paciente: p } })}
-                        className="py-2 px-3 text-primary-700 dark:text-primary-400 border border-primary-200 dark:border-primary-800 bg-primary-50 dark:bg-primary-900/20 dark:bg-primary-900/20 hover:bg-primary-100 dark:hover:bg-primary-900/30 dark:bg-primary-900/20 rounded-lg transition-colors flex items-center justify-center gap-1 font-semibold text-xs text-center"
-                      >
-                        <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"></polyline><polyline points="17 6 23 6 23 12"></polyline></svg>
-                        Evolução
-                      </button>
-
                       <button
                         onClick={() => navigate(`/pacientes/${p.id}/prontuario`)}
-                        className="py-2 px-3 text-indigo-700 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-800 bg-indigo-50 dark:bg-indigo-900/20 hover:bg-indigo-100 dark:hover:bg-indigo-900/30 rounded-lg transition-colors flex items-center justify-center gap-1 font-semibold text-xs text-center col-span-2"
+                        className="py-2 px-3 text-indigo-700 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-800 bg-indigo-50 dark:bg-indigo-900/20 hover:bg-indigo-100 dark:hover:bg-indigo-900/30 rounded-lg transition-colors flex items-center justify-center gap-1 font-semibold text-xs text-center"
                       >
                         <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line></svg>
                         Prontuário
                       </button>
 
-                      <button
-                        onClick={() => navigate('/nova-avaliacao', { state: { paciente: p } })}
-                        className="py-2 px-3 bg-primary-600 text-white hover:bg-primary-700 font-semibold text-xs rounded-lg text-center shadow-sm col-span-2"
-                      >
-                        + Nova Avaliação
-                      </button>
+                      {linkWhatsApp(p) ? (
+                        <a
+                          href={linkWhatsApp(p)}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="py-2 px-3 text-green-700 dark:text-green-400 border border-green-200 dark:border-green-800 bg-green-50 dark:bg-green-900/20 hover:bg-green-100 dark:hover:bg-green-900/30 rounded-lg transition-colors flex items-center justify-center gap-1 font-semibold text-xs text-center"
+                        >
+                          <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
+                          WhatsApp
+                        </a>
+                      ) : (
+                        <span className="py-2 px-3 text-gray-300 dark:text-slate-600 border border-gray-100 dark:border-slate-800 rounded-lg font-semibold text-xs text-center">Sem telefone</span>
+                      )}
 
-                      <button 
+                      <button
                         onClick={() => handleEditPaciente(p)}
                         className="py-2 px-3 text-blue-600 border border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-900/20 dark:bg-blue-900/20 hover:bg-blue-100 dark:hover:bg-blue-900/30 dark:bg-blue-900/20 rounded-lg transition-colors flex items-center justify-center gap-1 font-semibold text-xs text-center"
                       >
@@ -413,19 +378,6 @@ export default function Pacientes({ userId }) {
                           )}
                         </td>
                         <td className="p-4 text-right space-x-3 flex items-center justify-end gap-2">
-                          <button onClick={() => handleVerHistorico(p)} className="text-gray-600 dark:text-slate-400 hover:text-gray-900 font-medium text-xs underline">
-                            Histórico
-                          </button>
-
-                          <button 
-                            onClick={() => navigate('/evolucao', { state: { paciente: p } })} 
-                            className="text-primary-700 dark:text-primary-400 font-medium text-xs border border-primary-100 dark:border-primary-900/40 bg-primary-50 dark:bg-primary-900/20 dark:bg-primary-900/20 hover:bg-primary-100 dark:hover:bg-primary-900/30 dark:bg-primary-900/20 px-3 py-1.5 rounded transition-colors flex items-center gap-1"
-                            title="Ver Gráficos de Evolução"
-                          >
-                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"></polyline><polyline points="17 6 23 6 23 12"></polyline></svg>
-                            Evolução
-                          </button>
-
                           <button
                             onClick={() => navigate(`/pacientes/${p.id}/prontuario`)}
                             className="text-indigo-700 dark:text-indigo-400 font-medium text-xs border border-indigo-100 dark:border-indigo-900/40 bg-indigo-50 dark:bg-indigo-900/20 hover:bg-indigo-100 dark:hover:bg-indigo-900/30 px-3 py-1.5 rounded transition-colors flex items-center gap-1"
@@ -435,12 +387,20 @@ export default function Pacientes({ userId }) {
                             Prontuário
                           </button>
 
-                          <button
-                            onClick={() => navigate('/nova-avaliacao', { state: { paciente: p } })}
-                            className="text-white font-medium text-xs bg-primary-600 hover:bg-primary-700 px-3 py-1.5 rounded transition-colors"
-                          >
-                            + Avaliação
-                          </button>
+                          {linkWhatsApp(p) ? (
+                            <a
+                              href={linkWhatsApp(p)}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="text-green-700 dark:text-green-400 font-medium text-xs border border-green-100 dark:border-green-900/40 bg-green-50 dark:bg-green-900/20 hover:bg-green-100 dark:hover:bg-green-900/30 px-3 py-1.5 rounded transition-colors flex items-center gap-1"
+                              title="Conversar no WhatsApp"
+                            >
+                              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
+                              WhatsApp
+                            </a>
+                          ) : (
+                            <span className="text-gray-300 dark:text-slate-600 font-medium text-xs px-3 py-1.5" title="Paciente sem telefone cadastrado">WhatsApp</span>
+                          )}
 
                           <button onClick={() => handleEditPaciente(p)} className="p-1.5 text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20 dark:bg-blue-900/20 rounded transition-colors inline-flex items-center" title="Editar Paciente">
                             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"></path></svg>
@@ -733,69 +693,6 @@ export default function Pacientes({ userId }) {
         </div>
       )}
 
-      {/* MODAL DO HISTÓRICO DE AVALIAÇÕES */}
-      {historicoPaciente && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-          <div className="bg-white dark:bg-slate-900 rounded-2xl max-w-md w-full p-6 space-y-4 shadow-xl">
-            <div className="flex justify-between items-center border-b border-gray-100 dark:border-slate-800 pb-3">
-              <h3 className="text-lg font-bold text-gray-800 dark:text-slate-100">Histórico: {historicoPaciente.nome_completo}</h3>
-              <button onClick={() => setHistoricoPaciente(null)} className="text-gray-400 dark:text-slate-400 hover:text-gray-600 p-1 rounded">✕</button>
-            </div>
-
-            {avaliacoesList.length === 0 ? (
-              <div className="py-8 flex flex-col items-center justify-center text-gray-500 dark:text-slate-400">
-                <p className="text-sm">Nenhuma avaliação realizada ainda.</p>
-              </div>
-            ) : (
-              <div className="space-y-2 max-h-64 overflow-y-auto pr-2">
-                {avaliacoesList.map((a) => (
-                  <div key={a.id} className="flex justify-between items-center p-3 border border-gray-100 dark:border-slate-800 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-800">
-                    <div>
-                      <p className="text-sm font-bold text-gray-800 dark:text-slate-100">
-                        {a.data_avaliacao ? new Date(a.data_avaliacao).toLocaleDateString('pt-BR', { timeZone: 'UTC' }) : '-'}
-                      </p>
-                      <p className="text-xs font-medium text-gray-500 dark:text-slate-400 mt-0.5">{a.equacao_de_regressao_escolhida || 'Sem Equação'} • {a.peso_paciente}kg</p>
-                    </div>
-
-<div className="flex gap-2 items-center">
-  {/* Ícone do Lápis */}
-  <button
-    onClick={() => navigate('/nova-avaliacao', { state: { paciente: historicoPaciente, avaliacaoIdParaEditar: a.id } })}
-    className="p-1.5 text-blue-500 hover:bg-blue-100 dark:hover:bg-blue-900/30 dark:bg-blue-900/20 rounded transition-colors"
-    title="Editar Avaliação"
-  >
-    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"></path>
-    </svg>
-  </button>
-
-  {/* Ícone da Lixeira */}
-  <button 
-    onClick={() => handleDeleteAvaliacao(a.id)} 
-    className="p-1.5 text-red-500 hover:bg-red-100 dark:hover:bg-red-900/30 dark:bg-red-900/20 rounded transition-colors" 
-    title="Excluir Avaliação"
-  >
-    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <polyline points="3 6 5 6 21 6"></polyline>
-      <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
-    </svg>
-  </button>
-
-  {/* Botão de Laudo */}
-  <button
-    onClick={() => navigate('/laudo-antropometrico', { state: { avaliacaoId: a.id } })}
-    className="px-3 py-1.5 bg-primary-600 text-white rounded-md text-xs font-semibold hover:bg-primary-700 shadow-sm transition-colors ml-1"
-  >
-    Laudo
-  </button>
-</div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
-      )}
     </div>
   )
 }
