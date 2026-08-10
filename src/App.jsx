@@ -3,7 +3,7 @@ import { BrowserRouter, Routes, Route, Navigate, useNavigate, useLocation } from
 import { supabase } from './supabaseClient'
 import { ThemeProvider } from './contexts/ThemeContext'
 import { PlanoProvider, usePlano } from './contexts/PlanoContext'
-import { Users, Apple, UserCheck, Star, BookOpen, Settings, Map, LayoutTemplate } from 'lucide-react'
+import { Users, Apple, UserCheck, Star, BookOpen, Settings, Map, LayoutTemplate, ClipboardList } from 'lucide-react'
 
 // Importando suas telas 
 import HomePublica from './pages/HomePublica'
@@ -31,6 +31,10 @@ import ListasRecomendacoes from './pages/ListasRecomendacoes';
 import PerfilPaciente from './pages/PerfilPaciente';
 import Roadmap from './pages/Roadmap';
 import Modelos from './pages/Modelos';
+import Questionarios from './pages/Questionarios';
+import QuestionarioBuilder from './pages/QuestionarioBuilder';
+import QuestionarioPublico from './pages/QuestionarioPublico';
+import PacienteQuestionarios from './pages/PacienteQuestionarios';
 import EmConstrucao from './components/EmConstrucao';
 import LayoutComPaciente from './components/LayoutComPaciente';
 
@@ -70,6 +74,7 @@ function MainApp() {
     { name: 'Pacientes', path: '/pacientes', icon: <Users size={20} /> },
     ...(isBeta ? [{ name: 'Alimentos', path: '/alimentos', icon: <Apple size={20} /> }] : []),
     ...(isBeta ? [{ name: 'Modelos', path: '/modelos', icon: <LayoutTemplate size={20} /> }] : []),
+    ...(isBeta ? [{ name: 'Questionários', path: '/questionarios', icon: <ClipboardList size={20} /> }] : []),
     { name: 'Avaliador', path: '/avaliador', icon: <UserCheck size={20} /> },
     { name: 'Meu Plano', path: '/meu-plano', icon: <Star size={20} /> },
     { name: 'Aprendizado', path: '/aprendizado', icon: <BookOpen size={20} /> },
@@ -97,6 +102,7 @@ function MainApp() {
         {/* ROTAS PÚBLICAS DO PACIENTE (Acesso via Token) */}
         <Route path="/laudo/:tokenUrl" element={<ResultadoAvaliacao />} />
         <Route path="/evolucao/:tokenUrl" element={<EvolucaoPaciente />} />
+        <Route path="/questionario/:tokenUrl" element={<QuestionarioPublico />} />
 
         {/* INSTITUCIONAL & SEO */}
         <Route path="/aprendizado" element={<Aprendizado />} />
@@ -225,6 +231,13 @@ function MainApp() {
             <Route path="/pacientes/:id/listas-recomendacoes" element={<ListasRecomendacoes userId={session.user.id} />} />
             <Route path="/alimentos" element={<TabelaAlimentos userId={session.user.id} />} />
             <Route path="/modelos" element={isBeta ? <Modelos /> : (planoCarregado ? <Navigate to="/pacientes" replace /> : null)} />
+            <Route path="/questionarios" element={isBeta ? <Questionarios userId={session.user.id} /> : (planoCarregado ? <Navigate to="/pacientes" replace /> : null)} />
+            <Route path="/questionarios/:id/editar" element={isBeta ? <QuestionarioBuilder userId={session.user.id} /> : (planoCarregado ? <Navigate to="/pacientes" replace /> : null)} />
+            <Route path="/pacientes/:id/questionarios" element={<PacienteQuestionarios userId={session.user.id} />} />
+            {/* Mesma url pública de /questionario/:tokenUrl, aqui sem wrapper —
+                se o nutri clicar no próprio link gerado estando logado, vê a
+                mesma tela chromeless que o paciente veria. */}
+            <Route path="/questionario/:tokenUrl" element={<QuestionarioPublico />} />
             <Route path="/contato" element={<Contato />} />
             <Route path="/nova-avaliacao" element={<LayoutComPaciente itemAtivo="nova_avaliacao"><AvaliacaoForm /></LayoutComPaciente>} />
             <Route path="/equacoes-de-regressao" element={<LayoutComPaciente itemAtivo="equacoes"><EscolhaPercGordura /></LayoutComPaciente>} />

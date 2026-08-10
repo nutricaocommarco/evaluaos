@@ -2,10 +2,14 @@ import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../supabaseClient'
 import { usePlano } from '../contexts/PlanoContext'
+import ModalEnviarQuestionario from '../components/questionarios/ModalEnviarQuestionario'
 
 export default function Pacientes({ userId }) {
   const navigate = useNavigate()
-  const { isPro } = usePlano()
+  const { isPro, isBeta } = usePlano()
+
+  const [questionarios, setQuestionarios] = useState([])
+  const [pacienteParaEnviarQuestionario, setPacienteParaEnviarQuestionario] = useState(null)
 
   const [pacientes, setPacientes] = useState([])
   const [loading, setLoading] = useState(true)
@@ -59,6 +63,11 @@ export default function Pacientes({ userId }) {
   useEffect(() => {
     fetchPacientes()
   }, [])
+
+  useEffect(() => {
+    if (!isBeta) return
+    supabase.from('questionarios').select('id, titulo').order('titulo').then(({ data }) => setQuestionarios(data || []))
+  }, [isBeta])
 
   const isFreeAccount = !isPro
 
@@ -435,6 +444,17 @@ export default function Pacientes({ userId }) {
                             Prontuário
                           </button>
 
+                          {isBeta && (
+                            <button
+                              onClick={() => setPacienteParaEnviarQuestionario(p)}
+                              className="text-green-700 dark:text-green-400 font-medium text-xs border border-green-100 dark:border-green-900/40 bg-green-50 dark:bg-green-900/20 hover:bg-green-100 dark:hover:bg-green-900/30 px-3 py-1.5 rounded transition-colors flex items-center gap-1"
+                              title="Enviar questionário por WhatsApp"
+                            >
+                              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
+                              Questionário
+                            </button>
+                          )}
+
                           <button
                             onClick={() => navigate('/nova-avaliacao', { state: { paciente: p } })}
                             className="text-white font-medium text-xs bg-primary-600 hover:bg-primary-700 px-3 py-1.5 rounded transition-colors"
@@ -731,6 +751,17 @@ export default function Pacientes({ userId }) {
             </div>
           </div>
         </div>
+      )}
+
+      {pacienteParaEnviarQuestionario && (
+        <ModalEnviarQuestionario
+          questionarios={questionarios}
+          pacientes={[]}
+          pacientePreSelecionado={pacienteParaEnviarQuestionario}
+          userId={userId}
+          aoFechar={() => setPacienteParaEnviarQuestionario(null)}
+          aoCriado={() => {}}
+        />
       )}
 
       {/* MODAL DO HISTÓRICO DE AVALIAÇÕES */}

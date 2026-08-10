@@ -46,6 +46,7 @@ const GRUPOS_TODOS = [
       { key: 'planos', label: 'Planos Alimentares', tipo: 'plano_alimentar' },
       { key: 'listas', label: 'Listas de Recomendações', tipo: 'listas' },
       { key: 'orientacoes', label: 'Orientações Nutricionais', tipo: 'orientacoes' },
+      { key: 'questionarios', label: 'Questionários', tipo: 'questionarios' },
     ]
   },
 ]
@@ -72,6 +73,9 @@ export default function SidebarPaciente({ paciente, itemAtivo, onSelecionarItem 
     } else if (item.tipo === 'orientacoes') {
       onSelecionarItem?.(item.key)
       navigate(`/pacientes/${paciente.id}/orientacoes-nutricionais`)
+    } else if (item.tipo === 'questionarios') {
+      onSelecionarItem?.(item.key)
+      navigate(`/pacientes/${paciente.id}/questionarios`)
     } else if (item.tipo === 'linha_tempo') {
       onSelecionarItem?.(item.key)
       navigate(`/pacientes/${paciente.id}/linha-do-tempo`)
