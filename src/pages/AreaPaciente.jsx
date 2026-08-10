@@ -4,6 +4,7 @@ import { supabase } from '../supabaseClient'
 import { useTheme } from '../contexts/ThemeContext'
 import CabecalhoPortalPaciente from '../components/CabecalhoPortalPaciente'
 import NavegacaoPortalPaciente from '../components/NavegacaoPortalPaciente'
+import BotaoInstalarPWA from '../components/BotaoInstalarPWA'
 import { TrendingUp, FileText, ClipboardList, MessageSquare, Utensils } from 'lucide-react'
 
 function CardAcao({ icone: Icone, cor, titulo, subtitulo, onClick, desabilitado }) {
@@ -143,6 +144,8 @@ export default function AreaPaciente() {
         {!sessaoAtiva && (
           <NavegacaoPortalPaciente tokenPaciente={tokenUrl} tokenLaudo={avaliacaoRecente?.token_publico} ativo="inicio" />
         )}
+
+        {!sessaoAtiva && <BotaoInstalarPWA />}
 
         <div>
           <h2 className="text-xl font-black text-gray-800 dark:text-slate-100">Olá, {paciente.nome_completo?.split(' ')[0]}!</h2>
