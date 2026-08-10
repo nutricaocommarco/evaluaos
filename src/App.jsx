@@ -225,6 +225,7 @@ function MainApp() {
             <Route path="/pacientes/:id/listas-recomendacoes" element={<ListasRecomendacoes userId={session.user.id} />} />
             <Route path="/alimentos" element={<TabelaAlimentos userId={session.user.id} />} />
             <Route path="/modelos" element={isBeta ? <Modelos /> : (planoCarregado ? <Navigate to="/pacientes" replace /> : null)} />
+            <Route path="/contato" element={<Contato />} />
             <Route path="/nova-avaliacao" element={<LayoutComPaciente itemAtivo="nova_avaliacao"><AvaliacaoForm /></LayoutComPaciente>} />
             <Route path="/equacoes-de-regressao" element={<LayoutComPaciente itemAtivo="equacoes"><EscolhaPercGordura /></LayoutComPaciente>} />
             <Route path="/laudo-antropometrico" element={<LayoutComPaciente itemAtivo="laudo"><ResultadoAvaliacao /></LayoutComPaciente>} />
