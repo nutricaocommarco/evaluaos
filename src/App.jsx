@@ -3,7 +3,7 @@ import { BrowserRouter, Routes, Route, Navigate, useNavigate, useLocation } from
 import { supabase } from './supabaseClient'
 import { ThemeProvider } from './contexts/ThemeContext'
 import { PlanoProvider, usePlano } from './contexts/PlanoContext'
-import { Users, Apple, UserCheck, Star, BookOpen, Settings } from 'lucide-react'
+import { Users, Apple, UserCheck, Star, BookOpen, Settings, Map } from 'lucide-react'
 
 // Importando suas telas 
 import HomePublica from './pages/HomePublica'
@@ -28,6 +28,7 @@ import Anamnese from './pages/Anamnese';
 import OrientacoesNutricionais from './pages/OrientacoesNutricionais';
 import LinhaDoTempo from './pages/LinhaDoTempo';
 import ListasRecomendacoes from './pages/ListasRecomendacoes';
+import Roadmap from './pages/Roadmap';
 import EmConstrucao from './components/EmConstrucao';
 import LayoutComPaciente from './components/LayoutComPaciente';
 
@@ -69,6 +70,9 @@ function MainApp() {
     { name: 'Avaliador', path: '/avaliador', icon: <UserCheck size={20} /> },
     { name: 'Meu Plano', path: '/meu-plano', icon: <Star size={20} /> },
     { name: 'Aprendizado', path: '/aprendizado', icon: <BookOpen size={20} /> },
+    // Roadmap fica visível só pro Beta: o conteúdo detalha exatamente as
+    // features de Nutrição que ainda estamos escondendo do gratis/pro.
+    ...(isBeta ? [{ name: 'Roadmap', path: '/roadmap', icon: <Map size={20} /> }] : []),
     { name: 'Configurações', path: '/configuracoes', icon: <Settings size={20} /> },
   ]
 
@@ -222,6 +226,7 @@ function MainApp() {
             <Route path="/evolucao" element={<LayoutComPaciente itemAtivo="evolucao"><EvolucaoPaciente /></LayoutComPaciente>} />
             <Route path="/avaliador" element={<Avaliador userId={session.user.id} />} />
             <Route path="/meu-plano" element={<MeuPlano />} />
+            <Route path="/roadmap" element={isBeta ? <Roadmap /> : <Navigate to="/pacientes" replace />} />
             {/* Mesma url de /laudo/:tokenUrl e /evolucao/:tokenUrl que o paciente usa
                 sem login — mas isso aqui só existe dentro do bloco autenticado
                 (session existe), então o menu do paciente só aparece pra quem
