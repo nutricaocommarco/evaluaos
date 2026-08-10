@@ -228,7 +228,7 @@ function MainApp() {
             <Route path="/evolucao" element={<LayoutComPaciente itemAtivo="evolucao"><EvolucaoPaciente /></LayoutComPaciente>} />
             <Route path="/avaliador" element={<Avaliador userId={session.user.id} />} />
             <Route path="/meu-plano" element={<MeuPlano />} />
-            <Route path="/roadmap" element={isBeta ? <Roadmap /> : (planoCarregado ? <Navigate to="/pacientes" replace /> : null)} />
+            <Route path="/roadmap" element={isBeta ? <Roadmap userId={session.user.id} /> : (planoCarregado ? <Navigate to="/pacientes" replace /> : null)} />
             {/* Mesma url de /laudo/:tokenUrl e /evolucao/:tokenUrl que o paciente usa
                 sem login — mas isso aqui só existe dentro do bloco autenticado
                 (session existe), então o menu do paciente só aparece pra quem
