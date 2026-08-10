@@ -660,6 +660,50 @@ function SubstitutosModal({ item, onFechar, onSubstitutosChange }) {
   )
 }
 
+// Modal genérico "Salvar como modelo" — só pede o título; o conteúdo em si
+// (itens da refeição, ou refeições+itens do plano) já está pronto no
+// chamador antes de abrir este modal.
+function ModalSalvarModelo({ tituloPadrao, aoConfirmar, aoFechar, saving }) {
+  const [titulo, setTitulo] = useState(tituloPadrao || 'Modelo')
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+      <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-xl w-full max-w-sm p-6 space-y-4">
+        <h3 className="text-base font-bold text-gray-800 dark:text-slate-100">Salvar como modelo</h3>
+        <div>
+          <label className="block text-xs font-bold text-gray-700 dark:text-slate-300 uppercase tracking-wider mb-1">
+            Título do modelo
+          </label>
+          <input
+            autoFocus
+            type="text"
+            value={titulo}
+            onChange={(e) => setTitulo(e.target.value)}
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-primary-500"
+          />
+        </div>
+        <div className="flex justify-end gap-3">
+          <button
+            type="button"
+            onClick={aoFechar}
+            className="px-4 py-2 border border-gray-300 text-gray-700 dark:text-slate-300 text-sm font-semibold rounded-lg hover:bg-gray-50 dark:hover:bg-slate-800"
+          >
+            Cancelar
+          </button>
+          <button
+            type="button"
+            disabled={saving}
+            onClick={() => aoConfirmar(titulo.trim() || tituloPadrao || 'Modelo')}
+            className="px-4 py-2 bg-primary-600 text-white text-sm font-semibold rounded-lg hover:bg-primary-700 shadow disabled:opacity-50"
+          >
+            {saving ? 'Salvando...' : 'Salvar modelo'}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 function OpcaoCard({ refeicaoId, opcaoNumero, itens, onItemExcluido, onItemAdicionado, onItemAtualizado, onAbrirSubstitutos, mostrarFormInicial, aoFecharForm, onDuplicar }) {
   const [mostrarForm, setMostrarForm] = useState(!!mostrarFormInicial)
   const macros = somarMacros(itens.map(calcularMacrosItem))
@@ -734,7 +778,7 @@ function OpcaoCard({ refeicaoId, opcaoNumero, itens, onItemExcluido, onItemAdici
   )
 }
 
-function RefeicaoCard({ refeicao, onAtualizarCampo, onExcluir, onItensChange, onMover, podeSubir, podeDescer, onDuplicarRefeicao, onAbrirSubstitutos }) {
+function RefeicaoCard({ refeicao, onAtualizarCampo, onExcluir, onItensChange, onMover, podeSubir, podeDescer, onDuplicarRefeicao, onAbrirSubstitutos, onSalvarComoModelo }) {
   const [novaOpcaoAberta, setNovaOpcaoAberta] = useState(false)
 
   const opcoesExistentes = [...new Set(refeicao.itens_refeicao.map((i) => i.opcao_numero))].sort((a, b) => a - b)
@@ -800,6 +844,12 @@ function RefeicaoCard({ refeicao, onAtualizarCampo, onExcluir, onItensChange, on
           />
         </div>
         <div className="flex items-center gap-3 shrink-0">
+          <button
+            onClick={() => onSalvarComoModelo(refeicao)}
+            className="text-xs font-semibold text-primary-600 hover:underline"
+          >
+            Salvar como modelo
+          </button>
           <button
             onClick={() => onDuplicarRefeicao(refeicao)}
             className="text-xs font-semibold text-primary-600 hover:underline"
@@ -882,6 +932,13 @@ export default function PlanoAlimentar({ userId }) {
   const [modalSubstitutos, setModalSubstitutos] = useState(null) // { refeicaoId, item } | null
   const [showGeradorPdf, setShowGeradorPdf] = useState(false)
 
+  const [modelosRefeicoes, setModelosRefeicoes] = useState([])
+  const [modelosPlanos, setModelosPlanos] = useState([])
+  const [modalModeloRefeicao, setModalModeloRefeicao] = useState(null) // refeição selecionada | null
+  const [modalModeloPlano, setModalModeloPlano] = useState(false)
+  const [salvandoModelo, setSalvandoModelo] = useState(false)
+  const [modeloBasePlanoId, setModeloBasePlanoId] = useState('')
+
   const pesoParaConversao = pesoOverride !== '' ? Number(pesoOverride) : (pesoAtual ? Number(pesoAtual) : null)
 
   const carregarPaciente = async () => {
@@ -935,12 +992,20 @@ export default function PlanoAlimentar({ userId }) {
     setCarregandoRefeicoes(false)
   }
 
+  const carregarModelos = async () => {
+    const { data: mr } = await supabase.from('modelos_refeicoes').select('*').order('titulo')
+    setModelosRefeicoes(mr || [])
+    const { data: mp } = await supabase.from('modelos_planos').select('*').order('titulo')
+    setModelosPlanos(mp || [])
+  }
+
   useEffect(() => {
     const iniciar = async () => {
       setLoading(true)
       await carregarPaciente()
       const listaPlanos = await carregarPlanos()
       await carregarDadosRecentes()
+      await carregarModelos()
 
       const ativo = listaPlanos.find((p) => p.ativo) || listaPlanos[0]
       if (ativo) setPlanoSelecionadoId(ativo.id)
@@ -959,11 +1024,201 @@ export default function PlanoAlimentar({ userId }) {
   const abrirNovoPlano = () => {
     setEditingPlanoId(null)
     setModoMeta('g_kg')
+    setModeloBasePlanoId('')
     setFormPlano({
       ...CAMPOS_PLANO_VAZIOS,
       vet_target: vetSugerido ? String(Math.round(vetSugerido)) : '',
     })
     setShowModalNovoPlano(true)
+  }
+
+  // Prefila título/metas a partir de um modelo de plano; a cópia das
+  // refeições/itens em si só acontece depois, ao efetivamente criar o plano
+  // (handleSalvarPlano), pra não duplicar nada se o usuário cancelar.
+  const handleEscolherModeloPlano = (valor) => {
+    setModeloBasePlanoId(valor)
+    const modelo = modelosPlanos.find((m) => String(m.id) === valor)
+    if (!modelo) return
+    const usaPercentual = modelo.proteina_target_pct != null || modelo.carbo_target_pct != null || modelo.lipidio_target_pct != null
+    setModoMeta(usaPercentual ? 'percentual' : 'g_kg')
+    setFormPlano((prev) => ({
+      ...prev,
+      titulo: modelo.titulo,
+      vet_target: modelo.vet_target ?? '',
+      proteina_target_g_kg: modelo.proteina_target_g_kg ?? '',
+      carbo_target_g_kg: modelo.carbo_target_g_kg ?? '',
+      lipidio_target_g_kg: modelo.lipidio_target_g_kg ?? '',
+      proteina_target_pct: modelo.proteina_target_pct ?? '',
+      carbo_target_pct: modelo.carbo_target_pct ?? '',
+      lipidio_target_pct: modelo.lipidio_target_pct ?? '',
+    }))
+  }
+
+  // Copia as refeições + itens de um modelo de plano pro plano recém-criado.
+  const copiarModeloParaPlano = async (modeloId, novoPlanoId) => {
+    const { data: refsModelo } = await supabase
+      .from('modelos_planos_refeicoes')
+      .select('*, modelos_planos_itens(*)')
+      .eq('id_modelo_plano', modeloId)
+      .order('ordem')
+
+    for (const refModelo of refsModelo || []) {
+      const { data: novaRefeicao, error } = await supabase
+        .from('refeicoes_prescritas')
+        .insert({
+          id_plano: novoPlanoId,
+          horario: refModelo.horario,
+          nome_refeicao: refModelo.nome_refeicao,
+          ordem: refModelo.ordem,
+        })
+        .select()
+        .single()
+      if (error || !novaRefeicao) continue
+
+      const itensModelo = refModelo.modelos_planos_itens || []
+      if (itensModelo.length > 0) {
+        const inserts = itensModelo.map((i) => ({
+          id_refeicao: novaRefeicao.id,
+          id_alimento: i.id_alimento,
+          quantidade_g: i.quantidade_g,
+          opcao_numero: i.opcao_numero,
+          nome_customizado: i.nome_customizado,
+          unidade_medida: i.unidade_medida,
+          quantidade_medida: i.quantidade_medida,
+        }))
+        await supabase.from('itens_refeicao').insert(inserts)
+      }
+    }
+  }
+
+  const handleSalvarRefeicaoComoModelo = async (titulo) => {
+    const refeicao = modalModeloRefeicao
+    if (!refeicao) return
+    setSalvandoModelo(true)
+
+    const { data: modelo, error } = await supabase
+      .from('modelos_refeicoes')
+      .insert({ id_avaliador: userId, titulo: titulo || refeicao.nome_refeicao })
+      .select()
+      .single()
+
+    if (error || !modelo) {
+      setSalvandoModelo(false)
+      alert('Erro ao salvar modelo: ' + error?.message)
+      return
+    }
+
+    if (refeicao.itens_refeicao.length > 0) {
+      const inserts = refeicao.itens_refeicao.map((i) => ({
+        id_modelo: modelo.id,
+        id_alimento: i.id_alimento,
+        quantidade_g: i.quantidade_g,
+        opcao_numero: i.opcao_numero,
+        nome_customizado: i.nome_customizado || null,
+        unidade_medida: i.unidade_medida || null,
+        quantidade_medida: i.quantidade_medida || null,
+      }))
+      await supabase.from('modelos_refeicoes_itens').insert(inserts)
+    }
+
+    setSalvandoModelo(false)
+    setModalModeloRefeicao(null)
+    await carregarModelos()
+  }
+
+  const handleUsarModeloRefeicao = async (modeloIdStr) => {
+    const modeloId = Number(modeloIdStr)
+    const modelo = modelosRefeicoes.find((m) => m.id === modeloId)
+    if (!modelo) return
+
+    const { data: itensModelo } = await supabase
+      .from('modelos_refeicoes_itens')
+      .select('*')
+      .eq('id_modelo', modeloId)
+
+    const { data: novaRefeicao, error } = await supabase
+      .from('refeicoes_prescritas')
+      .insert({ id_plano: planoSelecionadoId, nome_refeicao: modelo.titulo, ordem: refeicoes.length })
+      .select('*, itens_refeicao(*, tabela_alimentos(*))')
+      .single()
+
+    if (error) { alert('Erro ao usar modelo: ' + error.message); return }
+
+    let itensCriados = []
+    if (itensModelo && itensModelo.length > 0) {
+      const inserts = itensModelo.map((i) => ({
+        id_refeicao: novaRefeicao.id,
+        id_alimento: i.id_alimento,
+        quantidade_g: i.quantidade_g,
+        opcao_numero: i.opcao_numero,
+        nome_customizado: i.nome_customizado,
+        unidade_medida: i.unidade_medida,
+        quantidade_medida: i.quantidade_medida,
+      }))
+      const { data: novosItens } = await supabase.from('itens_refeicao').insert(inserts).select('*, tabela_alimentos(*)')
+      itensCriados = novosItens || []
+    }
+
+    setRefeicoes((prev) => [...prev, { ...novaRefeicao, itens_refeicao: itensCriados }])
+  }
+
+  const handleSalvarPlanoComoModelo = async (titulo) => {
+    if (!planoSelecionado) return
+    setSalvandoModelo(true)
+
+    const { data: modelo, error } = await supabase
+      .from('modelos_planos')
+      .insert({
+        id_avaliador: userId,
+        titulo: titulo || planoSelecionado.titulo,
+        vet_target: planoSelecionado.vet_target,
+        proteina_target_g_kg: planoSelecionado.proteina_target_g_kg,
+        carbo_target_g_kg: planoSelecionado.carbo_target_g_kg,
+        lipidio_target_g_kg: planoSelecionado.lipidio_target_g_kg,
+        proteina_target_pct: planoSelecionado.proteina_target_pct,
+        carbo_target_pct: planoSelecionado.carbo_target_pct,
+        lipidio_target_pct: planoSelecionado.lipidio_target_pct,
+      })
+      .select()
+      .single()
+
+    if (error || !modelo) {
+      setSalvandoModelo(false)
+      alert('Erro ao salvar modelo: ' + error?.message)
+      return
+    }
+
+    const listaOrdenada = [...refeicoes].sort(compararRefeicoes)
+    for (const refeicao of listaOrdenada) {
+      const { data: modeloRefeicao, error: errRef } = await supabase
+        .from('modelos_planos_refeicoes')
+        .insert({
+          id_modelo_plano: modelo.id,
+          horario: refeicao.horario,
+          nome_refeicao: refeicao.nome_refeicao,
+          ordem: refeicao.ordem,
+        })
+        .select()
+        .single()
+      if (errRef || !modeloRefeicao) continue
+
+      if (refeicao.itens_refeicao.length > 0) {
+        const inserts = refeicao.itens_refeicao.map((i) => ({
+          id_modelo_refeicao: modeloRefeicao.id,
+          id_alimento: i.id_alimento,
+          quantidade_g: i.quantidade_g,
+          opcao_numero: i.opcao_numero,
+          nome_customizado: i.nome_customizado || null,
+          unidade_medida: i.unidade_medida || null,
+          quantidade_medida: i.quantidade_medida || null,
+        }))
+        await supabase.from('modelos_planos_itens').insert(inserts)
+      }
+    }
+
+    setSalvandoModelo(false)
+    setModalModeloPlano(false)
+    await carregarModelos()
   }
 
   const abrirEditarMetas = (plano) => {
@@ -1083,6 +1338,11 @@ export default function PlanoAlimentar({ userId }) {
     if (error) {
       alert('Erro ao criar plano: ' + error.message)
       return
+    }
+
+    if (modeloBasePlanoId) {
+      await copiarModeloParaPlano(modeloBasePlanoId, data.id)
+      setModeloBasePlanoId('')
     }
 
     setShowModalNovoPlano(false)
@@ -1302,6 +1562,12 @@ export default function PlanoAlimentar({ userId }) {
                 </p>
                 <div className="flex items-center gap-3">
                   <button
+                    onClick={() => setModalModeloPlano(true)}
+                    className="text-xs font-semibold text-primary-600 hover:underline"
+                  >
+                    Salvar como modelo
+                  </button>
+                  <button
                     onClick={() => abrirEditarMetas(planoSelecionado)}
                     className="text-xs font-semibold text-primary-600 hover:underline"
                   >
@@ -1399,17 +1665,33 @@ export default function PlanoAlimentar({ userId }) {
                     onItensChange={(novosItens) => handleItensChange(refeicao.id, novosItens)}
                     onMover={(direcao) => handleMoverRefeicao(refeicao.id, direcao)}
                     onAbrirSubstitutos={(item) => setModalSubstitutos({ refeicaoId: refeicao.id, item })}
+                    onSalvarComoModelo={setModalModeloRefeicao}
                     podeSubir={index > 0 && refeicoesOrdenadas[index - 1].horario === refeicao.horario}
                     podeDescer={index < refeicoesOrdenadas.length - 1 && refeicoesOrdenadas[index + 1].horario === refeicao.horario}
                   />
                 ))}
 
-                <button
-                  onClick={handleNovaRefeicao}
-                  className="w-full py-3 border-2 border-dashed border-gray-200 dark:border-slate-700 rounded-xl text-sm font-semibold text-gray-500 dark:text-slate-400 hover:border-primary-400 hover:text-primary-600 transition-colors"
-                >
-                  + Nova Refeição
-                </button>
+                <div className="flex gap-2">
+                  <button
+                    onClick={handleNovaRefeicao}
+                    className="flex-1 py-3 border-2 border-dashed border-gray-200 dark:border-slate-700 rounded-xl text-sm font-semibold text-gray-500 dark:text-slate-400 hover:border-primary-400 hover:text-primary-600 transition-colors"
+                  >
+                    + Nova Refeição
+                  </button>
+                  {modelosRefeicoes.length > 0 && (
+                    <select
+                      value=""
+                      onChange={(e) => { if (e.target.value) handleUsarModeloRefeicao(e.target.value) }}
+                      title="Usar modelo de refeição"
+                      className="px-3 py-3 border-2 border-dashed border-gray-200 dark:border-slate-700 rounded-xl text-xs font-semibold text-gray-500 dark:text-slate-400 bg-transparent outline-none focus:border-primary-400 hover:border-primary-400 hover:text-primary-600 transition-colors max-w-[45%]"
+                    >
+                      <option value="">Usar modelo...</option>
+                      {modelosRefeicoes.map((m) => (
+                        <option key={m.id} value={m.id}>{m.titulo}</option>
+                      ))}
+                    </select>
+                  )}
+                </div>
               </div>
             )}
 
@@ -1436,6 +1718,24 @@ export default function PlanoAlimentar({ userId }) {
                 <p className="text-xs text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg p-2">
                   Já existe um plano ativo — ele será marcado como inativo (mas continua no histórico) quando este for criado.
                 </p>
+              )}
+
+              {!editingPlanoId && modelosPlanos.length > 0 && (
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 dark:text-slate-300 uppercase tracking-wider mb-1">
+                    Começar a partir de um modelo (opcional)
+                  </label>
+                  <select
+                    value={modeloBasePlanoId}
+                    onChange={(e) => handleEscolherModeloPlano(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-primary-500"
+                  >
+                    <option value="">Nenhum — plano em branco</option>
+                    {modelosPlanos.map((m) => (
+                      <option key={m.id} value={m.id}>{m.titulo}</option>
+                    ))}
+                  </select>
+                </div>
               )}
 
               <div>
@@ -1608,6 +1908,24 @@ export default function PlanoAlimentar({ userId }) {
           item={modalSubstitutos.item}
           onFechar={() => setModalSubstitutos(null)}
           onSubstitutosChange={(novos) => handleAtualizarSubstitutos(modalSubstitutos.refeicaoId, modalSubstitutos.item.id, novos)}
+        />
+      )}
+
+      {modalModeloRefeicao && (
+        <ModalSalvarModelo
+          tituloPadrao={modalModeloRefeicao.nome_refeicao}
+          saving={salvandoModelo}
+          aoConfirmar={handleSalvarRefeicaoComoModelo}
+          aoFechar={() => setModalModeloRefeicao(null)}
+        />
+      )}
+
+      {modalModeloPlano && planoSelecionado && (
+        <ModalSalvarModelo
+          tituloPadrao={planoSelecionado.titulo}
+          saving={salvandoModelo}
+          aoConfirmar={handleSalvarPlanoComoModelo}
+          aoFechar={() => setModalModeloPlano(false)}
         />
       )}
 

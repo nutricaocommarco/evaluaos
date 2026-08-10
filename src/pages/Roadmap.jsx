@@ -24,9 +24,9 @@ const SECOES = [
         texto: 'Um modo alternativo de prescrição em texto livre, pra quando você não precisa calcular macros.',
       },
       {
-        chave: 'mais-suplementos',
-        titulo: 'Mais marcas de suplementos',
-        texto: 'Ampliação da base de suplementos cadastrados, cobrindo mais marcas do mercado.',
+        chave: 'mais-produtos-alimentos',
+        titulo: 'Mais produtos na lista de Alimentos',
+        texto: 'Ampliação contínua da base de alimentos cadastrados, cobrindo mais produtos e marcas do mercado.',
       },
     ],
   },
@@ -39,11 +39,6 @@ const SECOES = [
         chave: 'modulo-financeiro',
         titulo: 'Financeiro',
         texto: 'Controle financeiro do seu consultório: receitas, despesas e histórico de pagamentos dos pacientes.',
-      },
-      {
-        chave: 'modulo-modelos',
-        titulo: 'Modelos',
-        texto: 'Crie, edite, organize e apague seus modelos reutilizáveis de refeição, recordatório, plano alimentar, receita e orientação, tudo num só lugar.',
       },
       {
         chave: 'modulo-antropometria-crianca',
