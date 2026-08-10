@@ -281,7 +281,7 @@ const EvolucaoPDF = ({ historico, paciente, avaliador, idade, configVisibilidade
         )}
 
         <View style={styles.footer} fixed>
-          <Text>Documento gerado pelo sistema EvaluaOS - {consultorio} | Impresso em {dataHoje}</Text>
+          <Text>Documento gerado pelo sistema EvaluaOS | Impresso em {dataHoje}</Text>
         </View>
       </Page>
     </Document>

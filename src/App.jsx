@@ -28,6 +28,7 @@ import Anamnese from './pages/Anamnese';
 import OrientacoesNutricionais from './pages/OrientacoesNutricionais';
 import LinhaDoTempo from './pages/LinhaDoTempo';
 import ListasRecomendacoes from './pages/ListasRecomendacoes';
+import PerfilPaciente from './pages/PerfilPaciente';
 import Roadmap from './pages/Roadmap';
 import EmConstrucao from './components/EmConstrucao';
 import LayoutComPaciente from './components/LayoutComPaciente';
@@ -51,7 +52,7 @@ function MainApp() {
   const [session, setSession] = useState(null)
   const [loading, setLoading] = useState(true)
   const [isSidebarOpen, setIsSidebarOpen] = useState(false)
-  const { isBeta } = usePlano()
+  const { isBeta, carregado: planoCarregado } = usePlano()
 
   const navigate = useNavigate()
   const location = useLocation()
@@ -230,6 +231,7 @@ function MainApp() {
             <Route path="/login" element={<Navigate to="/pacientes" replace />} />
             
             <Route path="/pacientes" element={<Pacientes userId={session.user.id} />} />
+            <Route path="/pacientes/:id/perfil" element={<PerfilPaciente userId={session.user.id} />} />
             <Route path="/pacientes/:id/prontuario" element={<ProntuarioPaciente userId={session.user.id} />} />
             <Route path="/pacientes/:id/plano-alimentar" element={<PlanoAlimentar userId={session.user.id} />} />
             <Route path="/pacientes/:id/anamnese" element={<Anamnese userId={session.user.id} />} />
@@ -243,7 +245,7 @@ function MainApp() {
             <Route path="/evolucao" element={<LayoutComPaciente itemAtivo="evolucao"><EvolucaoPaciente /></LayoutComPaciente>} />
             <Route path="/avaliador" element={<Avaliador userId={session.user.id} />} />
             <Route path="/meu-plano" element={<MeuPlano />} />
-            <Route path="/roadmap" element={isBeta ? <Roadmap /> : <Navigate to="/pacientes" replace />} />
+            <Route path="/roadmap" element={isBeta ? <Roadmap /> : (planoCarregado ? <Navigate to="/pacientes" replace /> : null)} />
             {/* Mesma url de /laudo/:tokenUrl e /evolucao/:tokenUrl que o paciente usa
                 sem login — mas isso aqui só existe dentro do bloco autenticado
                 (session existe), então o menu do paciente só aparece pra quem

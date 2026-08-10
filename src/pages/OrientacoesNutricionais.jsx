@@ -3,7 +3,8 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { supabase } from '../supabaseClient'
 import SidebarPaciente from '../components/SidebarPaciente'
 import RichTextEditor, { sanitizarHtmlEditor } from '../components/RichTextEditor'
-import { ChevronDown, ChevronRight } from 'lucide-react'
+import GeradorPdfNutricional from '../components/GeradorPdfNutricional'
+import { ChevronDown, ChevronRight, FileDown } from 'lucide-react'
 
 const CAMPOS_VAZIOS = { titulo: 'Orientação', conteudo: '', salvarComoModelo: false }
 
@@ -28,6 +29,7 @@ export default function OrientacoesNutricionais({ userId }) {
   const [editingId, setEditingId] = useState(null)
   const [form, setForm] = useState(CAMPOS_VAZIOS)
   const [saving, setSaving] = useState(false)
+  const [showGeradorPdf, setShowGeradorPdf] = useState(false)
 
   const carregarDados = async () => {
     setLoading(true)
@@ -161,12 +163,20 @@ export default function OrientacoesNutricionais({ userId }) {
                   Um ou mais documentos de texto — tudo num só ou separados por assunto, como preferir
                 </p>
               </div>
-              <button
-                onClick={abrirNovaOrientacao}
-                className="px-4 py-2 bg-primary-600 text-white text-sm font-semibold rounded-lg hover:bg-primary-700 shadow transition-colors shrink-0"
-              >
-                + Nova Orientação
-              </button>
+              <div className="flex gap-2 shrink-0">
+                <button
+                  onClick={() => setShowGeradorPdf(true)}
+                  className="flex items-center gap-1.5 px-4 py-2 border border-gray-300 dark:border-slate-700 text-gray-700 dark:text-slate-300 text-sm font-semibold rounded-lg hover:bg-gray-50 dark:hover:bg-slate-800 transition-colors"
+                >
+                  <FileDown size={15} /> Gerar PDF
+                </button>
+                <button
+                  onClick={abrirNovaOrientacao}
+                  className="px-4 py-2 bg-primary-600 text-white text-sm font-semibold rounded-lg hover:bg-primary-700 shadow transition-colors"
+                >
+                  + Nova Orientação
+                </button>
+              </div>
             </div>
 
             {orientacoes.length === 0 ? (
@@ -282,6 +292,14 @@ export default function OrientacoesNutricionais({ userId }) {
             </form>
           </div>
         </div>
+      )}
+
+      {showGeradorPdf && (
+        <GeradorPdfNutricional
+          paciente={paciente}
+          avaliadorUserId={userId}
+          aoFechar={() => setShowGeradorPdf(false)}
+        />
       )}
     </div>
   )
