@@ -45,6 +45,20 @@ function labelUnidade(valor) {
   return UNIDADES_MEDIDA.find((u) => u.valor === valor)?.label.replace(/\s*\(~.*\)/, '') || valor
 }
 
+// O "(~15g)" no rótulo é só o fator GENÉRICO, igual pra qualquer
+// alimento. Quando o alimento selecionado tem peso próprio cadastrado
+// pra essa mesma unidade (medida_caseira_unidade bate com u.valor), o
+// rótulo precisa mostrar ESSE peso — senão o texto da opção continua
+// dizendo "~15g" mesmo quando o cálculo real já usa 25g, o que confunde
+// o nutricionista (viu esse caso: arroz/feijão em "Colher de sopa").
+function labelUnidadeParaAlimento(u, unidadeEfetiva, gramasEfetiva) {
+  if (unidadeEfetiva !== u.valor || !gramasEfetiva) return u.label
+  const match = u.label.match(/\(~\d+(\D*)\)/)
+  const sufixo = match ? match[1] : 'g'
+  const base = u.label.replace(/\s*\(~.*?\)/, '')
+  return `${base} (${gramasEfetiva}${sufixo})`
+}
+
 // A maioria das medidas caseiras já vem com a contagem embutida na
 // descrição ("1 colher de sopa cheia", "1 fatia") — só antepõe "1 " se a
 // descrição ainda não começar com um número (ex: alguém digitou só
@@ -321,7 +335,9 @@ function AdicionarItemForm({ refeicaoId, opcaoNumero, onItemAdicionado, onCancel
           className="w-full px-2 py-2 border border-gray-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-primary-500"
         >
           {UNIDADES_MEDIDA.map((u) => (
-            <option key={u.valor} value={u.valor}>{u.label}</option>
+            <option key={u.valor} value={u.valor}>
+              {labelUnidadeParaAlimento(u, selecionado?.medida_caseira_unidade, selecionado?.medida_caseira_g)}
+            </option>
           ))}
         </select>
       </div>
@@ -509,7 +525,9 @@ function ItemLinha({ item, onExcluir, onRenomear, onAbrirSubstitutos, onAtualiza
             className="px-1.5 py-1 border border-gray-300 rounded text-xs outline-none focus:ring-2 focus:ring-primary-500"
           >
             {UNIDADES_MEDIDA.map((u) => (
-              <option key={u.valor} value={u.valor}>{u.label}</option>
+              <option key={u.valor} value={u.valor}>
+                {labelUnidadeParaAlimento(u, medidaUnidadeEfetiva, medidaGramasEfetiva)}
+              </option>
             ))}
           </select>
           {!ehAVontadeEdit && unidadeEdit !== 'g' && (
