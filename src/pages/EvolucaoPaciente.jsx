@@ -70,6 +70,7 @@ export default function EvolucaoPaciente() {
           .from('avaliacoes')
           .select('token_publico')
           .eq('id_paciente', pacienteAtual.id)
+          .eq('visivel_paciente', true)
           .order('data_avaliacao', { ascending: false })
           .limit(1)
           .maybeSingle();
@@ -119,12 +120,15 @@ export default function EvolucaoPaciente() {
         }
       }
 
-      // 4. Busca Avaliações
-      const { data: avaliacoes, error: errAvaliacoes } = await supabase
+      // 4. Busca Avaliações (link público só considera as marcadas como
+      // visíveis pro paciente; o nutri logado sempre vê todas)
+      let queryAvaliacoes = supabase
         .from('avaliacoes')
         .select('*')
         .eq('id_paciente', pacienteAtual.id)
         .order('data_avaliacao', { ascending: true })
+      if (isPublicView) queryAvaliacoes = queryAvaliacoes.eq('visivel_paciente', true)
+      const { data: avaliacoes, error: errAvaliacoes } = await queryAvaliacoes
 
       if (errAvaliacoes) {
         console.error(errAvaliacoes)

@@ -11,7 +11,7 @@ function formatarData(dataStr) {
   return new Date(dataStr).toLocaleDateString('pt-BR')
 }
 
-export default function OrientacoesPaciente() {
+export default function ListasRecomendacoesPaciente() {
   const { tokenUrl } = useParams()
   const navigate = useNavigate()
   const { setDarkMode, setCorPrimaria } = useTheme()
@@ -21,7 +21,7 @@ export default function OrientacoesPaciente() {
   const [nomeEmpresa, setNomeEmpresa] = useState('')
   const [nomeAvaliador, setNomeAvaliador] = useState('')
   const [logomarcaUrl, setLogomarcaUrl] = useState('')
-  const [orientacoes, setOrientacoes] = useState([])
+  const [listas, setListas] = useState([])
   const [abertas, setAbertas] = useState(new Set())
   const [sessaoAtiva, setSessaoAtiva] = useState(false)
   const [tokenLaudo, setTokenLaudo] = useState('')
@@ -67,9 +67,9 @@ export default function OrientacoesPaciente() {
         }
       }
 
-      const [orientRes, avalRes] = await Promise.all([
+      const [listasRes, avalRes] = await Promise.all([
         supabase
-          .from('orientacoes_nutricionais')
+          .from('listas_recomendacoes')
           .select('*')
           .eq('id_paciente', pacData.id)
           .eq('visivel_paciente', true)
@@ -84,8 +84,8 @@ export default function OrientacoesPaciente() {
           .maybeSingle(),
       ])
 
-      const lista = orientRes.data
-      setOrientacoes(lista || [])
+      const lista = listasRes.data
+      setListas(lista || [])
       if (lista?.length === 1) setAbertas(new Set([lista[0].id]))
       setTokenLaudo(avalRes.data?.token_publico || '')
       setLoading(false)
@@ -106,7 +106,7 @@ export default function OrientacoesPaciente() {
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-slate-950">
-        <p className="text-primary-600 font-bold animate-pulse">Carregando orientações...</p>
+        <p className="text-primary-600 font-bold animate-pulse">Carregando listas de recomendações...</p>
       </div>
     )
   }
@@ -132,27 +132,27 @@ export default function OrientacoesPaciente() {
         />
 
         {!sessaoAtiva && (
-          <NavegacaoPortalPaciente tokenPaciente={tokenUrl} tokenLaudo={tokenLaudo} ativo="orientacoes" />
+          <NavegacaoPortalPaciente tokenPaciente={tokenUrl} tokenLaudo={tokenLaudo} ativo="listas" />
         )}
 
         <div>
-          <h2 className="text-xl font-black text-gray-800 dark:text-slate-100">Orientações Nutricionais</h2>
+          <h2 className="text-xl font-black text-gray-800 dark:text-slate-100">Listas de Recomendações</h2>
           <p className="text-sm text-gray-500 dark:text-slate-400 mt-0.5">{paciente.nome_completo}</p>
         </div>
 
-        {orientacoes.length === 0 ? (
+        {listas.length === 0 ? (
           <div className="bg-white dark:bg-slate-900 p-8 rounded-xl border border-gray-100 dark:border-slate-800 shadow-sm text-center">
-            <p className="text-gray-500 dark:text-slate-400 text-sm">Nenhuma orientação registrada ainda.</p>
+            <p className="text-gray-500 dark:text-slate-400 text-sm">Nenhuma lista registrada ainda.</p>
           </div>
         ) : (
           <div className="space-y-3">
-            {orientacoes.map((o) => {
-              const aberta = abertas.has(o.id)
+            {listas.map((l) => {
+              const aberta = abertas.has(l.id)
               return (
-                <div key={o.id} className="bg-white dark:bg-slate-900 rounded-xl border border-gray-100 dark:border-slate-800 shadow-sm overflow-hidden">
+                <div key={l.id} className="bg-white dark:bg-slate-900 rounded-xl border border-gray-100 dark:border-slate-800 shadow-sm overflow-hidden">
                   <button
                     type="button"
-                    onClick={() => toggleAberta(o.id)}
+                    onClick={() => toggleAberta(l.id)}
                     className="w-full flex items-center gap-2 text-left p-4"
                   >
                     {aberta ? (
@@ -161,14 +161,14 @@ export default function OrientacoesPaciente() {
                       <ChevronRight size={16} className="text-gray-400 dark:text-slate-500 shrink-0" />
                     )}
                     <div className="min-w-0">
-                      <span className="text-sm font-black text-gray-800 dark:text-slate-100 truncate block">{o.titulo}</span>
-                      <p className="text-[10px] text-gray-400 dark:text-slate-500">{formatarData(o.created_at)}</p>
+                      <span className="text-sm font-black text-gray-800 dark:text-slate-100 truncate block">{l.titulo}</span>
+                      <p className="text-[10px] text-gray-400 dark:text-slate-500">{formatarData(l.created_at)}</p>
                     </div>
                   </button>
                   {aberta && (
                     <div className="px-4 pb-4">
-                      {o.conteudo ? (
-                        <div className="rte-html text-sm text-gray-700 dark:text-slate-300" dangerouslySetInnerHTML={{ __html: o.conteudo }} />
+                      {l.conteudo ? (
+                        <div className="rte-html text-sm text-gray-700 dark:text-slate-300" dangerouslySetInnerHTML={{ __html: l.conteudo }} />
                       ) : (
                         <p className="text-sm text-gray-400 dark:text-slate-500">-</p>
                       )}

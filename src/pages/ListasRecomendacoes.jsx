@@ -4,6 +4,7 @@ import { supabase } from '../supabaseClient'
 import SidebarPaciente from '../components/SidebarPaciente'
 import RichTextEditor, { sanitizarHtmlEditor } from '../components/RichTextEditor'
 import GeradorPdfNutricional from '../components/GeradorPdfNutricional'
+import InterruptorVisibilidade from '../components/InterruptorVisibilidade'
 import { ChevronDown, ChevronRight, FileDown } from 'lucide-react'
 
 const CAMPOS_VAZIOS = { titulo: 'Lista', conteudo: '', salvarComoModelo: false }
@@ -124,6 +125,13 @@ export default function ListasRecomendacoes({ userId }) {
     setListas((prev) => prev.filter((l) => l.id !== listaId))
   }
 
+  const toggleVisivel = async (lista) => {
+    const novoValor = !lista.visivel_paciente
+    const { error } = await supabase.from('listas_recomendacoes').update({ visivel_paciente: novoValor }).eq('id', lista.id)
+    if (error) { alert('Erro ao atualizar visibilidade: ' + error.message); return }
+    setListas((prev) => prev.map((l) => (l.id === lista.id ? { ...l, visivel_paciente: novoValor } : l)))
+  }
+
   const handleExcluirModelo = async (modeloId) => {
     if (!window.confirm('Excluir este modelo? Isso não afeta listas já criadas a partir dele.')) return
     const { error } = await supabase.from('modelos_listas_recomendacoes').delete().eq('id', modeloId)
@@ -205,7 +213,8 @@ export default function ListasRecomendacoes({ userId }) {
                             <p className="text-[10px] text-gray-400 dark:text-slate-500">Criada em {formatarDataHora(l.created_at)}</p>
                           </div>
                         </button>
-                        <div className="flex gap-3 shrink-0">
+                        <div className="flex items-center gap-3 shrink-0">
+                          <InterruptorVisibilidade ativo={l.visivel_paciente} onToggle={() => toggleVisivel(l)} />
                           <button onClick={() => abrirEdicaoLista(l)} className="text-xs font-semibold text-primary-600 hover:underline">Editar</button>
                           <button onClick={() => handleExcluir(l.id)} className="text-xs font-semibold text-red-600 hover:underline">Excluir</button>
                         </div>

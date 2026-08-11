@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { useParams, useNavigate } from 'react-router-dom'
+import { useParams, useNavigate, useLocation } from 'react-router-dom'
 import { supabase } from '../supabaseClient'
 import SidebarPaciente from '../components/SidebarPaciente'
 
@@ -16,6 +16,7 @@ const CAMPOS_VAZIOS = {
 export default function ProntuarioPaciente({ userId }) {
   const { id } = useParams()
   const navigate = useNavigate()
+  const location = useLocation()
 
   const [paciente, setPaciente] = useState(null)
   const [consultas, setConsultas] = useState([])
@@ -61,6 +62,14 @@ export default function ProntuarioPaciente({ userId }) {
     setForm(CAMPOS_VAZIOS)
     setShowModal(true)
   }
+
+  useEffect(() => {
+    if (location.state?.abrirNovaConsulta) {
+      abrirNovaConsulta()
+      navigate(location.pathname, { replace: true })
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location.state])
 
   const abrirEdicaoConsulta = (consulta) => {
     setEditingId(consulta.id)

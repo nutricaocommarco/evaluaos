@@ -4,6 +4,7 @@ import { supabase } from '../supabaseClient'
 import SidebarPaciente from '../components/SidebarPaciente'
 import RichTextEditor, { sanitizarHtmlEditor } from '../components/RichTextEditor'
 import GeradorPdfNutricional from '../components/GeradorPdfNutricional'
+import InterruptorVisibilidade from '../components/InterruptorVisibilidade'
 import { ChevronDown, ChevronRight, FileDown } from 'lucide-react'
 
 const CAMPOS_VAZIOS = { titulo: 'Orientação', conteudo: '', salvarComoModelo: false }
@@ -124,6 +125,13 @@ export default function OrientacoesNutricionais({ userId }) {
     setOrientacoes((prev) => prev.filter((o) => o.id !== orientacaoId))
   }
 
+  const toggleVisivel = async (orientacao) => {
+    const novoValor = !orientacao.visivel_paciente
+    const { error } = await supabase.from('orientacoes_nutricionais').update({ visivel_paciente: novoValor }).eq('id', orientacao.id)
+    if (error) { alert('Erro ao atualizar visibilidade: ' + error.message); return }
+    setOrientacoes((prev) => prev.map((o) => (o.id === orientacao.id ? { ...o, visivel_paciente: novoValor } : o)))
+  }
+
   const handleExcluirModelo = async (modeloId) => {
     if (!window.confirm('Excluir este modelo? Isso não afeta orientações já criadas a partir dele.')) return
     const { error } = await supabase.from('modelos_orientacoes').delete().eq('id', modeloId)
@@ -205,7 +213,8 @@ export default function OrientacoesNutricionais({ userId }) {
                             <p className="text-[10px] text-gray-400 dark:text-slate-500">Criada em {formatarDataHora(o.created_at)}</p>
                           </div>
                         </button>
-                        <div className="flex gap-3 shrink-0">
+                        <div className="flex items-center gap-3 shrink-0">
+                          <InterruptorVisibilidade ativo={o.visivel_paciente} onToggle={() => toggleVisivel(o)} />
                           <button onClick={() => abrirEdicaoOrientacao(o)} className="text-xs font-semibold text-primary-600 hover:underline">Editar</button>
                           <button onClick={() => handleExcluir(o.id)} className="text-xs font-semibold text-red-600 hover:underline">Excluir</button>
                         </div>

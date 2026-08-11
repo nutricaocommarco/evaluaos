@@ -38,6 +38,7 @@ import PacienteQuestionarios from './pages/PacienteQuestionarios';
 import AreaPaciente from './pages/AreaPaciente';
 import PlanoAlimentarPaciente from './pages/PlanoAlimentarPaciente';
 import OrientacoesPaciente from './pages/OrientacoesPaciente';
+import ListasRecomendacoesPaciente from './pages/ListasRecomendacoesPaciente';
 import QuestionariosPaciente from './pages/QuestionariosPaciente';
 import EmConstrucao from './components/EmConstrucao';
 import LayoutComPaciente from './components/LayoutComPaciente';
@@ -120,6 +121,7 @@ function MainApp() {
         <Route path="/area/:tokenUrl" element={<AreaPaciente />} />
         <Route path="/area/:tokenUrl/plano" element={<PlanoAlimentarPaciente />} />
         <Route path="/area/:tokenUrl/orientacoes" element={<OrientacoesPaciente />} />
+        <Route path="/area/:tokenUrl/listas" element={<ListasRecomendacoesPaciente />} />
         <Route path="/area/:tokenUrl/questionarios" element={<QuestionariosPaciente />} />
 
         {/* INSTITUCIONAL & SEO */}

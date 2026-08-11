@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { supabase } from '../supabaseClient'
 import SidebarPaciente from '../components/SidebarPaciente'
 import GeradorPdfNutricional from '../components/GeradorPdfNutricional'
+import InterruptorVisibilidade from '../components/InterruptorVisibilidade'
 import { FileDown } from 'lucide-react'
 
 const CAMPOS_PLANO_VAZIOS = {
@@ -1320,8 +1321,6 @@ export default function PlanoAlimentar({ userId }) {
       return
     }
 
-    await supabase.from('planos_alimentares').update({ ativo: false }).eq('id_paciente', id).eq('ativo', true)
-
     const { data, error } = await supabase
       .from('planos_alimentares')
       .insert({
@@ -1362,6 +1361,13 @@ export default function PlanoAlimentar({ userId }) {
     setPlanos(restantes)
     const proximo = restantes.find((p) => p.ativo) || restantes[0] || null
     setPlanoSelecionadoId(proximo ? proximo.id : null)
+  }
+
+  const toggleVisivelPlano = async (plano) => {
+    const novoValor = !plano.ativo
+    const { error } = await supabase.from('planos_alimentares').update({ ativo: novoValor }).eq('id', plano.id)
+    if (error) { alert('Erro ao atualizar visibilidade do plano: ' + error.message); return }
+    setPlanos((prev) => prev.map((p) => (p.id === plano.id ? { ...p, ativo: novoValor } : p)))
   }
 
   const handleNovaRefeicao = async () => {
@@ -1532,22 +1538,23 @@ export default function PlanoAlimentar({ userId }) {
           <div className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-gray-100 dark:border-slate-800 shadow-sm">
             <div className="flex flex-wrap gap-2">
               {planos.map((p) => (
-                <button
-                  key={p.id}
-                  onClick={() => setPlanoSelecionadoId(p.id)}
-                  className={`px-3 py-2 rounded-lg text-xs font-semibold border transition-colors ${
-                    planoSelecionadoId === p.id
-                      ? 'bg-primary-600 text-white border-primary-600'
-                      : 'bg-white dark:bg-slate-900 text-gray-600 dark:text-slate-400 border-gray-200 dark:border-slate-700 hover:bg-gray-50 dark:hover:bg-slate-800'
-                  }`}
-                >
-                  {p.titulo} · {formatarData(p.created_at)}
-                  {p.ativo && (
-                    <span className="ml-2 text-[10px] font-black uppercase bg-emerald-500 text-white px-1.5 py-0.5 rounded-full">
-                      Ativo
-                    </span>
-                  )}
-                </button>
+                <div key={p.id} className="flex items-center gap-1">
+                  <button
+                    onClick={() => setPlanoSelecionadoId(p.id)}
+                    className={`px-3 py-2 rounded-lg text-xs font-semibold border transition-colors ${
+                      planoSelecionadoId === p.id
+                        ? 'bg-primary-600 text-white border-primary-600'
+                        : 'bg-white dark:bg-slate-900 text-gray-600 dark:text-slate-400 border-gray-200 dark:border-slate-700 hover:bg-gray-50 dark:hover:bg-slate-800'
+                    }`}
+                  >
+                    {p.titulo} · {formatarData(p.created_at)}
+                  </button>
+                  <InterruptorVisibilidade
+                    ativo={p.ativo}
+                    onToggle={(e) => { e.stopPropagation(); toggleVisivelPlano(p) }}
+                    titulo={p.ativo ? 'Visível pro paciente — clique pra esconder' : 'Oculto pro paciente — clique pra mostrar'}
+                  />
+                </div>
               ))}
             </div>
           </div>
@@ -1714,9 +1721,9 @@ export default function PlanoAlimentar({ userId }) {
             </div>
 
             <form onSubmit={handleSalvarPlano} className="p-6 space-y-4 overflow-y-auto flex-1">
-              {!editingPlanoId && planos.some((p) => p.ativo) && (
-                <p className="text-xs text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg p-2">
-                  Já existe um plano ativo — ele será marcado como inativo (mas continua no histórico) quando este for criado.
+              {!editingPlanoId && (
+                <p className="text-xs text-primary-600 dark:text-primary-400 bg-primary-50 dark:bg-primary-900/20 border border-primary-200 dark:border-primary-800 rounded-lg p-2">
+                  O novo plano já nasce visível pro paciente. Use o Liga/Desliga na lista de planos pra controlar quais ficam visíveis.
                 </p>
               )}
 

@@ -3,7 +3,8 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { supabase } from '../supabaseClient'
 import SidebarPaciente from '../components/SidebarPaciente'
 import GeradorPdfCompleto from '../components/GeradorPdfCompleto'
-import { User, Mail, Phone, Briefcase, Activity, FileText, TrendingUp, CreditCard, Pencil, FileDown, History, PlusCircle, ClipboardList, Link2, Check } from 'lucide-react'
+import InterruptorVisibilidade from '../components/InterruptorVisibilidade'
+import { User, Mail, Phone, Briefcase, Activity, FileText, TrendingUp, CreditCard, Pencil, FileDown, History, PlusCircle, ClipboardList, Link2, Check, Stethoscope } from 'lucide-react'
 
 function calcularIdade(dataNascimento) {
   if (!dataNascimento) return null
@@ -97,10 +98,17 @@ export default function PerfilPaciente({ userId }) {
     setShowHistorico(true)
     const { data } = await supabase
       .from('avaliacoes')
-      .select('id, data_avaliacao, equacao_de_regressao_escolhida, peso_paciente')
+      .select('id, data_avaliacao, equacao_de_regressao_escolhida, peso_paciente, visivel_paciente')
       .eq('id_paciente', id)
       .order('data_avaliacao', { ascending: false })
     setAvaliacoesList(data || [])
+  }
+
+  const toggleVisivelAvaliacao = async (avaliacao) => {
+    const novoValor = !avaliacao.visivel_paciente
+    const { error } = await supabase.from('avaliacoes').update({ visivel_paciente: novoValor }).eq('id', avaliacao.id)
+    if (error) { alert('Erro ao atualizar visibilidade: ' + error.message); return }
+    setAvaliacoesList((prev) => prev.map((a) => (a.id === avaliacao.id ? { ...a, visivel_paciente: novoValor } : a)))
   }
 
   const handleExcluirAvaliacao = async (idAvaliacao) => {
@@ -226,6 +234,19 @@ export default function PerfilPaciente({ userId }) {
             <div>
               <p className="text-sm font-bold text-gray-800 dark:text-slate-100">Nova Avaliação</p>
               <p className="text-xs text-gray-500 dark:text-slate-400">Registrar uma nova avaliação antropométrica</p>
+            </div>
+          </button>
+
+          <button
+            onClick={() => navigate(`/pacientes/${paciente.id}/prontuario`, { state: { abrirNovaConsulta: true } })}
+            className="bg-white dark:bg-slate-900 p-5 rounded-xl border border-gray-100 dark:border-slate-800 shadow-sm flex items-center gap-3 text-left hover:border-primary-300 dark:hover:border-primary-700 transition-colors"
+          >
+            <div className="w-10 h-10 rounded-full bg-indigo-50 dark:bg-indigo-900/20 flex items-center justify-center text-indigo-600 shrink-0">
+              <Stethoscope size={18} />
+            </div>
+            <div>
+              <p className="text-sm font-bold text-gray-800 dark:text-slate-100">Nova Consulta</p>
+              <p className="text-xs text-gray-500 dark:text-slate-400">Registrar uma consulta no Prontuário</p>
             </div>
           </button>
 
@@ -473,6 +494,7 @@ export default function PerfilPaciente({ userId }) {
                       <p className="text-xs font-medium text-gray-500 dark:text-slate-400 mt-0.5">{a.equacao_de_regressao_escolhida || 'Sem Equação'} • {a.peso_paciente}kg</p>
                     </div>
                     <div className="flex gap-2 items-center">
+                      <InterruptorVisibilidade ativo={a.visivel_paciente} onToggle={() => toggleVisivelAvaliacao(a)} />
                       <button
                         onClick={() => navigate('/nova-avaliacao', { state: { paciente, avaliacaoIdParaEditar: a.id } })}
                         className="p-1.5 text-blue-500 hover:bg-blue-100 dark:hover:bg-blue-900/30 dark:bg-blue-900/20 rounded transition-colors"

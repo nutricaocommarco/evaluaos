@@ -110,8 +110,8 @@ export default function SidebarPaciente({ paciente, itemAtivo, onSelecionarItem 
 
   const listaGrupos = (fecharAoClicar) => (
     <nav className={fecharAoClicar ? 'flex-1 overflow-y-auto py-3 px-2 space-y-5' : 'flex-1 py-3 px-2 space-y-5'}>
-      {grupos.map(grupo => (
-        <div key={grupo.titulo}>
+      {grupos.map((grupo, indice) => (
+        <div key={grupo.titulo} className={indice > 0 ? 'border-t border-gray-100 dark:border-slate-800 pt-4' : ''}>
           <p className="px-3 mb-1 text-[10px] font-bold text-gray-400 dark:text-slate-500 uppercase tracking-wider">
             {grupo.titulo}
           </p>
