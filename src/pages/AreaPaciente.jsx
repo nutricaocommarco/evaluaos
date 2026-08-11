@@ -6,6 +6,7 @@ import CabecalhoPortalPaciente from '../components/CabecalhoPortalPaciente'
 import NavegacaoPortalPaciente from '../components/NavegacaoPortalPaciente'
 import BotaoInstalarPWA from '../components/BotaoInstalarPWA'
 import { TrendingUp, FileText, ClipboardList, MessageSquare, Utensils } from 'lucide-react'
+import { CHAVE_ULTIMA_AREA_PACIENTE } from '../utils/pwaAreaPaciente'
 
 function CardAcao({ icone: Icone, cor, titulo, subtitulo, onClick, desabilitado }) {
   return (
@@ -47,6 +48,12 @@ export default function AreaPaciente() {
 
       const { data: authData } = await supabase.auth.getUser()
       setSessaoAtiva(!!authData?.user)
+
+      if (!authData?.user) {
+        localStorage.setItem(CHAVE_ULTIMA_AREA_PACIENTE, tokenUrl)
+        const link = document.querySelector('link[rel="manifest"]')
+        if (link) link.setAttribute('href', `/api/manifest?token=${tokenUrl}`)
+      }
 
       const { data: pacData } = await supabase
         .from('pacientes')
