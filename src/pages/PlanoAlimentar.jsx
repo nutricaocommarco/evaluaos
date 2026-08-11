@@ -44,6 +44,38 @@ function labelUnidade(valor) {
   return UNIDADES_MEDIDA.find((u) => u.valor === valor)?.label.replace(/\s*\(~.*\)/, '') || valor
 }
 
+// Busca alimentos e sobrepõe a medida caseira PESSOAL do nutri logado (se
+// tiver cadastrada) por cima da oficial — permite anotar "1 unidade ≈ 90g"
+// num alimento da TACO/IBGE sem alterar o valor nutricional compartilhado.
+async function buscarAlimentosComMedidaPessoal(termo, limite = 15) {
+  const { data } = await supabase
+    .from('tabela_alimentos')
+    .select('*')
+    .ilike('nome', `%${termo}%`)
+    .order('nome')
+    .limit(limite)
+  let lista = data || []
+
+  const idsOficiais = lista.filter((a) => !a.id_avaliador).map((a) => a.id)
+  if (idsOficiais.length > 0) {
+    const { data: authData } = await supabase.auth.getUser()
+    if (authData?.user) {
+      const { data: overrides } = await supabase
+        .from('alimentos_medida_caseira_pessoal')
+        .select('id_alimento, medida_caseira_desc, medida_caseira_g')
+        .eq('id_avaliador', authData.user.id)
+        .in('id_alimento', idsOficiais)
+      const mapa = {}
+      for (const o of overrides || []) mapa[o.id_alimento] = o
+      lista = lista.map((a) =>
+        mapa[a.id] ? { ...a, medida_caseira_desc: mapa[a.id].medida_caseira_desc, medida_caseira_g: mapa[a.id].medida_caseira_g } : a
+      )
+    }
+  }
+
+  return lista
+}
+
 function formatarData(dataStr) {
   if (!dataStr) return '-'
   return new Date(dataStr).toLocaleDateString('pt-BR')
@@ -181,13 +213,7 @@ function AdicionarItemForm({ refeicaoId, opcaoNumero, onItemAdicionado, onCancel
   useEffect(() => {
     if (busca.trim().length < 2) { setResultados([]); return }
     const delay = setTimeout(async () => {
-      const { data } = await supabase
-        .from('tabela_alimentos')
-        .select('*')
-        .ilike('nome', `%${busca.trim()}%`)
-        .order('nome')
-        .limit(15)
-      setResultados(data || [])
+      setResultados(await buscarAlimentosComMedidaPessoal(busca.trim()))
     }, 300)
     return () => clearTimeout(delay)
   }, [busca])
@@ -340,6 +366,7 @@ function ItemLinha({ item, onExcluir, onRenomear, onAbrirSubstitutos, onAtualiza
   const [unidadeEdit, setUnidadeEdit] = useState('g')
   const [quantidadeMedidaEdit, setQuantidadeMedidaEdit] = useState('')
   const [quantidadeEdit, setQuantidadeEdit] = useState('')
+  const [medidaPessoal, setMedidaPessoal] = useState(null)
   const menuRef = useRef(null)
 
   useEffect(() => {
@@ -370,16 +397,29 @@ function ItemLinha({ item, onExcluir, onRenomear, onAbrirSubstitutos, onAtualiza
     await supabase.from('itens_refeicao').update({ nome_customizado: valor }).eq('id', item.id)
   }
 
-  const iniciarEditarQtd = () => {
+  const iniciarEditarQtd = async () => {
     setUnidadeEdit(item.unidade_medida || 'g')
     setQuantidadeMedidaEdit(item.quantidade_medida != null ? String(item.quantidade_medida) : '')
     setQuantidadeEdit(item.quantidade_g != null ? String(item.quantidade_g) : '')
     setEditandoQtd(true)
     setMenuAberto(false)
+
+    if (!item.tabela_alimentos?.id_avaliador && item.id_alimento) {
+      const { data: authData } = await supabase.auth.getUser()
+      if (authData?.user) {
+        const { data } = await supabase
+          .from('alimentos_medida_caseira_pessoal')
+          .select('medida_caseira_desc, medida_caseira_g')
+          .eq('id_avaliador', authData.user.id)
+          .eq('id_alimento', item.id_alimento)
+          .maybeSingle()
+        setMedidaPessoal(data || null)
+      }
+    }
   }
 
   const fatorParaUnidadeEdit = (valorUnidade) =>
-    valorUnidade === 'unidade' ? item.tabela_alimentos?.medida_caseira_g || null : UNIDADES_MEDIDA.find((u) => u.valor === valorUnidade)?.fatorG
+    valorUnidade === 'unidade' ? medidaPessoal?.medida_caseira_g || item.tabela_alimentos?.medida_caseira_g || null : UNIDADES_MEDIDA.find((u) => u.valor === valorUnidade)?.fatorG
 
   const fatorUnidadeEdit = fatorParaUnidadeEdit(unidadeEdit)
 
@@ -448,8 +488,8 @@ function ItemLinha({ item, onExcluir, onRenomear, onAbrirSubstitutos, onAtualiza
           <button onClick={() => setEditandoQtd(false)} className="text-[11px] text-gray-400 dark:text-slate-500 hover:text-gray-600">Cancelar</button>
           {unidadeEdit === 'unidade' && (
             <p className="w-full text-[10px] text-gray-400 dark:text-slate-500">
-              {item.tabela_alimentos?.medida_caseira_g
-                ? `Peso cadastrado: 1 ${item.tabela_alimentos.medida_caseira_desc || 'unidade'} ≈ ${item.tabela_alimentos.medida_caseira_g}g.`
+              {medidaPessoal?.medida_caseira_g || item.tabela_alimentos?.medida_caseira_g
+                ? `Peso cadastrado: 1 ${medidaPessoal?.medida_caseira_desc || item.tabela_alimentos?.medida_caseira_desc || 'unidade'} ≈ ${medidaPessoal?.medida_caseira_g || item.tabela_alimentos?.medida_caseira_g}g.`
                 : 'Sem peso por unidade cadastrado pra esse alimento — digite as gramas manualmente.'}
             </p>
           )}
@@ -551,13 +591,7 @@ function BuscarSubstitutoForm({ onSelecionar, onCancelar }) {
   useEffect(() => {
     if (busca.trim().length < 2) { setResultados([]); return }
     const delay = setTimeout(async () => {
-      const { data } = await supabase
-        .from('tabela_alimentos')
-        .select('*')
-        .ilike('nome', `%${busca.trim()}%`)
-        .order('nome')
-        .limit(15)
-      setResultados(data || [])
+      setResultados(await buscarAlimentosComMedidaPessoal(busca.trim()))
     }, 300)
     return () => clearTimeout(delay)
   }, [busca])
@@ -655,6 +689,13 @@ function SubstitutosModal({ item, onFechar, onSubstitutosChange }) {
   // Trocar a unidade recalcula os gramas a partir da qtd de medida já
   // digitada (ou da estimativa a partir dos gramas atuais); voltar pra 'g'
   // limpa a medida caseira e deixa só o peso.
+  // "Unidade" não tem fator fixo — usa o peso por unidade cadastrado no
+  // próprio alimento do substituto, se tiver (Tabela de Alimentos > editar
+  // ou a medida caseira pessoal). Sem isso, os gramas ficam por conta do
+  // que já estava, o nutri ajusta na mão.
+  const fatorParaUnidadeSub = (sub, valorUnidade) =>
+    valorUnidade === 'unidade' ? sub.tabela_alimentos?.medida_caseira_g || null : UNIDADES_MEDIDA.find((u) => u.valor === valorUnidade)?.fatorG
+
   const handleUnidadeChange = async (substitutoId, novaUnidade) => {
     const sub = substitutos.find((s) => s.id === substitutoId)
     if (!sub) return
@@ -662,12 +703,12 @@ function SubstitutosModal({ item, onFechar, onSubstitutosChange }) {
     if (novaUnidade === 'g') {
       patch = { unidade_medida: null, quantidade_medida: null }
     } else {
-      const fator = UNIDADES_MEDIDA.find((u) => u.valor === novaUnidade)?.fatorG || 1
-      const qtdMedida = Number(sub.quantidade_medida) || (Number(sub.quantidade_g) || 0) / fator
+      const fator = fatorParaUnidadeSub(sub, novaUnidade)
+      const qtdMedida = Number(sub.quantidade_medida) || (fator ? (Number(sub.quantidade_g) || 0) / fator : 0)
       patch = {
         unidade_medida: novaUnidade,
-        quantidade_medida: Number(qtdMedida.toFixed(2)),
-        quantidade_g: Number((qtdMedida * fator).toFixed(2)),
+        quantidade_medida: qtdMedida ? Number(qtdMedida.toFixed(2)) : null,
+        ...(fator && qtdMedida ? { quantidade_g: Number((qtdMedida * fator).toFixed(2)) } : {}),
       }
     }
     const novos = substitutos.map((s) => (s.id === substitutoId ? { ...s, ...patch } : s))
@@ -685,10 +726,11 @@ function SubstitutosModal({ item, onFechar, onSubstitutosChange }) {
   const handleQuantidadeMedidaBlur = async (substitutoId, valor) => {
     const sub = substitutos.find((s) => s.id === substitutoId)
     if (!sub?.unidade_medida) return
-    const fator = UNIDADES_MEDIDA.find((u) => u.valor === sub.unidade_medida)?.fatorG || 1
+    const fator = fatorParaUnidadeSub(sub, sub.unidade_medida)
     const qtdMedida = Number(valor) || 0
-    const novoGramas = Number((qtdMedida * fator).toFixed(2))
-    const patch = { quantidade_medida: qtdMedida, quantidade_g: novoGramas }
+    const patch = fator
+      ? { quantidade_medida: qtdMedida, quantidade_g: Number((qtdMedida * fator).toFixed(2)) }
+      : { quantidade_medida: qtdMedida }
     const novos = substitutos.map((s) => (s.id === substitutoId ? { ...s, ...patch } : s))
     setSubstitutos(novos)
     onSubstitutosChange(novos)
