@@ -94,17 +94,25 @@ function BlocoRefeicao({ refeicao, aberta, aoAlternar }) {
                   {opcoes.length > 1 && (
                     <p className="text-[11px] font-black text-gray-500 dark:text-slate-400 uppercase tracking-wider mb-1">Opção {n}</p>
                   )}
-                  <ul className="space-y-1">
-                    {itensOpcao.map((item) => (
-                      <li key={item.id} className="text-xs text-gray-700 dark:text-slate-300">
-                        {item.nome_customizado || item.tabela_alimentos?.nome || 'Alimento'}
-                        <span className="text-gray-400 dark:text-slate-500">
-                          {' '}— {item.unidade_medida && item.quantidade_medida
-                            ? `${item.quantidade_medida} ${labelUnidade(item.unidade_medida)} (≈${item.quantidade_g}g)`
-                            : `${item.quantidade_g}g`}
-                        </span>
-                      </li>
-                    ))}
+                  <ul className="space-y-1.5">
+                    {itensOpcao.map((item) => {
+                      const substitutos = [...(item.substitutos_item || [])].sort((a, b) => a.ordem - b.ordem)
+                      return (
+                        <li key={item.id} className="text-xs text-gray-700 dark:text-slate-300">
+                          {item.nome_customizado || item.tabela_alimentos?.nome || 'Alimento'}
+                          <span className="text-gray-400 dark:text-slate-500">
+                            {' '}— {item.unidade_medida && item.quantidade_medida
+                              ? `${item.quantidade_medida} ${labelUnidade(item.unidade_medida)} (≈${item.quantidade_g}g)`
+                              : `${item.quantidade_g}g`}
+                          </span>
+                          {substitutos.length > 0 && (
+                            <p className="text-[11px] text-gray-400 dark:text-slate-500 mt-0.5 pl-2 border-l border-gray-200 dark:border-slate-700">
+                              Ou substitua por: {substitutos.map((s) => `${s.tabela_alimentos?.nome || 'Alimento'} (${s.quantidade_g}g)`).join(' · ')}
+                            </p>
+                          )}
+                        </li>
+                      )
+                    })}
                   </ul>
                   <p className="text-[11px] text-gray-400 dark:text-slate-500 mt-2">
                     {fmt(macrosOpcao.kcal)}kcal · P{fmt(macrosOpcao.proteina)} · C{fmt(macrosOpcao.carbo)} · L{fmt(macrosOpcao.lipidio)}
@@ -242,7 +250,7 @@ export default function PlanoAlimentarPaciente() {
       const [planosRes, avalRes] = await Promise.all([
         supabase
           .from('planos_alimentares')
-          .select('*, refeicoes_prescritas(*, itens_refeicao(*, tabela_alimentos(*)))')
+          .select('*, refeicoes_prescritas(*, itens_refeicao(*, tabela_alimentos(*), substitutos_item(*, tabela_alimentos(*))))')
           .eq('id_paciente', pacData.id)
           .eq('ativo', true)
           .order('created_at', { ascending: false }),

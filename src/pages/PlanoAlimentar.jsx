@@ -1059,7 +1059,7 @@ export default function PlanoAlimentar({ userId }) {
   const copiarModeloParaPlano = async (modeloId, novoPlanoId) => {
     const { data: refsModelo } = await supabase
       .from('modelos_planos_refeicoes')
-      .select('*, modelos_planos_itens(*)')
+      .select('*, modelos_planos_itens(*, modelos_planos_itens_substitutos(*))')
       .eq('id_modelo_plano', modeloId)
       .order('ordem')
 
@@ -1078,16 +1078,35 @@ export default function PlanoAlimentar({ userId }) {
 
       const itensModelo = refModelo.modelos_planos_itens || []
       if (itensModelo.length > 0) {
-        const inserts = itensModelo.map((i) => ({
-          id_refeicao: novaRefeicao.id,
-          id_alimento: i.id_alimento,
-          quantidade_g: i.quantidade_g,
-          opcao_numero: i.opcao_numero,
-          nome_customizado: i.nome_customizado,
-          unidade_medida: i.unidade_medida,
-          quantidade_medida: i.quantidade_medida,
-        }))
-        await supabase.from('itens_refeicao').insert(inserts)
+        await Promise.all(
+          itensModelo.map(async (i) => {
+            const { data: novoItem } = await supabase
+              .from('itens_refeicao')
+              .insert({
+                id_refeicao: novaRefeicao.id,
+                id_alimento: i.id_alimento,
+                quantidade_g: i.quantidade_g,
+                opcao_numero: i.opcao_numero,
+                nome_customizado: i.nome_customizado,
+                unidade_medida: i.unidade_medida,
+                quantidade_medida: i.quantidade_medida,
+              })
+              .select()
+              .single()
+
+            const subsModelo = i.modelos_planos_itens_substitutos || []
+            if (novoItem && subsModelo.length > 0) {
+              await supabase.from('substitutos_item').insert(
+                subsModelo.map((s) => ({
+                  id_item_original: novoItem.id,
+                  id_alimento: s.id_alimento,
+                  quantidade_g: s.quantidade_g,
+                  ordem: s.ordem,
+                }))
+              )
+            }
+          })
+        )
       }
     }
   }
@@ -1109,18 +1128,35 @@ export default function PlanoAlimentar({ userId }) {
       return
     }
 
-    if (refeicao.itens_refeicao.length > 0) {
-      const inserts = refeicao.itens_refeicao.map((i) => ({
-        id_modelo: modelo.id,
-        id_alimento: i.id_alimento,
-        quantidade_g: i.quantidade_g,
-        opcao_numero: i.opcao_numero,
-        nome_customizado: i.nome_customizado || null,
-        unidade_medida: i.unidade_medida || null,
-        quantidade_medida: i.quantidade_medida || null,
-      }))
-      await supabase.from('modelos_refeicoes_itens').insert(inserts)
-    }
+    await Promise.all(
+      refeicao.itens_refeicao.map(async (i) => {
+        const { data: itemModelo } = await supabase
+          .from('modelos_refeicoes_itens')
+          .insert({
+            id_modelo: modelo.id,
+            id_alimento: i.id_alimento,
+            quantidade_g: i.quantidade_g,
+            opcao_numero: i.opcao_numero,
+            nome_customizado: i.nome_customizado || null,
+            unidade_medida: i.unidade_medida || null,
+            quantidade_medida: i.quantidade_medida || null,
+          })
+          .select()
+          .single()
+
+        const subsOrigem = i.substitutos_item || []
+        if (itemModelo && subsOrigem.length > 0) {
+          await supabase.from('modelos_refeicoes_itens_substitutos').insert(
+            subsOrigem.map((s) => ({
+              id_item_modelo: itemModelo.id,
+              id_alimento: s.id_alimento,
+              quantidade_g: s.quantidade_g,
+              ordem: s.ordem,
+            }))
+          )
+        }
+      })
+    )
 
     setSalvandoModelo(false)
     setModalModeloRefeicao(null)
@@ -1134,7 +1170,7 @@ export default function PlanoAlimentar({ userId }) {
 
     const { data: itensModelo } = await supabase
       .from('modelos_refeicoes_itens')
-      .select('*')
+      .select('*, modelos_refeicoes_itens_substitutos(*)')
       .eq('id_modelo', modeloId)
 
     const { data: novaRefeicao, error } = await supabase
@@ -1147,17 +1183,43 @@ export default function PlanoAlimentar({ userId }) {
 
     let itensCriados = []
     if (itensModelo && itensModelo.length > 0) {
-      const inserts = itensModelo.map((i) => ({
-        id_refeicao: novaRefeicao.id,
-        id_alimento: i.id_alimento,
-        quantidade_g: i.quantidade_g,
-        opcao_numero: i.opcao_numero,
-        nome_customizado: i.nome_customizado,
-        unidade_medida: i.unidade_medida,
-        quantidade_medida: i.quantidade_medida,
-      }))
-      const { data: novosItens } = await supabase.from('itens_refeicao').insert(inserts).select('*, tabela_alimentos(*)')
-      itensCriados = novosItens || []
+      const resultados = await Promise.all(
+        itensModelo.map(async (i) => {
+          const { data: novoItem } = await supabase
+            .from('itens_refeicao')
+            .insert({
+              id_refeicao: novaRefeicao.id,
+              id_alimento: i.id_alimento,
+              quantidade_g: i.quantidade_g,
+              opcao_numero: i.opcao_numero,
+              nome_customizado: i.nome_customizado,
+              unidade_medida: i.unidade_medida,
+              quantidade_medida: i.quantidade_medida,
+            })
+            .select('*, tabela_alimentos(*)')
+            .single()
+
+          if (!novoItem) return null
+
+          let substitutos = []
+          const subsModelo = i.modelos_refeicoes_itens_substitutos || []
+          if (subsModelo.length > 0) {
+            const { data: novosSubs } = await supabase
+              .from('substitutos_item')
+              .insert(subsModelo.map((s) => ({
+                id_item_original: novoItem.id,
+                id_alimento: s.id_alimento,
+                quantidade_g: s.quantidade_g,
+                ordem: s.ordem,
+              })))
+              .select('*, tabela_alimentos(*)')
+            substitutos = novosSubs || []
+          }
+
+          return { ...novoItem, substitutos_item: substitutos }
+        })
+      )
+      itensCriados = resultados.filter(Boolean)
     }
 
     setRefeicoes((prev) => [...prev, { ...novaRefeicao, itens_refeicao: itensCriados }])
@@ -1203,18 +1265,35 @@ export default function PlanoAlimentar({ userId }) {
         .single()
       if (errRef || !modeloRefeicao) continue
 
-      if (refeicao.itens_refeicao.length > 0) {
-        const inserts = refeicao.itens_refeicao.map((i) => ({
-          id_modelo_refeicao: modeloRefeicao.id,
-          id_alimento: i.id_alimento,
-          quantidade_g: i.quantidade_g,
-          opcao_numero: i.opcao_numero,
-          nome_customizado: i.nome_customizado || null,
-          unidade_medida: i.unidade_medida || null,
-          quantidade_medida: i.quantidade_medida || null,
-        }))
-        await supabase.from('modelos_planos_itens').insert(inserts)
-      }
+      await Promise.all(
+        refeicao.itens_refeicao.map(async (i) => {
+          const { data: itemModelo } = await supabase
+            .from('modelos_planos_itens')
+            .insert({
+              id_modelo_refeicao: modeloRefeicao.id,
+              id_alimento: i.id_alimento,
+              quantidade_g: i.quantidade_g,
+              opcao_numero: i.opcao_numero,
+              nome_customizado: i.nome_customizado || null,
+              unidade_medida: i.unidade_medida || null,
+              quantidade_medida: i.quantidade_medida || null,
+            })
+            .select()
+            .single()
+
+          const subsOrigem = i.substitutos_item || []
+          if (itemModelo && subsOrigem.length > 0) {
+            await supabase.from('modelos_planos_itens_substitutos').insert(
+              subsOrigem.map((s) => ({
+                id_item_modelo: itemModelo.id,
+                id_alimento: s.id_alimento,
+                quantidade_g: s.quantidade_g,
+                ordem: s.ordem,
+              }))
+            )
+          }
+        })
+      )
     }
 
     setSalvandoModelo(false)
