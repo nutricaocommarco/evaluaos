@@ -80,8 +80,8 @@ function BlocoRefeicao({ refeicao, aberta, aoAlternar }) {
         ) : (
           <ChevronRight size={15} className="text-gray-400 dark:text-slate-500 shrink-0" />
         )}
-        {refeicao.horario && <span className="text-xs font-semibold text-gray-400 dark:text-slate-500">{refeicao.horario.slice(0, 5)}</span>}
-        <h3 className="text-sm font-black text-gray-800 dark:text-slate-100">{refeicao.nome_refeicao}</h3>
+        {refeicao.horario && <span className="text-sm font-semibold text-gray-400 dark:text-slate-500">{refeicao.horario.slice(0, 5)}</span>}
+        <h3 className="text-base font-black text-gray-800 dark:text-slate-100">{refeicao.nome_refeicao}</h3>
       </button>
       {aberta && (
         <div className="px-3 pb-3">
@@ -92,30 +92,38 @@ function BlocoRefeicao({ refeicao, aberta, aoAlternar }) {
               return (
                 <div key={n} className="rounded-lg border border-gray-100 dark:border-slate-800 p-3 flex-1 min-w-[220px]">
                   {opcoes.length > 1 && (
-                    <p className="text-[11px] font-black text-gray-500 dark:text-slate-400 uppercase tracking-wider mb-1">Opção {n}</p>
+                    <p className="text-xs font-black text-gray-500 dark:text-slate-400 uppercase tracking-wider mb-1.5">Opção {n}</p>
                   )}
-                  <ul className="space-y-1.5">
+                  <ul className="space-y-2.5">
                     {itensOpcao.map((item) => {
                       const substitutos = [...(item.substitutos_item || [])].sort((a, b) => a.ordem - b.ordem)
                       return (
-                        <li key={item.id} className="text-xs text-gray-700 dark:text-slate-300">
-                          {item.nome_customizado || item.tabela_alimentos?.nome || 'Alimento'}
+                        <li key={item.id} className="text-sm text-gray-700 dark:text-slate-300">
+                          <span className="font-semibold text-gray-800 dark:text-slate-100">{item.nome_customizado || item.tabela_alimentos?.nome || 'Alimento'}</span>
                           <span className="text-gray-400 dark:text-slate-500">
                             {' '}— {item.unidade_medida && item.quantidade_medida
                               ? `${item.quantidade_medida} ${labelUnidade(item.unidade_medida)} (≈${item.quantidade_g}g)`
                               : `${item.quantidade_g}g`}
                           </span>
                           {substitutos.length > 0 && (
-                            <p className="text-[11px] text-gray-400 dark:text-slate-500 mt-0.5 pl-2 border-l border-gray-200 dark:border-slate-700">
-                              Ou substitua por: {substitutos.map((s) => `${s.tabela_alimentos?.nome || 'Alimento'} (${s.quantidade_g}g)`).join(' · ')}
-                            </p>
+                            <ul className="mt-1 pl-3 border-l-2 border-gray-200 dark:border-slate-700 space-y-0.5">
+                              {substitutos.map((s) => (
+                                <li key={s.id} className="text-xs text-gray-500 dark:text-slate-400">
+                                  <span className="font-bold text-gray-400 dark:text-slate-500">OU</span>{' '}
+                                  {s.tabela_alimentos?.nome || 'Alimento'} —{' '}
+                                  {s.unidade_medida && s.quantidade_medida
+                                    ? `${s.quantidade_medida} ${labelUnidade(s.unidade_medida)} (≈${s.quantidade_g}g)`
+                                    : `${s.quantidade_g}g`}
+                                </li>
+                              ))}
+                            </ul>
                           )}
                         </li>
                       )
                     })}
                   </ul>
-                  <p className="text-[11px] text-gray-400 dark:text-slate-500 mt-2">
-                    {fmt(macrosOpcao.kcal)}kcal · P{fmt(macrosOpcao.proteina)} · C{fmt(macrosOpcao.carbo)} · L{fmt(macrosOpcao.lipidio)}
+                  <p className="text-xs text-gray-400 dark:text-slate-500 mt-2.5 pt-2 border-t border-gray-100 dark:border-slate-800">
+                    {fmt(macrosOpcao.kcal)}kcal · Prt. {fmt(macrosOpcao.proteina)}g · Carbo. {fmt(macrosOpcao.carbo)}g · Lip. {fmt(macrosOpcao.lipidio)}g
                   </p>
                 </div>
               )
@@ -124,7 +132,7 @@ function BlocoRefeicao({ refeicao, aberta, aoAlternar }) {
           {refeicao.nota && (
             <div className="mt-3 p-2.5 bg-amber-50 dark:bg-amber-900/20 border border-amber-100 dark:border-amber-900/40 rounded-lg flex items-start gap-2">
               <StickyNote size={13} className="text-amber-500 shrink-0 mt-0.5" />
-              <p className="text-xs text-amber-800 dark:text-amber-300 whitespace-pre-wrap">{refeicao.nota}</p>
+              <p className="text-sm text-amber-800 dark:text-amber-300 whitespace-pre-wrap">{refeicao.nota}</p>
             </div>
           )}
         </div>
@@ -152,30 +160,30 @@ function BlocoPlano({ plano, aberto, aoAlternar, refeicoesAbertas, aoAlternarRef
           <ChevronRight size={16} className="text-gray-400 dark:text-slate-500 shrink-0" />
         )}
         <div className="min-w-0 flex-1">
-          <span className="text-sm font-black text-gray-800 dark:text-slate-100 truncate block">{plano.titulo}</span>
-          <p className="text-[10px] text-gray-400 dark:text-slate-500">Criado em {formatarData(plano.created_at)}</p>
+          <span className="text-base font-black text-gray-800 dark:text-slate-100 truncate block">{plano.titulo}</span>
+          <p className="text-xs text-gray-400 dark:text-slate-500">Criado em {formatarData(plano.created_at)}</p>
         </div>
       </button>
 
       {aberto && (
         <div className="px-4 pb-4 space-y-3">
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm bg-gray-50 dark:bg-slate-800/50 rounded-lg p-3">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-base bg-gray-50 dark:bg-slate-800/50 rounded-lg p-3">
             <div>
-              <p className="text-gray-400 dark:text-slate-500 text-xs">Calorias</p>
+              <p className="text-gray-400 dark:text-slate-500 text-sm">Calorias</p>
               <p className="font-black text-gray-800 dark:text-slate-100">
                 {fmt(totalDia.kcal)} {plano.vet_target ? `/ ${plano.vet_target}` : ''} kcal
               </p>
             </div>
             <div>
-              <p className="text-gray-400 dark:text-slate-500 text-xs">Proteína</p>
+              <p className="text-gray-400 dark:text-slate-500 text-sm">Proteína</p>
               <p className="font-black text-gray-800 dark:text-slate-100">{fmt(totalDia.proteina)}g</p>
             </div>
             <div>
-              <p className="text-gray-400 dark:text-slate-500 text-xs">Carboidrato</p>
+              <p className="text-gray-400 dark:text-slate-500 text-sm">Carboidrato</p>
               <p className="font-black text-gray-800 dark:text-slate-100">{fmt(totalDia.carbo)}g</p>
             </div>
             <div>
-              <p className="text-gray-400 dark:text-slate-500 text-xs">Lipídio</p>
+              <p className="text-gray-400 dark:text-slate-500 text-sm">Lipídio</p>
               <p className="font-black text-gray-800 dark:text-slate-100">{fmt(totalDia.lipidio)}g</p>
             </div>
           </div>
@@ -332,7 +340,7 @@ export default function PlanoAlimentarPaciente() {
 
         <div>
           <h2 className="text-xl font-black text-gray-800 dark:text-slate-100">Plano Alimentar</h2>
-          <p className="text-sm text-gray-500 dark:text-slate-400 mt-0.5">{paciente.nome_completo}</p>
+          <p className="text-base text-gray-500 dark:text-slate-400 mt-0.5">{paciente.nome_completo}</p>
         </div>
 
         {planos.length === 0 ? (

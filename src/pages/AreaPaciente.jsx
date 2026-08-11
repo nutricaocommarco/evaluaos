@@ -174,47 +174,59 @@ export default function AreaPaciente() {
           <p className="text-sm text-gray-500 dark:text-slate-400 mt-0.5">Aqui você acompanha tudo do seu acompanhamento nutricional.</p>
         </div>
 
+        {!avaliacaoRecente && qtdPlanosVisiveis === 0 && qtdOrientacoes === 0 && qtdListas === 0 && (
+          <div className="bg-white dark:bg-slate-900 p-6 rounded-xl border border-gray-100 dark:border-slate-800 shadow-sm text-center">
+            <p className="text-gray-500 dark:text-slate-400 text-sm">Ainda não há nada liberado aqui — assim que seu nutricionista registrar sua primeira avaliação, plano ou orientação, aparece nesta tela.</p>
+          </div>
+        )}
+
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <CardAcao
-            icone={TrendingUp}
-            cor="bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600"
-            titulo="Evolução"
-            subtitulo={qtdAvaliacoesVisiveis >= 2 ? 'Gráficos e comparativos' : 'Precisa de 2+ avaliações'}
-            desabilitado={qtdAvaliacoesVisiveis < 2}
-            onClick={() => navigate(`/evolucao/${tokenUrl}`)}
-          />
-          <CardAcao
-            icone={FileText}
-            cor="bg-primary-50 dark:bg-primary-900/20 text-primary-600"
-            titulo="Laudo Antropométrico"
-            subtitulo={avaliacaoRecente ? 'Ver relatório mais recente' : 'Nenhuma avaliação ainda'}
-            desabilitado={!avaliacaoRecente}
-            onClick={() => avaliacaoRecente && navigate(`/laudo/${avaliacaoRecente.token_publico}`)}
-          />
-          <CardAcao
-            icone={Utensils}
-            cor="bg-amber-50 dark:bg-amber-900/20 text-amber-600"
-            titulo="Plano Alimentar"
-            subtitulo={qtdPlanosVisiveis > 0 ? `${qtdPlanosVisiveis} plano(s) disponível(is)` : 'Nenhum plano visível ainda'}
-            desabilitado={qtdPlanosVisiveis === 0}
-            onClick={() => navigate(`/area/${tokenUrl}/plano`)}
-          />
-          <CardAcao
-            icone={MessageSquare}
-            cor="bg-violet-50 dark:bg-violet-900/20 text-violet-600"
-            titulo="Orientações"
-            subtitulo={qtdOrientacoes > 0 ? `${qtdOrientacoes} orientação(ões)` : 'Nenhuma orientação ainda'}
-            desabilitado={qtdOrientacoes === 0}
-            onClick={() => navigate(`/area/${tokenUrl}/orientacoes`)}
-          />
-          <CardAcao
-            icone={ListChecks}
-            cor="bg-cyan-50 dark:bg-cyan-900/20 text-cyan-600"
-            titulo="Listas de Recomendações"
-            subtitulo={qtdListas > 0 ? `${qtdListas} lista(s)` : 'Nenhuma lista ainda'}
-            desabilitado={qtdListas === 0}
-            onClick={() => navigate(`/area/${tokenUrl}/listas`)}
-          />
+          {avaliacaoRecente && (
+            <CardAcao
+              icone={TrendingUp}
+              cor="bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600"
+              titulo="Evolução"
+              subtitulo={qtdAvaliacoesVisiveis >= 2 ? 'Gráficos e comparativos' : 'Precisa de mais 1 avaliação'}
+              desabilitado={qtdAvaliacoesVisiveis < 2}
+              onClick={() => navigate(`/evolucao/${tokenUrl}`)}
+            />
+          )}
+          {avaliacaoRecente && (
+            <CardAcao
+              icone={FileText}
+              cor="bg-primary-50 dark:bg-primary-900/20 text-primary-600"
+              titulo="Laudo Antropométrico"
+              subtitulo="Ver relatório mais recente"
+              onClick={() => navigate(`/laudo/${avaliacaoRecente.token_publico}`)}
+            />
+          )}
+          {qtdPlanosVisiveis > 0 && (
+            <CardAcao
+              icone={Utensils}
+              cor="bg-amber-50 dark:bg-amber-900/20 text-amber-600"
+              titulo="Plano Alimentar"
+              subtitulo={`${qtdPlanosVisiveis} plano(s) disponível(is)`}
+              onClick={() => navigate(`/area/${tokenUrl}/plano`)}
+            />
+          )}
+          {qtdOrientacoes > 0 && (
+            <CardAcao
+              icone={MessageSquare}
+              cor="bg-violet-50 dark:bg-violet-900/20 text-violet-600"
+              titulo="Orientações"
+              subtitulo={`${qtdOrientacoes} orientação(ões)`}
+              onClick={() => navigate(`/area/${tokenUrl}/orientacoes`)}
+            />
+          )}
+          {qtdListas > 0 && (
+            <CardAcao
+              icone={ListChecks}
+              cor="bg-cyan-50 dark:bg-cyan-900/20 text-cyan-600"
+              titulo="Listas de Recomendações"
+              subtitulo={`${qtdListas} lista(s)`}
+              onClick={() => navigate(`/area/${tokenUrl}/listas`)}
+            />
+          )}
           <CardAcao
             icone={ClipboardList}
             cor="bg-rose-50 dark:bg-rose-900/20 text-rose-600"
