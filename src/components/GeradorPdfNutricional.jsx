@@ -433,12 +433,10 @@ export default function GeradorPdfNutricional({ paciente, avaliadorUserId, aoFec
     setBlocos((prev) => prev.map((b) => (b.id === id ? { ...b, incluido: !b.incluido } : b)))
   }
 
-  const toggleMacros = () => {
-    setBlocos((prev) => prev.map((b) => (b.tipo === 'plano' ? { ...b, incluirMacros: !b.incluirMacros } : b)))
-  }
-
-  const toggleFibra = () => {
-    setBlocos((prev) => prev.map((b) => (b.tipo === 'plano' ? { ...b, incluirFibra: !b.incluirFibra } : b)))
+  const toggleMacrosEFibra = () => {
+    setBlocos((prev) =>
+      prev.map((b) => (b.tipo === 'plano' ? { ...b, incluirMacros: !(b.incluirMacros || b.incluirFibra), incluirFibra: !(b.incluirMacros || b.incluirFibra) } : b))
+    )
   }
 
   const mover = (id, direcao) => {
@@ -569,24 +567,12 @@ export default function GeradorPdfNutricional({ paciente, avaliadorUserId, aoFec
                     <label className="flex items-center gap-2 mt-2 ml-6 cursor-pointer w-fit">
                       <input
                         type="checkbox"
-                        checked={bloco.incluirMacros}
+                        checked={bloco.incluirMacros && bloco.incluirFibra}
                         disabled={!bloco.incluido}
-                        onChange={toggleMacros}
+                        onChange={toggleMacrosEFibra}
                         className="w-3.5 h-3.5 accent-primary-600"
                       />
-                      <span className="text-xs text-gray-600 dark:text-slate-400">Incluir Macronutrientes (calorias, proteína, carboidrato, lipídio)</span>
-                    </label>
-                  )}
-                  {bloco.tipo === 'plano' && bloco.disponivel && (
-                    <label className="flex items-center gap-2 mt-1 ml-6 cursor-pointer w-fit">
-                      <input
-                        type="checkbox"
-                        checked={bloco.incluirFibra}
-                        disabled={!bloco.incluido}
-                        onChange={toggleFibra}
-                        className="w-3.5 h-3.5 accent-primary-600"
-                      />
-                      <span className="text-xs text-gray-600 dark:text-slate-400">Incluir Fibra (recomendação 14g/1000kcal)</span>
+                      <span className="text-xs text-gray-600 dark:text-slate-400">Incluir Macros e Fibra (calorias, proteína, carboidrato, lipídio, fibra)</span>
                     </label>
                   )}
                   {bloco.tipo === 'plano' && bloco.disponivel && (

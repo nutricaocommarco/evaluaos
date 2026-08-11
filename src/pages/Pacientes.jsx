@@ -299,11 +299,11 @@ export default function Pacientes({ userId }) {
 
                     <div className="grid grid-cols-2 gap-2 mt-3 pt-2 border-t border-gray-50">
                       <button
-                        onClick={() => navigate(`/pacientes/${p.id}/prontuario`)}
+                        onClick={() => navigate(`/pacientes/${p.id}/perfil`)}
                         className="py-2 px-3 text-indigo-700 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-800 bg-indigo-50 dark:bg-indigo-900/20 hover:bg-indigo-100 dark:hover:bg-indigo-900/30 rounded-lg transition-colors flex items-center justify-center gap-1 font-semibold text-xs text-center"
                       >
                         <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line></svg>
-                        Prontuário
+                        Perfil
                       </button>
 
                       {linkWhatsApp(p) ? (
@@ -379,12 +379,11 @@ export default function Pacientes({ userId }) {
                         </td>
                         <td className="p-4 text-right space-x-3 flex items-center justify-end gap-2">
                           <button
-                            onClick={() => navigate(`/pacientes/${p.id}/prontuario`)}
-                            className="text-indigo-700 dark:text-indigo-400 font-medium text-xs border border-indigo-100 dark:border-indigo-900/40 bg-indigo-50 dark:bg-indigo-900/20 hover:bg-indigo-100 dark:hover:bg-indigo-900/30 px-3 py-1.5 rounded transition-colors flex items-center gap-1"
-                            title="Prontuário Clínico"
+                            onClick={() => navigate(`/pacientes/${p.id}/perfil`)}
+                            className="p-1.5 text-indigo-700 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 rounded transition-colors inline-flex items-center"
+                            title="Perfil do Paciente"
                           >
-                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line></svg>
-                            Prontuário
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line></svg>
                           </button>
 
                           {linkWhatsApp(p) ? (
@@ -392,14 +391,15 @@ export default function Pacientes({ userId }) {
                               href={linkWhatsApp(p)}
                               target="_blank"
                               rel="noreferrer"
-                              className="text-green-700 dark:text-green-400 font-medium text-xs border border-green-100 dark:border-green-900/40 bg-green-50 dark:bg-green-900/20 hover:bg-green-100 dark:hover:bg-green-900/30 px-3 py-1.5 rounded transition-colors flex items-center gap-1"
+                              className="p-1.5 text-green-700 dark:text-green-400 hover:bg-green-50 dark:hover:bg-green-900/20 rounded transition-colors inline-flex items-center"
                               title="Conversar no WhatsApp"
                             >
-                              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
-                              WhatsApp
+                              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
                             </a>
                           ) : (
-                            <span className="text-gray-300 dark:text-slate-600 font-medium text-xs px-3 py-1.5" title="Paciente sem telefone cadastrado">WhatsApp</span>
+                            <span className="p-1.5 text-gray-300 dark:text-slate-600 inline-flex items-center" title="Paciente sem telefone cadastrado">
+                              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
+                            </span>
                           )}
 
                           <button onClick={() => handleEditPaciente(p)} className="p-1.5 text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20 dark:bg-blue-900/20 rounded transition-colors inline-flex items-center" title="Editar Paciente">

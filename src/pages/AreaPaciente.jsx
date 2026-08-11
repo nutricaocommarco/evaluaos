@@ -5,7 +5,7 @@ import { useTheme } from '../contexts/ThemeContext'
 import CabecalhoPortalPaciente from '../components/CabecalhoPortalPaciente'
 import NavegacaoPortalPaciente from '../components/NavegacaoPortalPaciente'
 import BotaoInstalarPWA from '../components/BotaoInstalarPWA'
-import { TrendingUp, FileText, ClipboardList, MessageSquare, Utensils } from 'lucide-react'
+import { TrendingUp, FileText, ClipboardList, MessageSquare, Utensils, ListChecks } from 'lucide-react'
 import { CHAVE_ULTIMA_AREA_PACIENTE } from '../utils/pwaAreaPaciente'
 
 function CardAcao({ icone: Icone, cor, titulo, subtitulo, onClick, desabilitado }) {
@@ -37,8 +37,10 @@ export default function AreaPaciente() {
   const [nomeAvaliador, setNomeAvaliador] = useState('')
   const [logomarcaUrl, setLogomarcaUrl] = useState('')
   const [avaliacaoRecente, setAvaliacaoRecente] = useState(null)
-  const [temPlanoAtivo, setTemPlanoAtivo] = useState(false)
+  const [qtdAvaliacoesVisiveis, setQtdAvaliacoesVisiveis] = useState(0)
+  const [qtdPlanosVisiveis, setQtdPlanosVisiveis] = useState(0)
   const [qtdOrientacoes, setQtdOrientacoes] = useState(0)
+  const [qtdListas, setQtdListas] = useState(0)
   const [qtdQuestionariosPendentes, setQtdQuestionariosPendentes] = useState(0)
   const [sessaoAtiva, setSessaoAtiva] = useState(false)
 
@@ -89,24 +91,35 @@ export default function AreaPaciente() {
         }
       }
 
-      const [avalRes, planoRes, orientRes, questRes] = await Promise.all([
+      const [avalRes, avalCountRes, planoRes, orientRes, listasRes, questRes] = await Promise.all([
         supabase
           .from('avaliacoes')
           .select('id, token_publico, data_avaliacao')
           .eq('id_paciente', pacData.id)
+          .eq('visivel_paciente', true)
           .order('data_avaliacao', { ascending: false })
           .limit(1)
           .maybeSingle(),
         supabase
-          .from('planos_alimentares')
-          .select('id')
+          .from('avaliacoes')
+          .select('id', { count: 'exact', head: true })
           .eq('id_paciente', pacData.id)
-          .eq('ativo', true)
-          .maybeSingle(),
+          .eq('visivel_paciente', true),
+        supabase
+          .from('planos_alimentares')
+          .select('id', { count: 'exact', head: true })
+          .eq('id_paciente', pacData.id)
+          .eq('ativo', true),
         supabase
           .from('orientacoes_nutricionais')
           .select('id', { count: 'exact', head: true })
-          .eq('id_paciente', pacData.id),
+          .eq('id_paciente', pacData.id)
+          .eq('visivel_paciente', true),
+        supabase
+          .from('listas_recomendacoes')
+          .select('id', { count: 'exact', head: true })
+          .eq('id_paciente', pacData.id)
+          .eq('visivel_paciente', true),
         supabase
           .from('questionario_envios')
           .select('id', { count: 'exact', head: true })
@@ -115,8 +128,10 @@ export default function AreaPaciente() {
       ])
 
       setAvaliacaoRecente(avalRes.data || null)
-      setTemPlanoAtivo(!!planoRes.data)
+      setQtdAvaliacoesVisiveis(avalCountRes.count || 0)
+      setQtdPlanosVisiveis(planoRes.count || 0)
       setQtdOrientacoes(orientRes.count || 0)
+      setQtdListas(listasRes.count || 0)
       setQtdQuestionariosPendentes(questRes.count || 0)
 
       setLoading(false)
@@ -164,7 +179,8 @@ export default function AreaPaciente() {
             icone={TrendingUp}
             cor="bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600"
             titulo="Evolução"
-            subtitulo="Gráficos e comparativos"
+            subtitulo={qtdAvaliacoesVisiveis >= 2 ? 'Gráficos e comparativos' : 'Precisa de 2+ avaliações'}
+            desabilitado={qtdAvaliacoesVisiveis < 2}
             onClick={() => navigate(`/evolucao/${tokenUrl}`)}
           />
           <CardAcao
@@ -179,8 +195,8 @@ export default function AreaPaciente() {
             icone={Utensils}
             cor="bg-amber-50 dark:bg-amber-900/20 text-amber-600"
             titulo="Plano Alimentar"
-            subtitulo={temPlanoAtivo ? 'Ver plano atual' : 'Nenhum plano ativo ainda'}
-            desabilitado={!temPlanoAtivo}
+            subtitulo={qtdPlanosVisiveis > 0 ? `${qtdPlanosVisiveis} plano(s) disponível(is)` : 'Nenhum plano visível ainda'}
+            desabilitado={qtdPlanosVisiveis === 0}
             onClick={() => navigate(`/area/${tokenUrl}/plano`)}
           />
           <CardAcao
@@ -190,6 +206,14 @@ export default function AreaPaciente() {
             subtitulo={qtdOrientacoes > 0 ? `${qtdOrientacoes} orientação(ões)` : 'Nenhuma orientação ainda'}
             desabilitado={qtdOrientacoes === 0}
             onClick={() => navigate(`/area/${tokenUrl}/orientacoes`)}
+          />
+          <CardAcao
+            icone={ListChecks}
+            cor="bg-cyan-50 dark:bg-cyan-900/20 text-cyan-600"
+            titulo="Listas de Recomendações"
+            subtitulo={qtdListas > 0 ? `${qtdListas} lista(s)` : 'Nenhuma lista ainda'}
+            desabilitado={qtdListas === 0}
+            onClick={() => navigate(`/area/${tokenUrl}/listas`)}
           />
           <CardAcao
             icone={ClipboardList}

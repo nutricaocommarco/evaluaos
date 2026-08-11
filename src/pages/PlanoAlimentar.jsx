@@ -3,7 +3,8 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { supabase } from '../supabaseClient'
 import SidebarPaciente from '../components/SidebarPaciente'
 import GeradorPdfNutricional from '../components/GeradorPdfNutricional'
-import { FileDown } from 'lucide-react'
+import InterruptorVisibilidade from '../components/InterruptorVisibilidade'
+import { FileDown, Save, Pencil, Trash2, StickyNote } from 'lucide-react'
 
 const CAMPOS_PLANO_VAZIOS = {
   titulo: 'Plano Alimentar',
@@ -780,6 +781,7 @@ function OpcaoCard({ refeicaoId, opcaoNumero, itens, onItemExcluido, onItemAdici
 
 function RefeicaoCard({ refeicao, onAtualizarCampo, onExcluir, onItensChange, onMover, podeSubir, podeDescer, onDuplicarRefeicao, onAbrirSubstitutos, onSalvarComoModelo }) {
   const [novaOpcaoAberta, setNovaOpcaoAberta] = useState(false)
+  const [notaAberta, setNotaAberta] = useState(!!refeicao.nota)
 
   const opcoesExistentes = [...new Set(refeicao.itens_refeicao.map((i) => i.opcao_numero))].sort((a, b) => a - b)
   const proximaOpcao = opcoesExistentes.length > 0 ? Math.max(...opcoesExistentes) + 1 : 1
@@ -843,27 +845,51 @@ function RefeicaoCard({ refeicao, onAtualizarCampo, onExcluir, onItensChange, on
             className="flex-1 px-2 py-1 border border-transparent hover:border-gray-200 dark:hover:border-slate-700 rounded text-sm font-black bg-transparent focus:border-primary-500 outline-none text-gray-800 dark:text-slate-100"
           />
         </div>
-        <div className="flex items-center gap-3 shrink-0">
+        <div className="flex items-center gap-1 shrink-0">
+          <button
+            onClick={() => setNotaAberta((v) => !v)}
+            title="Nota da refeição (aparece pro paciente)"
+            className={`p-1.5 rounded transition-colors ${
+              refeicao.nota
+                ? 'text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-900/20'
+                : 'text-gray-400 dark:text-slate-500 hover:bg-gray-100 dark:hover:bg-slate-800'
+            }`}
+          >
+            <StickyNote size={15} />
+          </button>
           <button
             onClick={() => onSalvarComoModelo(refeicao)}
-            className="text-xs font-semibold text-primary-600 hover:underline"
+            title="Salvar como modelo"
+            className="p-1.5 text-primary-600 hover:bg-primary-50 dark:hover:bg-primary-900/20 rounded transition-colors"
           >
-            Salvar como modelo
+            <Save size={15} />
           </button>
           <button
             onClick={() => onDuplicarRefeicao(refeicao)}
-            className="text-xs font-semibold text-primary-600 hover:underline"
+            title="Duplicar refeição"
+            className="p-1.5 text-primary-600 hover:bg-primary-50 dark:hover:bg-primary-900/20 rounded transition-colors"
           >
-            Duplicar refeição
+            <Pencil size={15} />
           </button>
           <button
             onClick={() => onExcluir(refeicao.id)}
-            className="text-xs font-semibold text-red-600 hover:underline"
+            title="Excluir refeição"
+            className="p-1.5 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded transition-colors"
           >
-            Excluir refeição
+            <Trash2 size={15} />
           </button>
         </div>
       </div>
+
+      {notaAberta && (
+        <textarea
+          value={refeicao.nota || ''}
+          onChange={(e) => onAtualizarCampo(refeicao.id, 'nota', e.target.value)}
+          placeholder="Nota sobre esta refeição — o paciente vê abaixo dos macros dela"
+          rows={2}
+          className="w-full px-3 py-2 border border-gray-200 dark:border-slate-700 rounded-lg text-xs bg-transparent focus:border-primary-500 outline-none text-gray-700 dark:text-slate-300 resize-none"
+        />
+      )}
 
       <div className="flex flex-wrap gap-3">
         {opcoesParaExibir.map((n) => (
@@ -1058,7 +1084,7 @@ export default function PlanoAlimentar({ userId }) {
   const copiarModeloParaPlano = async (modeloId, novoPlanoId) => {
     const { data: refsModelo } = await supabase
       .from('modelos_planos_refeicoes')
-      .select('*, modelos_planos_itens(*)')
+      .select('*, modelos_planos_itens(*, modelos_planos_itens_substitutos(*))')
       .eq('id_modelo_plano', modeloId)
       .order('ordem')
 
@@ -1069,6 +1095,7 @@ export default function PlanoAlimentar({ userId }) {
           id_plano: novoPlanoId,
           horario: refModelo.horario,
           nome_refeicao: refModelo.nome_refeicao,
+          nota: refModelo.nota || null,
           ordem: refModelo.ordem,
         })
         .select()
@@ -1077,16 +1104,35 @@ export default function PlanoAlimentar({ userId }) {
 
       const itensModelo = refModelo.modelos_planos_itens || []
       if (itensModelo.length > 0) {
-        const inserts = itensModelo.map((i) => ({
-          id_refeicao: novaRefeicao.id,
-          id_alimento: i.id_alimento,
-          quantidade_g: i.quantidade_g,
-          opcao_numero: i.opcao_numero,
-          nome_customizado: i.nome_customizado,
-          unidade_medida: i.unidade_medida,
-          quantidade_medida: i.quantidade_medida,
-        }))
-        await supabase.from('itens_refeicao').insert(inserts)
+        await Promise.all(
+          itensModelo.map(async (i) => {
+            const { data: novoItem } = await supabase
+              .from('itens_refeicao')
+              .insert({
+                id_refeicao: novaRefeicao.id,
+                id_alimento: i.id_alimento,
+                quantidade_g: i.quantidade_g,
+                opcao_numero: i.opcao_numero,
+                nome_customizado: i.nome_customizado,
+                unidade_medida: i.unidade_medida,
+                quantidade_medida: i.quantidade_medida,
+              })
+              .select()
+              .single()
+
+            const subsModelo = i.modelos_planos_itens_substitutos || []
+            if (novoItem && subsModelo.length > 0) {
+              await supabase.from('substitutos_item').insert(
+                subsModelo.map((s) => ({
+                  id_item_original: novoItem.id,
+                  id_alimento: s.id_alimento,
+                  quantidade_g: s.quantidade_g,
+                  ordem: s.ordem,
+                }))
+              )
+            }
+          })
+        )
       }
     }
   }
@@ -1098,7 +1144,7 @@ export default function PlanoAlimentar({ userId }) {
 
     const { data: modelo, error } = await supabase
       .from('modelos_refeicoes')
-      .insert({ id_avaliador: userId, titulo: titulo || refeicao.nome_refeicao })
+      .insert({ id_avaliador: userId, titulo: titulo || refeicao.nome_refeicao, nota: refeicao.nota || null })
       .select()
       .single()
 
@@ -1108,18 +1154,35 @@ export default function PlanoAlimentar({ userId }) {
       return
     }
 
-    if (refeicao.itens_refeicao.length > 0) {
-      const inserts = refeicao.itens_refeicao.map((i) => ({
-        id_modelo: modelo.id,
-        id_alimento: i.id_alimento,
-        quantidade_g: i.quantidade_g,
-        opcao_numero: i.opcao_numero,
-        nome_customizado: i.nome_customizado || null,
-        unidade_medida: i.unidade_medida || null,
-        quantidade_medida: i.quantidade_medida || null,
-      }))
-      await supabase.from('modelos_refeicoes_itens').insert(inserts)
-    }
+    await Promise.all(
+      refeicao.itens_refeicao.map(async (i) => {
+        const { data: itemModelo } = await supabase
+          .from('modelos_refeicoes_itens')
+          .insert({
+            id_modelo: modelo.id,
+            id_alimento: i.id_alimento,
+            quantidade_g: i.quantidade_g,
+            opcao_numero: i.opcao_numero,
+            nome_customizado: i.nome_customizado || null,
+            unidade_medida: i.unidade_medida || null,
+            quantidade_medida: i.quantidade_medida || null,
+          })
+          .select()
+          .single()
+
+        const subsOrigem = i.substitutos_item || []
+        if (itemModelo && subsOrigem.length > 0) {
+          await supabase.from('modelos_refeicoes_itens_substitutos').insert(
+            subsOrigem.map((s) => ({
+              id_item_modelo: itemModelo.id,
+              id_alimento: s.id_alimento,
+              quantidade_g: s.quantidade_g,
+              ordem: s.ordem,
+            }))
+          )
+        }
+      })
+    )
 
     setSalvandoModelo(false)
     setModalModeloRefeicao(null)
@@ -1133,12 +1196,12 @@ export default function PlanoAlimentar({ userId }) {
 
     const { data: itensModelo } = await supabase
       .from('modelos_refeicoes_itens')
-      .select('*')
+      .select('*, modelos_refeicoes_itens_substitutos(*)')
       .eq('id_modelo', modeloId)
 
     const { data: novaRefeicao, error } = await supabase
       .from('refeicoes_prescritas')
-      .insert({ id_plano: planoSelecionadoId, nome_refeicao: modelo.titulo, ordem: refeicoes.length })
+      .insert({ id_plano: planoSelecionadoId, nome_refeicao: modelo.titulo, nota: modelo.nota || null, ordem: refeicoes.length })
       .select('*, itens_refeicao(*, tabela_alimentos(*))')
       .single()
 
@@ -1146,17 +1209,43 @@ export default function PlanoAlimentar({ userId }) {
 
     let itensCriados = []
     if (itensModelo && itensModelo.length > 0) {
-      const inserts = itensModelo.map((i) => ({
-        id_refeicao: novaRefeicao.id,
-        id_alimento: i.id_alimento,
-        quantidade_g: i.quantidade_g,
-        opcao_numero: i.opcao_numero,
-        nome_customizado: i.nome_customizado,
-        unidade_medida: i.unidade_medida,
-        quantidade_medida: i.quantidade_medida,
-      }))
-      const { data: novosItens } = await supabase.from('itens_refeicao').insert(inserts).select('*, tabela_alimentos(*)')
-      itensCriados = novosItens || []
+      const resultados = await Promise.all(
+        itensModelo.map(async (i) => {
+          const { data: novoItem } = await supabase
+            .from('itens_refeicao')
+            .insert({
+              id_refeicao: novaRefeicao.id,
+              id_alimento: i.id_alimento,
+              quantidade_g: i.quantidade_g,
+              opcao_numero: i.opcao_numero,
+              nome_customizado: i.nome_customizado,
+              unidade_medida: i.unidade_medida,
+              quantidade_medida: i.quantidade_medida,
+            })
+            .select('*, tabela_alimentos(*)')
+            .single()
+
+          if (!novoItem) return null
+
+          let substitutos = []
+          const subsModelo = i.modelos_refeicoes_itens_substitutos || []
+          if (subsModelo.length > 0) {
+            const { data: novosSubs } = await supabase
+              .from('substitutos_item')
+              .insert(subsModelo.map((s) => ({
+                id_item_original: novoItem.id,
+                id_alimento: s.id_alimento,
+                quantidade_g: s.quantidade_g,
+                ordem: s.ordem,
+              })))
+              .select('*, tabela_alimentos(*)')
+            substitutos = novosSubs || []
+          }
+
+          return { ...novoItem, substitutos_item: substitutos }
+        })
+      )
+      itensCriados = resultados.filter(Boolean)
     }
 
     setRefeicoes((prev) => [...prev, { ...novaRefeicao, itens_refeicao: itensCriados }])
@@ -1196,24 +1285,42 @@ export default function PlanoAlimentar({ userId }) {
           id_modelo_plano: modelo.id,
           horario: refeicao.horario,
           nome_refeicao: refeicao.nome_refeicao,
+          nota: refeicao.nota || null,
           ordem: refeicao.ordem,
         })
         .select()
         .single()
       if (errRef || !modeloRefeicao) continue
 
-      if (refeicao.itens_refeicao.length > 0) {
-        const inserts = refeicao.itens_refeicao.map((i) => ({
-          id_modelo_refeicao: modeloRefeicao.id,
-          id_alimento: i.id_alimento,
-          quantidade_g: i.quantidade_g,
-          opcao_numero: i.opcao_numero,
-          nome_customizado: i.nome_customizado || null,
-          unidade_medida: i.unidade_medida || null,
-          quantidade_medida: i.quantidade_medida || null,
-        }))
-        await supabase.from('modelos_planos_itens').insert(inserts)
-      }
+      await Promise.all(
+        refeicao.itens_refeicao.map(async (i) => {
+          const { data: itemModelo } = await supabase
+            .from('modelos_planos_itens')
+            .insert({
+              id_modelo_refeicao: modeloRefeicao.id,
+              id_alimento: i.id_alimento,
+              quantidade_g: i.quantidade_g,
+              opcao_numero: i.opcao_numero,
+              nome_customizado: i.nome_customizado || null,
+              unidade_medida: i.unidade_medida || null,
+              quantidade_medida: i.quantidade_medida || null,
+            })
+            .select()
+            .single()
+
+          const subsOrigem = i.substitutos_item || []
+          if (itemModelo && subsOrigem.length > 0) {
+            await supabase.from('modelos_planos_itens_substitutos').insert(
+              subsOrigem.map((s) => ({
+                id_item_modelo: itemModelo.id,
+                id_alimento: s.id_alimento,
+                quantidade_g: s.quantidade_g,
+                ordem: s.ordem,
+              }))
+            )
+          }
+        })
+      )
     }
 
     setSalvandoModelo(false)
@@ -1320,8 +1427,6 @@ export default function PlanoAlimentar({ userId }) {
       return
     }
 
-    await supabase.from('planos_alimentares').update({ ativo: false }).eq('id_paciente', id).eq('ativo', true)
-
     const { data, error } = await supabase
       .from('planos_alimentares')
       .insert({
@@ -1364,6 +1469,13 @@ export default function PlanoAlimentar({ userId }) {
     setPlanoSelecionadoId(proximo ? proximo.id : null)
   }
 
+  const toggleVisivelPlano = async (plano) => {
+    const novoValor = !plano.ativo
+    const { error } = await supabase.from('planos_alimentares').update({ ativo: novoValor }).eq('id', plano.id)
+    if (error) { alert('Erro ao atualizar visibilidade do plano: ' + error.message); return }
+    setPlanos((prev) => prev.map((p) => (p.id === plano.id ? { ...p, ativo: novoValor } : p)))
+  }
+
   const handleNovaRefeicao = async () => {
     const { data, error } = await supabase
       .from('refeicoes_prescritas')
@@ -1386,6 +1498,7 @@ export default function PlanoAlimentar({ userId }) {
         id_plano: planoSelecionadoId,
         nome_refeicao: `${refeicao.nome_refeicao} (cópia)`,
         horario: refeicao.horario,
+        nota: refeicao.nota || null,
         ordem: refeicoes.length,
       })
       .select('*, itens_refeicao(*, tabela_alimentos(*), substitutos_item(*, tabela_alimentos(*)))')
@@ -1532,22 +1645,23 @@ export default function PlanoAlimentar({ userId }) {
           <div className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-gray-100 dark:border-slate-800 shadow-sm">
             <div className="flex flex-wrap gap-2">
               {planos.map((p) => (
-                <button
-                  key={p.id}
-                  onClick={() => setPlanoSelecionadoId(p.id)}
-                  className={`px-3 py-2 rounded-lg text-xs font-semibold border transition-colors ${
-                    planoSelecionadoId === p.id
-                      ? 'bg-primary-600 text-white border-primary-600'
-                      : 'bg-white dark:bg-slate-900 text-gray-600 dark:text-slate-400 border-gray-200 dark:border-slate-700 hover:bg-gray-50 dark:hover:bg-slate-800'
-                  }`}
-                >
-                  {p.titulo} · {formatarData(p.created_at)}
-                  {p.ativo && (
-                    <span className="ml-2 text-[10px] font-black uppercase bg-emerald-500 text-white px-1.5 py-0.5 rounded-full">
-                      Ativo
-                    </span>
-                  )}
-                </button>
+                <div key={p.id} className="flex items-center gap-1">
+                  <button
+                    onClick={() => setPlanoSelecionadoId(p.id)}
+                    className={`px-3 py-2 rounded-lg text-xs font-semibold border transition-colors ${
+                      planoSelecionadoId === p.id
+                        ? 'bg-primary-600 text-white border-primary-600'
+                        : 'bg-white dark:bg-slate-900 text-gray-600 dark:text-slate-400 border-gray-200 dark:border-slate-700 hover:bg-gray-50 dark:hover:bg-slate-800'
+                    }`}
+                  >
+                    {p.titulo} · {formatarData(p.created_at)}
+                  </button>
+                  <InterruptorVisibilidade
+                    ativo={p.ativo}
+                    onToggle={(e) => { e.stopPropagation(); toggleVisivelPlano(p) }}
+                    titulo={p.ativo ? 'Visível pro paciente — clique pra esconder' : 'Oculto pro paciente — clique pra mostrar'}
+                  />
+                </div>
               ))}
             </div>
           </div>
@@ -1714,9 +1828,9 @@ export default function PlanoAlimentar({ userId }) {
             </div>
 
             <form onSubmit={handleSalvarPlano} className="p-6 space-y-4 overflow-y-auto flex-1">
-              {!editingPlanoId && planos.some((p) => p.ativo) && (
-                <p className="text-xs text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg p-2">
-                  Já existe um plano ativo — ele será marcado como inativo (mas continua no histórico) quando este for criado.
+              {!editingPlanoId && (
+                <p className="text-xs text-primary-600 dark:text-primary-400 bg-primary-50 dark:bg-primary-900/20 border border-primary-200 dark:border-primary-800 rounded-lg p-2">
+                  O novo plano já nasce visível pro paciente. Use o Liga/Desliga na lista de planos pra controlar quais ficam visíveis.
                 </p>
               )}
 

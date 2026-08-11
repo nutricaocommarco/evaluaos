@@ -38,6 +38,7 @@ import PacienteQuestionarios from './pages/PacienteQuestionarios';
 import AreaPaciente from './pages/AreaPaciente';
 import PlanoAlimentarPaciente from './pages/PlanoAlimentarPaciente';
 import OrientacoesPaciente from './pages/OrientacoesPaciente';
+import ListasRecomendacoesPaciente from './pages/ListasRecomendacoesPaciente';
 import QuestionariosPaciente from './pages/QuestionariosPaciente';
 import EmConstrucao from './components/EmConstrucao';
 import LayoutComPaciente from './components/LayoutComPaciente';
@@ -130,13 +131,14 @@ function MainApp() {
           <Route path="/" element={<HomePublica />} />
           <Route path="/login" element={<Login />} />
 
-          {/* ROTAS PÚBLICAS DO PACIENTE */}
+          {/* ROTAS PÚBLICAS DO PACIENTE (Acesso via Token) */}
           <Route path="/laudo/:tokenUrl" element={<ResultadoAvaliacao />} />
           <Route path="/evolucao/:tokenUrl" element={<EvolucaoPaciente />} />
           <Route path="/questionario/:tokenUrl" element={<QuestionarioPublico />} />
           <Route path="/area/:tokenUrl" element={<AreaPaciente />} />
           <Route path="/area/:tokenUrl/plano" element={<PlanoAlimentarPaciente />} />
           <Route path="/area/:tokenUrl/orientacoes" element={<OrientacoesPaciente />} />
+          <Route path="/area/:tokenUrl/listas" element={<ListasRecomendacoesPaciente />} />
           <Route path="/area/:tokenUrl/questionarios" element={<QuestionariosPaciente />} />
 
           {/* INSTITUCIONAL & SEO */}
@@ -280,6 +282,7 @@ function MainApp() {
             <Route path="/area/:tokenUrl" element={<AreaPaciente />} />
             <Route path="/area/:tokenUrl/plano" element={<PlanoAlimentarPaciente />} />
             <Route path="/area/:tokenUrl/orientacoes" element={<OrientacoesPaciente />} />
+            <Route path="/area/:tokenUrl/listas" element={<ListasRecomendacoesPaciente />} />
             <Route path="/area/:tokenUrl/questionarios" element={<QuestionariosPaciente />} />
             <Route path="/contato" element={<Contato />} />
             <Route path="/nova-avaliacao" element={<LayoutComPaciente itemAtivo="nova_avaliacao"><AvaliacaoForm /></LayoutComPaciente>} />
