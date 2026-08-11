@@ -154,16 +154,20 @@ function AdicionarItemForm({ refeicaoId, opcaoNumero, onItemAdicionado, onCancel
   const [salvando, setSalvando] = useState(false)
   const dropdownRef = useRef(null)
 
-  const fatorUnidade = UNIDADES_MEDIDA.find((u) => u.valor === unidade)?.fatorG
+  // "Unidade" não tem fator fixo na lista — o peso de 1 unidade depende do
+  // alimento escolhido. Se o alimento tiver medida_caseira_g cadastrada
+  // (Tabela de Alimentos > editar), usa ela; senão o nutri digita a mão.
+  const fatorParaUnidade = (valorUnidade) =>
+    valorUnidade === 'unidade' ? selecionado?.medida_caseira_g || null : UNIDADES_MEDIDA.find((u) => u.valor === valorUnidade)?.fatorG
+
+  const fatorUnidade = fatorParaUnidade(unidade)
 
   const handleChangeUnidade = (novaUnidade) => {
     setUnidade(novaUnidade)
     if (novaUnidade === 'g') { setQuantidadeMedida(''); return }
-    const fator = UNIDADES_MEDIDA.find((u) => u.valor === novaUnidade)?.fatorG
+    const fator = fatorParaUnidade(novaUnidade)
     const qtdMedida = Number(quantidadeMedida) || Number(quantidade) || ''
     setQuantidadeMedida(qtdMedida === '' ? '' : String(qtdMedida))
-    // Sem fator (ex: "Unidade"), os gramas ficam por conta do que já
-    // estava digitado — o nutri ajusta na mão.
     if (fator && qtdMedida !== '') setQuantidade(String((Number(qtdMedida) * fator).toFixed(2).replace(/\.00$/, '')))
   }
 
@@ -314,6 +318,14 @@ function AdicionarItemForm({ refeicaoId, opcaoNumero, onItemAdicionado, onCancel
       >
         Cancelar
       </button>
+
+      {unidade === 'unidade' && selecionado && (
+        <p className="w-full text-[10px] text-gray-400 dark:text-slate-500">
+          {selecionado.medida_caseira_g
+            ? `Peso cadastrado pra esse alimento: 1 ${selecionado.medida_caseira_desc || 'unidade'} ≈ ${selecionado.medida_caseira_g}g (calculado sozinho ao digitar a Qtd).`
+            : 'Esse alimento não tem peso por unidade cadastrado ainda — digite as gramas manualmente, ou cadastre em Tabela de Alimentos > editar > Medida Caseira pra próxima vez ser automático.'}
+        </p>
+      )}
     </div>
   )
 }
@@ -366,12 +378,15 @@ function ItemLinha({ item, onExcluir, onRenomear, onAbrirSubstitutos, onAtualiza
     setMenuAberto(false)
   }
 
-  const fatorUnidadeEdit = UNIDADES_MEDIDA.find((u) => u.valor === unidadeEdit)?.fatorG
+  const fatorParaUnidadeEdit = (valorUnidade) =>
+    valorUnidade === 'unidade' ? item.tabela_alimentos?.medida_caseira_g || null : UNIDADES_MEDIDA.find((u) => u.valor === valorUnidade)?.fatorG
+
+  const fatorUnidadeEdit = fatorParaUnidadeEdit(unidadeEdit)
 
   const handleChangeUnidadeEdit = (nova) => {
     setUnidadeEdit(nova)
     if (nova === 'g') { setQuantidadeMedidaEdit(''); return }
-    const fator = UNIDADES_MEDIDA.find((u) => u.valor === nova)?.fatorG
+    const fator = fatorParaUnidadeEdit(nova)
     const qtdMedida = Number(quantidadeMedidaEdit) || Number(quantidadeEdit) || ''
     setQuantidadeMedidaEdit(qtdMedida === '' ? '' : String(qtdMedida))
     if (fator && qtdMedida !== '') setQuantidadeEdit(String((Number(qtdMedida) * fator).toFixed(2).replace(/\.00$/, '')))
@@ -431,6 +446,13 @@ function ItemLinha({ item, onExcluir, onRenomear, onAbrirSubstitutos, onAtualiza
           <span className="text-[10px] text-gray-400 dark:text-slate-500">g</span>
           <button onClick={salvarEdicaoQtd} className="text-[11px] font-semibold text-primary-600 hover:underline">Salvar</button>
           <button onClick={() => setEditandoQtd(false)} className="text-[11px] text-gray-400 dark:text-slate-500 hover:text-gray-600">Cancelar</button>
+          {unidadeEdit === 'unidade' && (
+            <p className="w-full text-[10px] text-gray-400 dark:text-slate-500">
+              {item.tabela_alimentos?.medida_caseira_g
+                ? `Peso cadastrado: 1 ${item.tabela_alimentos.medida_caseira_desc || 'unidade'} ≈ ${item.tabela_alimentos.medida_caseira_g}g.`
+                : 'Sem peso por unidade cadastrado pra esse alimento — digite as gramas manualmente.'}
+            </p>
+          )}
         </div>
       </li>
     )
@@ -459,9 +481,17 @@ function ItemLinha({ item, onExcluir, onRenomear, onAbrirSubstitutos, onAtualiza
         {item.nome_customizado && (
           <span className="text-gray-400 dark:text-slate-500 italic" title={`Alimento original: ${nomeOriginal}`}> *</span>
         )}
-        {' '}— {item.unidade_medida && item.quantidade_medida
-          ? `${item.quantidade_medida} ${labelUnidade(item.unidade_medida)} (≈${item.quantidade_g}g)`
-          : `${item.quantidade_g}g`}
+        {' — '}
+        <button
+          type="button"
+          onClick={iniciarEditarQtd}
+          title="Clique para editar a quantidade/medida"
+          className="underline decoration-dotted decoration-gray-300 dark:decoration-slate-600 underline-offset-2 hover:text-primary-600 dark:hover:text-primary-400 hover:decoration-primary-400"
+        >
+          {item.unidade_medida && item.quantidade_medida
+            ? `${item.quantidade_medida} ${labelUnidade(item.unidade_medida)} (≈${item.quantidade_g}g)`
+            : `${item.quantidade_g}g`}
+        </button>
         {numSubstitutos > 0 && (
           <span className="text-primary-500 dark:text-primary-400 ml-1" title={`${numSubstitutos} substituto(s)`}>
             ⇄{numSubstitutos}
@@ -480,14 +510,6 @@ function ItemLinha({ item, onExcluir, onRenomear, onAbrirSubstitutos, onAtualiza
         </button>
         {menuAberto && (
           <ul className="absolute right-0 z-20 mt-1 w-48 bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-700 rounded-lg shadow-xl overflow-hidden">
-            <li>
-              <button
-                onClick={iniciarEditarQtd}
-                className="w-full text-left px-3 py-2 text-xs text-gray-700 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-slate-800"
-              >
-                Editar quantidade
-              </button>
-            </li>
             <li>
               <button
                 onClick={iniciarRenomear}
