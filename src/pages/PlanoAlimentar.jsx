@@ -119,6 +119,8 @@ async function duplicarItensComSubstitutos(itensOrigem, idRefeicaoDestino, mapOp
           id_item_original: novoItem.id,
           id_alimento: s.id_alimento,
           quantidade_g: s.quantidade_g,
+          unidade_medida: s.unidade_medida || null,
+          quantidade_medida: s.quantidade_medida || null,
           ordem: s.ordem,
         }))
         const { data: novosSubs } = await supabase
@@ -498,13 +500,16 @@ function SubstitutosModal({ item, onFechar, onSubstitutosChange }) {
     if (equivalenciaAuto && alimento.energia_kcal) {
       const kcalAlvo = (item.tabela_alimentos?.energia_kcal || 0) * (quantidade / 100)
       quantidade = (kcalAlvo * 100) / alimento.energia_kcal
+      // Arredonda pra baixo, de 5 em 5g — equivalência calculada (ex: 102.37g)
+      // vira um número redondo e prático de pesar (100g), nunca menos que 5g.
+      quantidade = Math.max(5, Math.floor(quantidade / 5) * 5)
     }
     const { data, error } = await supabase
       .from('substitutos_item')
       .insert({
         id_item_original: item.id,
         id_alimento: alimento.id,
-        quantidade_g: Number(quantidade.toFixed(2)),
+        quantidade_g: quantidade,
         ordem: substitutos.length,
       })
       .select('*, tabela_alimentos(*)')
@@ -525,6 +530,49 @@ function SubstitutosModal({ item, onFechar, onSubstitutosChange }) {
 
   const handleQuantidadeBlur = async (substitutoId, valor) => {
     await supabase.from('substitutos_item').update({ quantidade_g: Number(valor) || 0 }).eq('id', substitutoId)
+  }
+
+  // Trocar a unidade recalcula os gramas a partir da qtd de medida já
+  // digitada (ou da estimativa a partir dos gramas atuais); voltar pra 'g'
+  // limpa a medida caseira e deixa só o peso.
+  const handleUnidadeChange = async (substitutoId, novaUnidade) => {
+    const sub = substitutos.find((s) => s.id === substitutoId)
+    if (!sub) return
+    let patch
+    if (novaUnidade === 'g') {
+      patch = { unidade_medida: null, quantidade_medida: null }
+    } else {
+      const fator = UNIDADES_MEDIDA.find((u) => u.valor === novaUnidade)?.fatorG || 1
+      const qtdMedida = Number(sub.quantidade_medida) || (Number(sub.quantidade_g) || 0) / fator
+      patch = {
+        unidade_medida: novaUnidade,
+        quantidade_medida: Number(qtdMedida.toFixed(2)),
+        quantidade_g: Number((qtdMedida * fator).toFixed(2)),
+      }
+    }
+    const novos = substitutos.map((s) => (s.id === substitutoId ? { ...s, ...patch } : s))
+    setSubstitutos(novos)
+    onSubstitutosChange(novos)
+    await supabase.from('substitutos_item').update(patch).eq('id', substitutoId)
+  }
+
+  const handleQuantidadeMedidaChange = (substitutoId, valor) => {
+    const novos = substitutos.map((s) => (s.id === substitutoId ? { ...s, quantidade_medida: valor } : s))
+    setSubstitutos(novos)
+    onSubstitutosChange(novos)
+  }
+
+  const handleQuantidadeMedidaBlur = async (substitutoId, valor) => {
+    const sub = substitutos.find((s) => s.id === substitutoId)
+    if (!sub?.unidade_medida) return
+    const fator = UNIDADES_MEDIDA.find((u) => u.valor === sub.unidade_medida)?.fatorG || 1
+    const qtdMedida = Number(valor) || 0
+    const novoGramas = Number((qtdMedida * fator).toFixed(2))
+    const patch = { quantidade_medida: qtdMedida, quantidade_g: novoGramas }
+    const novos = substitutos.map((s) => (s.id === substitutoId ? { ...s, ...patch } : s))
+    setSubstitutos(novos)
+    onSubstitutosChange(novos)
+    await supabase.from('substitutos_item').update(patch).eq('id', substitutoId)
   }
 
   const handleRemoverSubstituto = async (substitutoId) => {
@@ -566,6 +614,7 @@ function SubstitutosModal({ item, onFechar, onSubstitutosChange }) {
                 <tr className="text-gray-400 dark:text-slate-500 border-b border-gray-100 dark:border-slate-800">
                   <th className="text-left py-2 font-semibold">Alimento</th>
                   <th className="text-right py-2 font-semibold">Qtd</th>
+                  <th className="text-left py-2 font-semibold pl-2">Medida caseira</th>
                   <th className="text-right py-2 font-semibold">PRO</th>
                   <th className="text-right py-2 font-semibold">LIP</th>
                   <th className="text-right py-2 font-semibold">CHO</th>
@@ -579,6 +628,9 @@ function SubstitutosModal({ item, onFechar, onSubstitutosChange }) {
                     <span title="Alimento principal (não editável aqui)">🔒 {nomePrincipal}</span>
                   </td>
                   <td className="text-right">{fmt(linhas[0].quantidade)}g</td>
+                  <td className="pl-2 text-gray-400 dark:text-slate-500">
+                    {item.unidade_medida && item.quantidade_medida ? `${item.quantidade_medida} ${labelUnidade(item.unidade_medida)}` : '-'}
+                  </td>
                   <td className="text-right">{fmt(linhas[0].proteina)}g</td>
                   <td className="text-right">{fmt(linhas[0].lipidio)}g</td>
                   <td className="text-right">{fmt(linhas[0].carbo)}g</td>
@@ -600,6 +652,29 @@ function SubstitutosModal({ item, onFechar, onSubstitutosChange }) {
                           className="w-14 px-1 py-0.5 border border-gray-200 dark:border-slate-700 rounded text-right text-xs bg-transparent outline-none focus:ring-1 focus:ring-primary-500"
                         />g
                       </td>
+                      <td className="py-2 pl-2">
+                        <div className="flex items-center gap-1">
+                          <select
+                            value={s.unidade_medida || 'g'}
+                            onChange={(e) => handleUnidadeChange(s.id, e.target.value)}
+                            className="px-1 py-0.5 border border-gray-200 dark:border-slate-700 rounded text-[11px] bg-transparent outline-none focus:ring-1 focus:ring-primary-500 max-w-[100px]"
+                          >
+                            {UNIDADES_MEDIDA.map((u) => (
+                              <option key={u.valor} value={u.valor}>{labelUnidade(u.valor)}</option>
+                            ))}
+                          </select>
+                          {s.unidade_medida && s.unidade_medida !== 'g' && (
+                            <input
+                              type="number"
+                              step="any"
+                              value={s.quantidade_medida ?? ''}
+                              onChange={(e) => handleQuantidadeMedidaChange(s.id, e.target.value)}
+                              onBlur={(e) => handleQuantidadeMedidaBlur(s.id, e.target.value)}
+                              className="w-10 px-1 py-0.5 border border-gray-200 dark:border-slate-700 rounded text-right text-[11px] bg-transparent outline-none focus:ring-1 focus:ring-primary-500"
+                            />
+                          )}
+                        </div>
+                      </td>
                       <td className="text-right">{fmt(l.proteina)}g</td>
                       <td className="text-right">{fmt(l.lipidio)}g</td>
                       <td className="text-right">{fmt(l.carbo)}g</td>
@@ -615,6 +690,7 @@ function SubstitutosModal({ item, onFechar, onSubstitutosChange }) {
                     <tr className="text-gray-500 dark:text-slate-400 font-semibold border-t border-gray-100 dark:border-slate-800">
                       <td className="py-2">Média</td>
                       <td className="text-right">{fmt(media('quantidade'))}g</td>
+                      <td></td>
                       <td className="text-right">{fmt(media('proteina'))}g</td>
                       <td className="text-right">{fmt(media('lipidio'))}g</td>
                       <td className="text-right">{fmt(media('carbo'))}g</td>
@@ -624,6 +700,7 @@ function SubstitutosModal({ item, onFechar, onSubstitutosChange }) {
                     <tr className="text-gray-400 dark:text-slate-500">
                       <td className="py-1">Desvio padrão</td>
                       <td className="text-right">± {fmt(desvio('quantidade'))}g</td>
+                      <td></td>
                       <td className="text-right">± {fmt(desvio('proteina'))}g</td>
                       <td className="text-right">± {fmt(desvio('lipidio'))}g</td>
                       <td className="text-right">± {fmt(desvio('carbo'))}g</td>
@@ -1127,6 +1204,8 @@ export default function PlanoAlimentar({ userId }) {
                   id_item_original: novoItem.id,
                   id_alimento: s.id_alimento,
                   quantidade_g: s.quantidade_g,
+                  unidade_medida: s.unidade_medida || null,
+                  quantidade_medida: s.quantidade_medida || null,
                   ordem: s.ordem,
                 }))
               )
@@ -1177,6 +1256,8 @@ export default function PlanoAlimentar({ userId }) {
               id_item_modelo: itemModelo.id,
               id_alimento: s.id_alimento,
               quantidade_g: s.quantidade_g,
+              unidade_medida: s.unidade_medida || null,
+              quantidade_medida: s.quantidade_medida || null,
               ordem: s.ordem,
             }))
           )
@@ -1236,6 +1317,8 @@ export default function PlanoAlimentar({ userId }) {
                 id_item_original: novoItem.id,
                 id_alimento: s.id_alimento,
                 quantidade_g: s.quantidade_g,
+                unidade_medida: s.unidade_medida || null,
+                quantidade_medida: s.quantidade_medida || null,
                 ordem: s.ordem,
               })))
               .select('*, tabela_alimentos(*)')
@@ -1315,6 +1398,8 @@ export default function PlanoAlimentar({ userId }) {
                 id_item_modelo: itemModelo.id,
                 id_alimento: s.id_alimento,
                 quantidade_g: s.quantidade_g,
+                unidade_medida: s.unidade_medida || null,
+                quantidade_medida: s.quantidade_medida || null,
                 ordem: s.ordem,
               }))
             )

@@ -14,15 +14,19 @@ export default function NavegacaoPortalPaciente({ tokenPaciente, tokenLaudo, ati
   const navigate = useNavigate()
   const [mobileAberto, setMobileAberto] = useState(false)
 
-  const itens = [
+  // Laudo e Evolução só existem se o paciente já tem alguma avaliação
+  // antropométrica visível — sem isso, nem aparecem no menu (em vez de
+  // aparecer desabilitado/cinza, o que só confunde).
+  const itensTodos = [
     { key: 'inicio', label: 'Início', icone: Home, href: `/area/${tokenPaciente}` },
-    { key: 'evolucao', label: 'Evolução', icone: TrendingUp, href: `/evolucao/${tokenPaciente}` },
+    { key: 'evolucao', label: 'Evolução', icone: TrendingUp, href: tokenLaudo ? `/evolucao/${tokenPaciente}` : null },
     { key: 'laudo', label: 'Laudo', icone: FileText, href: tokenLaudo ? `/laudo/${tokenLaudo}` : null },
     { key: 'plano', label: 'Plano', icone: Utensils, href: `/area/${tokenPaciente}/plano` },
     { key: 'orientacoes', label: 'Orientações', icone: MessageSquare, href: `/area/${tokenPaciente}/orientacoes` },
     { key: 'listas', label: 'Listas', icone: ListChecks, href: `/area/${tokenPaciente}/listas` },
     { key: 'questionarios', label: 'Questionários', icone: ClipboardList, href: `/area/${tokenPaciente}/questionarios` },
   ]
+  const itens = itensTodos.filter((i) => i.href)
 
   const itemAtivo = itens.find((i) => i.key === ativo)
 
@@ -63,9 +67,7 @@ export default function NavegacaoPortalPaciente({ tokenPaciente, tokenLaudo, ati
                     <button
                       key={item.key}
                       onClick={() => irPara(item)}
-                      disabled={!item.href}
-                      title={!item.href ? 'Ainda não disponível' : ''}
-                      className={`w-full flex items-center gap-2.5 text-left px-3 py-2.5 rounded-lg text-sm font-semibold transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${
+                      className={`w-full flex items-center gap-2.5 text-left px-3 py-2.5 rounded-lg text-sm font-semibold transition-colors ${
                         ativo === item.key
                           ? 'bg-primary-600 text-white'
                           : 'text-gray-600 dark:text-slate-400 hover:bg-gray-100 dark:hover:bg-slate-800'
@@ -89,10 +91,8 @@ export default function NavegacaoPortalPaciente({ tokenPaciente, tokenLaudo, ati
           return (
             <button
               key={item.key}
-              onClick={() => item.href && navigate(item.href)}
-              disabled={!item.href}
-              title={!item.href ? 'Ainda não disponível' : ''}
-              className={`flex flex-col items-center justify-center gap-1 px-2 py-2.5 rounded-lg text-[11px] font-semibold text-center leading-tight transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${
+              onClick={() => navigate(item.href)}
+              className={`flex flex-col items-center justify-center gap-1 px-2 py-2.5 rounded-lg text-[11px] font-semibold text-center leading-tight transition-colors ${
                 ativo === item.key
                   ? 'bg-primary-600 text-white shadow-sm'
                   : 'bg-white dark:bg-slate-900 text-gray-600 dark:text-slate-400 border border-gray-200 dark:border-slate-700 hover:bg-gray-50 dark:hover:bg-slate-800'
