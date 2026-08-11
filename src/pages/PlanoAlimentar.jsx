@@ -4,7 +4,7 @@ import { supabase } from '../supabaseClient'
 import SidebarPaciente from '../components/SidebarPaciente'
 import GeradorPdfNutricional from '../components/GeradorPdfNutricional'
 import InterruptorVisibilidade from '../components/InterruptorVisibilidade'
-import { FileDown } from 'lucide-react'
+import { FileDown, Save, Pencil, Trash2, StickyNote } from 'lucide-react'
 
 const CAMPOS_PLANO_VAZIOS = {
   titulo: 'Plano Alimentar',
@@ -781,6 +781,7 @@ function OpcaoCard({ refeicaoId, opcaoNumero, itens, onItemExcluido, onItemAdici
 
 function RefeicaoCard({ refeicao, onAtualizarCampo, onExcluir, onItensChange, onMover, podeSubir, podeDescer, onDuplicarRefeicao, onAbrirSubstitutos, onSalvarComoModelo }) {
   const [novaOpcaoAberta, setNovaOpcaoAberta] = useState(false)
+  const [notaAberta, setNotaAberta] = useState(!!refeicao.nota)
 
   const opcoesExistentes = [...new Set(refeicao.itens_refeicao.map((i) => i.opcao_numero))].sort((a, b) => a - b)
   const proximaOpcao = opcoesExistentes.length > 0 ? Math.max(...opcoesExistentes) + 1 : 1
@@ -844,27 +845,51 @@ function RefeicaoCard({ refeicao, onAtualizarCampo, onExcluir, onItensChange, on
             className="flex-1 px-2 py-1 border border-transparent hover:border-gray-200 dark:hover:border-slate-700 rounded text-sm font-black bg-transparent focus:border-primary-500 outline-none text-gray-800 dark:text-slate-100"
           />
         </div>
-        <div className="flex items-center gap-3 shrink-0">
+        <div className="flex items-center gap-1 shrink-0">
+          <button
+            onClick={() => setNotaAberta((v) => !v)}
+            title="Nota da refeição (aparece pro paciente)"
+            className={`p-1.5 rounded transition-colors ${
+              refeicao.nota
+                ? 'text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-900/20'
+                : 'text-gray-400 dark:text-slate-500 hover:bg-gray-100 dark:hover:bg-slate-800'
+            }`}
+          >
+            <StickyNote size={15} />
+          </button>
           <button
             onClick={() => onSalvarComoModelo(refeicao)}
-            className="text-xs font-semibold text-primary-600 hover:underline"
+            title="Salvar como modelo"
+            className="p-1.5 text-primary-600 hover:bg-primary-50 dark:hover:bg-primary-900/20 rounded transition-colors"
           >
-            Salvar como modelo
+            <Save size={15} />
           </button>
           <button
             onClick={() => onDuplicarRefeicao(refeicao)}
-            className="text-xs font-semibold text-primary-600 hover:underline"
+            title="Duplicar refeição"
+            className="p-1.5 text-primary-600 hover:bg-primary-50 dark:hover:bg-primary-900/20 rounded transition-colors"
           >
-            Duplicar refeição
+            <Pencil size={15} />
           </button>
           <button
             onClick={() => onExcluir(refeicao.id)}
-            className="text-xs font-semibold text-red-600 hover:underline"
+            title="Excluir refeição"
+            className="p-1.5 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded transition-colors"
           >
-            Excluir refeição
+            <Trash2 size={15} />
           </button>
         </div>
       </div>
+
+      {notaAberta && (
+        <textarea
+          value={refeicao.nota || ''}
+          onChange={(e) => onAtualizarCampo(refeicao.id, 'nota', e.target.value)}
+          placeholder="Nota sobre esta refeição — o paciente vê abaixo dos macros dela"
+          rows={2}
+          className="w-full px-3 py-2 border border-gray-200 dark:border-slate-700 rounded-lg text-xs bg-transparent focus:border-primary-500 outline-none text-gray-700 dark:text-slate-300 resize-none"
+        />
+      )}
 
       <div className="flex flex-wrap gap-3">
         {opcoesParaExibir.map((n) => (
@@ -1070,6 +1095,7 @@ export default function PlanoAlimentar({ userId }) {
           id_plano: novoPlanoId,
           horario: refModelo.horario,
           nome_refeicao: refModelo.nome_refeicao,
+          nota: refModelo.nota || null,
           ordem: refModelo.ordem,
         })
         .select()
@@ -1118,7 +1144,7 @@ export default function PlanoAlimentar({ userId }) {
 
     const { data: modelo, error } = await supabase
       .from('modelos_refeicoes')
-      .insert({ id_avaliador: userId, titulo: titulo || refeicao.nome_refeicao })
+      .insert({ id_avaliador: userId, titulo: titulo || refeicao.nome_refeicao, nota: refeicao.nota || null })
       .select()
       .single()
 
@@ -1175,7 +1201,7 @@ export default function PlanoAlimentar({ userId }) {
 
     const { data: novaRefeicao, error } = await supabase
       .from('refeicoes_prescritas')
-      .insert({ id_plano: planoSelecionadoId, nome_refeicao: modelo.titulo, ordem: refeicoes.length })
+      .insert({ id_plano: planoSelecionadoId, nome_refeicao: modelo.titulo, nota: modelo.nota || null, ordem: refeicoes.length })
       .select('*, itens_refeicao(*, tabela_alimentos(*))')
       .single()
 
@@ -1259,6 +1285,7 @@ export default function PlanoAlimentar({ userId }) {
           id_modelo_plano: modelo.id,
           horario: refeicao.horario,
           nome_refeicao: refeicao.nome_refeicao,
+          nota: refeicao.nota || null,
           ordem: refeicao.ordem,
         })
         .select()
@@ -1471,6 +1498,7 @@ export default function PlanoAlimentar({ userId }) {
         id_plano: planoSelecionadoId,
         nome_refeicao: `${refeicao.nome_refeicao} (cópia)`,
         horario: refeicao.horario,
+        nota: refeicao.nota || null,
         ordem: refeicoes.length,
       })
       .select('*, itens_refeicao(*, tabela_alimentos(*), substitutos_item(*, tabela_alimentos(*)))')

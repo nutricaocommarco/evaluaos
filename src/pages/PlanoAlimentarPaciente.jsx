@@ -4,7 +4,7 @@ import { supabase } from '../supabaseClient'
 import { useTheme } from '../contexts/ThemeContext'
 import CabecalhoPortalPaciente from '../components/CabecalhoPortalPaciente'
 import NavegacaoPortalPaciente from '../components/NavegacaoPortalPaciente'
-import { ChevronDown, ChevronRight } from 'lucide-react'
+import { ChevronDown, ChevronRight, StickyNote } from 'lucide-react'
 
 // Mesmas funções puras de src/pages/PlanoAlimentar.jsx (duplicadas de
 // propósito em vez de importadas — essa página é pública/paciente e não
@@ -121,6 +121,12 @@ function BlocoRefeicao({ refeicao, aberta, aoAlternar }) {
               )
             })}
           </div>
+          {refeicao.nota && (
+            <div className="mt-3 p-2.5 bg-amber-50 dark:bg-amber-900/20 border border-amber-100 dark:border-amber-900/40 rounded-lg flex items-start gap-2">
+              <StickyNote size={13} className="text-amber-500 shrink-0 mt-0.5" />
+              <p className="text-xs text-amber-800 dark:text-amber-300 whitespace-pre-wrap">{refeicao.nota}</p>
+            </div>
+          )}
         </div>
       )}
     </div>
