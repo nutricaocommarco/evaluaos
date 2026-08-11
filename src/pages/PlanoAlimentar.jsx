@@ -45,6 +45,15 @@ function labelUnidade(valor) {
   return UNIDADES_MEDIDA.find((u) => u.valor === valor)?.label.replace(/\s*\(~.*\)/, '') || valor
 }
 
+// A maioria das medidas caseiras já vem com a contagem embutida na
+// descrição ("1 colher de sopa cheia", "1 fatia") — só antepõe "1 " se a
+// descrição ainda não começar com um número (ex: alguém digitou só
+// "colher de sopa" na medida pessoal).
+function formatarMedidaCaseira(desc) {
+  const texto = (desc || '').trim()
+  return texto && /^\d/.test(texto) ? texto : `1 ${texto || 'unidade'}`
+}
+
 // Busca alimentos e sobrepõe a medida caseira PESSOAL do nutri logado (se
 // tiver cadastrada) por cima da oficial — permite anotar "1 unidade ≈ 90g"
 // num alimento da TACO/IBGE sem alterar o valor nutricional compartilhado.
@@ -63,13 +72,20 @@ async function buscarAlimentosComMedidaPessoal(termo, limite = 15) {
     if (authData?.user) {
       const { data: overrides } = await supabase
         .from('alimentos_medida_caseira_pessoal')
-        .select('id_alimento, medida_caseira_desc, medida_caseira_g')
+        .select('id_alimento, medida_caseira_desc, medida_caseira_g, medida_caseira_unidade')
         .eq('id_avaliador', authData.user.id)
         .in('id_alimento', idsOficiais)
       const mapa = {}
       for (const o of overrides || []) mapa[o.id_alimento] = o
       lista = lista.map((a) =>
-        mapa[a.id] ? { ...a, medida_caseira_desc: mapa[a.id].medida_caseira_desc, medida_caseira_g: mapa[a.id].medida_caseira_g } : a
+        mapa[a.id]
+          ? {
+              ...a,
+              medida_caseira_desc: mapa[a.id].medida_caseira_desc,
+              medida_caseira_g: mapa[a.id].medida_caseira_g,
+              medida_caseira_unidade: mapa[a.id].medida_caseira_unidade,
+            }
+          : a
       )
     }
   }
@@ -187,11 +203,16 @@ function AdicionarItemForm({ refeicaoId, opcaoNumero, onItemAdicionado, onCancel
   const [salvando, setSalvando] = useState(false)
   const dropdownRef = useRef(null)
 
-  // "Unidade" não tem fator fixo na lista — o peso de 1 unidade depende do
-  // alimento escolhido. Se o alimento tiver medida_caseira_g cadastrada
-  // (Tabela de Alimentos > editar), usa ela; senão o nutri digita a mão.
+  // A medida caseira do alimento (Tabela de Alimentos > editar, ou medida
+  // pessoal) vale especificamente pra UMA unidade do seletor — pode ser
+  // "Unidade(s)" (banana, ovo) ou uma das outras, tipo "Colher de sopa"
+  // (arroz, feijão). Só substitui o fator genérico quando a unidade
+  // escolhida bate com a cadastrada pro alimento; nas outras, o fator
+  // genérico da lista continua valendo.
   const fatorParaUnidade = (valorUnidade) =>
-    valorUnidade === 'unidade' ? selecionado?.medida_caseira_g || null : UNIDADES_MEDIDA.find((u) => u.valor === valorUnidade)?.fatorG
+    selecionado && selecionado.medida_caseira_unidade === valorUnidade
+      ? selecionado.medida_caseira_g || null
+      : UNIDADES_MEDIDA.find((u) => u.valor === valorUnidade)?.fatorG
 
   const fatorUnidade = fatorParaUnidade(unidade)
 
@@ -353,9 +374,14 @@ function AdicionarItemForm({ refeicaoId, opcaoNumero, onItemAdicionado, onCancel
 
       {unidade === 'unidade' && selecionado && (
         <p className="w-full text-[10px] text-gray-400 dark:text-slate-500">
-          {selecionado.medida_caseira_g
-            ? `Peso cadastrado pra esse alimento: 1 ${selecionado.medida_caseira_desc || 'unidade'} ≈ ${selecionado.medida_caseira_g}g (calculado sozinho ao digitar a Qtd).`
+          {selecionado.medida_caseira_unidade === 'unidade' && selecionado.medida_caseira_g
+            ? `Peso cadastrado pra esse alimento: ${formatarMedidaCaseira(selecionado.medida_caseira_desc)} ≈ ${selecionado.medida_caseira_g}g (calculado sozinho ao digitar a Qtd).`
             : 'Esse alimento não tem peso por unidade cadastrado ainda — digite as gramas manualmente, ou cadastre em Tabela de Alimentos > editar > Medida Caseira pra próxima vez ser automático.'}
+        </p>
+      )}
+      {unidade !== 'unidade' && unidade !== 'g' && selecionado?.medida_caseira_unidade === unidade && selecionado.medida_caseira_g && (
+        <p className="w-full text-[10px] text-gray-400 dark:text-slate-500">
+          Peso cadastrado pra esse alimento nessa medida: {formatarMedidaCaseira(selecionado.medida_caseira_desc)} ≈ {selecionado.medida_caseira_g}g (calculado sozinho ao digitar a Qtd, em vez do valor genérico da lista).
         </p>
       )}
       {ehAVontade && (
@@ -420,7 +446,7 @@ function ItemLinha({ item, onExcluir, onRenomear, onAbrirSubstitutos, onAtualiza
       if (authData?.user) {
         const { data } = await supabase
           .from('alimentos_medida_caseira_pessoal')
-          .select('medida_caseira_desc, medida_caseira_g')
+          .select('medida_caseira_desc, medida_caseira_g, medida_caseira_unidade')
           .eq('id_avaliador', authData.user.id)
           .eq('id_alimento', item.id_alimento)
           .maybeSingle()
@@ -429,8 +455,12 @@ function ItemLinha({ item, onExcluir, onRenomear, onAbrirSubstitutos, onAtualiza
     }
   }
 
+  const medidaUnidadeEfetiva = medidaPessoal?.medida_caseira_unidade || item.tabela_alimentos?.medida_caseira_unidade
+  const medidaGramasEfetiva = medidaPessoal?.medida_caseira_g || item.tabela_alimentos?.medida_caseira_g
+  const medidaDescEfetiva = medidaPessoal?.medida_caseira_desc || item.tabela_alimentos?.medida_caseira_desc
+
   const fatorParaUnidadeEdit = (valorUnidade) =>
-    valorUnidade === 'unidade' ? medidaPessoal?.medida_caseira_g || item.tabela_alimentos?.medida_caseira_g || null : UNIDADES_MEDIDA.find((u) => u.valor === valorUnidade)?.fatorG
+    medidaUnidadeEfetiva === valorUnidade ? medidaGramasEfetiva || null : UNIDADES_MEDIDA.find((u) => u.valor === valorUnidade)?.fatorG
 
   const fatorUnidadeEdit = fatorParaUnidadeEdit(unidadeEdit)
 
@@ -510,9 +540,14 @@ function ItemLinha({ item, onExcluir, onRenomear, onAbrirSubstitutos, onAtualiza
           <button onClick={() => setEditandoQtd(false)} className="text-[11px] text-gray-400 dark:text-slate-500 hover:text-gray-600">Cancelar</button>
           {unidadeEdit === 'unidade' && (
             <p className="w-full text-[10px] text-gray-400 dark:text-slate-500">
-              {medidaPessoal?.medida_caseira_g || item.tabela_alimentos?.medida_caseira_g
-                ? `Peso cadastrado: 1 ${medidaPessoal?.medida_caseira_desc || item.tabela_alimentos?.medida_caseira_desc || 'unidade'} ≈ ${medidaPessoal?.medida_caseira_g || item.tabela_alimentos?.medida_caseira_g}g.`
+              {medidaUnidadeEfetiva === 'unidade' && medidaGramasEfetiva
+                ? `Peso cadastrado: ${formatarMedidaCaseira(medidaDescEfetiva)} ≈ ${medidaGramasEfetiva}g.`
                 : 'Sem peso por unidade cadastrado pra esse alimento — digite as gramas manualmente.'}
+            </p>
+          )}
+          {unidadeEdit !== 'unidade' && unidadeEdit !== 'g' && !ehAVontadeEdit && medidaUnidadeEfetiva === unidadeEdit && medidaGramasEfetiva && (
+            <p className="w-full text-[10px] text-gray-400 dark:text-slate-500">
+              Peso cadastrado nessa medida: {formatarMedidaCaseira(medidaDescEfetiva)} ≈ {medidaGramasEfetiva}g (em vez do valor genérico da lista).
             </p>
           )}
           {ehAVontadeEdit && (
@@ -723,7 +758,9 @@ function SubstitutosModal({ item, onFechar, onSubstitutosChange }) {
   // ou a medida caseira pessoal). Sem isso, os gramas ficam por conta do
   // que já estava, o nutri ajusta na mão.
   const fatorParaUnidadeSub = (sub, valorUnidade) =>
-    valorUnidade === 'unidade' ? sub.tabela_alimentos?.medida_caseira_g || null : UNIDADES_MEDIDA.find((u) => u.valor === valorUnidade)?.fatorG
+    sub.tabela_alimentos?.medida_caseira_unidade === valorUnidade
+      ? sub.tabela_alimentos?.medida_caseira_g || null
+      : UNIDADES_MEDIDA.find((u) => u.valor === valorUnidade)?.fatorG
 
   const handleUnidadeChange = async (substitutoId, novaUnidade) => {
     const sub = substitutos.find((s) => s.id === substitutoId)

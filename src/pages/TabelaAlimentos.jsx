@@ -1,12 +1,35 @@
 import React, { useState, useEffect } from 'react'
 import { supabase } from '../supabaseClient'
 
+// A maioria das medidas caseiras já vem com a contagem embutida na
+// descrição ("1 colher de sopa cheia") — só antepõe "1 " se ainda não
+// começar com um número.
+function formatarMedidaCaseira(desc) {
+  const texto = (desc || '').trim()
+  return texto && /^\d/.test(texto) ? texto : `1 ${texto || 'unidade'}`
+}
+
+// Mesmas opções do seletor de medida em PlanoAlimentar.jsx, menos "Gramas"
+// e "À vontade" — a medida caseira precisa valer pra uma unidade real do
+// seletor (qual "colher"/"unidade"/"concha" esse peso representa).
+const OPCOES_MEDIDA_CASEIRA = [
+  { valor: 'unidade', label: 'Unidade(s)' },
+  { valor: 'ml', label: 'Mililitros (ml)' },
+  { valor: 'colher_sopa', label: 'Colher de sopa' },
+  { valor: 'colher_cha', label: 'Colher de chá' },
+  { valor: 'colher_cafe', label: 'Colher de café' },
+  { valor: 'copo_americano', label: 'Copo americano' },
+  { valor: 'xicara_cha', label: 'Xícara de chá' },
+  { valor: 'concha', label: 'Concha média' },
+]
+
 const CAMPOS_VAZIOS = {
   nome: '',
   categoria: '',
   unidade_padrao: 'g',
   medida_caseira_desc: '',
   medida_caseira_g: '',
+  medida_caseira_unidade: 'unidade',
   energia_kcal: '',
   proteina_g: '',
   lipidios_g: '',
@@ -150,6 +173,7 @@ export default function TabelaAlimentos({ userId }) {
       nome: a.nome,
       medida_caseira_desc: ov?.medida_caseira_desc ?? a.medida_caseira_desc ?? '',
       medida_caseira_g: ov?.medida_caseira_g ?? a.medida_caseira_g ?? '',
+      medida_caseira_unidade: ov?.medida_caseira_unidade ?? a.medida_caseira_unidade ?? 'unidade',
     })
     setMostrarMais(false)
     setShowModal(true)
@@ -192,6 +216,7 @@ export default function TabelaAlimentos({ userId }) {
             id_alimento: editingId,
             medida_caseira_desc: form.medida_caseira_desc.trim() || null,
             medida_caseira_g: numerico(form.medida_caseira_g),
+            medida_caseira_unidade: form.medida_caseira_unidade || 'unidade',
             updated_at: new Date().toISOString(),
           },
           { onConflict: 'id_avaliador,id_alimento' }
@@ -203,7 +228,11 @@ export default function TabelaAlimentos({ userId }) {
       setShowModal(false)
       setOverrides((prev) => ({
         ...prev,
-        [editingId]: { medida_caseira_desc: form.medida_caseira_desc.trim() || null, medida_caseira_g: numerico(form.medida_caseira_g) },
+        [editingId]: {
+          medida_caseira_desc: form.medida_caseira_desc.trim() || null,
+          medida_caseira_g: numerico(form.medida_caseira_g),
+          medida_caseira_unidade: form.medida_caseira_unidade || 'unidade',
+        },
       }))
       return
     }
@@ -214,6 +243,7 @@ export default function TabelaAlimentos({ userId }) {
       unidade_padrao: form.unidade_padrao.trim() || 'g',
       medida_caseira_desc: form.medida_caseira_desc.trim() || null,
       medida_caseira_g: numerico(form.medida_caseira_g),
+      medida_caseira_unidade: form.medida_caseira_unidade || 'unidade',
       energia_kcal: numerico(form.energia_kcal),
       proteina_g: numerico(form.proteina_g),
       lipidios_g: numerico(form.lipidios_g),
@@ -381,7 +411,7 @@ export default function TabelaAlimentos({ userId }) {
 
                   {a.id_avaliador !== userId && overrides[a.id]?.medida_caseira_g && (
                     <p className="text-[11px] text-amber-600 dark:text-amber-400 mt-1">
-                      Sua medida pessoal: 1 {overrides[a.id].medida_caseira_desc || 'unidade'} ≈ {overrides[a.id].medida_caseira_g}g
+                      Sua medida pessoal: {formatarMedidaCaseira(overrides[a.id].medida_caseira_desc)} ≈ {overrides[a.id].medida_caseira_g}g
                     </p>
                   )}
                 </div>
@@ -452,6 +482,24 @@ export default function TabelaAlimentos({ userId }) {
                 </div>
               )}
 
+              <div>
+                <label className="block text-xs font-bold text-gray-700 dark:text-slate-300 uppercase tracking-wider mb-1">
+                  Medida Caseira — aplica a qual unidade do seletor?
+                </label>
+                <select
+                  value={form.medida_caseira_unidade}
+                  onChange={(e) => handleChange('medida_caseira_unidade', e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-primary-500"
+                >
+                  {OPCOES_MEDIDA_CASEIRA.map((o) => (
+                    <option key={o.valor} value={o.valor}>{o.label}</option>
+                  ))}
+                </select>
+                <p className="text-[10px] text-gray-400 dark:text-slate-500 mt-1">
+                  Ex: arroz/feijão pesam diferente por "Colher de sopa" — escolha essa opção aqui pra esse peso valer quando o nutricionista escolher "Colher de sopa" no Plano Alimentar (em vez do valor genérico da lista).
+                </p>
+              </div>
+
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-bold text-gray-700 dark:text-slate-300 uppercase tracking-wider mb-1">
@@ -461,7 +509,7 @@ export default function TabelaAlimentos({ userId }) {
                     type="text"
                     value={form.medida_caseira_desc}
                     onChange={(e) => handleChange('medida_caseira_desc', e.target.value)}
-                    placeholder="Ex: 1 colher de sopa"
+                    placeholder="Ex: 1 colher de sopa cheia"
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-primary-500"
                   />
                 </div>
