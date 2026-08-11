@@ -50,7 +50,7 @@ export function calcularFibraRecomendada(vetTarget) {
 }
 
 const LABEL_UNIDADE = {
-  g: 'g', ml: 'ml', colher_sopa: 'colher(es) de sopa', colher_cha: 'colher(es) de chá',
+  g: 'g', unidade: 'unidade(s)', ml: 'ml', colher_sopa: 'colher(es) de sopa', colher_cha: 'colher(es) de chá',
   colher_cafe: 'colher(es) de café', copo_americano: 'copo(s) americano', xicara_cha: 'xícara(s) de chá', concha: 'concha(s)',
 }
 

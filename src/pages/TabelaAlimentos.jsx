@@ -72,6 +72,8 @@ export default function TabelaAlimentos({ userId }) {
 
   const [showModal, setShowModal] = useState(false)
   const [editingId, setEditingId] = useState(null)
+  const [isOverride, setIsOverride] = useState(false)
+  const [overrides, setOverrides] = useState({})
   const [mostrarMais, setMostrarMais] = useState(false)
   const [form, setForm] = useState(CAMPOS_VAZIOS)
   const [saving, setSaving] = useState(false)
@@ -92,15 +94,32 @@ export default function TabelaAlimentos({ userId }) {
         .order('nome')
         .limit(50)
 
-      if (!error) setAlimentos(data || [])
+      const lista = data || []
+      if (!error) setAlimentos(lista)
+
+      const idsOficiais = lista.filter((a) => !a.id_avaliador).map((a) => a.id)
+      if (idsOficiais.length > 0) {
+        const { data: ovs } = await supabase
+          .from('alimentos_medida_caseira_pessoal')
+          .select('*')
+          .eq('id_avaliador', userId)
+          .in('id_alimento', idsOficiais)
+        const mapa = {}
+        for (const o of ovs || []) mapa[o.id_alimento] = o
+        setOverrides(mapa)
+      } else {
+        setOverrides({})
+      }
+
       setBuscando(false)
     }, 300)
 
     return () => clearTimeout(delayDebounce)
-  }, [busca])
+  }, [busca, userId])
 
   const abrirNovoAlimento = () => {
     setEditingId(null)
+    setIsOverride(false)
     setForm(CAMPOS_VAZIOS)
     setMostrarMais(false)
     setShowModal(true)
@@ -108,6 +127,7 @@ export default function TabelaAlimentos({ userId }) {
 
   const abrirEdicaoAlimento = (a) => {
     setEditingId(a.id)
+    setIsOverride(false)
     const preenchido = { ...CAMPOS_VAZIOS }
     for (const key of Object.keys(CAMPOS_VAZIOS)) {
       preenchido[key] = a[key] ?? ''
@@ -115,6 +135,42 @@ export default function TabelaAlimentos({ userId }) {
     setForm(preenchido)
     setMostrarMais(false)
     setShowModal(true)
+  }
+
+  // Alimento oficial (TACO/IBGE/Fabricante) não pode ser editado de
+  // verdade — não tem dono, e mudar o valor nutricional afetaria todo
+  // mundo. Isso só anota a medida caseira PESSOAL desse nutri por cima
+  // dele, numa tabela separada (alimentos_medida_caseira_pessoal).
+  const abrirEdicaoMedidaPessoal = (a) => {
+    setEditingId(a.id)
+    setIsOverride(true)
+    const ov = overrides[a.id]
+    setForm({
+      ...CAMPOS_VAZIOS,
+      nome: a.nome,
+      medida_caseira_desc: ov?.medida_caseira_desc ?? a.medida_caseira_desc ?? '',
+      medida_caseira_g: ov?.medida_caseira_g ?? a.medida_caseira_g ?? '',
+    })
+    setMostrarMais(false)
+    setShowModal(true)
+  }
+
+  const handleRemoverMedidaPessoal = async () => {
+    if (!window.confirm('Remover sua medida caseira pessoal desse alimento?')) return
+    setSaving(true)
+    const { error } = await supabase
+      .from('alimentos_medida_caseira_pessoal')
+      .delete()
+      .eq('id_avaliador', userId)
+      .eq('id_alimento', editingId)
+    setSaving(false)
+    if (error) { alert('Erro ao remover: ' + error.message); return }
+    setShowModal(false)
+    setOverrides((prev) => {
+      const novo = { ...prev }
+      delete novo[editingId]
+      return novo
+    })
   }
 
   const handleChange = (key, value) => {
@@ -126,6 +182,31 @@ export default function TabelaAlimentos({ userId }) {
     setSaving(true)
 
     const numerico = (v) => (v === '' || v === null || v === undefined ? null : Number(v))
+
+    if (isOverride) {
+      const { error } = await supabase
+        .from('alimentos_medida_caseira_pessoal')
+        .upsert(
+          {
+            id_avaliador: userId,
+            id_alimento: editingId,
+            medida_caseira_desc: form.medida_caseira_desc.trim() || null,
+            medida_caseira_g: numerico(form.medida_caseira_g),
+            updated_at: new Date().toISOString(),
+          },
+          { onConflict: 'id_avaliador,id_alimento' }
+        )
+        .select()
+        .single()
+      setSaving(false)
+      if (error) { alert('Erro ao salvar medida caseira: ' + error.message); return }
+      setShowModal(false)
+      setOverrides((prev) => ({
+        ...prev,
+        [editingId]: { medida_caseira_desc: form.medida_caseira_desc.trim() || null, medida_caseira_g: numerico(form.medida_caseira_g) },
+      }))
+      return
+    }
 
     const payload = {
       nome: form.nome.trim(),
@@ -262,23 +343,33 @@ export default function TabelaAlimentos({ userId }) {
                       )}
                     </div>
 
-                    {a.id_avaliador === userId && (
-                      <div className="flex gap-3 shrink-0">
+                    <div className="flex gap-3 shrink-0">
+                      {a.id_avaliador === userId ? (
+                        <>
+                          <button
+                            onClick={() => abrirEdicaoAlimento(a)}
+                            className="text-xs font-semibold text-primary-600 hover:underline"
+                          >
+                            Editar
+                          </button>
+                          <button
+                            onClick={() => handleExcluir(a.id)}
+                            disabled={excluindoId === a.id}
+                            className="text-xs font-semibold text-red-600 hover:underline disabled:opacity-50"
+                          >
+                            {excluindoId === a.id ? 'Excluindo...' : 'Excluir'}
+                          </button>
+                        </>
+                      ) : (
                         <button
-                          onClick={() => abrirEdicaoAlimento(a)}
+                          onClick={() => abrirEdicaoMedidaPessoal(a)}
+                          title="Anotar sua própria medida caseira pra esse alimento, sem alterar o valor oficial"
                           className="text-xs font-semibold text-primary-600 hover:underline"
                         >
-                          Editar
+                          Medida caseira
                         </button>
-                        <button
-                          onClick={() => handleExcluir(a.id)}
-                          disabled={excluindoId === a.id}
-                          className="text-xs font-semibold text-red-600 hover:underline disabled:opacity-50"
-                        >
-                          {excluindoId === a.id ? 'Excluindo...' : 'Excluir'}
-                        </button>
-                      </div>
-                    )}
+                      )}
+                    </div>
                   </div>
 
                   <div className="flex flex-wrap gap-x-4 gap-y-1 mt-2 text-xs text-gray-600 dark:text-slate-400">
@@ -287,6 +378,12 @@ export default function TabelaAlimentos({ userId }) {
                     <span>{a.lipidios_g ?? '-'}g lipídios</span>
                     <span>{a.carboidrato_g ?? '-'}g carboidrato</span>
                   </div>
+
+                  {a.id_avaliador !== userId && overrides[a.id]?.medida_caseira_g && (
+                    <p className="text-[11px] text-amber-600 dark:text-amber-400 mt-1">
+                      Sua medida pessoal: 1 {overrides[a.id].medida_caseira_desc || 'unidade'} ≈ {overrides[a.id].medida_caseira_g}g
+                    </p>
+                  )}
                 </div>
               ))}
             </div>
@@ -299,50 +396,61 @@ export default function TabelaAlimentos({ userId }) {
           <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-xl w-full max-w-lg max-h-[90vh] flex flex-col overflow-hidden">
             <div className="flex justify-between items-center px-6 py-4 border-b border-gray-100 dark:border-slate-800">
               <h3 className="text-lg font-bold text-gray-800 dark:text-slate-100">
-                {editingId ? 'Editar Alimento' : 'Novo Alimento'}
+                {isOverride ? 'Medida Caseira Pessoal' : editingId ? 'Editar Alimento' : 'Novo Alimento'}
               </h3>
               <button onClick={() => setShowModal(false)} className="text-gray-400 dark:text-slate-400 hover:text-gray-600 p-1 rounded-lg">✕</button>
             </div>
 
             <form onSubmit={handleSubmit} className="p-6 space-y-4 overflow-y-auto flex-1">
-              <div>
-                <label className="block text-xs font-bold text-gray-700 dark:text-slate-300 uppercase tracking-wider mb-1">
-                  Nome *
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={form.nome}
-                  onChange={(e) => handleChange('nome', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm outline-none bg-gray-50/50 dark:bg-slate-800/70 focus:bg-white focus:ring-2 focus:ring-primary-500"
-                />
-              </div>
+              {isOverride ? (
+                <>
+                  <p className="text-sm font-bold text-gray-800 dark:text-slate-100">{form.nome}</p>
+                  <p className="text-xs text-gray-500 dark:text-slate-400 -mt-3">
+                    Alimento oficial — não dá pra editar o valor nutricional dele (é compartilhado com todos os nutricionistas). Aqui você só anota a SUA medida caseira, visível só pra você.
+                  </p>
+                </>
+              ) : (
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 dark:text-slate-300 uppercase tracking-wider mb-1">
+                    Nome *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={form.nome}
+                    onChange={(e) => handleChange('nome', e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm outline-none bg-gray-50/50 dark:bg-slate-800/70 focus:bg-white focus:ring-2 focus:ring-primary-500"
+                  />
+                </div>
+              )}
 
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-bold text-gray-700 dark:text-slate-300 uppercase tracking-wider mb-1">
-                    Categoria
-                  </label>
-                  <input
-                    type="text"
-                    value={form.categoria}
-                    onChange={(e) => handleChange('categoria', e.target.value)}
-                    placeholder="Ex: Frutas"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-primary-500"
-                  />
+              {!isOverride && (
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-bold text-gray-700 dark:text-slate-300 uppercase tracking-wider mb-1">
+                      Categoria
+                    </label>
+                    <input
+                      type="text"
+                      value={form.categoria}
+                      onChange={(e) => handleChange('categoria', e.target.value)}
+                      placeholder="Ex: Frutas"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-primary-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-gray-700 dark:text-slate-300 uppercase tracking-wider mb-1">
+                      Unidade Padrão
+                    </label>
+                    <input
+                      type="text"
+                      value={form.unidade_padrao}
+                      onChange={(e) => handleChange('unidade_padrao', e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-primary-500"
+                    />
+                  </div>
                 </div>
-                <div>
-                  <label className="block text-xs font-bold text-gray-700 dark:text-slate-300 uppercase tracking-wider mb-1">
-                    Unidade Padrão
-                  </label>
-                  <input
-                    type="text"
-                    value={form.unidade_padrao}
-                    onChange={(e) => handleChange('unidade_padrao', e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-primary-500"
-                  />
-                </div>
-              </div>
+              )}
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
@@ -371,55 +479,69 @@ export default function TabelaAlimentos({ userId }) {
                 </div>
               </div>
 
-              <p className="text-[10px] font-bold text-gray-400 dark:text-slate-500 uppercase tracking-wider pt-2">
-                Valores por 100g
-              </p>
+              {!isOverride && (
+                <>
+                  <p className="text-[10px] font-bold text-gray-400 dark:text-slate-500 uppercase tracking-wider pt-2">
+                    Valores por 100g
+                  </p>
 
-              <div className="grid grid-cols-2 gap-3">
-                {CAMPOS_PRINCIPAIS.map((campo) => (
-                  <div key={campo.key}>
-                    <label className="block text-xs font-bold text-gray-700 dark:text-slate-300 uppercase tracking-wider mb-1">
-                      {campo.label} ({campo.unidade})
-                    </label>
-                    <input
-                      type="number"
-                      step="any"
-                      value={form[campo.key]}
-                      onChange={(e) => handleChange(campo.key, e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-primary-500"
-                    />
+                  <div className="grid grid-cols-2 gap-3">
+                    {CAMPOS_PRINCIPAIS.map((campo) => (
+                      <div key={campo.key}>
+                        <label className="block text-xs font-bold text-gray-700 dark:text-slate-300 uppercase tracking-wider mb-1">
+                          {campo.label} ({campo.unidade})
+                        </label>
+                        <input
+                          type="number"
+                          step="any"
+                          value={form[campo.key]}
+                          onChange={(e) => handleChange(campo.key, e.target.value)}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-primary-500"
+                        />
+                      </div>
+                    ))}
                   </div>
-                ))}
-              </div>
 
-              <button
-                type="button"
-                onClick={() => setMostrarMais((v) => !v)}
-                className="text-xs font-semibold text-primary-600 hover:underline"
-              >
-                {mostrarMais ? '- Ocultar mais nutrientes' : '+ Mostrar mais nutrientes'}
-              </button>
+                  <button
+                    type="button"
+                    onClick={() => setMostrarMais((v) => !v)}
+                    className="text-xs font-semibold text-primary-600 hover:underline"
+                  >
+                    {mostrarMais ? '- Ocultar mais nutrientes' : '+ Mostrar mais nutrientes'}
+                  </button>
 
-              {mostrarMais && (
-                <div className="grid grid-cols-2 gap-3">
-                  {CAMPOS_EXTRAS.map((campo) => (
-                    <div key={campo.key}>
-                      <label className="block text-xs font-bold text-gray-700 dark:text-slate-300 uppercase tracking-wider mb-1">
-                        {campo.label} ({campo.unidade})
-                      </label>
-                      <input
-                        type="number"
-                        step="any"
-                        value={form[campo.key]}
-                        onChange={(e) => handleChange(campo.key, e.target.value)}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-primary-500"
-                      />
+                  {mostrarMais && (
+                    <div className="grid grid-cols-2 gap-3">
+                      {CAMPOS_EXTRAS.map((campo) => (
+                        <div key={campo.key}>
+                          <label className="block text-xs font-bold text-gray-700 dark:text-slate-300 uppercase tracking-wider mb-1">
+                            {campo.label} ({campo.unidade})
+                          </label>
+                          <input
+                            type="number"
+                            step="any"
+                            value={form[campo.key]}
+                            onChange={(e) => handleChange(campo.key, e.target.value)}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-primary-500"
+                          />
+                        </div>
+                      ))}
                     </div>
-                  ))}
-                </div>
+                  )}
+                </>
               )}
 
               <div className="flex justify-end gap-3 pt-2">
+                {isOverride && overrides[editingId] && (
+                  <button
+                    type="button"
+                    onClick={handleRemoverMedidaPessoal}
+                    disabled={saving}
+                    className="mr-auto text-xs font-semibold text-red-600 hover:underline disabled:opacity-50"
+                  >
+                    Remover minha medida pessoal
+                  </button>
+                )}
                 <button
                   type="button"
                   onClick={() => setShowModal(false)}
@@ -432,7 +554,7 @@ export default function TabelaAlimentos({ userId }) {
                   disabled={saving}
                   className="px-5 py-2 bg-primary-600 text-white text-sm font-semibold rounded-lg hover:bg-primary-700 shadow disabled:opacity-50"
                 >
-                  {saving ? 'Salvando...' : editingId ? 'Atualizar Alimento' : 'Salvar Alimento'}
+                  {saving ? 'Salvando...' : isOverride ? 'Salvar Medida Caseira' : editingId ? 'Atualizar Alimento' : 'Salvar Alimento'}
                 </button>
               </div>
             </form>

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
-import { Utensils, Sparkles, Layers, Boxes, ThumbsUp, ThumbsDown } from 'lucide-react'
+import { Utensils, Sparkles, Layers, Boxes, Trophy, ThumbsUp, ThumbsDown } from 'lucide-react'
 import { supabase } from '../supabaseClient'
 
 const SECOES = [
@@ -60,6 +60,68 @@ const SECOES = [
         chave: 'modulo-crm',
         titulo: 'CRM para Nutricionistas',
         texto: 'Um funil visual de atendimento pra organizar cada etapa da jornada do paciente no seu consultório.',
+      },
+    ],
+  },
+  {
+    titulo: 'Gamificação & Engajamento',
+    icone: Trophy,
+    cor: 'text-emerald-600 bg-emerald-50 dark:bg-emerald-900/20 dark:text-emerald-400',
+    itens: [
+      {
+        chave: 'checkin-diario-habitos',
+        titulo: 'Check-in Diário (água, treino, dieta)',
+        texto: 'O paciente registra em segundos o dia dele — água bebida, treino feito, adesão ao plano — direto na Área do Paciente, sem precisar escrever nada.',
+      },
+      {
+        chave: 'xp-niveis-streaks',
+        titulo: 'XP, Níveis e Streaks com "dia livre"',
+        texto: 'Pontos por meta batida, níveis (Bronze/Prata/Ouro) e sequência de dias seguidos — com 1-2 "dias livres" por semana pra viagem ou imprevisto não zerar tudo e desanimar o paciente.',
+      },
+      {
+        chave: 'aneis-progresso-configuraveis',
+        titulo: 'Anéis de Progresso Configuráveis',
+        texto: 'Anéis de meta diária (água, treino, dieta) estilo Apple Watch — o nutricionista escolhe quais metas valem pra cada paciente, já que nem todo paciente treina ou tem meta de água.',
+      },
+      {
+        chave: 'gamificacao-opt-in',
+        titulo: 'Liga/Desliga por Paciente e por Consultório',
+        texto: 'Gamificação é opcional, ligada paciente a paciente (evita pressão indevida em quem tem histórico sensível com comida) e pode ser desligada no consultório inteiro pra quem prefere um tom mais clínico.',
+      },
+      {
+        chave: 'conquistas-badges',
+        titulo: 'Conquistas & Badges',
+        texto: 'Medalhas por marcos específicos ("7 dias sem pular treino", "1 mês de água em dia") além do XP linear — dá variedade e reconhece esforços pontuais, não só quem já está no topo.',
+      },
+      {
+        chave: 'lembretes-push-checkin',
+        titulo: 'Lembretes Push pra Check-in',
+        texto: 'Notificação no app instalado (PWA) avisando quem esqueceu de registrar o dia ou está perto de perder o streak — sem lembrete, ninguém cria hábito de usar todo dia.',
+      },
+      {
+        chave: 'heatmap-constancia-nutri',
+        titulo: 'Heatmap de Constância pro Nutricionista',
+        texto: 'Um calendário de cores (estilo GitHub) na aba Diário do prontuário, mostrando de relance os dias em que o paciente bateu as metas — muito mais rápido de ler que um diário escrito à mão.',
+      },
+      {
+        chave: 'alerta-paciente-sumido',
+        titulo: 'Alerta de Paciente Sumido',
+        texto: 'Aviso no painel quando um paciente para de fazer check-in por vários dias seguidos — antes que ele desapareça de vez do acompanhamento.',
+      },
+      {
+        chave: 'resumo-semanal-relatorio',
+        titulo: 'Resumo Semanal + Relatório de Consistência em PDF',
+        texto: 'Um recap automático da semana do paciente, e um PDF exportável (reaproveitando o gerador de PDF já existente) resumindo a constância dele pra levar como gancho de conversa na consulta.',
+      },
+      {
+        chave: 'recompensas-configuraveis',
+        titulo: 'Recompensas Configuráveis',
+        texto: 'O nutricionista define prêmios reais por nível ou meta atingida (desconto na consulta, e-book, brinde) e marca quando já entregou, evitando resgate duplicado.',
+      },
+      {
+        chave: 'ranking-pacientes-opcional',
+        titulo: 'Ranking entre Pacientes (opcional e anônimo)',
+        texto: 'Comparação de constância entre pacientes do mesmo nutricionista — sempre opt-in e sem expor dados sensíveis, só pra quem gosta desse empurrão de competição saudável.',
       },
     ],
   },
