@@ -38,6 +38,7 @@ const UNIDADES_MEDIDA = [
   { valor: 'copo_americano', label: 'Copo americano (~200ml)', fatorG: 200 },
   { valor: 'xicara_cha', label: 'Xícara de chá (~240ml)', fatorG: 240 },
   { valor: 'concha', label: 'Concha média (~80g)', fatorG: 80 },
+  { valor: 'a_vontade', label: 'À vontade (sem peso)', fatorG: null },
 ]
 
 function labelUnidade(valor) {
@@ -226,8 +227,11 @@ function AdicionarItemForm({ refeicaoId, opcaoNumero, onItemAdicionado, onCancel
     return () => document.removeEventListener('mousedown', handleClickFora)
   }, [])
 
+  const ehAVontade = unidade === 'a_vontade'
+
   const handleAdicionar = async () => {
-    if (!selecionado || !quantidade || Number(quantidade) <= 0) return
+    if (!selecionado) return
+    if (!ehAVontade && (!quantidade || Number(quantidade) <= 0)) return
     setSalvando(true)
 
     const { data, error } = await supabase
@@ -235,10 +239,10 @@ function AdicionarItemForm({ refeicaoId, opcaoNumero, onItemAdicionado, onCancel
       .insert({
         id_refeicao: refeicaoId,
         id_alimento: selecionado.id,
-        quantidade_g: Number(quantidade),
+        quantidade_g: ehAVontade ? null : Number(quantidade),
         opcao_numero: opcaoNumero,
-        unidade_medida: unidade !== 'g' && quantidadeMedida !== '' ? unidade : null,
-        quantidade_medida: unidade !== 'g' && quantidadeMedida !== '' ? Number(quantidadeMedida) : null,
+        unidade_medida: ehAVontade ? 'a_vontade' : unidade !== 'g' && quantidadeMedida !== '' ? unidade : null,
+        quantidade_medida: ehAVontade ? null : unidade !== 'g' && quantidadeMedida !== '' ? Number(quantidadeMedida) : null,
       })
       .select('*, tabela_alimentos(*)')
       .single()
@@ -301,7 +305,7 @@ function AdicionarItemForm({ refeicaoId, opcaoNumero, onItemAdicionado, onCancel
         </select>
       </div>
 
-      {unidade !== 'g' && (
+      {!ehAVontade && unidade !== 'g' && (
         <div className="w-20">
           <label className="block text-[10px] font-bold text-gray-500 dark:text-slate-400 uppercase tracking-wider mb-1">
             Qtd
@@ -316,23 +320,25 @@ function AdicionarItemForm({ refeicaoId, opcaoNumero, onItemAdicionado, onCancel
         </div>
       )}
 
-      <div className="w-24">
-        <label className="block text-[10px] font-bold text-gray-500 dark:text-slate-400 uppercase tracking-wider mb-1">
-          {unidade !== 'g' ? '≈ Gramas' : 'Qtd (g)'}
-        </label>
-        <input
-          type="number"
-          step="any"
-          value={quantidade}
-          onChange={(e) => setQuantidade(e.target.value)}
-          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-primary-500"
-        />
-      </div>
+      {!ehAVontade && (
+        <div className="w-24">
+          <label className="block text-[10px] font-bold text-gray-500 dark:text-slate-400 uppercase tracking-wider mb-1">
+            {unidade !== 'g' ? '≈ Gramas' : 'Qtd (g)'}
+          </label>
+          <input
+            type="number"
+            step="any"
+            value={quantidade}
+            onChange={(e) => setQuantidade(e.target.value)}
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-primary-500"
+          />
+        </div>
+      )}
 
       <button
         type="button"
         onClick={handleAdicionar}
-        disabled={!selecionado || !quantidade || salvando}
+        disabled={!selecionado || (!ehAVontade && (!quantidade || Number(quantidade) <= 0)) || salvando}
         className="px-3 py-2 bg-primary-600 text-white text-xs font-semibold rounded-lg hover:bg-primary-700 disabled:opacity-50 shrink-0"
       >
         {salvando ? '...' : 'Adicionar'}
@@ -350,6 +356,11 @@ function AdicionarItemForm({ refeicaoId, opcaoNumero, onItemAdicionado, onCancel
           {selecionado.medida_caseira_g
             ? `Peso cadastrado pra esse alimento: 1 ${selecionado.medida_caseira_desc || 'unidade'} ≈ ${selecionado.medida_caseira_g}g (calculado sozinho ao digitar a Qtd).`
             : 'Esse alimento não tem peso por unidade cadastrado ainda — digite as gramas manualmente, ou cadastre em Tabela de Alimentos > editar > Medida Caseira pra próxima vez ser automático.'}
+        </p>
+      )}
+      {ehAVontade && (
+        <p className="w-full text-[10px] text-gray-400 dark:text-slate-500">
+          Sem peso definido — entra 0kcal no cálculo de macros e aparece pro paciente como "à vontade". Use pra folhas, verduras e legumes sem risco real de excesso.
         </p>
       )}
     </div>
@@ -438,13 +449,20 @@ function ItemLinha({ item, onExcluir, onRenomear, onAbrirSubstitutos, onAtualiza
     setQuantidadeEdit(String((Number(valor) * fatorUnidadeEdit).toFixed(2).replace(/\.00$/, '')))
   }
 
+  const ehAVontadeEdit = unidadeEdit === 'a_vontade'
+
   const salvarEdicaoQtd = async () => {
-    const novaQtd = Number(quantidadeEdit)
-    if (!novaQtd || novaQtd <= 0) { alert('Quantidade em gramas inválida.'); return }
-    const patch = {
-      quantidade_g: novaQtd,
-      unidade_medida: unidadeEdit !== 'g' && quantidadeMedidaEdit !== '' ? unidadeEdit : null,
-      quantidade_medida: unidadeEdit !== 'g' && quantidadeMedidaEdit !== '' ? Number(quantidadeMedidaEdit) : null,
+    let patch
+    if (ehAVontadeEdit) {
+      patch = { quantidade_g: null, unidade_medida: 'a_vontade', quantidade_medida: null }
+    } else {
+      const novaQtd = Number(quantidadeEdit)
+      if (!novaQtd || novaQtd <= 0) { alert('Quantidade em gramas inválida.'); return }
+      patch = {
+        quantidade_g: novaQtd,
+        unidade_medida: unidadeEdit !== 'g' && quantidadeMedidaEdit !== '' ? unidadeEdit : null,
+        quantidade_medida: unidadeEdit !== 'g' && quantidadeMedidaEdit !== '' ? Number(quantidadeMedidaEdit) : null,
+      }
     }
     setEditandoQtd(false)
     onAtualizarQuantidade(item.id, patch)
@@ -464,7 +482,7 @@ function ItemLinha({ item, onExcluir, onRenomear, onAbrirSubstitutos, onAtualiza
               <option key={u.valor} value={u.valor}>{u.label}</option>
             ))}
           </select>
-          {unidadeEdit !== 'g' && (
+          {!ehAVontadeEdit && unidadeEdit !== 'g' && (
             <input
               type="number"
               step="any"
@@ -475,15 +493,19 @@ function ItemLinha({ item, onExcluir, onRenomear, onAbrirSubstitutos, onAtualiza
               className="w-14 px-1.5 py-1 border border-gray-300 rounded text-xs outline-none focus:ring-2 focus:ring-primary-500"
             />
           )}
-          <input
-            type="number"
-            step="any"
-            value={quantidadeEdit}
-            onChange={(e) => setQuantidadeEdit(e.target.value)}
-            placeholder="Gramas"
-            className="w-16 px-1.5 py-1 border border-gray-300 rounded text-xs outline-none focus:ring-2 focus:ring-primary-500"
-          />
-          <span className="text-[10px] text-gray-400 dark:text-slate-500">g</span>
+          {!ehAVontadeEdit && (
+            <>
+              <input
+                type="number"
+                step="any"
+                value={quantidadeEdit}
+                onChange={(e) => setQuantidadeEdit(e.target.value)}
+                placeholder="Gramas"
+                className="w-16 px-1.5 py-1 border border-gray-300 rounded text-xs outline-none focus:ring-2 focus:ring-primary-500"
+              />
+              <span className="text-[10px] text-gray-400 dark:text-slate-500">g</span>
+            </>
+          )}
           <button onClick={salvarEdicaoQtd} className="text-[11px] font-semibold text-primary-600 hover:underline">Salvar</button>
           <button onClick={() => setEditandoQtd(false)} className="text-[11px] text-gray-400 dark:text-slate-500 hover:text-gray-600">Cancelar</button>
           {unidadeEdit === 'unidade' && (
@@ -491,6 +513,11 @@ function ItemLinha({ item, onExcluir, onRenomear, onAbrirSubstitutos, onAtualiza
               {medidaPessoal?.medida_caseira_g || item.tabela_alimentos?.medida_caseira_g
                 ? `Peso cadastrado: 1 ${medidaPessoal?.medida_caseira_desc || item.tabela_alimentos?.medida_caseira_desc || 'unidade'} ≈ ${medidaPessoal?.medida_caseira_g || item.tabela_alimentos?.medida_caseira_g}g.`
                 : 'Sem peso por unidade cadastrado pra esse alimento — digite as gramas manualmente.'}
+            </p>
+          )}
+          {ehAVontadeEdit && (
+            <p className="w-full text-[10px] text-gray-400 dark:text-slate-500">
+              Sem peso definido — entra 0kcal no cálculo de macros e aparece pro paciente como "à vontade".
             </p>
           )}
         </div>
@@ -528,9 +555,11 @@ function ItemLinha({ item, onExcluir, onRenomear, onAbrirSubstitutos, onAtualiza
           title="Clique para editar a quantidade/medida"
           className="underline decoration-dotted decoration-gray-300 dark:decoration-slate-600 underline-offset-2 hover:text-primary-600 dark:hover:text-primary-400 hover:decoration-primary-400"
         >
-          {item.unidade_medida && item.quantidade_medida
-            ? `${item.quantidade_medida} ${labelUnidade(item.unidade_medida)} (≈${item.quantidade_g}g)`
-            : `${item.quantidade_g}g`}
+          {item.unidade_medida === 'a_vontade'
+            ? 'à vontade'
+            : item.unidade_medida && item.quantidade_medida
+              ? `${item.quantidade_medida} ${labelUnidade(item.unidade_medida)} (≈${item.quantidade_g}g)`
+              : `${item.quantidade_g}g`}
         </button>
         {numSubstitutos > 0 && (
           <span className="text-primary-500 dark:text-primary-400 ml-1" title={`${numSubstitutos} substituto(s)`}>
