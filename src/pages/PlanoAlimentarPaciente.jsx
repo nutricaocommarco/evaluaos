@@ -11,6 +11,7 @@ import { ChevronDown, ChevronRight, StickyNote } from 'lucide-react'
 // deveria puxar o bundle inteiro do editor do nutri).
 const UNIDADES_MEDIDA = [
   { valor: 'g', label: 'Gramas (g)', fatorG: 1 },
+  { valor: 'unidade', label: 'Unidade(s)', fatorG: null },
   { valor: 'ml', label: 'Mililitros (ml)', fatorG: 1 },
   { valor: 'colher_sopa', label: 'Colher de sopa (~15g)', fatorG: 15 },
   { valor: 'colher_cha', label: 'Colher de chá (~5g)', fatorG: 5 },

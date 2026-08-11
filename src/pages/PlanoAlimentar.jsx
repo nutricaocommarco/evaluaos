@@ -24,8 +24,13 @@ const KCAL_POR_G = { proteina: 4, carbo: 4, lipidio: 9 }
 // gramas é sempre o que vai pro cálculo, editável antes de salvar). Os
 // gramas por unidade são aproximações usuais; variam por alimento na
 // prática, por isso o campo de gramas fica sempre aberto pra ajuste.
+// fatorG null = sem conversão automática (o peso de "1 unidade" varia
+// demais de alimento pra alimento — banana, ovo, fatia de pão não têm
+// nada em comum). Pra essas, o nutri digita a quantidade em gramas à
+// parte, na mão.
 const UNIDADES_MEDIDA = [
   { valor: 'g', label: 'Gramas (g)', fatorG: 1 },
+  { valor: 'unidade', label: 'Unidade(s)', fatorG: null },
   { valor: 'ml', label: 'Mililitros (ml)', fatorG: 1 },
   { valor: 'colher_sopa', label: 'Colher de sopa (~15g)', fatorG: 15 },
   { valor: 'colher_cha', label: 'Colher de chá (~5g)', fatorG: 5 },
@@ -149,19 +154,22 @@ function AdicionarItemForm({ refeicaoId, opcaoNumero, onItemAdicionado, onCancel
   const [salvando, setSalvando] = useState(false)
   const dropdownRef = useRef(null)
 
-  const fatorUnidade = UNIDADES_MEDIDA.find((u) => u.valor === unidade)?.fatorG || 1
+  const fatorUnidade = UNIDADES_MEDIDA.find((u) => u.valor === unidade)?.fatorG
 
   const handleChangeUnidade = (novaUnidade) => {
     setUnidade(novaUnidade)
-    const fator = UNIDADES_MEDIDA.find((u) => u.valor === novaUnidade)?.fatorG || 1
     if (novaUnidade === 'g') { setQuantidadeMedida(''); return }
+    const fator = UNIDADES_MEDIDA.find((u) => u.valor === novaUnidade)?.fatorG
     const qtdMedida = Number(quantidadeMedida) || Number(quantidade) || ''
     setQuantidadeMedida(qtdMedida === '' ? '' : String(qtdMedida))
-    if (qtdMedida !== '') setQuantidade(String((Number(qtdMedida) * fator).toFixed(2).replace(/\.00$/, '')))
+    // Sem fator (ex: "Unidade"), os gramas ficam por conta do que já
+    // estava digitado — o nutri ajusta na mão.
+    if (fator && qtdMedida !== '') setQuantidade(String((Number(qtdMedida) * fator).toFixed(2).replace(/\.00$/, '')))
   }
 
   const handleChangeQuantidadeMedida = (valor) => {
     setQuantidadeMedida(valor)
+    if (!fatorUnidade) return
     if (valor === '') { setQuantidade(''); return }
     setQuantidade(String((Number(valor) * fatorUnidade).toFixed(2).replace(/\.00$/, '')))
   }
@@ -311,11 +319,15 @@ function AdicionarItemForm({ refeicaoId, opcaoNumero, onItemAdicionado, onCancel
 }
 
 // Uma linha de item da refeição, com menu "..." pra renomear (só neste
-// plano), abrir substitutos ou excluir.
-function ItemLinha({ item, onExcluir, onRenomear, onAbrirSubstitutos }) {
+// plano), editar quantidade/medida, abrir substitutos ou excluir.
+function ItemLinha({ item, onExcluir, onRenomear, onAbrirSubstitutos, onAtualizarQuantidade }) {
   const [menuAberto, setMenuAberto] = useState(false)
   const [renomeando, setRenomeando] = useState(false)
   const [nomeEdit, setNomeEdit] = useState('')
+  const [editandoQtd, setEditandoQtd] = useState(false)
+  const [unidadeEdit, setUnidadeEdit] = useState('g')
+  const [quantidadeMedidaEdit, setQuantidadeMedidaEdit] = useState('')
+  const [quantidadeEdit, setQuantidadeEdit] = useState('')
   const menuRef = useRef(null)
 
   useEffect(() => {
@@ -344,6 +356,84 @@ function ItemLinha({ item, onExcluir, onRenomear, onAbrirSubstitutos }) {
     if (valor === (item.nome_customizado || null)) return
     onRenomear(item.id, valor)
     await supabase.from('itens_refeicao').update({ nome_customizado: valor }).eq('id', item.id)
+  }
+
+  const iniciarEditarQtd = () => {
+    setUnidadeEdit(item.unidade_medida || 'g')
+    setQuantidadeMedidaEdit(item.quantidade_medida != null ? String(item.quantidade_medida) : '')
+    setQuantidadeEdit(item.quantidade_g != null ? String(item.quantidade_g) : '')
+    setEditandoQtd(true)
+    setMenuAberto(false)
+  }
+
+  const fatorUnidadeEdit = UNIDADES_MEDIDA.find((u) => u.valor === unidadeEdit)?.fatorG
+
+  const handleChangeUnidadeEdit = (nova) => {
+    setUnidadeEdit(nova)
+    if (nova === 'g') { setQuantidadeMedidaEdit(''); return }
+    const fator = UNIDADES_MEDIDA.find((u) => u.valor === nova)?.fatorG
+    const qtdMedida = Number(quantidadeMedidaEdit) || Number(quantidadeEdit) || ''
+    setQuantidadeMedidaEdit(qtdMedida === '' ? '' : String(qtdMedida))
+    if (fator && qtdMedida !== '') setQuantidadeEdit(String((Number(qtdMedida) * fator).toFixed(2).replace(/\.00$/, '')))
+  }
+
+  const handleChangeQuantidadeMedidaEdit = (valor) => {
+    setQuantidadeMedidaEdit(valor)
+    if (!fatorUnidadeEdit || valor === '') return
+    setQuantidadeEdit(String((Number(valor) * fatorUnidadeEdit).toFixed(2).replace(/\.00$/, '')))
+  }
+
+  const salvarEdicaoQtd = async () => {
+    const novaQtd = Number(quantidadeEdit)
+    if (!novaQtd || novaQtd <= 0) { alert('Quantidade em gramas inválida.'); return }
+    const patch = {
+      quantidade_g: novaQtd,
+      unidade_medida: unidadeEdit !== 'g' && quantidadeMedidaEdit !== '' ? unidadeEdit : null,
+      quantidade_medida: unidadeEdit !== 'g' && quantidadeMedidaEdit !== '' ? Number(quantidadeMedidaEdit) : null,
+    }
+    setEditandoQtd(false)
+    onAtualizarQuantidade(item.id, patch)
+    await supabase.from('itens_refeicao').update(patch).eq('id', item.id)
+  }
+
+  if (editandoQtd) {
+    return (
+      <li className="text-xs">
+        <div className="flex flex-wrap items-center gap-1.5 p-2 rounded bg-gray-50 dark:bg-slate-800/50 border border-dashed border-gray-200 dark:border-slate-700">
+          <select
+            value={unidadeEdit}
+            onChange={(e) => handleChangeUnidadeEdit(e.target.value)}
+            className="px-1.5 py-1 border border-gray-300 rounded text-xs outline-none focus:ring-2 focus:ring-primary-500"
+          >
+            {UNIDADES_MEDIDA.map((u) => (
+              <option key={u.valor} value={u.valor}>{u.label}</option>
+            ))}
+          </select>
+          {unidadeEdit !== 'g' && (
+            <input
+              type="number"
+              step="any"
+              autoFocus
+              value={quantidadeMedidaEdit}
+              onChange={(e) => handleChangeQuantidadeMedidaEdit(e.target.value)}
+              placeholder="Qtd"
+              className="w-14 px-1.5 py-1 border border-gray-300 rounded text-xs outline-none focus:ring-2 focus:ring-primary-500"
+            />
+          )}
+          <input
+            type="number"
+            step="any"
+            value={quantidadeEdit}
+            onChange={(e) => setQuantidadeEdit(e.target.value)}
+            placeholder="Gramas"
+            className="w-16 px-1.5 py-1 border border-gray-300 rounded text-xs outline-none focus:ring-2 focus:ring-primary-500"
+          />
+          <span className="text-[10px] text-gray-400 dark:text-slate-500">g</span>
+          <button onClick={salvarEdicaoQtd} className="text-[11px] font-semibold text-primary-600 hover:underline">Salvar</button>
+          <button onClick={() => setEditandoQtd(false)} className="text-[11px] text-gray-400 dark:text-slate-500 hover:text-gray-600">Cancelar</button>
+        </div>
+      </li>
+    )
   }
 
   if (renomeando) {
@@ -390,6 +480,14 @@ function ItemLinha({ item, onExcluir, onRenomear, onAbrirSubstitutos }) {
         </button>
         {menuAberto && (
           <ul className="absolute right-0 z-20 mt-1 w-48 bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-700 rounded-lg shadow-xl overflow-hidden">
+            <li>
+              <button
+                onClick={iniciarEditarQtd}
+                className="w-full text-left px-3 py-2 text-xs text-gray-700 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-slate-800"
+              >
+                Editar quantidade
+              </button>
+            </li>
             <li>
               <button
                 onClick={iniciarRenomear}
@@ -827,6 +925,7 @@ function OpcaoCard({ refeicaoId, opcaoNumero, itens, onItemExcluido, onItemAdici
             onExcluir={handleExcluirItem}
             onRenomear={(itemId, valor) => onItemAtualizado(itemId, { nome_customizado: valor })}
             onAbrirSubstitutos={onAbrirSubstitutos}
+            onAtualizarQuantidade={onItemAtualizado}
           />
         ))}
       </ul>
