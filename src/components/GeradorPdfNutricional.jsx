@@ -55,6 +55,7 @@ const LABEL_UNIDADE = {
 }
 
 function textoQuantidade(item) {
+  if (item.unidade_medida === 'a_vontade') return 'à vontade'
   if (item.unidade_medida && item.quantidade_medida) {
     return `${item.quantidade_medida} ${LABEL_UNIDADE[item.unidade_medida] || item.unidade_medida} (~${item.quantidade_g}g)`
   }

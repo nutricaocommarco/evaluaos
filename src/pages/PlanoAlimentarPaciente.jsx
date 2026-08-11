@@ -19,6 +19,7 @@ const UNIDADES_MEDIDA = [
   { valor: 'copo_americano', label: 'Copo americano (~200ml)', fatorG: 200 },
   { valor: 'xicara_cha', label: 'Xícara de chá (~240ml)', fatorG: 240 },
   { valor: 'concha', label: 'Concha média (~80g)', fatorG: 80 },
+  { valor: 'a_vontade', label: 'À vontade (sem peso)', fatorG: null },
 ]
 
 function labelUnidade(valor) {
@@ -102,9 +103,11 @@ function BlocoRefeicao({ refeicao, aberta, aoAlternar }) {
                         <li key={item.id} className="text-sm text-gray-700 dark:text-slate-300">
                           <span className="font-semibold text-gray-800 dark:text-slate-100">{item.nome_customizado || item.tabela_alimentos?.nome || 'Alimento'}</span>
                           <span className="text-gray-400 dark:text-slate-500">
-                            {' '}— {item.unidade_medida && item.quantidade_medida
-                              ? `${item.quantidade_medida} ${labelUnidade(item.unidade_medida)} (≈${item.quantidade_g}g)`
-                              : `${item.quantidade_g}g`}
+                            {' '}— {item.unidade_medida === 'a_vontade'
+                              ? 'à vontade'
+                              : item.unidade_medida && item.quantidade_medida
+                                ? `${item.quantidade_medida} ${labelUnidade(item.unidade_medida)} (≈${item.quantidade_g}g)`
+                                : `${item.quantidade_g}g`}
                           </span>
                           {substitutos.length > 0 && (
                             <ul className="mt-1 pl-3 border-l-2 border-gray-200 dark:border-slate-700 space-y-0.5">
@@ -112,9 +115,11 @@ function BlocoRefeicao({ refeicao, aberta, aoAlternar }) {
                                 <li key={s.id} className="text-xs text-gray-500 dark:text-slate-400">
                                   <span className="font-bold text-gray-400 dark:text-slate-500">OU</span>{' '}
                                   {s.tabela_alimentos?.nome || 'Alimento'} —{' '}
-                                  {s.unidade_medida && s.quantidade_medida
-                                    ? `${s.quantidade_medida} ${labelUnidade(s.unidade_medida)} (≈${s.quantidade_g}g)`
-                                    : `${s.quantidade_g}g`}
+                                  {s.unidade_medida === 'a_vontade'
+                                    ? 'à vontade'
+                                    : s.unidade_medida && s.quantidade_medida
+                                      ? `${s.quantidade_medida} ${labelUnidade(s.unidade_medida)} (≈${s.quantidade_g}g)`
+                                      : `${s.quantidade_g}g`}
                                 </li>
                               ))}
                             </ul>
