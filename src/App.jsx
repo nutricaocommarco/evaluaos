@@ -41,6 +41,7 @@ import OrientacoesPaciente from './pages/OrientacoesPaciente';
 import QuestionariosPaciente from './pages/QuestionariosPaciente';
 import EmConstrucao from './components/EmConstrucao';
 import LayoutComPaciente from './components/LayoutComPaciente';
+import { CHAVE_ULTIMA_AREA_PACIENTE, emModoStandalone } from './utils/pwaAreaPaciente';
 
 // RASTREADOR AUTOMÁTICO DE NAVEGAÇÃO DE ROTAS (PAGEVIEWS NO GA4)
 function AnalyticsTracker() {
@@ -113,6 +114,15 @@ function MainApp() {
 
   // 🔴 USUÁRIO NÃO LOGADO
   if (!session) {
+    // O ícone da PWA instalada abre sempre o start_url do manifest — se por
+    // algum motivo caiu no genérico ('/') em vez do manifest por-token (ver
+    // /api/manifest.js), redireciona sozinho pro último link de Área do
+    // Paciente que esse aparelho visitou, salvo em AreaPaciente.jsx.
+    if (currentPath === '/' && emModoStandalone()) {
+      const tokenSalvo = localStorage.getItem(CHAVE_ULTIMA_AREA_PACIENTE)
+      if (tokenSalvo) return <Navigate to={`/area/${tokenSalvo}`} replace />
+    }
+
     return (
       <>
         <AnalyticsTracker />
