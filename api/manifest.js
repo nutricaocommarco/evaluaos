@@ -1,9 +1,10 @@
-// Manifest da PWA gerado por token — resolve dois problemas do manifest
-// estático (vite.config.js): (1) start_url fixo em "/" fazia o ícone
-// instalado sempre abrir a home pública em vez da Área do Paciente
-// específica; (2) ícone/nome sempre o escudo genérico do EvaluaOS, nunca a
-// marca do consultório. src/pages/AreaPaciente.jsx troca o
-// <link rel="manifest"> pra apontar aqui assim que sabe o token.
+// Manifest da PWA gerado por token — resolve o problema do manifest
+// estático (vite.config.js): start_url fixo em "/" fazia o ícone instalado
+// sempre abrir a home pública em vez da Área do Paciente específica.
+// O ícone também usa a logomarca do consultório quando o avaliador tem
+// uma cadastrada (nome do app continua "EvaluaOS" sempre).
+// src/pages/AreaPaciente.jsx troca o <link rel="manifest"> pra apontar
+// aqui assim que sabe o token.
 import { createClient } from '@supabase/supabase-js'
 
 const supabase = createClient(
@@ -12,11 +13,11 @@ const supabase = createClient(
 )
 
 const ICONE_PADRAO = '/Imagens/Escudo_png.png'
+const NOME_APP = 'EvaluaOS'
 
 export default async function handler(req, res) {
   const token = typeof req.query.token === 'string' ? req.query.token : ''
 
-  let nomeApp = 'EvaluaOS'
   let icone = ICONE_PADRAO
 
   if (token) {
@@ -30,14 +31,11 @@ export default async function handler(req, res) {
       if (paciente?.id_avaliador) {
         const { data: avaliador } = await supabase
           .from('avaliadores')
-          .select('empresa, nome_completo, logomarca_url')
+          .select('logomarca_url')
           .eq('auth_id', paciente.id_avaliador)
           .maybeSingle()
 
-        if (avaliador) {
-          nomeApp = avaliador.empresa || avaliador.nome_completo || 'EvaluaOS'
-          if (avaliador.logomarca_url) icone = avaliador.logomarca_url
-        }
+        if (avaliador?.logomarca_url) icone = avaliador.logomarca_url
       }
     } catch (err) {
       console.error('manifest: falha ao buscar marca do avaliador', err)
@@ -48,8 +46,8 @@ export default async function handler(req, res) {
 
   const manifest = {
     id: startUrl,
-    name: nomeApp,
-    short_name: nomeApp.length > 15 ? `${nomeApp.slice(0, 14)}…` : nomeApp,
+    name: NOME_APP,
+    short_name: NOME_APP,
     description: 'Acompanhe sua evolução, laudo, plano alimentar, orientações e questionários.',
     start_url: startUrl,
     scope: '/',
