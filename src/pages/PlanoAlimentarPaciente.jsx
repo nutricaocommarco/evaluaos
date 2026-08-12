@@ -68,7 +68,7 @@ function formatarData(dataStr) {
   return new Date(dataStr).toLocaleDateString('pt-BR')
 }
 
-function BlocoRefeicao({ refeicao, aberta, aoAlternar }) {
+function BlocoRefeicao({ refeicao, aberta, aoAlternar, mostrarMacros }) {
   const opcoes = [...new Set((refeicao.itens_refeicao || []).map((i) => i.opcao_numero))].sort((a, b) => a - b)
   return (
     <div className="border border-gray-100 dark:border-slate-800 rounded-lg overflow-hidden">
@@ -90,7 +90,7 @@ function BlocoRefeicao({ refeicao, aberta, aoAlternar }) {
           <div className="flex flex-wrap gap-3">
             {(opcoes.length > 0 ? opcoes : [1]).map((n) => {
               const itensOpcao = (refeicao.itens_refeicao || []).filter((i) => i.opcao_numero === n)
-              const macrosOpcao = somarMacros(itensOpcao.map(calcularMacrosItem))
+              const macrosOpcao = mostrarMacros ? somarMacros(itensOpcao.map(calcularMacrosItem)) : null
               return (
                 <div key={n} className="rounded-lg border border-gray-100 dark:border-slate-800 p-3 flex-1 min-w-[220px]">
                   {opcoes.length > 1 && (
@@ -128,9 +128,11 @@ function BlocoRefeicao({ refeicao, aberta, aoAlternar }) {
                       )
                     })}
                   </ul>
-                  <p className="text-xs text-gray-400 dark:text-slate-500 mt-2.5 pt-2 border-t border-gray-100 dark:border-slate-800">
-                    {fmt(macrosOpcao.kcal)}kcal · Prt. {fmt(macrosOpcao.proteina)}g · Carbo. {fmt(macrosOpcao.carbo)}g · Lip. {fmt(macrosOpcao.lipidio)}g
-                  </p>
+                  {mostrarMacros && (
+                    <p className="text-xs text-gray-400 dark:text-slate-500 mt-2.5 pt-2 border-t border-gray-100 dark:border-slate-800">
+                      {fmt(macrosOpcao.kcal)}kcal · Prt. {fmt(macrosOpcao.proteina)}g · Carbo. {fmt(macrosOpcao.carbo)}g · Lip. {fmt(macrosOpcao.lipidio)}g
+                    </p>
+                  )}
                 </div>
               )
             })}
@@ -148,10 +150,11 @@ function BlocoRefeicao({ refeicao, aberta, aoAlternar }) {
 }
 
 function BlocoPlano({ plano, aberto, aoAlternar, refeicoesAbertas, aoAlternarRefeicao }) {
+  const mostrarMacros = plano.mostrar_macros !== false
   const refeicoesOrdenadas = [...(plano.refeicoes_prescritas || [])].sort(compararRefeicoes)
-  const totalDia = somarMacros(
-    refeicoesOrdenadas.flatMap((r) => (r.itens_refeicao || []).filter((i) => i.opcao_numero === 1).map(calcularMacrosItem))
-  )
+  const totalDia = mostrarMacros
+    ? somarMacros(refeicoesOrdenadas.flatMap((r) => (r.itens_refeicao || []).filter((i) => i.opcao_numero === 1).map(calcularMacrosItem)))
+    : null
 
   return (
     <div className="bg-white dark:bg-slate-900 rounded-xl border border-gray-100 dark:border-slate-800 shadow-sm overflow-hidden">
@@ -173,26 +176,28 @@ function BlocoPlano({ plano, aberto, aoAlternar, refeicoesAbertas, aoAlternarRef
 
       {aberto && (
         <div className="px-4 pb-4 space-y-3">
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-base bg-gray-50 dark:bg-slate-800/50 rounded-lg p-3">
-            <div>
-              <p className="text-gray-400 dark:text-slate-500 text-sm">Calorias</p>
-              <p className="font-black text-gray-800 dark:text-slate-100">
-                {fmt(totalDia.kcal)} {plano.vet_target ? `/ ${plano.vet_target}` : ''} kcal
-              </p>
+          {mostrarMacros && (
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-base bg-gray-50 dark:bg-slate-800/50 rounded-lg p-3">
+              <div>
+                <p className="text-gray-400 dark:text-slate-500 text-sm">Calorias</p>
+                <p className="font-black text-gray-800 dark:text-slate-100">
+                  {fmt(totalDia.kcal)} {plano.vet_target ? `/ ${plano.vet_target}` : ''} kcal
+                </p>
+              </div>
+              <div>
+                <p className="text-gray-400 dark:text-slate-500 text-sm">Proteína</p>
+                <p className="font-black text-gray-800 dark:text-slate-100">{fmt(totalDia.proteina)}g</p>
+              </div>
+              <div>
+                <p className="text-gray-400 dark:text-slate-500 text-sm">Carboidrato</p>
+                <p className="font-black text-gray-800 dark:text-slate-100">{fmt(totalDia.carbo)}g</p>
+              </div>
+              <div>
+                <p className="text-gray-400 dark:text-slate-500 text-sm">Lipídio</p>
+                <p className="font-black text-gray-800 dark:text-slate-100">{fmt(totalDia.lipidio)}g</p>
+              </div>
             </div>
-            <div>
-              <p className="text-gray-400 dark:text-slate-500 text-sm">Proteína</p>
-              <p className="font-black text-gray-800 dark:text-slate-100">{fmt(totalDia.proteina)}g</p>
-            </div>
-            <div>
-              <p className="text-gray-400 dark:text-slate-500 text-sm">Carboidrato</p>
-              <p className="font-black text-gray-800 dark:text-slate-100">{fmt(totalDia.carbo)}g</p>
-            </div>
-            <div>
-              <p className="text-gray-400 dark:text-slate-500 text-sm">Lipídio</p>
-              <p className="font-black text-gray-800 dark:text-slate-100">{fmt(totalDia.lipidio)}g</p>
-            </div>
-          </div>
+          )}
 
           <div className="space-y-2">
             {refeicoesOrdenadas.map((refeicao) => (
@@ -201,6 +206,7 @@ function BlocoPlano({ plano, aberto, aoAlternar, refeicoesAbertas, aoAlternarRef
                 refeicao={refeicao}
                 aberta={refeicoesAbertas.has(refeicao.id)}
                 aoAlternar={() => aoAlternarRefeicao(refeicao.id)}
+                mostrarMacros={mostrarMacros}
               />
             ))}
           </div>

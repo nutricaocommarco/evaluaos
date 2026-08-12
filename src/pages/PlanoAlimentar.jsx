@@ -1808,6 +1808,13 @@ export default function PlanoAlimentar({ userId }) {
     setPlanos((prev) => prev.map((p) => (p.id === plano.id ? { ...p, ativo: novoValor } : p)))
   }
 
+  const toggleMostrarMacros = async (plano) => {
+    const novoValor = !plano.mostrar_macros
+    const { error } = await supabase.from('planos_alimentares').update({ mostrar_macros: novoValor }).eq('id', plano.id)
+    if (error) { alert('Erro ao atualizar exibição de macros do plano: ' + error.message); return }
+    setPlanos((prev) => prev.map((p) => (p.id === plano.id ? { ...p, mostrar_macros: novoValor } : p)))
+  }
+
   const handleNovaRefeicao = async () => {
     const { data, error } = await supabase
       .from('refeicoes_prescritas')
@@ -2007,6 +2014,18 @@ export default function PlanoAlimentar({ userId }) {
                   Meta vs. Calculado (Opção 1 de cada refeição)
                 </p>
                 <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-xs text-gray-500 dark:text-slate-400">Macros pro paciente:</span>
+                    <InterruptorVisibilidade
+                      ativo={planoSelecionado.mostrar_macros !== false}
+                      onToggle={() => toggleMostrarMacros(planoSelecionado)}
+                      titulo={
+                        planoSelecionado.mostrar_macros !== false
+                          ? 'Paciente vê calorias e macros de cada refeição e do plano — clique pra esconder'
+                          : 'Paciente vê só a lista de refeições, sem números — clique pra mostrar macros'
+                      }
+                    />
+                  </div>
                   <button
                     onClick={() => setModalModeloPlano(true)}
                     className="text-xs font-semibold text-primary-600 hover:underline"
