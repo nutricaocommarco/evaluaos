@@ -33,7 +33,7 @@ export default async function handler(req, res) {
 
   const { data: agendamentos, error } = await admin
     .from('agendamentos')
-    .select('id, data_inicio, local, token_confirmacao, pacientes(nome_completo, telefone), avaliadores:id_avaliador(nome_completo, empresa, whatsapp_instancia, whatsapp_conectado)')
+    .select('id, data_inicio, local, pacientes(nome_completo, telefone, token_publico), avaliadores:id_avaliador(nome_completo, empresa, whatsapp_instancia, whatsapp_conectado)')
     .eq('status', 'confirmado')
     .is('whatsapp_lembrete_enviado_em', null)
     .gte('data_inicio', inicioJanela)
@@ -59,7 +59,7 @@ export default async function handler(req, res) {
     }
 
     const nomeConsultorio = avaliador.empresa || avaliador.nome_completo || 'seu nutricionista'
-    const linkConfirmacao = `${DOMINIO}/confirmar/${ag.token_confirmacao}`
+    const linkConfirmacao = `${DOMINIO}/area/${ag.pacientes?.token_publico}/agenda`
     const texto = [
       `Olá, ${primeiroNome(ag.pacientes?.nome_completo)}! ⏰`,
       '',
