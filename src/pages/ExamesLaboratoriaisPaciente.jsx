@@ -47,6 +47,23 @@ function BadgeClassificacao({ valorObtido, min, max }) {
   )
 }
 
+// Grid (não flex justify-between) — com justify-between o valor "flutua"
+// numa posição diferente em cada linha dependendo do próprio tamanho do
+// texto; em grid, nome/valor/classificação sempre alinham em colunas.
+function LinhaExameLeitura({ item }) {
+  return (
+    <div className="grid grid-cols-[minmax(0,1fr)_auto_72px] items-center gap-3 px-3 py-2 text-xs">
+      <span className="font-semibold text-gray-700 dark:text-slate-300 truncate">{item.nome_exame}</span>
+      <span className="text-gray-500 dark:text-slate-400 text-right whitespace-nowrap">
+        {item.valor_obtido || '-'} {item.unidade}
+      </span>
+      <span className="flex justify-end">
+        <BadgeClassificacao valorObtido={item.valor_obtido} min={item.intervalo_min} max={item.intervalo_max} />
+      </span>
+    </div>
+  )
+}
+
 export default function ExamesLaboratoriaisPaciente() {
   const { tokenUrl } = useParams()
   const navigate = useNavigate()
@@ -311,13 +328,7 @@ export default function ExamesLaboratoriaisPaciente() {
                               <p className="text-xs font-black text-gray-700 dark:text-slate-300 px-3 py-2 bg-gray-50 dark:bg-slate-800/50">{g.nome}</p>
                               <div className="divide-y divide-gray-50 dark:divide-slate-800/50">
                                 {itensDoGrupo.map((item) => (
-                                  <div key={item.id} className="flex items-center justify-between gap-2 px-3 py-2 text-xs">
-                                    <span className="font-semibold text-gray-700 dark:text-slate-300 truncate">{item.nome_exame}</span>
-                                    <span className="text-gray-500 dark:text-slate-400 shrink-0">
-                                      {item.valor_obtido || '-'} {item.unidade}
-                                    </span>
-                                    <BadgeClassificacao valorObtido={item.valor_obtido} min={item.intervalo_min} max={item.intervalo_max} />
-                                  </div>
+                                  <LinhaExameLeitura key={item.id} item={item} />
                                 ))}
                               </div>
                             </div>
@@ -328,13 +339,7 @@ export default function ExamesLaboratoriaisPaciente() {
                             <p className="text-xs font-black text-gray-700 dark:text-slate-300 px-3 py-2 bg-gray-50 dark:bg-slate-800/50">Outros exames</p>
                             <div className="divide-y divide-gray-50 dark:divide-slate-800/50">
                               {itensAvulsos.map((item) => (
-                                <div key={item.id} className="flex items-center justify-between gap-2 px-3 py-2 text-xs">
-                                  <span className="font-semibold text-gray-700 dark:text-slate-300 truncate">{item.nome_exame}</span>
-                                  <span className="text-gray-500 dark:text-slate-400 shrink-0">
-                                    {item.valor_obtido || '-'} {item.unidade}
-                                  </span>
-                                  <BadgeClassificacao valorObtido={item.valor_obtido} min={item.intervalo_min} max={item.intervalo_max} />
-                                </div>
+                                <LinhaExameLeitura key={item.id} item={item} />
                               ))}
                             </div>
                           </div>

@@ -702,7 +702,7 @@ export default function ExamesLaboratoriais({ userId }) {
               </>
             ) : (
               <div className="space-y-4">
-                <div className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-gray-100 dark:border-slate-800 shadow-sm flex flex-wrap items-center justify-between gap-3">
+                <div className="sticky top-0 z-10 bg-white dark:bg-slate-900 p-4 rounded-xl border border-gray-100 dark:border-slate-800 shadow-sm flex flex-wrap items-center justify-between gap-3">
                   <button onClick={() => setRegistroSelecionadoId(null)} className="text-xs font-semibold text-gray-500 dark:text-slate-400 hover:underline shrink-0">
                     ← Voltar
                   </button>
