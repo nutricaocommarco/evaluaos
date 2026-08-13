@@ -721,6 +721,11 @@ export default function ExamesLaboratoriais({ userId }) {
                       className="px-2 py-1 border border-gray-300 dark:border-slate-700 rounded text-xs bg-transparent outline-none focus:ring-2 focus:ring-primary-500"
                     />
                   </div>
+                  <InterruptorVisibilidade
+                    ativo={registroSelecionado.visivel_paciente}
+                    onToggle={() => toggleVisivelRegistro(registroSelecionado)}
+                    titulo={registroSelecionado.visivel_paciente ? 'Visível na Área do Paciente — clique pra esconder' : 'Oculto na Área do Paciente — clique pra mostrar'}
+                  />
                   <button onClick={() => handleExcluirRegistro(registroSelecionado.id)} className="text-xs font-semibold text-red-600 hover:underline shrink-0">
                     Excluir registro
                   </button>
