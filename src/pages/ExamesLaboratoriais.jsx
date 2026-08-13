@@ -4,7 +4,7 @@ import { supabase } from '../supabaseClient'
 import SidebarPaciente from '../components/SidebarPaciente'
 import RichTextEditor, { sanitizarHtmlEditor } from '../components/RichTextEditor'
 import GeradorPdfSolicitacaoExames from '../components/GeradorPdfSolicitacaoExames'
-import { CATALOGO_EXAMES } from '../data/catalogoExames'
+import { CATALOGO_EXAMES, GRUPOS_CATALOGO } from '../data/catalogoExames'
 import { ChevronDown, ChevronRight, FileDown, Eye, Pencil, Bookmark, Trash2, Plus } from 'lucide-react'
 
 const CAMPOS_VAZIOS_SOLICITACAO = { titulo: '1ª Solicitação de exames', conteudo: '', salvarComoModelo: false }
@@ -114,6 +114,67 @@ function BuscaExameCatalogo({ onSelecionar, onCancelar }) {
   )
 }
 
+// Sugere os grupos do catálogo (Biomarcadores de desnutrição, Exame de
+// carências nutricionais etc.) como atalho de um clique — mas sempre com
+// opção de digitar um nome livre, já que o registro pode não seguir
+// exatamente essas categorias.
+function SeletorGrupo({ onSelecionar, onCancelar }) {
+  const [personalizando, setPersonalizando] = useState(false)
+  const [nomeLivre, setNomeLivre] = useState('')
+  const ref = useRef(null)
+
+  useEffect(() => {
+    const handleClickFora = (e) => { if (ref.current && !ref.current.contains(e.target)) onCancelar() }
+    document.addEventListener('mousedown', handleClickFora)
+    return () => document.removeEventListener('mousedown', handleClickFora)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  if (personalizando) {
+    return (
+      <div className="relative flex items-center gap-1.5" ref={ref}>
+        <input
+          type="text"
+          autoFocus
+          value={nomeLivre}
+          onChange={(e) => setNomeLivre(e.target.value)}
+          onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); onSelecionar(nomeLivre.trim() || 'Novo grupo') } }}
+          placeholder="Nome do grupo..."
+          className="w-48 px-2 py-1 border border-gray-300 rounded text-xs outline-none focus:ring-2 focus:ring-primary-500"
+        />
+        <button type="button" onClick={() => onSelecionar(nomeLivre.trim() || 'Novo grupo')} className="text-xs font-semibold text-primary-600">OK</button>
+      </div>
+    )
+  }
+
+  return (
+    <div className="relative" ref={ref}>
+      <ul className="absolute z-20 w-64 bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-700 rounded-lg shadow-xl max-h-60 overflow-y-auto">
+        {GRUPOS_CATALOGO.map((nome) => (
+          <li key={nome}>
+            <button
+              type="button"
+              onClick={() => onSelecionar(nome)}
+              className="w-full text-left px-3 py-2 text-xs hover:bg-primary-50 dark:hover:bg-primary-900/20 border-b border-gray-100 dark:border-slate-800"
+            >
+              {nome}
+            </button>
+          </li>
+        ))}
+        <li>
+          <button
+            type="button"
+            onClick={() => setPersonalizando(true)}
+            className="w-full text-left px-3 py-2 text-xs text-primary-600 hover:bg-primary-50 dark:hover:bg-primary-900/20"
+          >
+            + Nome personalizado
+          </button>
+        </li>
+      </ul>
+    </div>
+  )
+}
+
 function LinhaExame({ item, onAtualizar, onExcluir }) {
   return (
     <div className="grid grid-cols-[2fr_1fr_0.8fr_0.7fr_0.7fr_1fr_auto] gap-2 items-center px-2 py-1.5 text-xs border-b border-gray-50 dark:border-slate-800/50 last:border-0">
@@ -182,6 +243,7 @@ export default function ExamesLaboratoriais({ userId }) {
   const [grupos, setGrupos] = useState([])
   const [itens, setItens] = useState([])
   const [buscandoExameParaGrupo, setBuscandoExameParaGrupo] = useState(null) // id do grupo, ou 'avulso', ou null
+  const [escolhendoGrupo, setEscolhendoGrupo] = useState(false)
 
   const carregarBase = async () => {
     setLoading(true)
@@ -364,14 +426,15 @@ export default function ExamesLaboratoriais({ userId }) {
     await supabase.from('exames_registros').update({ data_coleta: novaData }).eq('id', registroId)
   }
 
-  const handleAdicionarGrupo = async () => {
+  const handleAdicionarGrupo = async (nome = 'Novo grupo') => {
     const { data, error } = await supabase
       .from('exames_registros_grupos')
-      .insert({ id_registro: registroSelecionadoId, nome: 'Novo grupo', ordem: grupos.length })
+      .insert({ id_registro: registroSelecionadoId, nome, ordem: grupos.length })
       .select()
       .single()
     if (error) { alert('Erro ao criar grupo: ' + error.message); return }
     setGrupos((prev) => [...prev, data])
+    setEscolhendoGrupo(false)
   }
 
   const handleRenomearGrupo = async (grupoId, novoNome) => {
@@ -609,7 +672,7 @@ export default function ExamesLaboratoriais({ userId }) {
                 {grupos.map((g) => {
                   const itensDoGrupo = itens.filter((i) => i.id_grupo === g.id)
                   return (
-                    <div key={g.id} className="bg-white dark:bg-slate-900 rounded-xl border border-gray-100 dark:border-slate-800 shadow-sm overflow-hidden">
+                    <div key={g.id} className="bg-white dark:bg-slate-900 rounded-xl border border-gray-100 dark:border-slate-800 shadow-sm">
                       <div className="flex items-center justify-between gap-2 px-4 py-3 border-b border-gray-100 dark:border-slate-800">
                         <input
                           type="text"
@@ -674,9 +737,16 @@ export default function ExamesLaboratoriais({ userId }) {
                     </div>
                   )}
                   <div className="flex flex-wrap gap-4">
-                    <button onClick={handleAdicionarGrupo} className="text-xs font-semibold text-primary-600 hover:underline">
-                      + Adicionar grupo
-                    </button>
+                    {escolhendoGrupo ? (
+                      <SeletorGrupo
+                        onSelecionar={(nome) => handleAdicionarGrupo(nome)}
+                        onCancelar={() => setEscolhendoGrupo(false)}
+                      />
+                    ) : (
+                      <button type="button" onClick={() => setEscolhendoGrupo(true)} className="text-xs font-semibold text-primary-600 hover:underline">
+                        + Adicionar grupo
+                      </button>
+                    )}
                     {buscandoExameParaGrupo === 'avulso' ? (
                       <BuscaExameCatalogo
                         onSelecionar={(exame) => handleAdicionarExame('avulso', exame)}

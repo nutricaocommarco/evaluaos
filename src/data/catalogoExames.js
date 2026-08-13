@@ -21,6 +21,7 @@ export const CATALOGO_EXAMES = [
   { grupo: 'Biomarcadores de desnutrição', nome: 'Pré-albumina', unidade: 'mg/dL', min: null, max: null },
   { grupo: 'Biomarcadores de desnutrição', nome: 'Transferrina', unidade: 'mg/dL', min: 250, max: 380 },
   { grupo: 'Biomarcadores de desnutrição', nome: 'Proteínas totais', unidade: 'g/dL', min: 6.4, max: 8.3 },
+  { grupo: 'Biomarcadores de desnutrição', nome: 'Hemograma completo', unidade: '', min: null, max: null },
 
   // --- Exame de carências nutricionais ---
   { grupo: 'Exame de carências nutricionais', nome: 'Vitamina D (25-OH-Vitamina D)', unidade: 'ng/mL', min: 30, max: 100 },

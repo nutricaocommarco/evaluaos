@@ -55,7 +55,11 @@ export default function VisualizacaoPublicaSolicitacao() {
     carregar()
   }, [tokenUrl])
 
-  const crnTexto = crnNumep === 'Estudante' ? 'Pedido sem Validade - Estudante' : crnNumep ? `CRN/CREF/NUMEP: ${crnNumep}` : null
+  const crnTexto = crnNumep === 'Estudante'
+    ? 'Pedido sem Validade - Estudante'
+    : crnNumep
+      ? `CRN/CREF/NUMEP: ${crnNumep}`
+      : 'Pedido sem Validade - Sem CRN cadastrado'
   // Mesmo formato do rodapé do PDF (GeradorPdfSolicitacaoExames.jsx): nome
   // do nutricionista sempre junto do CRN, não só o CRN sozinho.
   const nutriTexto = [nomeAvaliador, crnTexto].filter(Boolean).join(' — ')

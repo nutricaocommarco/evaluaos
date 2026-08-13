@@ -31,7 +31,11 @@ function formatarData(dataStr) {
 
 const styles = StyleSheet.create({
   page: { paddingTop: 40, paddingBottom: 60, paddingLeft: 45, paddingRight: 45, backgroundColor: '#FFFFFF', fontFamily: 'Helvetica' },
-  logoImage: { height: 45, width: 'auto', marginBottom: 24, objectFit: 'contain' },
+  headerContainer: { flexDirection: 'row', alignItems: 'center', marginBottom: 26 },
+  logoImage: { height: 45, width: 'auto', objectFit: 'contain' },
+  headerTexto: { marginLeft: 14 },
+  headerEmpresa: { fontSize: 12, fontWeight: 'bold', color: '#1F2937' },
+  headerNutri: { fontSize: 9, color: '#6B7280', marginTop: 1 },
   title: { fontSize: 20, fontWeight: 'bold', color: '#1F2937', marginBottom: 16 },
   campoLabel: { fontSize: 10, fontWeight: 'bold', color: '#1F2937' },
   campoLinha: { flexDirection: 'row', marginBottom: 4 },
@@ -48,13 +52,27 @@ const styles = StyleSheet.create({
 function DocumentoSolicitacao({ solicitacao, paciente, avaliador, qrDataUri }) {
   const linhas = extrairLinhasExame(solicitacao.conteudo)
   const crn = avaliador?.crn_numep
-  const crnTexto = crn === 'Estudante' ? 'Pedido sem Validade - Estudante' : crn ? `CRN/CREF/NUMEP: ${crn}` : null
+  const crnTexto = crn === 'Estudante'
+    ? 'Pedido sem Validade - Estudante'
+    : crn
+      ? `CRN/CREF/NUMEP: ${crn}`
+      : 'Pedido sem Validade - Sem CRN cadastrado'
   const hoje = formatarData(new Date().toISOString())
 
   return (
     <Document>
       <Page size="A4" style={styles.page}>
-        {avaliador?.logomarca_url && <Image src={avaliador.logomarca_url} style={styles.logoImage} />}
+        {(avaliador?.logomarca_url || avaliador?.empresa || avaliador?.nome_completo) && (
+          <View style={styles.headerContainer}>
+            {avaliador?.logomarca_url && <Image src={avaliador.logomarca_url} style={styles.logoImage} />}
+            {(avaliador?.empresa || avaliador?.nome_completo) && (
+              <View style={styles.headerTexto}>
+                {avaliador?.empresa && <Text style={styles.headerEmpresa}>{avaliador.empresa}</Text>}
+                {avaliador?.nome_completo && <Text style={styles.headerNutri}>{avaliador.nome_completo}</Text>}
+              </View>
+            )}
+          </View>
+        )}
 
         <Text style={styles.title}>{solicitacao.titulo}</Text>
 
