@@ -37,6 +37,10 @@ export default function ModalDetalheAgendamento({ agendamento, aoFechar, aoExclu
           <button onClick={aoFechar} className="text-gray-400 hover:text-gray-600 dark:text-slate-500 dark:hover:text-slate-300">✕</button>
         </div>
 
+        <p className={`text-xs font-semibold flex items-center gap-1.5 ${agendamento.confirmado_pelo_paciente ? 'text-emerald-600' : 'text-gray-400 dark:text-slate-500'}`}>
+          {agendamento.confirmado_pelo_paciente ? '✅ Confirmado pelo paciente' : '⏳ Aguardando confirmação do paciente'}
+        </p>
+
         {agendamento.local && (
           <p className="text-xs text-gray-600 dark:text-slate-300 flex items-center gap-1.5">
             <MapPin size={14} /> {agendamento.local}

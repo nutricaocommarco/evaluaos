@@ -158,6 +158,7 @@ export default function Agenda({ userId }) {
                     className="absolute left-1 right-1 bg-primary-100 dark:bg-primary-900/40 border-l-4 border-primary-600 rounded-md px-2 py-1 overflow-hidden text-primary-900 dark:text-primary-200 cursor-pointer hover:brightness-95 dark:hover:brightness-125 transition-[filter]"
                   >
                     <p className="text-[11px] font-bold truncate">
+                      {ag.confirmado_pelo_paciente && '✅ '}
                       {new Date(ag.data_inicio).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })} {ag.pacientes?.nome_completo}
                     </p>
                     {ag.google_meet_link && (
