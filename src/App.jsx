@@ -232,7 +232,8 @@ function MainApp() {
               className="flex items-center gap-2 cursor-pointer" 
               onClick={() => navigate('/pacientes')}
             >
-              <img src="/Imagens/Logo_png.png" alt="EvaluaOS" className="h-[70px] w-auto object-contain" />
+              <img src="/Imagens/Logo_png.png" alt="EvaluaOS" className="h-[70px] w-auto object-contain dark:hidden" />
+              <img src="/Imagens/Logo_png_branco.png" alt="EvaluaOS" className="h-[70px] w-auto object-contain hidden dark:block" />
               <div className="hidden sm:flex flex-col">
                 <span className="text-sm font-black text-gray-800 dark:text-slate-100 tracking-tight">EvaluaOS</span>
                 <span className="text-[10px] text-gray-400 dark:text-slate-400 font-bold uppercase tracking-wider">Antropometria</span>
