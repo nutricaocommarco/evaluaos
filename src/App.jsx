@@ -20,6 +20,8 @@ import Aprendizado from './pages/Aprendizado'
 import ArtigoDetalhe from './pages/ArtigoDetalhe'
 import Precos from './pages/Precos'
 import Contato from './pages/Contato'
+import PoliticaPrivacidade from './pages/PoliticaPrivacidade'
+import TermosDeServico from './pages/TermosDeServico'
 import CalculadoraGastoCalorico from './pages/CalculadoraGastoCalorico';
 import ProntuarioPaciente from './pages/ProntuarioPaciente';
 import TabelaAlimentos from './pages/TabelaAlimentos';
@@ -142,6 +144,8 @@ function MainApp() {
         <Route path="/aprendizado/:artigoId" element={<ArtigoDetalhe />} />
         <Route path="/precos" element={<Precos />} />
         <Route path="/contato" element={<Contato />} />
+        <Route path="/politica-de-privacidade" element={<PoliticaPrivacidade />} />
+        <Route path="/termos-de-servico" element={<TermosDeServico />} />
 
         {/* Redireciona qualquer rota desconhecida de visitante para a Home */}
         <Route path="*" element={<Navigate to="/" replace />} />
@@ -287,6 +291,8 @@ function MainApp() {
             <Route path="/area/:tokenUrl/agenda" element={<AgendaPaciente />} />
             <Route path="/pedido-exames/:tokenUrl" element={<VisualizacaoPublicaSolicitacao />} />
             <Route path="/contato" element={<Contato />} />
+            <Route path="/politica-de-privacidade" element={<PoliticaPrivacidade />} />
+            <Route path="/termos-de-servico" element={<TermosDeServico />} />
             <Route path="/nova-avaliacao" element={<LayoutComPaciente itemAtivo="nova_avaliacao"><AvaliacaoForm /></LayoutComPaciente>} />
             <Route path="/equacoes-de-regressao" element={<LayoutComPaciente itemAtivo="equacoes"><EscolhaPercGordura /></LayoutComPaciente>} />
             <Route path="/laudo-antropometrico" element={<LayoutComPaciente itemAtivo="laudo"><ResultadoAvaliacao /></LayoutComPaciente>} />

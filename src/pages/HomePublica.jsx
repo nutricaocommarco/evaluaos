@@ -1,5 +1,5 @@
 import React from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, Link } from 'react-router-dom'
 import PublicHeader from '../components/PublicHeader'
 import { CONTEUDOS_APRENDIZADO } from '../data/conteudosAprendizado'
 
@@ -408,13 +408,19 @@ export default function HomePublica() {
             <p className="text-slate-500">Desenvolvido com rigor científico para nutricionistas e antropometristas.</p>
           </div>
 
-          <div className="flex items-center gap-6 text-slate-300 font-semibold">
+          <div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-slate-300 font-semibold">
             <a href="mailto:contato@nutricaocommarco.com.br" className="hover:text-emerald-400 transition-colors">
               ✉️ contato@nutricaocommarco.com.br
             </a>
             <a href="https://www.instagram.com/nutricao_com_marco/" target="_blank" rel="noreferrer" className="hover:text-emerald-400 transition-colors">
               📸 Instagram
             </a>
+            <Link to="/politica-de-privacidade" className="hover:text-emerald-400 transition-colors">
+              Política de Privacidade
+            </Link>
+            <Link to="/termos-de-servico" className="hover:text-emerald-400 transition-colors">
+              Termos de Serviço
+            </Link>
           </div>
 
         </div>
