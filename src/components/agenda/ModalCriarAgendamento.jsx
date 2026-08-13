@@ -34,8 +34,8 @@ async function fetchComTimeout(url, opcoes, timeoutMs = 20000) {
 // api/whatsapp/send.js pra mandar a confirmação (Trigger A). As duas
 // integrações falham de forma graciosa — um aviso, não trava o
 // agendamento em si, que já foi salvo antes delas rodarem.
-export default function ModalCriarAgendamento({ pacientes, userId, googleConectado, whatsappConectado, aoFechar, aoCriado }) {
-  const [pacienteId, setPacienteId] = useState('')
+export default function ModalCriarAgendamento({ pacientes, pacientePreSelecionado, userId, googleConectado, whatsappConectado, aoFechar, aoCriado }) {
+  const [pacienteId, setPacienteId] = useState(pacientePreSelecionado?.id ? String(pacientePreSelecionado.id) : '')
   const [data, setData] = useState('')
   const [horaInicio, setHoraInicio] = useState('')
   const [horaFim, setHoraFim] = useState('')
@@ -144,17 +144,23 @@ export default function ModalCriarAgendamento({ pacientes, userId, googleConecta
           <form onSubmit={handleSalvar} className="space-y-4">
             <div>
               <label className="block text-xs font-bold text-gray-700 dark:text-slate-300 uppercase tracking-wider mb-1">Paciente *</label>
-              <select
-                value={pacienteId}
-                onChange={(e) => setPacienteId(e.target.value)}
-                required
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-primary-500"
-              >
-                <option value="">Selecione...</option>
-                {pacientes.map((p) => (
-                  <option key={p.id} value={p.id}>{p.nome_completo}</option>
-                ))}
-              </select>
+              {pacientePreSelecionado ? (
+                <p className="text-sm text-gray-700 dark:text-slate-300 px-3 py-2 bg-gray-50 dark:bg-slate-800 rounded-lg">
+                  {pacientePreSelecionado.nome_completo}
+                </p>
+              ) : (
+                <select
+                  value={pacienteId}
+                  onChange={(e) => setPacienteId(e.target.value)}
+                  required
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-primary-500"
+                >
+                  <option value="">Selecione...</option>
+                  {pacientes.map((p) => (
+                    <option key={p.id} value={p.id}>{p.nome_completo}</option>
+                  ))}
+                </select>
+              )}
             </div>
 
             <div>
