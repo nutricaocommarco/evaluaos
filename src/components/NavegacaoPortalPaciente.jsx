@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Home, TrendingUp, FileText, Utensils, MessageSquare, ClipboardList, ListChecks, Menu as MenuIcon, X } from 'lucide-react'
+import { Home, TrendingUp, FileText, Utensils, MessageSquare, ClipboardList, ListChecks, FlaskConical, Menu as MenuIcon, X } from 'lucide-react'
 
 // Navegação entre as telas do paciente (Início, Evolução, Laudo, Plano,
 // Orientações, Listas, Questionários) — só aparece pra quem está vendo o
@@ -24,6 +24,7 @@ export default function NavegacaoPortalPaciente({ tokenPaciente, tokenLaudo, ati
     { key: 'plano', label: 'Plano', icone: Utensils, href: `/area/${tokenPaciente}/plano` },
     { key: 'orientacoes', label: 'Orientações', icone: MessageSquare, href: `/area/${tokenPaciente}/orientacoes` },
     { key: 'listas', label: 'Listas', icone: ListChecks, href: `/area/${tokenPaciente}/listas` },
+    { key: 'exames', label: 'Exames', icone: FlaskConical, href: `/area/${tokenPaciente}/exames` },
     { key: 'questionarios', label: 'Questionários', icone: ClipboardList, href: `/area/${tokenPaciente}/questionarios` },
   ]
   const itens = itensTodos.filter((i) => i.href)

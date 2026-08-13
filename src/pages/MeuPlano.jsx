@@ -287,7 +287,7 @@ export default function MeuPlano() {
             },
             {
               q: "Como funciona a inclusão da minha Logomarca nos laudos?",
-              a: "Assim que sua assinatura Pro é ativada, o envio de imagem na aba Painel do Avaliador é liberado. Você pode enviar sua marca em JPG ou PNG de até 2MB e ela passa a aparecer automaticamente nos PDFs e links de laudos dos seus alunos."
+              a: "Assim que sua assinatura Pro é ativada, o envio de imagem na aba Painel do Nutricionista é liberado. Você pode enviar sua marca em JPG ou PNG de até 2MB e ela passa a aparecer automaticamente nos PDFs e links de laudos dos seus alunos."
             },
             {
               q: "Quais são as formas de pagamento aceitas?",

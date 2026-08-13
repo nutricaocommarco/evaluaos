@@ -130,7 +130,6 @@ const SECOES = [
     icone: Sparkles,
     cor: 'text-amber-600 bg-amber-50 dark:bg-amber-900/20 dark:text-amber-400',
     itens: [
-      { chave: 'exames-laboratoriais', titulo: 'Exames Laboratoriais', texto: 'Registre e acompanhe os exames laboratoriais do paciente direto no prontuário.' },
       { chave: 'exames-bioimpedancia', titulo: 'Exames de Bioimpedância', texto: 'Importe e compare resultados de bioimpedância ao longo do tempo.' },
       { chave: 'fotos-comparativas', titulo: 'Fotos Comparativas', texto: 'Compare fotos do paciente ao longo do tempo, lado a lado.' },
       { chave: 'receitas', titulo: 'Receitas', texto: 'Cadastre e vincule receitas culinárias aos planos alimentares.' },
