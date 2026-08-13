@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react'
 import { supabase } from '../supabaseClient'
 import { ChevronLeft, ChevronRight, Video } from 'lucide-react'
 import ModalCriarAgendamento from '../components/agenda/ModalCriarAgendamento'
+import ModalDetalheAgendamento from '../components/agenda/ModalDetalheAgendamento'
 
 const DIAS_SEMANA = ['dom.', 'seg.', 'ter.', 'qua.', 'qui.', 'sex.', 'sáb.']
 const ALTURA_HORA = 56 // px por hora na grade
@@ -29,6 +30,7 @@ export default function Agenda({ userId }) {
   const [whatsappConectado, setWhatsappConectado] = useState(false)
   const [loading, setLoading] = useState(true)
   const [showModal, setShowModal] = useState(false)
+  const [agendamentoSelecionado, setAgendamentoSelecionado] = useState(null)
 
   const dias = useMemo(() => {
     return Array.from({ length: 7 }, (_, i) => {
@@ -69,6 +71,10 @@ export default function Agenda({ userId }) {
 
   const handleCriado = (novo) => {
     setAgendamentos((prev) => [...prev, novo])
+  }
+
+  const handleExcluido = (id) => {
+    setAgendamentos((prev) => prev.filter((a) => a.id !== id))
   }
 
   const agendamentosPorDia = (dia) => {
@@ -148,13 +154,20 @@ export default function Agenda({ userId }) {
                   <div
                     key={ag.id}
                     style={posicaoBloco(ag)}
-                    className="absolute left-1 right-1 bg-primary-100 dark:bg-primary-900/40 border-l-4 border-primary-600 rounded-md px-2 py-1 overflow-hidden text-primary-900 dark:text-primary-200"
+                    onClick={() => setAgendamentoSelecionado(ag)}
+                    className="absolute left-1 right-1 bg-primary-100 dark:bg-primary-900/40 border-l-4 border-primary-600 rounded-md px-2 py-1 overflow-hidden text-primary-900 dark:text-primary-200 cursor-pointer hover:brightness-95 dark:hover:brightness-125 transition-[filter]"
                   >
                     <p className="text-[11px] font-bold truncate">
                       {new Date(ag.data_inicio).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })} {ag.pacientes?.nome_completo}
                     </p>
                     {ag.google_meet_link && (
-                      <a href={ag.google_meet_link} target="_blank" rel="noreferrer" className="text-[10px] flex items-center gap-1 underline">
+                      <a
+                        href={ag.google_meet_link}
+                        target="_blank"
+                        rel="noreferrer"
+                        onClick={(e) => e.stopPropagation()}
+                        className="text-[10px] flex items-center gap-1 underline"
+                      >
                         <Video size={10} /> Google Meet
                       </a>
                     )}
@@ -176,6 +189,14 @@ export default function Agenda({ userId }) {
           whatsappConectado={whatsappConectado}
           aoFechar={() => setShowModal(false)}
           aoCriado={handleCriado}
+        />
+      )}
+
+      {agendamentoSelecionado && (
+        <ModalDetalheAgendamento
+          agendamento={agendamentoSelecionado}
+          aoFechar={() => setAgendamentoSelecionado(null)}
+          aoExcluido={handleExcluido}
         />
       )}
     </div>

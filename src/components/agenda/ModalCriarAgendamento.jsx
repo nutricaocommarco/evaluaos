@@ -12,6 +12,20 @@ function combinarDataHora(data, hora) {
   return new Date(`${data}T${hora}:00`).toISOString()
 }
 
+// fetch() do navegador não tem timeout — se a gateway do WhatsApp (ou
+// qualquer chamada externa) travar sem responder, a tela ficava presa
+// em "Criando..." pra sempre. Com AbortController, desiste depois de
+// 20s e cai no catch normal, como qualquer outra falha.
+async function fetchComTimeout(url, opcoes, timeoutMs = 20000) {
+  const controller = new AbortController()
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs)
+  try {
+    return await fetch(url, { ...opcoes, signal: controller.signal })
+  } finally {
+    clearTimeout(timeoutId)
+  }
+}
+
 // Modal "Criar agendamento" — campos iguais à referência (Paciente,
 // Data, Hora início/término, Fuso horário, Local). Ao salvar: insere em
 // `agendamentos`; se o Google estiver conectado, chama
@@ -64,7 +78,7 @@ export default function ModalCriarAgendamento({ pacientes, userId, googleConecta
     if (googleConectado) {
       try {
         const { data: { session } } = await supabase.auth.getSession()
-        const res = await fetch('/api/google/create-event', {
+        const res = await fetchComTimeout('/api/google/create-event', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
           body: JSON.stringify({ agendamento_id: agendamento.id }),
@@ -83,7 +97,7 @@ export default function ModalCriarAgendamento({ pacientes, userId, googleConecta
     if (whatsappConectado && agendamento.pacientes?.telefone) {
       try {
         const { data: { session } } = await supabase.auth.getSession()
-        const res = await fetch('/api/whatsapp/send', {
+        const res = await fetchComTimeout('/api/whatsapp/send', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
           body: JSON.stringify({ agendamento_id: agendamento.id }),
