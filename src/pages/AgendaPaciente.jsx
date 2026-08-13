@@ -4,12 +4,22 @@ import { supabase } from '../supabaseClient'
 import { useTheme } from '../contexts/ThemeContext'
 import CabecalhoPortalPaciente from '../components/CabecalhoPortalPaciente'
 import NavegacaoPortalPaciente from '../components/NavegacaoPortalPaciente'
-import { Calendar, MapPin, Video } from 'lucide-react'
+import { Calendar, MapPin, Video, CheckCircle2 } from 'lucide-react'
 
 function formatarDataHora(dataIso) {
   return new Date(dataIso).toLocaleString('pt-BR', {
     weekday: 'long', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit',
   })
+}
+
+// Botão de confirmar só aparece depois que o lembrete do WhatsApp já foi
+// mandado, ou (se por algum motivo o lembrete ainda não saiu) no máximo
+// 48h antes da consulta — evita o paciente confirmar presença dias
+// antes, quando ainda pode mudar de ideia.
+function podeConfirmar(agendamento) {
+  if (agendamento.whatsapp_lembrete_enviado_em) return true
+  const horasAteConsulta = (new Date(agendamento.data_inicio) - new Date()) / 3600000
+  return horasAteConsulta <= 48
 }
 
 // Portal do paciente — lista somente-leitura dos próximos horários
@@ -28,6 +38,7 @@ export default function AgendaPaciente() {
   const [sessaoAtiva, setSessaoAtiva] = useState(false)
   const [tokenLaudo, setTokenLaudo] = useState('')
   const [agendamentos, setAgendamentos] = useState([])
+  const [confirmandoId, setConfirmandoId] = useState(null)
 
   useEffect(() => {
     const carregar = async () => {
@@ -97,6 +108,24 @@ export default function AgendaPaciente() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tokenUrl])
 
+  const handleConfirmar = async (agendamento) => {
+    setConfirmandoId(agendamento.id)
+    try {
+      const res = await fetch('/api/agendamentos/confirmar', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token: agendamento.token_confirmacao }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Falha ao confirmar')
+      setAgendamentos((prev) => prev.map((a) => (a.id === agendamento.id ? { ...a, confirmado_pelo_paciente: true } : a)))
+    } catch (err) {
+      alert('Erro ao confirmar presença: ' + err.message)
+    } finally {
+      setConfirmandoId(null)
+    }
+  }
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-slate-950">
@@ -162,6 +191,20 @@ export default function AgendaPaciente() {
                       <Video size={12} /> Entrar no Google Meet
                     </a>
                   )}
+
+                  {ag.confirmado_pelo_paciente ? (
+                    <p className="text-xs text-emerald-600 font-semibold flex items-center gap-1 mt-2">
+                      <CheckCircle2 size={14} /> Presença confirmada
+                    </p>
+                  ) : podeConfirmar(ag) ? (
+                    <button
+                      onClick={() => handleConfirmar(ag)}
+                      disabled={confirmandoId === ag.id}
+                      className="mt-2 px-3 py-1.5 bg-primary-600 text-white text-xs font-bold rounded-lg hover:bg-primary-700 shadow disabled:opacity-50"
+                    >
+                      {confirmandoId === ag.id ? 'Confirmando...' : 'Confirmar presença'}
+                    </button>
+                  ) : null}
                 </div>
               </div>
             ))}
