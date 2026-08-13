@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Home, TrendingUp, FileText, Utensils, MessageSquare, ClipboardList, ListChecks, FlaskConical, Menu as MenuIcon, X } from 'lucide-react'
+import { Home, TrendingUp, FileText, Utensils, MessageSquare, ClipboardList, ListChecks, FlaskConical, Calendar, Menu as MenuIcon, X } from 'lucide-react'
 
 // Navegação entre as telas do paciente (Início, Evolução, Laudo, Plano,
 // Orientações, Listas, Questionários) — só aparece pra quem está vendo o
@@ -10,7 +10,7 @@ import { Home, TrendingUp, FileText, Utensils, MessageSquare, ClipboardList, Lis
 // No celular vira um botão de menu (☰) que abre um drawer — a lista só
 // tende a crescer, e uma grade fixa não escala bem em tela pequena.
 // No desktop continua uma grade sempre visível (tem espaço de sobra).
-export default function NavegacaoPortalPaciente({ tokenPaciente, tokenLaudo, ativo }) {
+export default function NavegacaoPortalPaciente({ tokenPaciente, tokenLaudo, temAgendamentos, ativo }) {
   const navigate = useNavigate()
   const [mobileAberto, setMobileAberto] = useState(false)
 
@@ -25,6 +25,7 @@ export default function NavegacaoPortalPaciente({ tokenPaciente, tokenLaudo, ati
     { key: 'orientacoes', label: 'Orientações', icone: MessageSquare, href: `/area/${tokenPaciente}/orientacoes` },
     { key: 'listas', label: 'Listas', icone: ListChecks, href: `/area/${tokenPaciente}/listas` },
     { key: 'exames', label: 'Exames', icone: FlaskConical, href: `/area/${tokenPaciente}/exames` },
+    { key: 'agenda', label: 'Agenda', icone: Calendar, href: temAgendamentos ? `/area/${tokenPaciente}/agenda` : null },
     { key: 'questionarios', label: 'Questionários', icone: ClipboardList, href: `/area/${tokenPaciente}/questionarios` },
   ]
   const itens = itensTodos.filter((i) => i.href)

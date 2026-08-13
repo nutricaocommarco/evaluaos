@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../supabaseClient'
 import { usePlano } from '../contexts/PlanoContext'
+import ModalConectarWhatsApp from '../components/agenda/ModalConectarWhatsApp'
 
 export default function Avaliador() {
   const navigate = useNavigate()
@@ -41,6 +42,14 @@ export default function Avaliador() {
   const [logoUrl, setLogoUrl] = useState('')
   const [uploadingLogo, setUploadingLogo] = useState(false)
 
+  // Estados de Integrações (Agenda)
+  const [googleConectado, setGoogleConectado] = useState(false)
+  const [googleEmail, setGoogleEmail] = useState('')
+  const [conectandoGoogle, setConectandoGoogle] = useState(false)
+  const [whatsappConectado, setWhatsappConectado] = useState(false)
+  const [whatsappNumero, setWhatsappNumero] = useState('')
+  const [showModalWhatsapp, setShowModalWhatsapp] = useState(false)
+
   // Carregar Dados Existentes ao Abrir a Página
   useEffect(() => {
     async function carregarDadosAvaliador() {
@@ -73,6 +82,10 @@ export default function Avaliador() {
         setCrnNumep(perfilData.crn_numep || '')
         setVideoUrlPadrao(perfilData.video_url_padrao || '')
         setLogoUrl(perfilData.logomarca_url || '')
+        setGoogleConectado(!!perfilData.google_calendar_conectado)
+        setGoogleEmail(perfilData.google_calendar_email || '')
+        setWhatsappConectado(!!perfilData.whatsapp_conectado)
+        setWhatsappNumero(perfilData.whatsapp_numero || '')
 
         // 2. Busca equipamentos vinculados ao ID do avaliador
         const { data: equipData, error: equipError } = await supabase
@@ -233,6 +246,29 @@ export default function Avaliador() {
       setNovaSenha('')
       setConfirmaSenha('')
     }
+  }
+
+  // Conectar Google Calendar
+  const handleConectarGoogle = async () => {
+    setConectandoGoogle(true)
+    const { data: { session } } = await supabase.auth.getSession()
+    try {
+      const res = await fetch('/api/google/auth-url', {
+        headers: { Authorization: `Bearer ${session.access_token}` },
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Falha ao iniciar conexão')
+      window.location.assign(data.url)
+    } catch (err) {
+      setConectandoGoogle(false)
+      alert('Erro ao conectar com o Google: ' + err.message)
+    }
+  }
+
+  const handleWhatsappConectado = (numero) => {
+    setWhatsappConectado(true)
+    setWhatsappNumero(numero || '')
+    setTimeout(() => setShowModalWhatsapp(false), 1500)
   }
 
   // Upload de Logomarca
@@ -535,6 +571,60 @@ export default function Avaliador() {
           )}
         </div>
       </div>
+
+      {/* SEÇÃO 5: INTEGRAÇÕES (AGENDA) */}
+      <div className="bg-white dark:bg-slate-900 p-6 rounded-xl border border-gray-100 dark:border-slate-800 shadow-sm space-y-6">
+        <div className="border-b pb-3">
+          <h3 className="text-sm font-bold text-gray-800 dark:text-slate-100 uppercase tracking-wider">5. Integrações (Agenda)</h3>
+          <p className="text-xs text-gray-400 dark:text-slate-400 mt-1">Conecte sua própria conta Google e seu próprio WhatsApp pra usar a Agenda com link do Meet automático e avisos aos pacientes.</p>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="p-4 border border-gray-200 dark:border-slate-700 rounded-xl space-y-2">
+            <p className="text-sm font-bold text-gray-800 dark:text-slate-100">Google Calendar</p>
+            {googleConectado ? (
+              <p className="text-xs text-emerald-600 font-semibold">✅ Conectado como {googleEmail}</p>
+            ) : (
+              <p className="text-xs text-gray-500 dark:text-slate-400">Gera o link do Google Meet automaticamente ao criar um agendamento.</p>
+            )}
+            <button
+              type="button"
+              onClick={handleConectarGoogle}
+              disabled={conectandoGoogle}
+              className="w-full px-3 py-2 bg-primary-600 text-white text-xs font-semibold rounded-lg hover:bg-primary-700 disabled:opacity-50"
+            >
+              {conectandoGoogle ? 'Redirecionando...' : googleConectado ? 'Reconectar Google Calendar' : 'Conectar Google Calendar'}
+            </button>
+          </div>
+
+          <div className="p-4 border border-gray-200 dark:border-slate-700 rounded-xl space-y-2">
+            <p className="text-sm font-bold text-gray-800 dark:text-slate-100">WhatsApp</p>
+            {whatsappConectado ? (
+              <p className="text-xs text-emerald-600 font-semibold">✅ Conectado{whatsappNumero ? ` (${whatsappNumero})` : ''}</p>
+            ) : (
+              <p className="text-xs text-gray-500 dark:text-slate-400">Envia confirmação de agendamento e lembrete 24h antes pro paciente, pelo seu próprio número.</p>
+            )}
+            <button
+              type="button"
+              onClick={() => setShowModalWhatsapp(true)}
+              className="w-full px-3 py-2 bg-primary-600 text-white text-xs font-semibold rounded-lg hover:bg-primary-700"
+            >
+              {whatsappConectado ? 'Reconectar WhatsApp' : 'Conectar WhatsApp'}
+            </button>
+          </div>
+        </div>
+
+        <p className="text-[11px] text-amber-600 dark:text-amber-400">
+          ⚠️ A conexão do WhatsApp usa um protocolo não-oficial (QR Code) — existe risco de bloqueio do número em caso de uso indevido.
+        </p>
+      </div>
+
+      {showModalWhatsapp && (
+        <ModalConectarWhatsApp
+          aoFechar={() => setShowModalWhatsapp(false)}
+          aoConectado={handleWhatsappConectado}
+        />
+      )}
 
     </div>
   )

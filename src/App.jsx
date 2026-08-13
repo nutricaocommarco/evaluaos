@@ -3,7 +3,7 @@ import { BrowserRouter, Routes, Route, Navigate, useNavigate, useLocation } from
 import { supabase } from './supabaseClient'
 import { ThemeProvider } from './contexts/ThemeContext'
 import { PlanoProvider, usePlano } from './contexts/PlanoContext'
-import { Users, Apple, UserCheck, Star, BookOpen, Settings, Map, LayoutTemplate, ClipboardList } from 'lucide-react'
+import { Users, Apple, UserCheck, Star, BookOpen, Settings, Map, LayoutTemplate, ClipboardList, Calendar } from 'lucide-react'
 
 // Importando suas telas 
 import HomePublica from './pages/HomePublica'
@@ -31,6 +31,9 @@ import ListasRecomendacoes from './pages/ListasRecomendacoes';
 import ExamesLaboratoriais from './pages/ExamesLaboratoriais';
 import ExamesLaboratoriaisPaciente from './pages/ExamesLaboratoriaisPaciente';
 import VisualizacaoPublicaSolicitacao from './pages/VisualizacaoPublicaSolicitacao';
+import Agenda from './pages/Agenda';
+import AgendaPaciente from './pages/AgendaPaciente';
+import GoogleOAuthCallback from './pages/GoogleOAuthCallback';
 import PerfilPaciente from './pages/PerfilPaciente';
 import Roadmap from './pages/Roadmap';
 import Modelos from './pages/Modelos';
@@ -84,6 +87,7 @@ function MainApp() {
     ...(isBeta ? [{ name: 'Alimentos', path: '/alimentos', icon: <Apple size={20} /> }] : []),
     ...(isBeta ? [{ name: 'Modelos', path: '/modelos', icon: <LayoutTemplate size={20} /> }] : []),
     ...(isBeta ? [{ name: 'Questionários', path: '/questionarios', icon: <ClipboardList size={20} /> }] : []),
+    ...(isBeta ? [{ name: 'Agenda', path: '/agenda', icon: <Calendar size={20} /> }] : []),
     { name: 'Nutricionista', path: '/avaliador', icon: <UserCheck size={20} /> },
     { name: 'Meu Plano', path: '/meu-plano', icon: <Star size={20} /> },
     { name: 'Aprendizado', path: '/aprendizado', icon: <BookOpen size={20} /> },
@@ -128,6 +132,8 @@ function MainApp() {
         <Route path="/area/:tokenUrl/listas" element={<ListasRecomendacoesPaciente />} />
         <Route path="/area/:tokenUrl/questionarios" element={<QuestionariosPaciente />} />
         <Route path="/area/:tokenUrl/exames" element={<ExamesLaboratoriaisPaciente />} />
+        <Route path="/area/:tokenUrl/agenda" element={<AgendaPaciente />} />
+        <Route path="/oauth/google/callback" element={<GoogleOAuthCallback />} />
 
         {/* INSTITUCIONAL & SEO */}
         <Route path="/aprendizado" element={<Aprendizado />} />
@@ -255,6 +261,8 @@ function MainApp() {
             <Route path="/pacientes/:id/linha-do-tempo" element={<LinhaDoTempo />} />
             <Route path="/pacientes/:id/listas-recomendacoes" element={<ListasRecomendacoes userId={session.user.id} />} />
             <Route path="/pacientes/:id/exames-laboratoriais" element={<ExamesLaboratoriais userId={session.user.id} />} />
+            <Route path="/agenda" element={isBeta ? <Agenda userId={session.user.id} /> : (planoCarregado ? <Navigate to="/pacientes" replace /> : null)} />
+            <Route path="/oauth/google/callback" element={<GoogleOAuthCallback />} />
             <Route path="/alimentos" element={<TabelaAlimentos userId={session.user.id} />} />
             <Route path="/modelos" element={isBeta ? <Modelos /> : (planoCarregado ? <Navigate to="/pacientes" replace /> : null)} />
             <Route path="/questionarios" element={isBeta ? <Questionarios userId={session.user.id} /> : (planoCarregado ? <Navigate to="/pacientes" replace /> : null)} />
@@ -273,6 +281,7 @@ function MainApp() {
             <Route path="/area/:tokenUrl/orientacoes" element={<OrientacoesPaciente />} />
             <Route path="/area/:tokenUrl/questionarios" element={<QuestionariosPaciente />} />
             <Route path="/area/:tokenUrl/exames" element={<ExamesLaboratoriaisPaciente />} />
+            <Route path="/area/:tokenUrl/agenda" element={<AgendaPaciente />} />
             <Route path="/pedido-exames/:tokenUrl" element={<VisualizacaoPublicaSolicitacao />} />
             <Route path="/contato" element={<Contato />} />
             <Route path="/nova-avaliacao" element={<LayoutComPaciente itemAtivo="nova_avaliacao"><AvaliacaoForm /></LayoutComPaciente>} />
