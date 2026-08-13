@@ -293,7 +293,7 @@ export default function ExamesLaboratoriaisPaciente() {
         )}
 
         {aba === 'resultados' && (
-          registros.length === 0 ? (
+          !Object.values(itensPorRegistro).some((lista) => lista.some((i) => (i.valor_obtido || '').trim() !== '')) ? (
             <div className="bg-white dark:bg-slate-900 p-8 rounded-xl border border-gray-100 dark:border-slate-800 shadow-sm text-center">
               <p className="text-gray-500 dark:text-slate-400 text-sm">Nenhum resultado de exames liberado aqui ainda.</p>
             </div>
@@ -303,8 +303,12 @@ export default function ExamesLaboratoriaisPaciente() {
                 const chave = `reg-${r.id}`
                 const aberto = abertos.has(chave)
                 const grupos = gruposPorRegistro[r.id] || []
-                const itensDoRegistro = itensPorRegistro[r.id] || []
+                // Exame sem valor obtido ainda é rascunho do nutri (ex: grupo
+                // recém-adicionado do catálogo, ninguém preencheu nada) — não
+                // é resultado de verdade, não faz sentido mostrar pro paciente.
+                const itensDoRegistro = (itensPorRegistro[r.id] || []).filter((i) => (i.valor_obtido || '').trim() !== '')
                 const itensAvulsos = itensDoRegistro.filter((i) => i.id_grupo === null)
+                if (itensDoRegistro.length === 0) return null
                 return (
                   <div key={r.id} className="bg-white dark:bg-slate-900 rounded-xl border border-gray-100 dark:border-slate-800 shadow-sm overflow-hidden">
                     <button type="button" onClick={() => toggleAberto(chave)} className="w-full flex items-center gap-2 text-left p-4">
