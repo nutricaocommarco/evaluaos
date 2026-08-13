@@ -19,6 +19,7 @@ export default function Avaliador() {
   const [telefone, setTelefone] = useState('')
   const [instagram, setInstagram] = useState('')
   const [empresa, setEmpresa] = useState('')
+  const [crnNumep, setCrnNumep] = useState('')
   const [videoUrlPadrao, setVideoUrlPadrao] = useState('') // 📹 Novo estado
 
   // Estados dos Equipamentos
@@ -69,6 +70,7 @@ export default function Avaliador() {
         setTelefone(perfilData.telefone || '')
         setInstagram(perfilData.instagram || '')
         setEmpresa(perfilData.empresa || '')
+        setCrnNumep(perfilData.crn_numep || '')
         setVideoUrlPadrao(perfilData.video_url_padrao || '')
         setLogoUrl(perfilData.logomarca_url || '')
 
@@ -110,6 +112,7 @@ export default function Avaliador() {
       telefone,
       instagram,
       empresa: isPro ? empresa : null,
+      crn_numep: crnNumep || null,
       video_url_padrao: videoUrlPadrao ? videoUrlPadrao.trim() : null
     }
 
@@ -288,13 +291,13 @@ export default function Avaliador() {
   }
 
   if (loading) {
-    return <div className="p-8 text-center text-gray-500 dark:text-slate-400">Carregando dados do avaliador...</div>
+    return <div className="p-8 text-center text-gray-500 dark:text-slate-400">Carregando dados do nutricionista...</div>
   }
 
   return (
     <div className="max-w-4xl mx-auto space-y-8 pb-12">
       <div>
-        <h2 className="text-2xl font-bold text-gray-800 dark:text-slate-100">Painel do Avaliador</h2>
+        <h2 className="text-2xl font-bold text-gray-800 dark:text-slate-100">Painel do Nutricionista</h2>
         <p className="text-sm text-gray-500 dark:text-slate-400">Gerencie suas informações profissionais, equipamentos de precisão e segurança da conta.</p>
       </div>
 
@@ -336,19 +339,44 @@ export default function Avaliador() {
               <label className="block text-xs font-semibold text-gray-700 dark:text-slate-300 uppercase">
                 Empresa / Clínica {!isPro && <span className="text-amber-600 text-[10px] font-bold ml-1">(🔒 Exclusivo Pro)</span>}
               </label>
-              <input 
-                type="text" 
+              <input
+                type="text"
                 disabled={!isPro}
-                value={empresa} 
-                onChange={(e) => setEmpresa(e.target.value)} 
+                value={empresa}
+                onChange={(e) => setEmpresa(e.target.value)}
                 className={`mt-1 w-full px-3 py-2 border rounded-md text-sm transition-colors ${
-                  !isPro 
-                    ? 'bg-gray-100 dark:bg-slate-800 border-gray-200 dark:border-slate-700 text-gray-400 dark:text-slate-400 cursor-not-allowed' 
+                  !isPro
+                    ? 'bg-gray-100 dark:bg-slate-800 border-gray-200 dark:border-slate-700 text-gray-400 dark:text-slate-400 cursor-not-allowed'
                     : 'focus:ring-primary-500 focus:border-primary-500 bg-white dark:bg-slate-900'
-                }`} 
-                placeholder={isPro ? "Nome do espaço / consultório" : "🔒 Nome personalizado exclusivo do Plano Pro"} 
+                }`}
+                placeholder={isPro ? "Nome do espaço / consultório" : "🔒 Nome personalizado exclusivo do Plano Pro"}
               />
             </div>
+          </div>
+
+          <div className="pt-2 border-t border-gray-100 dark:border-slate-800">
+            <div className="flex justify-between items-center mb-1">
+              <label className="block text-xs font-semibold text-gray-700 dark:text-slate-300 uppercase">
+                CRN / CREF / NUMEP / Estudante
+              </label>
+              <button
+                type="button"
+                onClick={() => setCrnNumep('Estudante')}
+                className="text-[11px] text-primary-600 hover:underline font-bold"
+              >
+                Sou Estudante
+              </button>
+            </div>
+            <input
+              type="text"
+              value={crnNumep}
+              onChange={(e) => setCrnNumep(e.target.value)}
+              className="w-full px-3 py-2 border rounded-md text-sm focus:ring-primary-500 focus:border-primary-500"
+              placeholder="Ex: CRN-12345 ou Estudante"
+            />
+            <p className="text-[11px] text-gray-400 dark:text-slate-400 mt-1">
+              Aparece no PDF de solicitação de exames. Se for "Estudante", o PDF mostra "Pedido sem Validade - Estudante" no lugar do número.
+            </p>
           </div>
 
           {/* 🎬 VÍDEO PADRÃO DO CONSULTÓRIO */}

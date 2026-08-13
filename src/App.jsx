@@ -28,6 +28,8 @@ import Anamnese from './pages/Anamnese';
 import OrientacoesNutricionais from './pages/OrientacoesNutricionais';
 import LinhaDoTempo from './pages/LinhaDoTempo';
 import ListasRecomendacoes from './pages/ListasRecomendacoes';
+import ExamesLaboratoriais from './pages/ExamesLaboratoriais';
+import VisualizacaoPublicaSolicitacao from './pages/VisualizacaoPublicaSolicitacao';
 import PerfilPaciente from './pages/PerfilPaciente';
 import Roadmap from './pages/Roadmap';
 import Modelos from './pages/Modelos';
@@ -81,7 +83,7 @@ function MainApp() {
     ...(isBeta ? [{ name: 'Alimentos', path: '/alimentos', icon: <Apple size={20} /> }] : []),
     ...(isBeta ? [{ name: 'Modelos', path: '/modelos', icon: <LayoutTemplate size={20} /> }] : []),
     ...(isBeta ? [{ name: 'Questionários', path: '/questionarios', icon: <ClipboardList size={20} /> }] : []),
-    { name: 'Avaliador', path: '/avaliador', icon: <UserCheck size={20} /> },
+    { name: 'Nutricionista', path: '/avaliador', icon: <UserCheck size={20} /> },
     { name: 'Meu Plano', path: '/meu-plano', icon: <Star size={20} /> },
     { name: 'Aprendizado', path: '/aprendizado', icon: <BookOpen size={20} /> },
     // Roadmap fica visível só pro Beta: o conteúdo detalha exatamente as
@@ -118,6 +120,7 @@ function MainApp() {
         <Route path="/laudo/:tokenUrl" element={<ResultadoAvaliacao />} />
         <Route path="/evolucao/:tokenUrl" element={<EvolucaoPaciente />} />
         <Route path="/questionario/:tokenUrl" element={<QuestionarioPublico />} />
+        <Route path="/pedido-exames/:tokenUrl" element={<VisualizacaoPublicaSolicitacao />} />
         <Route path="/area/:tokenUrl" element={<AreaPaciente />} />
         <Route path="/area/:tokenUrl/plano" element={<PlanoAlimentarPaciente />} />
         <Route path="/area/:tokenUrl/orientacoes" element={<OrientacoesPaciente />} />
@@ -129,7 +132,7 @@ function MainApp() {
         <Route path="/aprendizado/:artigoId" element={<ArtigoDetalhe />} />
         <Route path="/precos" element={<Precos />} />
         <Route path="/contato" element={<Contato />} />
-        
+
         {/* Redireciona qualquer rota desconhecida de visitante para a Home */}
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
@@ -249,6 +252,7 @@ function MainApp() {
             <Route path="/pacientes/:id/orientacoes-nutricionais" element={<OrientacoesNutricionais userId={session.user.id} />} />
             <Route path="/pacientes/:id/linha-do-tempo" element={<LinhaDoTempo />} />
             <Route path="/pacientes/:id/listas-recomendacoes" element={<ListasRecomendacoes userId={session.user.id} />} />
+            <Route path="/pacientes/:id/exames-laboratoriais" element={<ExamesLaboratoriais userId={session.user.id} />} />
             <Route path="/alimentos" element={<TabelaAlimentos userId={session.user.id} />} />
             <Route path="/modelos" element={isBeta ? <Modelos /> : (planoCarregado ? <Navigate to="/pacientes" replace /> : null)} />
             <Route path="/questionarios" element={isBeta ? <Questionarios userId={session.user.id} /> : (planoCarregado ? <Navigate to="/pacientes" replace /> : null)} />
@@ -266,6 +270,7 @@ function MainApp() {
             <Route path="/area/:tokenUrl/plano" element={<PlanoAlimentarPaciente />} />
             <Route path="/area/:tokenUrl/orientacoes" element={<OrientacoesPaciente />} />
             <Route path="/area/:tokenUrl/questionarios" element={<QuestionariosPaciente />} />
+            <Route path="/pedido-exames/:tokenUrl" element={<VisualizacaoPublicaSolicitacao />} />
             <Route path="/contato" element={<Contato />} />
             <Route path="/nova-avaliacao" element={<LayoutComPaciente itemAtivo="nova_avaliacao"><AvaliacaoForm /></LayoutComPaciente>} />
             <Route path="/equacoes-de-regressao" element={<LayoutComPaciente itemAtivo="equacoes"><EscolhaPercGordura /></LayoutComPaciente>} />

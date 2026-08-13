@@ -35,6 +35,7 @@ export default function Login({ onLoginSuccess }) {
               auth_id: authData.user.id,
               email: email,
               nome_completo: nome,
+              crn_numep: crnNumep || null,
               plano_status: 'gratis',
             },
           ])
