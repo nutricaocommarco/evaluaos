@@ -24,6 +24,8 @@ function primeiroNome(nomeCompleto) {
   return (nomeCompleto || '').trim().split(' ')[0] || ''
 }
 
+const DOMINIO = 'https://evaluaos.nutricaocommarco.com.br'
+
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
     res.status(405).json({ error: 'Método não permitido' })
@@ -57,7 +59,7 @@ export default async function handler(req, res) {
 
   const { data: agendamento } = await admin
     .from('agendamentos')
-    .select('id, data_inicio, local, fuso_horario, pacientes(nome_completo, telefone)')
+    .select('id, data_inicio, local, fuso_horario, pacientes(nome_completo, telefone, token_publico)')
     .eq('id', agendamento_id)
     .eq('id_avaliador', uid)
     .maybeSingle()
@@ -75,17 +77,39 @@ export default async function handler(req, res) {
 
   const nomeConsultorio = avaliador.empresa || avaliador.nome_completo || 'seu nutricionista'
   const { dia, hora } = formatarDataPorExtenso(agendamento.data_inicio, agendamento.fuso_horario)
-  const texto = [
-    `Olá, ${primeiroNome(agendamento.pacientes?.nome_completo)}! 👋`,
-    '',
-    `Sua consulta com *${nomeConsultorio}* foi confirmada:`,
-    '',
-    `🗓️ ${dia}`,
-    `🕐 ${hora}`,
-    agendamento.local ? `📍 ${agendamento.local}` : null,
-    '',
-    'Qualquer dúvida, é só chamar por aqui!',
-  ].filter((l) => l !== null).join('\n')
+
+  // Consulta em menos de 48h: o cron diário (1x/dia, único jeito grátis
+  // na Vercel) pode não ter tempo de mandar o lembrete antes dela
+  // acontecer — então já manda o lembrete-com-link agora, na criação,
+  // em vez de só o aviso simples. Marca whatsapp_lembrete_enviado_em
+  // também, pra o cron não mandar de novo depois.
+  const horasAteConsulta = (new Date(agendamento.data_inicio) - new Date()) / 3600000
+  const consultaEmBreve = horasAteConsulta <= 48
+
+  const texto = consultaEmBreve
+    ? [
+        `Olá, ${primeiroNome(agendamento.pacientes?.nome_completo)}! 👋`,
+        '',
+        `Sua consulta com *${nomeConsultorio}* foi confirmada:`,
+        '',
+        `🗓️ ${dia}`,
+        `🕐 ${hora}`,
+        agendamento.local ? `📍 ${agendamento.local}` : null,
+        '',
+        'Por favor, confirme sua presença:',
+        `${DOMINIO}/area/${agendamento.pacientes?.token_publico}/agenda`,
+      ].filter((l) => l !== null).join('\n')
+    : [
+        `Olá, ${primeiroNome(agendamento.pacientes?.nome_completo)}! 👋`,
+        '',
+        `Sua consulta com *${nomeConsultorio}* foi confirmada:`,
+        '',
+        `🗓️ ${dia}`,
+        `🕐 ${hora}`,
+        agendamento.local ? `📍 ${agendamento.local}` : null,
+        '',
+        'Qualquer dúvida, é só chamar por aqui!',
+      ].filter((l) => l !== null).join('\n')
 
   try {
     await sendText(avaliador.whatsapp_instancia, numero, texto)
@@ -95,9 +119,13 @@ export default async function handler(req, res) {
     return
   }
 
+  const agora = new Date().toISOString()
   await admin
     .from('agendamentos')
-    .update({ whatsapp_confirmacao_enviada_em: new Date().toISOString() })
+    .update({
+      whatsapp_confirmacao_enviada_em: agora,
+      ...(consultaEmBreve ? { whatsapp_lembrete_enviado_em: agora } : {}),
+    })
     .eq('id', agendamento.id)
 
   res.status(200).json({ success: true })

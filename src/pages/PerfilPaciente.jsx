@@ -4,7 +4,7 @@ import { supabase } from '../supabaseClient'
 import SidebarPaciente from '../components/SidebarPaciente'
 import GeradorPdfCompleto from '../components/GeradorPdfCompleto'
 import InterruptorVisibilidade from '../components/InterruptorVisibilidade'
-import { User, Mail, Phone, Briefcase, Activity, FileText, TrendingUp, CreditCard, Pencil, FileDown, History, PlusCircle, ClipboardList, Link2, Check, Stethoscope } from 'lucide-react'
+import { User, Mail, Phone, Briefcase, Activity, FileText, TrendingUp, CreditCard, Pencil, FileDown, History, PlusCircle, ClipboardList, Link2, Check, Stethoscope, Calendar } from 'lucide-react'
 
 function calcularIdade(dataNascimento) {
   if (!dataNascimento) return null
@@ -273,6 +273,19 @@ export default function PerfilPaciente({ userId }) {
             <div>
               <p className="text-sm font-bold text-gray-800 dark:text-slate-100">Gráficos de Evolução</p>
               <p className="text-xs text-gray-500 dark:text-slate-400">Ver comparativo antropométrico</p>
+            </div>
+          </button>
+
+          <button
+            onClick={() => navigate('/agenda', { state: { pacientePreSelecionado: paciente } })}
+            className="bg-white dark:bg-slate-900 p-5 rounded-xl border border-gray-100 dark:border-slate-800 shadow-sm flex items-center gap-3 text-left hover:border-primary-300 dark:hover:border-primary-700 transition-colors"
+          >
+            <div className="w-10 h-10 rounded-full bg-orange-50 dark:bg-orange-900/20 flex items-center justify-center text-orange-600 shrink-0">
+              <Calendar size={18} />
+            </div>
+            <div>
+              <p className="text-sm font-bold text-gray-800 dark:text-slate-100">Agendar Consulta</p>
+              <p className="text-xs text-gray-500 dark:text-slate-400">Marcar horário na Agenda</p>
             </div>
           </button>
 

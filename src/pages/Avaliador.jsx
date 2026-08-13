@@ -614,8 +614,8 @@ export default function Avaliador() {
           </div>
         </div>
 
-        <p className="text-[11px] text-amber-600 dark:text-amber-400">
-          ⚠️ A conexão do WhatsApp usa um protocolo não-oficial (QR Code) — existe risco de bloqueio do número em caso de uso indevido.
+        <p className="text-[11px] text-gray-400 dark:text-slate-500">
+          A conexão do WhatsApp é feita por QR Code, como no WhatsApp Web — evite mandar muitas mensagens em pouco tempo pra manter a conexão estável.
         </p>
       </div>
 
