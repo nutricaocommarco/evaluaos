@@ -9,10 +9,15 @@ import { formatarNumeroWhatsapp } from '../_lib/telefone.js'
 // agendamento; o lembrete diário (Trigger B) é enviado direto pelo cron
 // (api/cron/lembretes-agendamento.js), que já roda server-side e não
 // precisa passar por aqui.
-function formatarDataHora(dataIso) {
-  return new Date(dataIso).toLocaleString('pt-BR', {
-    day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit',
-  })
+function formatarDataPorExtenso(dataIso) {
+  const d = new Date(dataIso)
+  const dia = d.toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: 'long' })
+  const hora = d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
+  return { dia: dia.charAt(0).toUpperCase() + dia.slice(1), hora }
+}
+
+function primeiroNome(nomeCompleto) {
+  return (nomeCompleto || '').trim().split(' ')[0] || ''
 }
 
 export default async function handler(req, res) {
@@ -65,7 +70,18 @@ export default async function handler(req, res) {
   }
 
   const nomeConsultorio = avaliador.empresa || avaliador.nome_completo || 'seu nutricionista'
-  const texto = `Olá, ${agendamento.pacientes?.nome_completo || ''}! Sua consulta com ${nomeConsultorio} foi marcada para ${formatarDataHora(agendamento.data_inicio)}${agendamento.local ? ` (${agendamento.local})` : ''}.`
+  const { dia, hora } = formatarDataPorExtenso(agendamento.data_inicio)
+  const texto = [
+    `Olá, ${primeiroNome(agendamento.pacientes?.nome_completo)}! 👋`,
+    '',
+    `Sua consulta com *${nomeConsultorio}* foi confirmada:`,
+    '',
+    `🗓️ ${dia}`,
+    `🕐 ${hora}`,
+    agendamento.local ? `📍 ${agendamento.local}` : null,
+    '',
+    'Qualquer dúvida, é só chamar por aqui!',
+  ].filter((l) => l !== null).join('\n')
 
   try {
     await sendText(avaliador.whatsapp_instancia, numero, texto)

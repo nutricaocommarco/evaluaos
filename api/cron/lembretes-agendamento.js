@@ -12,6 +12,10 @@ function formatarHora(dataIso) {
   return new Date(dataIso).toLocaleString('pt-BR', { hour: '2-digit', minute: '2-digit' })
 }
 
+function primeiroNome(nomeCompleto) {
+  return (nomeCompleto || '').trim().split(' ')[0] || ''
+}
+
 const DOMINIO = 'https://evaluaos.nutricaocommarco.com.br'
 
 export default async function handler(req, res) {
@@ -56,7 +60,17 @@ export default async function handler(req, res) {
 
     const nomeConsultorio = avaliador.empresa || avaliador.nome_completo || 'seu nutricionista'
     const linkConfirmacao = `${DOMINIO}/confirmar/${ag.token_confirmacao}`
-    const texto = `Olá, ${ag.pacientes?.nome_completo || ''}! Lembrete: sua consulta com ${nomeConsultorio} é amanhã às ${formatarHora(ag.data_inicio)}${ag.local ? ` (${ag.local})` : ''}. Confirme sua presença: ${linkConfirmacao}`
+    const texto = [
+      `Olá, ${primeiroNome(ag.pacientes?.nome_completo)}! ⏰`,
+      '',
+      `Lembrete da sua consulta com *${nomeConsultorio}*:`,
+      '',
+      `🗓️ Amanhã, ${formatarHora(ag.data_inicio)}`,
+      ag.local ? `📍 ${ag.local}` : null,
+      '',
+      'Por favor, confirme sua presença:',
+      linkConfirmacao,
+    ].filter((l) => l !== null).join('\n')
 
     try {
       await sendText(avaliador.whatsapp_instancia, numero, texto)
