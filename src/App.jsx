@@ -34,6 +34,7 @@ import VisualizacaoPublicaSolicitacao from './pages/VisualizacaoPublicaSolicitac
 import Agenda from './pages/Agenda';
 import AgendaPaciente from './pages/AgendaPaciente';
 import GoogleOAuthCallback from './pages/GoogleOAuthCallback';
+import ConfirmarAgendamento from './pages/ConfirmarAgendamento';
 import PerfilPaciente from './pages/PerfilPaciente';
 import Roadmap from './pages/Roadmap';
 import Modelos from './pages/Modelos';
@@ -151,6 +152,7 @@ function MainApp() {
           <Route path="/area/:tokenUrl/exames" element={<ExamesLaboratoriaisPaciente />} />
           <Route path="/area/:tokenUrl/agenda" element={<AgendaPaciente />} />
           <Route path="/oauth/google/callback" element={<GoogleOAuthCallback />} />
+          <Route path="/confirmar/:token" element={<ConfirmarAgendamento />} />
 
           {/* INSTITUCIONAL & SEO */}
           <Route path="/aprendizado" element={<Aprendizado />} />
@@ -281,6 +283,7 @@ function MainApp() {
             <Route path="/pacientes/:id/exames-laboratoriais" element={<ExamesLaboratoriais userId={session.user.id} />} />
             <Route path="/agenda" element={isBeta ? <Agenda userId={session.user.id} /> : (planoCarregado ? <Navigate to="/pacientes" replace /> : null)} />
             <Route path="/oauth/google/callback" element={<GoogleOAuthCallback />} />
+            <Route path="/confirmar/:token" element={<ConfirmarAgendamento />} />
             <Route path="/alimentos" element={<TabelaAlimentos userId={session.user.id} />} />
             <Route path="/modelos" element={isBeta ? <Modelos /> : (planoCarregado ? <Navigate to="/pacientes" replace /> : null)} />
             <Route path="/questionarios" element={isBeta ? <Questionarios userId={session.user.id} /> : (planoCarregado ? <Navigate to="/pacientes" replace /> : null)} />
