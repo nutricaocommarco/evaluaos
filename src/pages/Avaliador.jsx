@@ -574,49 +574,78 @@ export default function Avaliador() {
 
       {/* SEÇÃO 5: INTEGRAÇÕES (AGENDA) */}
       <div className="bg-white dark:bg-slate-900 p-6 rounded-xl border border-gray-100 dark:border-slate-800 shadow-sm space-y-6">
-        <div className="border-b pb-3">
-          <h3 className="text-sm font-bold text-gray-800 dark:text-slate-100 uppercase tracking-wider">5. Integrações (Agenda)</h3>
-          <p className="text-xs text-gray-400 dark:text-slate-400 mt-1">Conecte sua própria conta Google e seu próprio WhatsApp pra usar a Agenda com link do Meet automático e avisos aos pacientes.</p>
+        <div className="border-b pb-3 flex justify-between items-center">
+          <div>
+            <h3 className="text-sm font-bold text-gray-800 dark:text-slate-100 uppercase tracking-wider">5. Integrações (Agenda)</h3>
+            <p className="text-xs text-gray-400 dark:text-slate-400 mt-1">Conecte sua própria conta Google e seu próprio WhatsApp pra usar a Agenda com link do Meet automático e avisos aos pacientes.</p>
+          </div>
+          {!isPro && (
+            <span className="text-xs font-bold text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20 px-2.5 py-1 rounded-full border border-amber-200 dark:border-amber-800 shrink-0">
+              🔒 Recurso do Plano Pro
+            </span>
+          )}
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="p-4 border border-gray-200 dark:border-slate-700 rounded-xl space-y-2">
-            <p className="text-sm font-bold text-gray-800 dark:text-slate-100">Google Calendar</p>
-            {googleConectado ? (
-              <p className="text-xs text-emerald-600 font-semibold">✅ Conectado como {googleEmail}</p>
-            ) : (
-              <p className="text-xs text-gray-500 dark:text-slate-400">Gera o link do Google Meet automaticamente ao criar um agendamento.</p>
-            )}
+        {isPro ? (
+          <>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="p-4 border border-gray-200 dark:border-slate-700 rounded-xl space-y-2">
+                <p className="text-sm font-bold text-gray-800 dark:text-slate-100">Google Calendar</p>
+                {googleConectado ? (
+                  <p className="text-xs text-emerald-600 font-semibold">✅ Conectado como {googleEmail}</p>
+                ) : (
+                  <p className="text-xs text-gray-500 dark:text-slate-400">Gera o link do Google Meet automaticamente ao criar um agendamento.</p>
+                )}
+                <button
+                  type="button"
+                  onClick={handleConectarGoogle}
+                  disabled={conectandoGoogle}
+                  className="w-full px-3 py-2 bg-primary-600 text-white text-xs font-semibold rounded-lg hover:bg-primary-700 disabled:opacity-50"
+                >
+                  {conectandoGoogle ? 'Redirecionando...' : googleConectado ? 'Reconectar Google Calendar' : 'Conectar Google Calendar'}
+                </button>
+              </div>
+
+              <div className="p-4 border border-gray-200 dark:border-slate-700 rounded-xl space-y-2">
+                <p className="text-sm font-bold text-gray-800 dark:text-slate-100">WhatsApp</p>
+                {whatsappConectado ? (
+                  <p className="text-xs text-emerald-600 font-semibold">✅ Conectado{whatsappNumero ? ` (${whatsappNumero})` : ''}</p>
+                ) : (
+                  <p className="text-xs text-gray-500 dark:text-slate-400">Envia confirmação de agendamento e lembrete 24h antes pro paciente, pelo seu próprio número.</p>
+                )}
+                <button
+                  type="button"
+                  onClick={() => setShowModalWhatsapp(true)}
+                  className="w-full px-3 py-2 bg-primary-600 text-white text-xs font-semibold rounded-lg hover:bg-primary-700"
+                >
+                  {whatsappConectado ? 'Reconectar WhatsApp' : 'Conectar WhatsApp'}
+                </button>
+              </div>
+            </div>
+
+            <p className="text-[11px] text-gray-400 dark:text-slate-500">
+              A conexão do WhatsApp é feita por QR Code, como no WhatsApp Web — evite mandar muitas mensagens em pouco tempo pra manter a conexão estável.
+            </p>
+          </>
+        ) : (
+          <div className="p-5 bg-amber-50/60 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-xl flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+            <div className="space-y-1">
+              <span className="text-xs font-bold text-amber-900 dark:text-amber-300 flex items-center gap-1.5">
+                <span>🔒</span> Google Calendar e WhatsApp Bloqueados
+              </span>
+              <p className="text-xs text-amber-700 dark:text-amber-400 leading-relaxed">
+                No Plano Gratuito, a Agenda funciona normalmente (marcar/ver consultas), mas a sincronização com Google Meet e os avisos por WhatsApp são exclusivos do <strong>Plano Pro</strong>.
+              </p>
+            </div>
             <button
               type="button"
-              onClick={handleConectarGoogle}
-              disabled={conectandoGoogle}
-              className="w-full px-3 py-2 bg-primary-600 text-white text-xs font-semibold rounded-lg hover:bg-primary-700 disabled:opacity-50"
+              onClick={() => navigate('/meu-plano')}
+              className="px-4 py-2 bg-amber-600 text-white rounded-lg text-xs font-bold hover:bg-amber-700 shadow-sm shrink-0 transition-colors"
             >
-              {conectandoGoogle ? 'Redirecionando...' : googleConectado ? 'Reconectar Google Calendar' : 'Conectar Google Calendar'}
+              Upgrade para Pro a partir de (R$ 29,90)
             </button>
           </div>
-
-          <div className="p-4 border border-gray-200 dark:border-slate-700 rounded-xl space-y-2">
-            <p className="text-sm font-bold text-gray-800 dark:text-slate-100">WhatsApp</p>
-            {whatsappConectado ? (
-              <p className="text-xs text-emerald-600 font-semibold">✅ Conectado{whatsappNumero ? ` (${whatsappNumero})` : ''}</p>
-            ) : (
-              <p className="text-xs text-gray-500 dark:text-slate-400">Envia confirmação de agendamento e lembrete 24h antes pro paciente, pelo seu próprio número.</p>
-            )}
-            <button
-              type="button"
-              onClick={() => setShowModalWhatsapp(true)}
-              className="w-full px-3 py-2 bg-primary-600 text-white text-xs font-semibold rounded-lg hover:bg-primary-700"
-            >
-              {whatsappConectado ? 'Reconectar WhatsApp' : 'Conectar WhatsApp'}
-            </button>
-          </div>
-        </div>
-
-        <p className="text-[11px] text-gray-400 dark:text-slate-500">
-          A conexão do WhatsApp é feita por QR Code, como no WhatsApp Web — evite mandar muitas mensagens em pouco tempo pra manter a conexão estável.
-        </p>
+        )}
       </div>
 
       {showModalWhatsapp && (

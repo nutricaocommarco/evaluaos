@@ -1,5 +1,7 @@
 import { getUidFromRequest } from '../_lib/auth.js'
 import { criarState } from '../_lib/oauthState.js'
+import { getSupabaseAdmin } from '../_lib/supabaseAdmin.js'
+import { verificarPro } from '../_lib/plano.js'
 
 // Monta a URL de consentimento do Google pro nutricionista logado
 // conectar a própria conta. `prompt=consent` força o Google a sempre
@@ -15,6 +17,12 @@ export default async function handler(req, res) {
   const uid = await getUidFromRequest(req)
   if (!uid) {
     res.status(401).json({ error: 'Não autenticado' })
+    return
+  }
+
+  const admin = getSupabaseAdmin()
+  if (!(await verificarPro(admin, uid))) {
+    res.status(403).json({ error: 'Conectar o Google Calendar é um recurso do Plano Pro.' })
     return
   }
 

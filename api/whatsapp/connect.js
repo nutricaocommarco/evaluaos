@@ -1,6 +1,7 @@
 import { getUidFromRequest } from '../_lib/auth.js'
 import { getSupabaseAdmin } from '../_lib/supabaseAdmin.js'
 import { createInstance, getQrCode } from '../_lib/evolution.js'
+import { verificarPro } from '../_lib/plano.js'
 
 // Garante que o nutricionista tem uma instância na Evolution API e
 // devolve o QR Code pra ele escanear. Chamado ao abrir o
@@ -18,6 +19,11 @@ export default async function handler(req, res) {
   }
 
   const admin = getSupabaseAdmin()
+
+  if (!(await verificarPro(admin, uid))) {
+    res.status(403).json({ error: 'Conectar o WhatsApp é um recurso do Plano Pro.' })
+    return
+  }
 
   const { data: avaliador } = await admin
     .from('avaliadores')
