@@ -9,10 +9,14 @@ import { formatarNumeroWhatsapp } from '../_lib/telefone.js'
 // agendamento; o lembrete diário (Trigger B) é enviado direto pelo cron
 // (api/cron/lembretes-agendamento.js), que já roda server-side e não
 // precisa passar por aqui.
-function formatarDataPorExtenso(dataIso) {
+// O servidor roda em UTC — sem passar timeZone explícito, toLocaleString
+// não converte pro fuso do agendamento sozinho (o locale 'pt-BR' só
+// muda o idioma, não o fuso horário).
+function formatarDataPorExtenso(dataIso, fusoHorario) {
   const d = new Date(dataIso)
-  const dia = d.toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: 'long' })
-  const hora = d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
+  const opcoes = { timeZone: fusoHorario || 'America/Sao_Paulo' }
+  const dia = d.toLocaleDateString('pt-BR', { ...opcoes, weekday: 'long', day: '2-digit', month: 'long' })
+  const hora = d.toLocaleTimeString('pt-BR', { ...opcoes, hour: '2-digit', minute: '2-digit' })
   return { dia: dia.charAt(0).toUpperCase() + dia.slice(1), hora }
 }
 
@@ -53,7 +57,7 @@ export default async function handler(req, res) {
 
   const { data: agendamento } = await admin
     .from('agendamentos')
-    .select('id, data_inicio, local, pacientes(nome_completo, telefone)')
+    .select('id, data_inicio, local, fuso_horario, pacientes(nome_completo, telefone)')
     .eq('id', agendamento_id)
     .eq('id_avaliador', uid)
     .maybeSingle()
@@ -70,7 +74,7 @@ export default async function handler(req, res) {
   }
 
   const nomeConsultorio = avaliador.empresa || avaliador.nome_completo || 'seu nutricionista'
-  const { dia, hora } = formatarDataPorExtenso(agendamento.data_inicio)
+  const { dia, hora } = formatarDataPorExtenso(agendamento.data_inicio, agendamento.fuso_horario)
   const texto = [
     `Olá, ${primeiroNome(agendamento.pacientes?.nome_completo)}! 👋`,
     '',

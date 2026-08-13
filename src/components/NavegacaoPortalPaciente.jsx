@@ -1,5 +1,6 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { supabase } from '../supabaseClient'
 import { Home, TrendingUp, FileText, Utensils, MessageSquare, ClipboardList, ListChecks, FlaskConical, Calendar, Menu as MenuIcon, X } from 'lucide-react'
 
 // Navegação entre as telas do paciente (Início, Evolução, Laudo, Plano,
@@ -10,9 +11,46 @@ import { Home, TrendingUp, FileText, Utensils, MessageSquare, ClipboardList, Lis
 // No celular vira um botão de menu (☰) que abre um drawer — a lista só
 // tende a crescer, e uma grade fixa não escala bem em tela pequena.
 // No desktop continua uma grade sempre visível (tem espaço de sobra).
+//
+// temAgendamentos é opcional — quando a página já sabe a resposta (ex:
+// AreaPaciente.jsx, que já busca essa contagem pra outra coisa), passa
+// direto e evita uma query à toa. Quando não passa (a maioria das
+// páginas do portal), o componente resolve sozinho consultando pelo
+// tokenPaciente — assim o item "Agenda" aparece certo em todo lugar,
+// sem precisar duplicar a mesma contagem em cada página.
 export default function NavegacaoPortalPaciente({ tokenPaciente, tokenLaudo, temAgendamentos, ativo }) {
   const navigate = useNavigate()
   const [mobileAberto, setMobileAberto] = useState(false)
+  const [temAgendamentosResolvido, setTemAgendamentosResolvido] = useState(false)
+
+  useEffect(() => {
+    if (temAgendamentos !== undefined) return
+    let cancelado = false
+
+    async function checar() {
+      const { data: pacData } = await supabase
+        .from('pacientes')
+        .select('id')
+        .eq('token_publico', tokenPaciente)
+        .maybeSingle()
+      if (!pacData || cancelado) return
+
+      const { count } = await supabase
+        .from('agendamentos')
+        .select('id', { count: 'exact', head: true })
+        .eq('id_paciente', pacData.id)
+        .eq('status', 'confirmado')
+        .eq('visivel_paciente', true)
+        .gte('data_inicio', new Date().toISOString())
+
+      if (!cancelado) setTemAgendamentosResolvido((count || 0) > 0)
+    }
+    checar()
+
+    return () => { cancelado = true }
+  }, [tokenPaciente, temAgendamentos])
+
+  const agendaDisponivel = temAgendamentos !== undefined ? temAgendamentos : temAgendamentosResolvido
 
   // Laudo e Evolução só existem se o paciente já tem alguma avaliação
   // antropométrica visível — sem isso, nem aparecem no menu (em vez de
@@ -25,7 +63,7 @@ export default function NavegacaoPortalPaciente({ tokenPaciente, tokenLaudo, tem
     { key: 'orientacoes', label: 'Orientações', icone: MessageSquare, href: `/area/${tokenPaciente}/orientacoes` },
     { key: 'listas', label: 'Listas', icone: ListChecks, href: `/area/${tokenPaciente}/listas` },
     { key: 'exames', label: 'Exames', icone: FlaskConical, href: `/area/${tokenPaciente}/exames` },
-    { key: 'agenda', label: 'Agenda', icone: Calendar, href: temAgendamentos ? `/area/${tokenPaciente}/agenda` : null },
+    { key: 'agenda', label: 'Agenda', icone: Calendar, href: agendaDisponivel ? `/area/${tokenPaciente}/agenda` : null },
     { key: 'questionarios', label: 'Questionários', icone: ClipboardList, href: `/area/${tokenPaciente}/questionarios` },
   ]
   const itens = itensTodos.filter((i) => i.href)
