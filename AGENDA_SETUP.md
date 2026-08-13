@@ -21,16 +21,33 @@ Rode `0039_agendamentos.sql`, `0040_google_conexao_avaliador.sql` e `0041_whatsa
 
 1. No mesmo projeto do Google Cloud, ative o **Compute Engine**.
 2. Crie uma VM `e2-micro`, numa das regiões elegíveis pro Always Free: `us-west1`, `us-central1` ou `us-east1`.
-3. Na VM, instale Docker e rode a Evolution API (imagem oficial `atendai/evolution-api`), por exemplo:
+3. Na VM, instale o Docker ([passo a passo oficial](https://docs.docker.com/engine/install/debian/) pra Debian).
+4. A imagem atual e mantida do projeto é `evoapicloud/evolution-api` (a antiga `atendai/evolution-api` foi descontinuada). A versão 2.x **exige um banco Postgres** — não roda mais só com um container. Setup mínimo (Redis desligado, cache local no lugar):
    ```bash
-   docker run -d --name evolution-api \
+   sudo docker network create evolution-net
+
+   sudo docker run -d --name evolution-postgres --restart unless-stopped \
+     --network evolution-net \
+     -e POSTGRES_USER=evolution \
+     -e POSTGRES_PASSWORD=<senha forte> \
+     -e POSTGRES_DB=evolution_db \
+     -v evolution_postgres_data:/var/lib/postgresql/data \
+     postgres:15
+
+   sudo docker run -d --name evolution-api --restart unless-stopped \
+     --network evolution-net \
      -p 8080:8080 \
      -e AUTHENTICATION_API_KEY=<gere uma chave forte aqui> \
+     -e DATABASE_PROVIDER=postgresql \
+     -e DATABASE_CONNECTION_URI="postgresql://evolution:<senha forte>@evolution-postgres:5432/evolution_db?schema=evolution_api" \
+     -e CACHE_REDIS_ENABLED=false \
+     -e CACHE_LOCAL_ENABLED=true \
      -v evolution_data:/evolution/instances \
-     atendai/evolution-api:latest
+     evoapicloud/evolution-api:latest
    ```
-4. Libere a porta 8080 no firewall da VM (regra de entrada, só se quiser acesso externo direto — o ideal é liberar só pro IP da Vercel, mas por simplicidade pode liberar geral já que a rota exige a `AUTHENTICATION_API_KEY`).
-5. Anote a URL (`http://<ip-externo-da-vm>:8080`) e a `AUTHENTICATION_API_KEY` que você definiu.
+   Se `docker login` pedir autenticação num pull público, pode ser rate-limit de conta anônima do Docker Hub — crie uma conta grátis e rode `sudo docker login -u <usuario>` (com sudo, senão as credenciais não valem pro `docker run` que também usa sudo) usando um Personal Access Token como senha.
+5. Libere a porta 8080 no firewall da VM: **VPC network → Firewall → Criar regra de firewall**, destinos "Todas as instâncias na rede", origem `0.0.0.0/0`, TCP porta `8080`.
+6. Anote a URL (`http://<ip-externo-da-vm>:8080`) e a `AUTHENTICATION_API_KEY` que você definiu.
 
 ## 4. Variáveis de ambiente na Vercel
 
