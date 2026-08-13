@@ -8,20 +8,37 @@ function formatarDataHora(dataIso) {
   })
 }
 
-// Detalhe de um agendamento existente — ver informações e excluir.
-// A exclusão remove só a linha em `agendamentos`; se o evento tiver sido
-// criado no Google Calendar, ele continua lá (cancelar programaticamente
-// exigiria outra chamada à Calendar API — fica pra uma v2 se fizer falta,
-// por enquanto o nutri pode excluir manualmente no Google Calendar).
+// Detalhe de um agendamento existente — ver informações e excluir. Se
+// o agendamento tiver um evento no Google Calendar, cancela ele também
+// (api/google/delete-event.js) antes de apagar a linha — se essa
+// chamada falhar (ex: Google desconectado), a exclusão no EvaluaOS
+// segue mesmo assim, só avisa que precisa apagar manualmente lá.
 export default function ModalDetalheAgendamento({ agendamento, aoFechar, aoExcluido }) {
   const [excluindo, setExcluindo] = useState(false)
 
   const handleExcluir = async () => {
-    if (!window.confirm('Excluir este agendamento? Se ele já tiver um evento no Google Calendar, precisa apagar lá manualmente.')) return
+    if (!window.confirm('Excluir este agendamento?')) return
     setExcluindo(true)
+
+    let avisoGoogle = null
+    if (agendamento.google_event_id) {
+      try {
+        const { data: { session } } = await supabase.auth.getSession()
+        const res = await fetch('/api/google/delete-event', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
+          body: JSON.stringify({ agendamento_id: agendamento.id }),
+        })
+        if (!res.ok) avisoGoogle = 'Não foi possível cancelar o evento no Google Calendar — apague manualmente lá.'
+      } catch {
+        avisoGoogle = 'Não foi possível cancelar o evento no Google Calendar — apague manualmente lá.'
+      }
+    }
+
     const { error } = await supabase.from('agendamentos').delete().eq('id', agendamento.id)
     setExcluindo(false)
     if (error) { alert('Erro ao excluir: ' + error.message); return }
+    if (avisoGoogle) alert(avisoGoogle)
     aoExcluido(agendamento.id)
     aoFechar()
   }

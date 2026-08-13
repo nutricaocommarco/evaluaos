@@ -70,9 +70,9 @@ function getBreadcrumbSchema(nomePagina, url) {
 const routes = [
   {
     path: '',
-    title: 'EvaluaOS | Sistema Inteligente de Avaliação Antropométrica & ISAK',
+    title: 'EvaluaOS | Sistema para Nutricionistas',
     image: `${DOMAIN}/og_home.jpg`,
-    desc: 'O software definitivo para nutricionistas e personal trainers. Crie laudos antropométricos, gráficos de evolução e somatocarta de alta precisão.',
+    desc: 'O sistema completo pra sua prática nutricional: avaliação antropométrica e ISAK, planos alimentares, prontuário, agenda e portal do paciente.',
     schemasExtra: [getSoftwareSchema(), getOrganizationSchema()]
   },
   {
