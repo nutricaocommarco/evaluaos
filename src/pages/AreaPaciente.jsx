@@ -5,7 +5,7 @@ import { useTheme } from '../contexts/ThemeContext'
 import CabecalhoPortalPaciente from '../components/CabecalhoPortalPaciente'
 import NavegacaoPortalPaciente from '../components/NavegacaoPortalPaciente'
 import BotaoInstalarPWA from '../components/BotaoInstalarPWA'
-import { TrendingUp, FileText, ClipboardList, MessageSquare, Utensils, ListChecks } from 'lucide-react'
+import { TrendingUp, FileText, ClipboardList, MessageSquare, Utensils, ListChecks, FlaskConical } from 'lucide-react'
 import { CHAVE_ULTIMA_AREA_PACIENTE } from '../utils/pwaAreaPaciente'
 
 function CardAcao({ icone: Icone, cor, titulo, subtitulo, onClick, desabilitado }) {
@@ -41,6 +41,7 @@ export default function AreaPaciente() {
   const [qtdPlanosVisiveis, setQtdPlanosVisiveis] = useState(0)
   const [qtdOrientacoes, setQtdOrientacoes] = useState(0)
   const [qtdListas, setQtdListas] = useState(0)
+  const [qtdExames, setQtdExames] = useState(0)
   const [qtdQuestionariosPendentes, setQtdQuestionariosPendentes] = useState(0)
   const [sessaoAtiva, setSessaoAtiva] = useState(false)
 
@@ -91,7 +92,7 @@ export default function AreaPaciente() {
         }
       }
 
-      const [avalRes, avalCountRes, planoRes, orientRes, listasRes, questRes] = await Promise.all([
+      const [avalRes, avalCountRes, planoRes, orientRes, listasRes, questRes, solExamesRes, regExamesRes] = await Promise.all([
         supabase
           .from('avaliacoes')
           .select('id, token_publico, data_avaliacao')
@@ -125,6 +126,16 @@ export default function AreaPaciente() {
           .select('id', { count: 'exact', head: true })
           .eq('id_paciente', pacData.id)
           .eq('status', 'aguardando'),
+        supabase
+          .from('exames_solicitacoes')
+          .select('id', { count: 'exact', head: true })
+          .eq('id_paciente', pacData.id)
+          .eq('visivel_paciente', true),
+        supabase
+          .from('exames_registros')
+          .select('id', { count: 'exact', head: true })
+          .eq('id_paciente', pacData.id)
+          .eq('visivel_paciente', true),
       ])
 
       setAvaliacaoRecente(avalRes.data || null)
@@ -133,6 +144,7 @@ export default function AreaPaciente() {
       setQtdOrientacoes(orientRes.count || 0)
       setQtdListas(listasRes.count || 0)
       setQtdQuestionariosPendentes(questRes.count || 0)
+      setQtdExames((solExamesRes.count || 0) + (regExamesRes.count || 0))
 
       setLoading(false)
     }
@@ -174,7 +186,7 @@ export default function AreaPaciente() {
           <p className="text-sm text-gray-500 dark:text-slate-400 mt-0.5">Aqui você acompanha tudo do seu acompanhamento nutricional.</p>
         </div>
 
-        {!avaliacaoRecente && qtdPlanosVisiveis === 0 && qtdOrientacoes === 0 && qtdListas === 0 && (
+        {!avaliacaoRecente && qtdPlanosVisiveis === 0 && qtdOrientacoes === 0 && qtdListas === 0 && qtdExames === 0 && (
           <div className="bg-white dark:bg-slate-900 p-6 rounded-xl border border-gray-100 dark:border-slate-800 shadow-sm text-center">
             <p className="text-gray-500 dark:text-slate-400 text-sm">Ainda não há nada liberado aqui — assim que seu nutricionista registrar sua primeira avaliação, plano ou orientação, aparece nesta tela.</p>
           </div>
@@ -225,6 +237,15 @@ export default function AreaPaciente() {
               titulo="Listas de Recomendações"
               subtitulo={`${qtdListas} lista(s)`}
               onClick={() => navigate(`/area/${tokenUrl}/listas`)}
+            />
+          )}
+          {qtdExames > 0 && (
+            <CardAcao
+              icone={FlaskConical}
+              cor="bg-sky-50 dark:bg-sky-900/20 text-sky-600"
+              titulo="Exames Laboratoriais"
+              subtitulo="Pedidos e resultados"
+              onClick={() => navigate(`/area/${tokenUrl}/exames`)}
             />
           )}
           <CardAcao

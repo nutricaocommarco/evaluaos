@@ -4,6 +4,7 @@ import { supabase } from '../supabaseClient'
 import SidebarPaciente from '../components/SidebarPaciente'
 import RichTextEditor, { sanitizarHtmlEditor } from '../components/RichTextEditor'
 import GeradorPdfSolicitacaoExames from '../components/GeradorPdfSolicitacaoExames'
+import InterruptorVisibilidade from '../components/InterruptorVisibilidade'
 import { CATALOGO_EXAMES, GRUPOS_CATALOGO } from '../data/catalogoExames'
 import { ChevronDown, ChevronRight, FileDown, Eye, Pencil, Bookmark, Trash2, Plus } from 'lucide-react'
 
@@ -375,6 +376,13 @@ export default function ExamesLaboratoriais({ userId }) {
     setSolicitacoes((prev) => prev.filter((s) => s.id !== sid))
   }
 
+  const toggleVisivelSolicitacao = async (s) => {
+    const novoValor = !s.visivel_paciente
+    const { error } = await supabase.from('exames_solicitacoes').update({ visivel_paciente: novoValor }).eq('id', s.id)
+    if (error) { alert('Erro ao atualizar visibilidade: ' + error.message); return }
+    setSolicitacoes((prev) => prev.map((x) => (x.id === s.id ? { ...x, visivel_paciente: novoValor } : x)))
+  }
+
   const handleSalvarComoModelo = async (s) => {
     const { error } = await supabase
       .from('modelos_exames_solicitacoes')
@@ -416,6 +424,13 @@ export default function ExamesLaboratoriais({ userId }) {
     if (registroSelecionadoId === registroId) setRegistroSelecionadoId(null)
   }
 
+  const toggleVisivelRegistro = async (r) => {
+    const novoValor = !r.visivel_paciente
+    const { error } = await supabase.from('exames_registros').update({ visivel_paciente: novoValor }).eq('id', r.id)
+    if (error) { alert('Erro ao atualizar visibilidade: ' + error.message); return }
+    setRegistros((prev) => prev.map((x) => (x.id === r.id ? { ...x, visivel_paciente: novoValor } : x)))
+  }
+
   const handleRenomearRegistro = async (registroId, novoTitulo) => {
     setRegistros((prev) => prev.map((r) => (r.id === registroId ? { ...r, titulo: novoTitulo } : r)))
     await supabase.from('exames_registros').update({ titulo: novoTitulo, updated_at: new Date().toISOString() }).eq('id', registroId)
@@ -426,6 +441,12 @@ export default function ExamesLaboratoriais({ userId }) {
     await supabase.from('exames_registros').update({ data_coleta: novaData }).eq('id', registroId)
   }
 
+  // Quando o nome escolhido bate com um grupo do catálogo (Biomarcadores
+  // de desnutrição, Hemograma completo etc — ver SeletorGrupo), o grupo
+  // já entra com todos os exames daquele grupo pré-cadastrados (unidade e
+  // intervalo padrão inclusos) — o nutri só digita os valores obtidos em
+  // vez de montar a lista exame por exame. Nome personalizado continua
+  // criando um grupo vazio, como antes.
   const handleAdicionarGrupo = async (nome = 'Novo grupo') => {
     const { data, error } = await supabase
       .from('exames_registros_grupos')
@@ -435,6 +456,25 @@ export default function ExamesLaboratoriais({ userId }) {
     if (error) { alert('Erro ao criar grupo: ' + error.message); return }
     setGrupos((prev) => [...prev, data])
     setEscolhendoGrupo(false)
+
+    const itensDoCatalogo = CATALOGO_EXAMES.filter((e) => e.grupo === nome)
+    if (itensDoCatalogo.length > 0) {
+      const payload = itensDoCatalogo.map((e, idx) => ({
+        id_registro: registroSelecionadoId,
+        id_grupo: data.id,
+        nome_exame: e.nome,
+        unidade: e.unidade || null,
+        intervalo_min: e.min,
+        intervalo_max: e.max,
+        ordem: idx,
+      }))
+      const { data: novosItens, error: itensError } = await supabase
+        .from('exames_registros_itens')
+        .insert(payload)
+        .select()
+      if (itensError) { alert('Grupo criado, mas houve erro ao adicionar os exames padrão: ' + itensError.message); return }
+      setItens((prev) => [...prev, ...(novosItens || [])])
+    }
   }
 
   const handleRenomearGrupo = async (grupoId, novoNome) => {
@@ -575,6 +615,11 @@ export default function ExamesLaboratoriais({ userId }) {
                           </div>
                         </button>
                         <div className="flex items-center gap-3 shrink-0 text-xs font-semibold">
+                          <InterruptorVisibilidade
+                            ativo={s.visivel_paciente}
+                            onToggle={() => toggleVisivelSolicitacao(s)}
+                            titulo={s.visivel_paciente ? 'Visível na Área do Paciente — clique pra esconder' : 'Oculto na Área do Paciente — clique pra mostrar'}
+                          />
                           <button onClick={() => toggleAbertoSolicitacao(s.id)} className="flex items-center gap-1 text-gray-600 dark:text-slate-400 hover:underline">
                             <Eye size={13} /> Visualizar pedido
                           </button>
@@ -628,17 +673,29 @@ export default function ExamesLaboratoriais({ userId }) {
                 ) : (
                   <div className="space-y-2">
                     {registros.map((r) => (
-                      <button
+                      <div
                         key={r.id}
-                        onClick={() => setRegistroSelecionadoId(r.id)}
-                        className="w-full flex justify-between items-center gap-3 bg-white dark:bg-slate-900 p-4 rounded-xl border border-gray-100 dark:border-slate-800 shadow-sm hover:border-primary-300 dark:hover:border-primary-700 text-left transition-colors"
+                        className="w-full flex justify-between items-center gap-3 bg-white dark:bg-slate-900 p-4 rounded-xl border border-gray-100 dark:border-slate-800 shadow-sm hover:border-primary-300 dark:hover:border-primary-700 transition-colors"
                       >
-                        <div className="min-w-0">
-                          <span className="text-sm font-black text-gray-800 dark:text-slate-100 truncate block">{r.titulo}</span>
-                          <p className="text-[10px] text-gray-400 dark:text-slate-500">Coleta em {formatarData(r.data_coleta)}</p>
-                        </div>
-                        <ChevronRight size={16} className="text-gray-400 dark:text-slate-500 shrink-0" />
-                      </button>
+                        <button
+                          type="button"
+                          onClick={() => setRegistroSelecionadoId(r.id)}
+                          className="flex-1 flex items-center gap-3 text-left min-w-0"
+                        >
+                          <div className="min-w-0">
+                            <span className="text-sm font-black text-gray-800 dark:text-slate-100 truncate block">{r.titulo}</span>
+                            <p className="text-[10px] text-gray-400 dark:text-slate-500">Coleta em {formatarData(r.data_coleta)}</p>
+                          </div>
+                        </button>
+                        <InterruptorVisibilidade
+                          ativo={r.visivel_paciente}
+                          onToggle={() => toggleVisivelRegistro(r)}
+                          titulo={r.visivel_paciente ? 'Visível na Área do Paciente — clique pra esconder' : 'Oculto na Área do Paciente — clique pra mostrar'}
+                        />
+                        <button type="button" onClick={() => setRegistroSelecionadoId(r.id)} className="shrink-0">
+                          <ChevronRight size={16} className="text-gray-400 dark:text-slate-500" />
+                        </button>
+                      </div>
                     ))}
                   </div>
                 )}
