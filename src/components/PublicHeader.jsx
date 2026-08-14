@@ -46,7 +46,7 @@ export default function PublicHeader() {
       Evalua<span className="text-emerald-600">OS</span>
     </span>
     <span className="text-[9px] text-slate-400 font-bold uppercase tracking-wider mt-0.5">
-      Antropometria de Precisão
+      Sistema para Nutricionistas
     </span>
   </div>
 </Link>

@@ -3,7 +3,7 @@ import { supabase } from '../supabaseClient'
 import { usePlano } from '../contexts/PlanoContext'
 
 export default function MeuPlano() {
-  const { planoStatus, isPro, isBeta } = usePlano()
+  const { planoStatus, isPro } = usePlano()
   const [loading, setLoading] = useState(true)
   const [userEmail, setUserEmail] = useState('')
   const [totalPacientes, setTotalPacientes] = useState(0)
@@ -113,18 +113,16 @@ export default function MeuPlano() {
             <span className="text-xs font-bold text-gray-400 dark:text-slate-400 uppercase tracking-wider block">Status Atual</span>
             <div className="flex items-center gap-2 mt-1">
               <h3 className="text-xl font-extrabold text-gray-900 dark:text-slate-100">
-                {isBeta ? 'Plano Beta (Pro liberado)' : isPro ? 'Plano EvaluaOS Pro' : 'Plano Gratuito'}
+                {isPro ? 'Plano EvaluaOS Pro' : 'Plano Gratuito'}
               </h3>
               <span className={`text-xs font-bold px-3 py-1 rounded-full border ${
-                isBeta
-                  ? 'bg-violet-50 dark:bg-violet-900/20 text-violet-700 dark:text-violet-400 border-violet-200 dark:border-violet-800'
-                  : isPro
+                isPro
                   ? 'bg-primary-50 dark:bg-primary-900/20 dark:bg-primary-900/20 text-primary-700 dark:text-primary-400 border-primary-200 dark:border-primary-800'
                   : planoStatus === 'suspenso'
                   ? 'bg-red-50 dark:bg-red-900/20 dark:bg-red-900/20 text-red-700 dark:text-red-400 border-red-200 dark:border-red-800'
                   : 'bg-amber-50 dark:bg-amber-900/20 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400 border-amber-200 dark:border-amber-800'
               }`}>
-                {isBeta ? '🧪 BETA' : isPro ? '⭐ ATIVO' : planoStatus === 'suspenso' ? '⚠️ SUSPENSO' : '🌱 GRATUITO'}
+                {isPro ? '⭐ ATIVO' : planoStatus === 'suspenso' ? '⚠️ SUSPENSO' : '🌱 GRATUITO'}
               </span>
             </div>
           </div>

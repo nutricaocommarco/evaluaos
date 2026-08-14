@@ -27,15 +27,15 @@ export default function HomePublica() {
 
           <div className="inline-flex items-center gap-2 px-3.5 py-1.5 bg-emerald-100/80 border border-emerald-200 text-emerald-800 text-[11px] font-bold rounded-full tracking-wide">
             <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-            Padrão ISAK & Metrologia Científica
+            Tudo pra sua Prática Nutricional
           </div>
 
           <h1 className="text-3xl sm:text-5xl md:text-6xl font-black text-slate-900 max-w-4xl mx-auto leading-[1.15] tracking-tight">
-            Eleve seus Laudos Antropométricos ao <span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-600 to-teal-600">Nível Científico</span>
+            O sistema completo pra sua prática como <span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-600 to-teal-600">Nutricionista</span>
           </h1>
 
           <p className="text-sm sm:text-base md:text-lg text-slate-600 max-w-2xl mx-auto leading-relaxed">
-            Abandone escolhas cegas de equações. O EvaluaOS utiliza uma <strong>Engine de Recomendação Científica</strong> que cruza o Fracionamento de 4 Componentes (Kerr), o Somatotipo e Tabelas de Referência para recomendar a equação perfeita para o seu paciente.
+            Prontuário, planos alimentares, agenda com Google Calendar e WhatsApp, exames e portal do paciente — tudo em um só lugar. E quando o assunto é avaliação física, o EvaluaOS utiliza uma <strong>Engine de Recomendação Científica</strong> que cruza o Fracionamento de 4 Componentes (Kerr), o Somatotipo e Tabelas de Referência para recomendar a equação perfeita para o seu paciente.
           </p>
 
           <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-4">
@@ -385,10 +385,10 @@ export default function HomePublica() {
       <section className="py-16 bg-gradient-to-r from-emerald-600 to-teal-700 text-white">
         <div className="max-w-5xl mx-auto px-4 text-center space-y-6">
           <h2 className="text-2xl sm:text-4xl font-black">
-            Pronto para transformar o nível das suas avaliações físicas?
+            Pronto para organizar toda a sua prática nutricional?
           </h2>
           <p className="text-xs sm:text-sm text-emerald-100 max-w-2xl mx-auto leading-relaxed">
-            Junte-se a nutricionistas e avaliadores que trabalham com precisão científica e valorizam a metrologia antropométrica.
+            Junte-se a nutricionistas que gerenciam prontuário, planos alimentares, agenda e avaliações físicas com precisão científica, tudo em um só sistema.
           </p>
           <button
             onClick={() => navigate('/login')}
@@ -405,7 +405,7 @@ export default function HomePublica() {
           
           <div className="space-y-1 text-center md:text-left">
             <span className="font-bold text-white text-sm">EvaluaOS</span>
-            <p className="text-slate-500">Desenvolvido com rigor científico para nutricionistas e antropometristas.</p>
+            <p className="text-slate-500">Desenvolvido com rigor científico pra nutricionistas cuidarem de toda a jornada do paciente.</p>
           </div>
 
           <div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-slate-300 font-semibold">

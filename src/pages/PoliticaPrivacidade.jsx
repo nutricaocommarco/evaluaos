@@ -25,7 +25,7 @@ export default function PoliticaPrivacidade() {
       <section className="pb-20 max-w-3xl mx-auto px-4 sm:px-6 space-y-8">
         <Secao titulo="1. Quem somos">
           <p>
-            O EvaluaOS é um sistema de gestão para nutricionistas e antropometristas, operado por Nutrição com Marco
+            O EvaluaOS é um sistema de gestão para nutricionistas, operado por Nutrição com Marco
             (nutricaocommarco.com.br). Esta política explica quais dados coletamos, como usamos, e quais escolhas
             você tem — tanto se você é nutricionista usando o sistema quanto paciente acompanhado por um
             nutricionista que usa o EvaluaOS.
@@ -126,7 +126,7 @@ export default function PoliticaPrivacidade() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 flex flex-col md:flex-row justify-between items-center gap-6">
           <div className="space-y-1 text-center md:text-left">
             <span className="font-bold text-white text-sm">EvaluaOS</span>
-            <p className="text-slate-500">Desenvolvido com rigor científico para nutricionistas e antropometristas.</p>
+            <p className="text-slate-500">Desenvolvido com rigor científico pra nutricionistas cuidarem de toda a jornada do paciente.</p>
           </div>
           <div className="flex items-center gap-6 text-slate-300 font-semibold">
             <a href="mailto:contato@nutricaocommarco.com.br" className="hover:text-emerald-400 transition-colors">
