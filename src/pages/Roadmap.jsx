@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
-import { Utensils, Sparkles, Layers, Boxes, Trophy, ThumbsUp, ThumbsDown } from 'lucide-react'
+import { Utensils, Sparkles, Boxes, Trophy, ThumbsUp, ThumbsDown } from 'lucide-react'
 import { supabase } from '../supabaseClient'
 
 const SECOES = [
@@ -138,18 +138,6 @@ const SECOES = [
       { chave: 'diario-alimenticio', titulo: 'Diário Alimentício', texto: 'O paciente registra o que realmente comeu, pra comparar com o que foi prescrito.' },
       { chave: 'pasta-do-paciente', titulo: 'Pasta do Paciente', texto: 'Um espaço só pra guardar documentos e arquivos de cada paciente.' },
       { chave: 'config-do-paciente', titulo: 'Configurações do Paciente', texto: 'Mais controle sobre preferências e notificações por paciente.' },
-    ],
-  },
-  {
-    titulo: 'Plano Beta',
-    icone: Layers,
-    cor: 'text-violet-600 bg-violet-50 dark:bg-violet-900/20 dark:text-violet-400',
-    itens: [
-      {
-        chave: 'assinatura-beta-app',
-        titulo: 'Assinatura do Beta pelo app',
-        texto: 'Em breve você vai poder assinar o plano Beta direto por aqui, sem precisar falar com a gente.',
-      },
     ],
   },
 ]

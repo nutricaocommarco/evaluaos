@@ -25,7 +25,7 @@ export default function Precos() {
           </h1>
 
           <p className="text-sm sm:text-base text-slate-600 max-w-2xl mx-auto leading-relaxed">
-            Comece no plano gratuito com todas as ferramentas de avaliação liberais ou assine a versão Pro para pacientes ilimitados e laudos com a sua marca.
+            Comece no plano gratuito com prontuário, planos alimentares, agenda e avaliação física completos, ou assine a versão Pro para pacientes ilimitados, laudos com a sua marca e sincronização com Google Calendar e WhatsApp.
           </p>
 
           {/* TOGGLE MENSAL / ANUAL */}
@@ -67,7 +67,7 @@ export default function Precos() {
               
               <div className="pt-2">
                 <div className="text-4xl font-black text-slate-900">R$ 0</div>
-                <span className="text-xs text-slate-400 font-medium">Para sempre • Sem cartão de crédito</span>
+                <span className="text-xs text-slate-400 font-medium">Sem cartão de crédito</span>
               </div>
 
               <div className="border-t border-slate-100 pt-4 space-y-2.5 text-xs text-slate-600">
@@ -84,6 +84,10 @@ export default function Precos() {
                 <p className="flex items-center gap-2"><span className="text-emerald-600 font-black">✓</span> Laboratório de Equações (+60 equações)</p>
                 <p className="flex items-center gap-2"><span className="text-emerald-600 font-black">✓</span> Geração de Laudos em PDF e Web</p>
                 <p className="flex items-center gap-2"><span className="text-emerald-600 font-black">✓</span> Acesso livre à Central de Aprendizado</p>
+                <p className="flex items-center gap-2"><span className="text-emerald-600 font-black">✓</span> <strong>Prontuário, Planos Alimentares e Anamneses</strong></p>
+                <p className="flex items-center gap-2"><span className="text-emerald-600 font-black">✓</span> Orientações Nutricionais e Listas de Recomendações</p>
+                <p className="flex items-center gap-2"><span className="text-emerald-600 font-black">✓</span> Exames Laboratoriais e Questionários</p>
+                <p className="flex items-center gap-2"><span className="text-emerald-600 font-black">✓</span> Agenda de Consultas e Portal do Paciente</p>
                 <p className="flex items-center gap-2 text-slate-400"><span className="text-slate-300 font-black">✕</span> Personalização do Laudo com sua Logomarca</p>
               </div>
             </div>
@@ -127,7 +131,9 @@ export default function Precos() {
                 <p className="flex items-center gap-2"><span className="text-emerald-400 font-black">✓</span> <strong>Avaliações Ilimitadas por Paciente</strong></p>
                 <p className="flex items-center gap-2"><span className="text-emerald-400 font-black">✓</span> <strong>Personalização do Laudo com a sua Logomarca</strong></p>
                 <p className="flex items-center gap-2"><span className="text-emerald-400 font-black">✓</span> <strong>Escolha de cálculos visíveis no WhatsApp/Web</strong></p>
-                <p className="flex items-center gap-2"><span className="text-emerald-400 font-black">✓</span> <strong>Backup de Dados Automático na Nuvem</strong></p>
+                <p className="flex items-center gap-2"><span className="text-emerald-400 font-black">✓</span> <strong>Exportação Completa de Dados (CSV)</strong></p>
+                <p className="flex items-center gap-2"><span className="text-emerald-400 font-black">✓</span> <strong>Google Calendar + Meet automático</strong></p>
+                <p className="flex items-center gap-2"><span className="text-emerald-400 font-black">✓</span> <strong>Lembretes automáticos por WhatsApp</strong></p>
                 <p className="flex items-center gap-2"><span className="text-emerald-400 font-black">✓</span> <strong>Suporte Técnico Prioritário</strong></p>
               </div>
             </div>
@@ -183,12 +189,49 @@ export default function Precos() {
                     <td className="py-3.5 px-4 text-center font-bold text-emerald-600 bg-emerald-50/30">Ilimitado</td>
                   </tr>
                   <tr>
-                    <td className="py-3.5 px-6 font-semibold">Backup de Dados Automático</td>
+                    <td className="py-3.5 px-6 font-semibold">Exportação Completa de Dados (CSV)</td>
                     <td className="py-3.5 px-4 text-center text-slate-300 font-bold">✕</td>
-                    <td className="py-3.5 px-4 text-center font-bold text-emerald-600 bg-emerald-50/30">✓ Automático</td>
+                    <td className="py-3.5 px-4 text-center font-bold text-emerald-600 bg-emerald-50/30">✓ Incluído</td>
                   </tr>
 
-                  {/* Bloco 2: Equações e Ferramentas Especialistas */}
+                  {/* Bloco 2: Prática Clínica */}
+                  <tr className="bg-slate-50 font-bold text-slate-900 text-[11px]">
+                    <td colSpan="3" className="py-2.5 px-6 uppercase tracking-wider text-emerald-700">
+                      🩺 Prática Clínica
+                    </td>
+                  </tr>
+                  <tr>
+                    <td className="py-3.5 px-6 font-semibold">Prontuário, Anamneses e Planos Alimentares</td>
+                    <td className="py-3.5 px-4 text-center font-bold text-emerald-600">✓ Incluído</td>
+                    <td className="py-3.5 px-4 text-center font-bold text-emerald-600 bg-emerald-50/30">✓ Incluído</td>
+                  </tr>
+                  <tr>
+                    <td className="py-3.5 px-6 font-semibold">Orientações, Listas de Recomendações e Exames Laboratoriais</td>
+                    <td className="py-3.5 px-4 text-center font-bold text-emerald-600">✓ Incluído</td>
+                    <td className="py-3.5 px-4 text-center font-bold text-emerald-600 bg-emerald-50/30">✓ Incluído</td>
+                  </tr>
+                  <tr>
+                    <td className="py-3.5 px-6 font-semibold">Questionários e Portal do Paciente</td>
+                    <td className="py-3.5 px-4 text-center font-bold text-emerald-600">✓ Incluído</td>
+                    <td className="py-3.5 px-4 text-center font-bold text-emerald-600 bg-emerald-50/30">✓ Incluído</td>
+                  </tr>
+                  <tr>
+                    <td className="py-3.5 px-6 font-semibold">Agenda: marcar e ver consultas</td>
+                    <td className="py-3.5 px-4 text-center font-bold text-emerald-600">✓ Incluído</td>
+                    <td className="py-3.5 px-4 text-center font-bold text-emerald-600 bg-emerald-50/30">✓ Incluído</td>
+                  </tr>
+                  <tr>
+                    <td className="py-3.5 px-6 font-semibold">Agenda: sincronização com Google Calendar + Meet</td>
+                    <td className="py-3.5 px-4 text-center text-slate-300 font-bold">✕</td>
+                    <td className="py-3.5 px-4 text-center font-bold text-emerald-600 bg-emerald-50/30">✓ Exclusivo Pro</td>
+                  </tr>
+                  <tr>
+                    <td className="py-3.5 px-6 font-semibold">Agenda: lembretes automáticos por WhatsApp</td>
+                    <td className="py-3.5 px-4 text-center text-slate-300 font-bold">✕</td>
+                    <td className="py-3.5 px-4 text-center font-bold text-emerald-600 bg-emerald-50/30">✓ Exclusivo Pro</td>
+                  </tr>
+
+                  {/* Bloco 3: Equações e Ferramentas Especialistas */}
                   <tr className="bg-slate-50 font-bold text-slate-900 text-[11px]">
                     <td colSpan="3" className="py-2.5 px-6 uppercase tracking-wider text-emerald-700">
                       🧬 Algoritmos & Avaliação Antropométrica
@@ -245,7 +288,7 @@ export default function Precos() {
                     <td className="py-3.5 px-4 text-center font-bold text-emerald-600 bg-emerald-50/30">✓ Habilitado</td>
                   </tr>
 
-                  {/* Bloco 3: Laudos e Mídia */}
+                  {/* Bloco 4: Laudos e Mídia */}
                   <tr className="bg-slate-50 font-bold text-slate-900 text-[11px]">
                     <td colSpan="3" className="py-2.5 px-6 uppercase tracking-wider text-emerald-700">
                       📄 Laudos & Mídia
@@ -269,7 +312,7 @@ export default function Precos() {
                     <td className="py-3.5 px-4 text-center font-bold text-emerald-600 bg-emerald-50/30">✓ Exclusivo Pro</td>
                   </tr>
 
-                  {/* Bloco 4: Suporte */}
+                  {/* Bloco 5: Suporte */}
                   <tr className="bg-slate-50 font-bold text-slate-900 text-[11px]">
                     <td colSpan="3" className="py-2.5 px-6 uppercase tracking-wider text-emerald-700">
                       📞 Suporte & Conhecimento
@@ -299,7 +342,7 @@ export default function Precos() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 flex flex-col md:flex-row justify-between items-center gap-6">
           <div className="space-y-1 text-center md:text-left">
             <span className="font-bold text-white text-sm">EvaluaOS</span>
-            <p className="text-slate-500">Desenvolvido com rigor científico para nutricionistas e antropometristas.</p>
+            <p className="text-slate-500">Desenvolvido com rigor científico pra nutricionistas cuidarem de toda a jornada do paciente.</p>
           </div>
 
           <div className="flex items-center gap-6 text-slate-300 font-semibold">

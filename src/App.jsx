@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react'
 import { BrowserRouter, Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom'
 import { supabase } from './supabaseClient'
 import { ThemeProvider } from './contexts/ThemeContext'
-import { PlanoProvider, usePlano } from './contexts/PlanoContext'
+import { PlanoProvider } from './contexts/PlanoContext'
 import { Users, Apple, UserCheck, Star, BookOpen, Settings, Map, LayoutTemplate, ClipboardList, Calendar } from 'lucide-react'
 
 // Importando suas telas 
@@ -72,8 +72,6 @@ function MainApp() {
   const [session, setSession] = useState(null)
   const [loading, setLoading] = useState(true)
   const [isSidebarOpen, setIsSidebarOpen] = useState(false)
-  const { isBeta, carregado: planoCarregado } = usePlano()
-
   const navigate = useNavigate()
   const location = useLocation()
   const currentPath = location.pathname
@@ -102,16 +100,14 @@ function MainApp() {
   // fica só com o que não é por-paciente.
   const menuItems = [
     { name: 'Pacientes', path: '/pacientes', icon: <Users size={20} /> },
-    ...(isBeta ? [{ name: 'Alimentos', path: '/alimentos', icon: <Apple size={20} /> }] : []),
-    ...(isBeta ? [{ name: 'Modelos', path: '/modelos', icon: <LayoutTemplate size={20} /> }] : []),
-    ...(isBeta ? [{ name: 'Questionários', path: '/questionarios', icon: <ClipboardList size={20} /> }] : []),
-    ...(isBeta ? [{ name: 'Agenda', path: '/agenda', icon: <Calendar size={20} /> }] : []),
+    { name: 'Alimentos', path: '/alimentos', icon: <Apple size={20} /> },
+    { name: 'Modelos', path: '/modelos', icon: <LayoutTemplate size={20} /> },
+    { name: 'Questionários', path: '/questionarios', icon: <ClipboardList size={20} /> },
+    { name: 'Agenda', path: '/agenda', icon: <Calendar size={20} /> },
     { name: 'Nutricionista', path: '/avaliador', icon: <UserCheck size={20} /> },
     { name: 'Meu Plano', path: '/meu-plano', icon: <Star size={20} /> },
     { name: 'Aprendizado', path: '/aprendizado', icon: <BookOpen size={20} /> },
-    // Roadmap fica visível só pro Beta: o conteúdo detalha exatamente as
-    // features de Nutrição que ainda estamos escondendo do gratis/pro.
-    ...(isBeta ? [{ name: 'Roadmap', path: '/roadmap', icon: <Map size={20} /> }] : []),
+    { name: 'Roadmap', path: '/roadmap', icon: <Map size={20} /> },
     { name: 'Configurações', path: '/configuracoes', icon: <Settings size={20} /> },
   ]
 
@@ -254,7 +250,7 @@ function MainApp() {
               <img src="/Imagens/Logo_png_branco.png" alt="EvaluaOS" className="h-[70px] w-auto object-contain hidden dark:block" />
               <div className="hidden sm:flex flex-col">
                 <span className="text-sm font-black text-gray-800 dark:text-slate-100 tracking-tight">EvaluaOS</span>
-                <span className="text-[10px] text-gray-400 dark:text-slate-400 font-bold uppercase tracking-wider">Antropometria</span>
+                <span className="text-[10px] text-gray-400 dark:text-slate-400 font-bold uppercase tracking-wider">Sistema para Nutricionistas</span>
               </div>
             </div>
           </div>
@@ -286,13 +282,13 @@ function MainApp() {
             <Route path="/pacientes/:id/linha-do-tempo" element={<LinhaDoTempo />} />
             <Route path="/pacientes/:id/listas-recomendacoes" element={<ListasRecomendacoes userId={session.user.id} />} />
             <Route path="/pacientes/:id/exames-laboratoriais" element={<ExamesLaboratoriais userId={session.user.id} />} />
-            <Route path="/agenda" element={isBeta ? <Agenda userId={session.user.id} /> : (planoCarregado ? <Navigate to="/pacientes" replace /> : null)} />
+            <Route path="/agenda" element={<Agenda userId={session.user.id} />} />
             <Route path="/oauth/google/callback" element={<GoogleOAuthCallback />} />
             <Route path="/confirmar/:token" element={<ConfirmarAgendamento />} />
             <Route path="/alimentos" element={<TabelaAlimentos userId={session.user.id} />} />
-            <Route path="/modelos" element={isBeta ? <Modelos /> : (planoCarregado ? <Navigate to="/pacientes" replace /> : null)} />
-            <Route path="/questionarios" element={isBeta ? <Questionarios userId={session.user.id} /> : (planoCarregado ? <Navigate to="/pacientes" replace /> : null)} />
-            <Route path="/questionarios/:id/editar" element={isBeta ? <QuestionarioBuilder userId={session.user.id} /> : (planoCarregado ? <Navigate to="/pacientes" replace /> : null)} />
+            <Route path="/modelos" element={<Modelos />} />
+            <Route path="/questionarios" element={<Questionarios userId={session.user.id} />} />
+            <Route path="/questionarios/:id/editar" element={<QuestionarioBuilder userId={session.user.id} />} />
             <Route path="/pacientes/:id/questionarios" element={<PacienteQuestionarios userId={session.user.id} />} />
             {/* Mesma url pública de /questionario/:tokenUrl, aqui sem wrapper —
                 se o nutri clicar no próprio link gerado estando logado, vê a
@@ -319,7 +315,7 @@ function MainApp() {
             <Route path="/evolucao" element={<LayoutComPaciente itemAtivo="evolucao"><EvolucaoPaciente /></LayoutComPaciente>} />
             <Route path="/avaliador" element={<Avaliador userId={session.user.id} />} />
             <Route path="/meu-plano" element={<MeuPlano />} />
-            <Route path="/roadmap" element={isBeta ? <Roadmap userId={session.user.id} /> : (planoCarregado ? <Navigate to="/pacientes" replace /> : null)} />
+            <Route path="/roadmap" element={<Roadmap userId={session.user.id} />} />
             {/* Mesma url de /laudo/:tokenUrl e /evolucao/:tokenUrl que o paciente usa
                 sem login — mas isso aqui só existe dentro do bloco autenticado
                 (session existe), então o menu do paciente só aparece pra quem

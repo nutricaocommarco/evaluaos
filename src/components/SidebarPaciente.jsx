@@ -40,7 +40,7 @@ const GRUPOS_TODOS = [
   },
   {
     titulo: 'Nutrição',
-    beta: true,
+    beta: false,
     itens: [
       { key: 'anamneses', label: 'Anamneses', tipo: 'anamnese' },
       { key: 'planos', label: 'Planos Alimentares', tipo: 'plano_alimentar' },
