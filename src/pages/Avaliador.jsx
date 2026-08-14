@@ -46,6 +46,7 @@ export default function Avaliador() {
   const [googleConectado, setGoogleConectado] = useState(false)
   const [googleEmail, setGoogleEmail] = useState('')
   const [conectandoGoogle, setConectandoGoogle] = useState(false)
+  const [desconectandoGoogle, setDesconectandoGoogle] = useState(false)
   const [whatsappConectado, setWhatsappConectado] = useState(false)
   const [whatsappNumero, setWhatsappNumero] = useState('')
   const [showModalWhatsapp, setShowModalWhatsapp] = useState(false)
@@ -263,6 +264,24 @@ export default function Avaliador() {
       setConectandoGoogle(false)
       alert('Erro ao conectar com o Google: ' + err.message)
     }
+  }
+
+  const handleDesconectarGoogle = async () => {
+    if (!window.confirm('Desconectar sua conta do Google Calendar? Os agendamentos já criados no Google não serão apagados, mas novos agendamentos deixarão de sincronizar até você reconectar.')) return
+    setDesconectandoGoogle(true)
+    const { data: { session } } = await supabase.auth.getSession()
+    try {
+      const res = await fetch('/api/google/disconnect', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${session.access_token}` },
+      })
+      if (!res.ok) throw new Error('Falha ao desconectar')
+      setGoogleConectado(false)
+      setGoogleEmail('')
+    } catch (err) {
+      alert('Erro ao desconectar do Google: ' + err.message)
+    }
+    setDesconectandoGoogle(false)
   }
 
   const handleWhatsappConectado = (numero) => {
@@ -604,6 +623,16 @@ export default function Avaliador() {
                 >
                   {conectandoGoogle ? 'Redirecionando...' : googleConectado ? 'Reconectar Google Calendar' : 'Conectar Google Calendar'}
                 </button>
+                {googleConectado && (
+                  <button
+                    type="button"
+                    onClick={handleDesconectarGoogle}
+                    disabled={desconectandoGoogle}
+                    className="w-full px-3 py-2 bg-transparent text-red-600 dark:text-red-400 text-xs font-semibold rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 disabled:opacity-50"
+                  >
+                    {desconectandoGoogle ? 'Desconectando...' : 'Desconectar Google Calendar'}
+                  </button>
+                )}
               </div>
 
               <div className="p-4 border border-gray-200 dark:border-slate-700 rounded-xl space-y-2">
