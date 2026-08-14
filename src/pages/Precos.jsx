@@ -131,7 +131,7 @@ export default function Precos() {
                 <p className="flex items-center gap-2"><span className="text-emerald-400 font-black">✓</span> <strong>Avaliações Ilimitadas por Paciente</strong></p>
                 <p className="flex items-center gap-2"><span className="text-emerald-400 font-black">✓</span> <strong>Personalização do Laudo com a sua Logomarca</strong></p>
                 <p className="flex items-center gap-2"><span className="text-emerald-400 font-black">✓</span> <strong>Escolha de cálculos visíveis no WhatsApp/Web</strong></p>
-                <p className="flex items-center gap-2"><span className="text-emerald-400 font-black">✓</span> <strong>Backup de Dados Automático na Nuvem</strong></p>
+                <p className="flex items-center gap-2"><span className="text-emerald-400 font-black">✓</span> <strong>Exportação Completa de Dados (CSV)</strong></p>
                 <p className="flex items-center gap-2"><span className="text-emerald-400 font-black">✓</span> <strong>Google Calendar + Meet automático</strong></p>
                 <p className="flex items-center gap-2"><span className="text-emerald-400 font-black">✓</span> <strong>Lembretes automáticos por WhatsApp</strong></p>
                 <p className="flex items-center gap-2"><span className="text-emerald-400 font-black">✓</span> <strong>Suporte Técnico Prioritário</strong></p>
@@ -189,9 +189,9 @@ export default function Precos() {
                     <td className="py-3.5 px-4 text-center font-bold text-emerald-600 bg-emerald-50/30">Ilimitado</td>
                   </tr>
                   <tr>
-                    <td className="py-3.5 px-6 font-semibold">Backup de Dados Automático</td>
+                    <td className="py-3.5 px-6 font-semibold">Exportação Completa de Dados (CSV)</td>
                     <td className="py-3.5 px-4 text-center text-slate-300 font-bold">✕</td>
-                    <td className="py-3.5 px-4 text-center font-bold text-emerald-600 bg-emerald-50/30">✓ Automático</td>
+                    <td className="py-3.5 px-4 text-center font-bold text-emerald-600 bg-emerald-50/30">✓ Incluído</td>
                   </tr>
 
                   {/* Bloco 2: Prática Clínica */}

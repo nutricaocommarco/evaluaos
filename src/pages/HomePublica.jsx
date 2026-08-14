@@ -539,7 +539,7 @@ export default function HomePublica() {
                 <li className="flex items-center gap-2"><span className="text-emerald-400 font-bold">✓</span> <strong>Google Calendar + Meet automático</strong></li>
                 <li className="flex items-center gap-2"><span className="text-emerald-400 font-bold">✓</span> <strong>Lembretes automáticos por WhatsApp</strong></li>
                 <li className="flex items-center gap-2"><span className="text-emerald-400 font-bold">✓</span> Personalização com sua Logomarca Própria</li>
-                <li className="flex items-center gap-2"><span className="text-emerald-400 font-bold">✓</span> Backup de Dados Automático na Nuvem</li>
+                <li className="flex items-center gap-2"><span className="text-emerald-400 font-bold">✓</span> Exportação Completa de Dados (CSV)</li>
               </ul>
             </div>
 
