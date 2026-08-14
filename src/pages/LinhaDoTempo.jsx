@@ -12,8 +12,22 @@ function formatarDataEvento(dataStr) {
   return new Date(dataStr).toLocaleDateString('pt-BR')
 }
 
-const LABELS = { consulta: 'Consulta', avaliacao: 'Avaliação', plano_alimentar: 'Plano Alimentar' }
-const CORES = { consulta: 'bg-blue-500', avaliacao: 'bg-emerald-500', plano_alimentar: 'bg-primary-600' }
+const LABELS = {
+  consulta: 'Consulta',
+  avaliacao: 'Avaliação',
+  plano_alimentar: 'Plano Alimentar',
+  agendamento: 'Agenda',
+  questionario: 'Questionário',
+  exame: 'Exames Laboratoriais',
+}
+const CORES = {
+  consulta: 'bg-blue-500',
+  avaliacao: 'bg-emerald-500',
+  plano_alimentar: 'bg-primary-600',
+  agendamento: 'bg-indigo-500',
+  questionario: 'bg-violet-500',
+  exame: 'bg-amber-500',
+}
 
 export default function LinhaDoTempo() {
   const { id } = useParams()
@@ -31,10 +45,13 @@ export default function LinhaDoTempo() {
     setPaciente(pac || null)
 
     if (pac) {
-      const [{ data: consultas }, { data: avaliacoes }, { data: planos }] = await Promise.all([
+      const [{ data: consultas }, { data: avaliacoes }, { data: planos }, { data: agendamentos }, { data: envios }, { data: exames }] = await Promise.all([
         supabase.from('prontuarios').select('id, data_consulta, queixa_principal').eq('id_paciente', id),
         supabase.from('avaliacoes').select('id, data_avaliacao, equacao_de_regressao_escolhida, peso_paciente').eq('id_paciente', id),
         supabase.from('planos_alimentares').select('id, titulo, created_at, ativo').eq('id_paciente', id),
+        supabase.from('agendamentos').select('id, titulo, data_inicio, local, confirmado_pelo_paciente').eq('id_paciente', id),
+        supabase.from('questionario_envios').select('id, status, respondido_em, questionarios(titulo)').eq('id_paciente', id).in('status', ['respondido', 'revisado']),
+        supabase.from('exames_registros').select('id, titulo, data_coleta').eq('id_paciente', id),
       ])
 
       // Agregação ao vivo direto das 3 tabelas — não depende de manter uma
@@ -61,6 +78,27 @@ export default function LinhaDoTempo() {
           titulo: p.titulo || 'Plano Alimentar',
           subtitulo: p.ativo ? 'Ativo' : 'Inativo',
           onClick: () => navigate(`/pacientes/${id}/plano-alimentar`),
+        })),
+        ...(agendamentos || []).map((a) => ({
+          tipo: 'agendamento',
+          data: a.data_inicio,
+          titulo: a.titulo || 'Consulta Agendada',
+          subtitulo: a.local || (a.confirmado_pelo_paciente ? 'Confirmado pelo paciente' : 'Aguardando confirmação'),
+          onClick: () => navigate('/agenda'),
+        })),
+        ...(envios || []).map((e) => ({
+          tipo: 'questionario',
+          data: e.respondido_em,
+          titulo: e.questionarios?.titulo || 'Questionário',
+          subtitulo: e.status === 'revisado' ? 'Revisado' : 'Respondido',
+          onClick: () => navigate(`/pacientes/${id}/questionarios`),
+        })),
+        ...(exames || []).map((ex) => ({
+          tipo: 'exame',
+          data: ex.data_coleta,
+          titulo: ex.titulo || 'Registro de Exames',
+          subtitulo: 'Exames Laboratoriais',
+          onClick: () => navigate(`/pacientes/${id}/exames-laboratoriais`),
         })),
       ].sort((x, y) => new Date(y.data) - new Date(x.data))
 
@@ -103,7 +141,7 @@ export default function LinhaDoTempo() {
             <div className="bg-white dark:bg-slate-900 p-5 rounded-xl border border-gray-100 dark:border-slate-800 shadow-sm">
               <h2 className="text-lg font-black text-gray-800 dark:text-slate-100">Linha do Tempo — {paciente.nome_completo}</h2>
               <p className="text-xs text-gray-500 dark:text-slate-400 mt-0.5">
-                Consultas, avaliações antropométricas e planos alimentares em ordem cronológica
+                Consultas, avaliações, planos alimentares, agenda, questionários e exames laboratoriais em ordem cronológica
               </p>
             </div>
 
