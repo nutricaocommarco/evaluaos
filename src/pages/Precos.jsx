@@ -67,7 +67,7 @@ export default function Precos() {
               
               <div className="pt-2">
                 <div className="text-4xl font-black text-slate-900">R$ 0</div>
-                <span className="text-xs text-slate-400 font-medium">Para sempre • Sem cartão de crédito</span>
+                <span className="text-xs text-slate-400 font-medium">Sem cartão de crédito</span>
               </div>
 
               <div className="border-t border-slate-100 pt-4 space-y-2.5 text-xs text-slate-600">
