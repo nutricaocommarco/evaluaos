@@ -64,8 +64,14 @@ export default function PoliticaPrivacidade() {
             Essa conexão exige autorização explícita do nutricionista via OAuth do Google. O EvaluaOS acessa
             <strong> somente</strong> o escopo necessário para criar/gerenciar esses eventos de consulta
             (<code>calendar.events</code>) — não lemos outros eventos, contatos, e-mails ou qualquer outro dado da
-            conta Google do nutricionista, e não compartilhamos esses dados com terceiros. O nutricionista pode
-            desconectar essa integração a qualquer momento.
+            conta Google do nutricionista, e não compartilhamos esses dados com terceiros.
+          </p>
+          <p>
+            O nutricionista pode desconectar essa integração a qualquer momento na tela Nutricionista &gt;
+            Integrações. Ao desconectar, o token de acesso é imediatamente revogado junto ao Google e excluído da
+            nossa base de dados — os eventos já criados no Google Calendar do nutricionista não são apagados
+            automaticamente (continuam lá, como qualquer evento normal da agenda dele), mas o EvaluaOS perde
+            totalmente o acesso à conta Google até uma nova conexão ser feita.
           </p>
         </Secao>
 
