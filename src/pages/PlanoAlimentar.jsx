@@ -4,6 +4,7 @@ import { supabase } from '../supabaseClient'
 import SidebarPaciente from '../components/SidebarPaciente'
 import GeradorPdfNutricional from '../components/GeradorPdfNutricional'
 import InterruptorVisibilidade from '../components/InterruptorVisibilidade'
+import RichTextEditor, { sanitizarHtmlEditor } from '../components/RichTextEditor'
 import { FileDown, Save, Pencil, Trash2, StickyNote, ImagePlus } from 'lucide-react'
 import SeletorImagem from '../components/imagens/SeletorImagem'
 import { aplicarBuscaPorPalavras } from '../utils/buscaAlimentos'
@@ -1279,6 +1280,74 @@ function RefeicaoCard({ refeicao, onAtualizarCampo, onExcluir, onItensChange, on
   )
 }
 
+// Modo alternativo pro plano: sem refeições/itens/cálculo de macros, só
+// título + texto livre (mesmo componente de edição já usado em Orientações
+// Nutricionais). A visibilidade pro paciente continua no toggle da lista de
+// planos — aqui só cuida do conteúdo.
+function BlocoQualitativo({ plano, onAtualizado, onExcluir }) {
+  const [titulo, setTitulo] = useState(plano.titulo || 'Plano Alimentar')
+  const [conteudo, setConteudo] = useState(plano.conteudo || '')
+  const [salvando, setSalvando] = useState(false)
+
+  useEffect(() => {
+    setTitulo(plano.titulo || 'Plano Alimentar')
+    setConteudo(plano.conteudo || '')
+  }, [plano.id])
+
+  const handleSalvar = async () => {
+    setSalvando(true)
+    const { error } = await supabase
+      .from('planos_alimentares')
+      .update({ titulo: titulo || 'Plano Alimentar', conteudo: sanitizarHtmlEditor(conteudo) })
+      .eq('id', plano.id)
+    setSalvando(false)
+    if (error) { alert('Erro ao salvar plano: ' + error.message); return }
+    onAtualizado()
+  }
+
+  return (
+    <div className="bg-white dark:bg-slate-900 p-5 rounded-xl border border-gray-100 dark:border-slate-800 shadow-sm space-y-4">
+      <div className="flex justify-between items-center gap-2">
+        <p className="text-[10px] font-bold text-gray-400 dark:text-slate-500 uppercase tracking-wider">
+          📝 Plano Qualitativo — sem cálculo de macros
+        </p>
+        <button onClick={onExcluir} className="text-xs font-semibold text-red-600 hover:underline shrink-0">
+          Excluir plano
+        </button>
+      </div>
+
+      <div>
+        <label className="block text-xs font-bold text-gray-700 dark:text-slate-300 uppercase tracking-wider mb-1">
+          Título
+        </label>
+        <input
+          type="text"
+          value={titulo}
+          onChange={(e) => setTitulo(e.target.value)}
+          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-primary-500"
+        />
+      </div>
+
+      <div>
+        <label className="block text-xs font-bold text-gray-700 dark:text-slate-300 uppercase tracking-wider mb-1">
+          Prescrição (texto livre)
+        </label>
+        <RichTextEditor initialHtml={conteudo} onChange={setConteudo} />
+      </div>
+
+      <div className="flex justify-end">
+        <button
+          onClick={handleSalvar}
+          disabled={salvando}
+          className="px-5 py-2 bg-primary-600 text-white text-sm font-semibold rounded-lg hover:bg-primary-700 shadow disabled:opacity-50"
+        >
+          {salvando ? 'Salvando...' : 'Salvar'}
+        </button>
+      </div>
+    </div>
+  )
+}
+
 export default function PlanoAlimentar({ userId }) {
   const { id } = useParams()
   const navigate = useNavigate()
@@ -1301,6 +1370,7 @@ export default function PlanoAlimentar({ userId }) {
   const [salvandoPlano, setSalvandoPlano] = useState(false)
   const [pesoOverride, setPesoOverride] = useState('')
   const [modoMeta, setModoMeta] = useState('g_kg') // 'g_kg' | 'percentual'
+  const [modoNovoPlano, setModoNovoPlano] = useState('quantitativo') // 'quantitativo' | 'qualitativo'
   const [modalSubstitutos, setModalSubstitutos] = useState(null) // { refeicaoId, item } | null
   const [showGeradorPdf, setShowGeradorPdf] = useState(false)
 
@@ -1396,6 +1466,7 @@ export default function PlanoAlimentar({ userId }) {
   const abrirNovoPlano = () => {
     setEditingPlanoId(null)
     setModoMeta('g_kg')
+    setModoNovoPlano('quantitativo')
     setModeloBasePlanoId('')
     setFormPlano({
       ...CAMPOS_PLANO_VAZIOS,
@@ -1736,6 +1807,28 @@ export default function PlanoAlimentar({ userId }) {
     e.preventDefault()
     setSalvandoPlano(true)
 
+    if (!editingPlanoId && modoNovoPlano === 'qualitativo') {
+      const { data, error } = await supabase
+        .from('planos_alimentares')
+        .insert({
+          id_paciente: id,
+          id_avaliador: userId,
+          id_avaliacao: idAvaliacaoRecente || null,
+          titulo: formPlano.titulo || 'Plano Alimentar',
+          modo: 'qualitativo',
+          ativo: true,
+        })
+        .select()
+        .single()
+
+      setSalvandoPlano(false)
+      if (error) { alert('Erro ao criar plano: ' + error.message); return }
+      setShowModalNovoPlano(false)
+      await carregarPlanos()
+      setPlanoSelecionadoId(data.id)
+      return
+    }
+
     const numerico = (v) => (v === '' ? null : Number(v))
     const vet = numerico(formPlano.vet_target)
 
@@ -1788,6 +1881,7 @@ export default function PlanoAlimentar({ userId }) {
         id_avaliador: userId,
         id_avaliacao: idAvaliacaoRecente || null,
         ...payload,
+        modo: 'quantitativo',
         ativo: true,
       })
       .select()
@@ -2015,7 +2109,7 @@ export default function PlanoAlimentar({ userId }) {
                         : 'bg-white dark:bg-slate-900 text-gray-600 dark:text-slate-400 border-gray-200 dark:border-slate-700 hover:bg-gray-50 dark:hover:bg-slate-800'
                     }`}
                   >
-                    {p.titulo} · {formatarData(p.created_at)}
+                    {p.modo === 'qualitativo' ? '📝 ' : ''}{p.titulo} · {formatarData(p.created_at)}
                   </button>
                   <InterruptorVisibilidade
                     ativo={p.ativo}
@@ -2028,7 +2122,11 @@ export default function PlanoAlimentar({ userId }) {
           </div>
         )}
 
-        {planoSelecionado && (
+        {planoSelecionado && planoSelecionado.modo === 'qualitativo' && (
+          <BlocoQualitativo plano={planoSelecionado} onAtualizado={carregarPlanos} onExcluir={handleExcluirPlano} />
+        )}
+
+        {planoSelecionado && planoSelecionado.modo !== 'qualitativo' && (
           <>
             <div className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-gray-100 dark:border-slate-800 shadow-sm">
               <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
@@ -2207,7 +2305,33 @@ export default function PlanoAlimentar({ userId }) {
                 </p>
               )}
 
-              {!editingPlanoId && modelosPlanos.length > 0 && (
+              {!editingPlanoId && (
+                <div>
+                  <div className="flex bg-gray-100 dark:bg-slate-800 p-1 rounded-lg text-xs font-semibold">
+                    <button
+                      type="button"
+                      onClick={() => setModoNovoPlano('quantitativo')}
+                      className={`flex-1 py-1.5 rounded-md transition-colors ${modoNovoPlano === 'quantitativo' ? 'bg-white dark:bg-slate-900 text-primary-600 shadow' : 'text-gray-500 dark:text-slate-400'}`}
+                    >
+                      📊 Quantitativo
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setModoNovoPlano('qualitativo')}
+                      className={`flex-1 py-1.5 rounded-md transition-colors ${modoNovoPlano === 'qualitativo' ? 'bg-white dark:bg-slate-900 text-primary-600 shadow' : 'text-gray-500 dark:text-slate-400'}`}
+                    >
+                      📝 Qualitativo
+                    </button>
+                  </div>
+                  {modoNovoPlano === 'qualitativo' && (
+                    <p className="text-[11px] text-gray-500 dark:text-slate-400 mt-1.5">
+                      Sem refeições nem cálculo de macros — depois de criar, você escreve a prescrição em texto livre.
+                    </p>
+                  )}
+                </div>
+              )}
+
+              {!editingPlanoId && modoNovoPlano === 'quantitativo' && modelosPlanos.length > 0 && (
                 <div>
                   <label className="block text-xs font-bold text-gray-700 dark:text-slate-300 uppercase tracking-wider mb-1">
                     Começar a partir de um modelo (opcional)
@@ -2237,6 +2361,8 @@ export default function PlanoAlimentar({ userId }) {
                 />
               </div>
 
+              {(editingPlanoId || modoNovoPlano === 'quantitativo') && (
+              <>
               <div className="flex bg-gray-100 dark:bg-slate-800 p-1 rounded-lg text-xs font-semibold">
                 <button
                   type="button"
@@ -2367,6 +2493,8 @@ export default function PlanoAlimentar({ userId }) {
                     ) : null
                   })()}
                 </>
+              )}
+              </>
               )}
 
               <div className="flex justify-end gap-3 pt-2">
