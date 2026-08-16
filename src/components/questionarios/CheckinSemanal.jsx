@@ -19,6 +19,7 @@ function formatarData(dataStr) {
 function CardCheckin({ checkin, paciente, userId, aoRemovido }) {
   const { darkMode } = useTheme()
   const [envioPendente, setEnvioPendente] = useState(null)
+  const [ultimoEnvio, setUltimoEnvio] = useState(null)
   const [dadosRelatorio, setDadosRelatorio] = useState([])
   const [seriesNumericas, setSeriesNumericas] = useState([])
   const [gerandoLembrete, setGerandoLembrete] = useState(false)
@@ -36,6 +37,7 @@ function CardCheckin({ checkin, paciente, userId, aoRemovido }) {
 
     const pendente = (envios || []).filter((e) => e.status === 'aguardando').slice(-1)[0] || null
     setEnvioPendente(pendente)
+    setUltimoEnvio((envios || []).slice(-1)[0] || null)
 
     const respondidos = (envios || []).filter((e) => e.status !== 'aguardando' && e.respondido_em)
     const nomesSeries = new Set()
@@ -81,9 +83,23 @@ function CardCheckin({ checkin, paciente, userId, aoRemovido }) {
   }
 
   const handleEnviarLembrete = async () => {
-    setGerandoLembrete(true)
     let envio = envioPendente
     if (!envio) {
+      // Sem pendente: só abre um ciclo novo se o último (respondido) já
+      // passou de 7 dias — senão o check-in fica "reabrindo" toda hora que
+      // alguém clica o botão de novo, em vez de respeitar a recorrência
+      // semanal.
+      const referencia = ultimoEnvio?.respondido_em || ultimoEnvio?.created_at
+      if (referencia) {
+        const diasDesde = (Date.now() - new Date(referencia).getTime()) / (1000 * 60 * 60 * 24)
+        if (diasDesde < 7) {
+          const diasRestantes = Math.ceil(7 - diasDesde)
+          alert(`Esse check-in já foi respondido há menos de 7 dias. O próximo libera em ${diasRestantes} dia${diasRestantes === 1 ? '' : 's'}.`)
+          return
+        }
+      }
+
+      setGerandoLembrete(true)
       const { data, error } = await supabase
         .from('questionario_envios')
         .insert({ id_questionario: checkin.id_questionario, id_avaliador: userId, id_paciente: paciente.id })
@@ -92,16 +108,16 @@ function CardCheckin({ checkin, paciente, userId, aoRemovido }) {
       if (error) { setGerandoLembrete(false); alert('Erro ao gerar envio: ' + error.message); return }
       envio = data
       setEnvioPendente(data)
+      setGerandoLembrete(false)
     }
-    setGerandoLembrete(false)
 
     const link = `${window.location.origin}/questionario/${envio.token_publico}`
     const telefoneLimpo = paciente.telefone?.replace(/\D/g, '')
     if (!telefoneLimpo) { alert('Este paciente não tem telefone cadastrado.'); return }
     const mensagem = [
-      `Olá, ${paciente.nome_completo.split(' ')[0]}! 👋`,
+      `Olá, ${paciente.nome_completo.split(' ')[0]}! ✋`,
       '',
-      `Hora do seu check-in: *${checkin.questionarios.titulo}* 📝`,
+      `Hora do seu check-in: *${checkin.questionarios.titulo}* ✏️`,
       '',
       'É rapidinho, leva menos de 1 minuto:',
       link,

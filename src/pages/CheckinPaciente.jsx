@@ -93,12 +93,22 @@ export default function CheckinPaciente() {
       if (idsCheckin.length > 0) {
         const { data: enviosPendentes } = await supabase
           .from('questionario_envios')
-          .select('id, token_publico, created_at, questionarios(titulo)')
+          .select('id, id_questionario, token_publico, created_at, questionarios(titulo)')
           .eq('id_paciente', pacData.id)
           .eq('status', 'aguardando')
           .in('id_questionario', idsCheckin)
           .order('created_at', { ascending: false })
-        setPendentes(enviosPendentes || [])
+
+        // Um check-in recorrente pode acumular mais de um envio "aguardando"
+        // (ex: reenvios manuais de teste) — só o mais recente de cada
+        // questionário importa pro paciente, os outros ficam obsoletos.
+        const vistos = new Set()
+        const unicos = (enviosPendentes || []).filter((e) => {
+          if (vistos.has(e.id_questionario)) return false
+          vistos.add(e.id_questionario)
+          return true
+        })
+        setPendentes(unicos)
       } else {
         setPendentes([])
       }
