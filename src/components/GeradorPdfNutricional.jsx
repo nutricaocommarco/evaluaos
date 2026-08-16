@@ -1,7 +1,27 @@
 import React, { useState, useEffect } from 'react'
-import { Document, Page, Text, View, StyleSheet, PDFDownloadLink, Image } from '@react-pdf/renderer'
+import { Document, Page, Text, View, StyleSheet, pdf, Image } from '@react-pdf/renderer'
 import { supabase } from '../supabaseClient'
 import { ArrowUp, ArrowDown, FileDown } from 'lucide-react'
+
+// Gera o PDF uma única vez, no momento do clique, e dispara o download via
+// blob. Importante NÃO usar PDFDownloadLink aqui: ele mantém o documento
+// "vivo" e regenera o PDF em segundo plano a cada re-render do componente
+// (inclusive a cada clique nas setinhas de reordenar) — com vários blocos e
+// reordenações em sequência, gerações assíncronas se sobrepõem e o motor de
+// paginação do react-pdf duplica/triplica blocos de conteúdo no resultado
+// final. Gerando sob demanda (pdf().toBlob()) isso não acontece: só existe
+// uma geração, com o estado exato de `blocos` no momento do clique.
+export async function baixarPdf(documento, nomeArquivo) {
+  const blob = await pdf(documento).toBlob()
+  const url = URL.createObjectURL(blob)
+  const link = window.document.createElement('a')
+  link.href = url
+  link.download = nomeArquivo
+  window.document.body.appendChild(link)
+  link.click()
+  window.document.body.removeChild(link)
+  URL.revokeObjectURL(url)
+}
 
 // Gerador de PDF nutricional — junta num só documento o que o nutricionista
 // escolher: Plano Alimentar (refeições + macros + fibra), Orientações
@@ -362,6 +382,8 @@ export default function GeradorPdfNutricional({ paciente, avaliadorUserId, aoFec
   const [pesoAtual, setPesoAtual] = useState(null)
   const [avaliador, setAvaliador] = useState(null)
   const [blocos, setBlocos] = useState([])
+  const [gerandoUnico, setGerandoUnico] = useState(false)
+  const [gerandoId, setGerandoId] = useState(null)
 
   useEffect(() => {
     const carregar = async () => {
@@ -454,6 +476,32 @@ export default function GeradorPdfNutricional({ paciente, avaliadorUserId, aoFec
   const nomeArquivo = paciente?.nome_completo ? paciente.nome_completo.replace(/\s+/g, '_') : 'Paciente'
   const algumIncluido = blocos.some((b) => b.incluido)
 
+  const handleBaixarIndividual = async (bloco) => {
+    setGerandoId(bloco.id)
+    try {
+      await baixarPdf(
+        <DocumentoIndividual paciente={paciente} avaliador={avaliador} bloco={bloco} plano={plano} refeicoes={refeicoes} pesoAtual={pesoAtual} />,
+        `${TITULO_BLOCO[bloco.tipo].replace(/\s+/g, '_')}_${nomeArquivo}.pdf`
+      )
+    } catch (err) {
+      alert('Erro ao gerar PDF: ' + err.message)
+    }
+    setGerandoId(null)
+  }
+
+  const handleBaixarUnico = async () => {
+    setGerandoUnico(true)
+    try {
+      await baixarPdf(
+        <DocumentoPdfNutricional paciente={paciente} avaliador={avaliador} blocos={blocos} plano={plano} refeicoes={refeicoes} pesoAtual={pesoAtual} />,
+        `Plano_Nutricional_${nomeArquivo}.pdf`
+      )
+    } catch (err) {
+      alert('Erro ao gerar PDF: ' + err.message)
+    }
+    setGerandoUnico(false)
+  }
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 overflow-y-auto">
       <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-xl w-full max-w-xl max-h-[90vh] flex flex-col overflow-hidden">
@@ -533,27 +581,15 @@ export default function GeradorPdfNutricional({ paciente, avaliadorUserId, aoFec
                       </div>
                     ) : (
                       bloco.incluido && (bloco.tipo !== 'plano' || plano) && (
-                        <PDFDownloadLink
-                          document={
-                            <DocumentoIndividual
-                              paciente={paciente}
-                              avaliador={avaliador}
-                              bloco={bloco}
-                              plano={plano}
-                              refeicoes={refeicoes}
-                              pesoAtual={pesoAtual}
-                            />
-                          }
-                          fileName={`${TITULO_BLOCO[bloco.tipo].replace(/\s+/g, '_')}_${nomeArquivo}.pdf`}
-                          className="flex items-center gap-1 px-2 py-1 bg-primary-50 dark:bg-primary-900/20 text-primary-700 dark:text-primary-400 text-[11px] font-semibold rounded-lg hover:bg-primary-100 shrink-0"
+                        <button
+                          type="button"
+                          onClick={() => handleBaixarIndividual(bloco)}
+                          disabled={gerandoId === bloco.id}
+                          className="flex items-center gap-1 px-2 py-1 bg-primary-50 dark:bg-primary-900/20 text-primary-700 dark:text-primary-400 text-[11px] font-semibold rounded-lg hover:bg-primary-100 shrink-0 disabled:opacity-50"
                         >
-                          {({ loading: gerando }) => (
-                            <>
-                              <FileDown size={12} />
-                              {gerando ? '...' : 'Baixar'}
-                            </>
-                          )}
-                        </PDFDownloadLink>
+                          <FileDown size={12} />
+                          {gerandoId === bloco.id ? '...' : 'Baixar'}
+                        </button>
                       )
                     )}
                   </div>
@@ -596,27 +632,15 @@ export default function GeradorPdfNutricional({ paciente, avaliadorUserId, aoFec
             {modo === 'separado' ? 'Fechar' : 'Cancelar'}
           </button>
           {!loading && modo === 'unico' && algumIncluido && (
-            <PDFDownloadLink
-              document={
-                <DocumentoPdfNutricional
-                  paciente={paciente}
-                  avaliador={avaliador}
-                  blocos={blocos}
-                  plano={plano}
-                  refeicoes={refeicoes}
-                  pesoAtual={pesoAtual}
-                />
-              }
-              fileName={`Plano_Nutricional_${nomeArquivo}.pdf`}
-              className="flex items-center gap-2 px-5 py-2 bg-primary-600 text-white text-sm font-semibold rounded-lg hover:bg-primary-700 shadow"
+            <button
+              type="button"
+              onClick={handleBaixarUnico}
+              disabled={gerandoUnico}
+              className="flex items-center gap-2 px-5 py-2 bg-primary-600 text-white text-sm font-semibold rounded-lg hover:bg-primary-700 shadow disabled:opacity-50"
             >
-              {({ loading: gerando }) => (
-                <>
-                  <FileDown size={16} />
-                  {gerando ? 'Gerando...' : 'Gerar PDF'}
-                </>
-              )}
-            </PDFDownloadLink>
+              <FileDown size={16} />
+              {gerandoUnico ? 'Gerando...' : 'Gerar PDF'}
+            </button>
           )}
         </div>
       </div>

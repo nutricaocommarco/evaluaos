@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react'
-import { Document, Page, Text, View, Image, PDFDownloadLink } from '@react-pdf/renderer'
+import { Document, Page, Text, View, Image } from '@react-pdf/renderer'
 import { supabase } from '../supabaseClient'
 import { classificarImc, classificarRcq, classificarRce } from '../utils/escalasNormativas'
 import { ArrowUp, ArrowDown, FileDown } from 'lucide-react'
 import {
-  styles, fmt, calcularFibraRecomendada, converterHtmlParaPdf, BlocoPlanoAlimentar,
+  styles, fmt, calcularFibraRecomendada, converterHtmlParaPdf, BlocoPlanoAlimentar, baixarPdf,
 } from './GeradorPdfNutricional'
 
 // Versão "completa" do gerador de PDF, só usada no Perfil do Paciente: além
@@ -249,6 +249,8 @@ export default function GeradorPdfCompleto({ paciente, avaliadorUserId, aoFechar
   const [avaliador, setAvaliador] = useState(null)
   const [blocos, setBlocos] = useState([])
   const [ctx, setCtx] = useState({})
+  const [gerandoUnico, setGerandoUnico] = useState(false)
+  const [gerandoId, setGerandoId] = useState(null)
 
   useEffect(() => {
     const carregar = async () => {
@@ -366,6 +368,32 @@ export default function GeradorPdfCompleto({ paciente, avaliadorUserId, aoFechar
 
   const LABEL_TIPO = { plano: 'Plano', orientacao: 'Orientação', lista: 'Lista', laudo: 'Laudo', evolucao: 'Evolução' }
 
+  const handleBaixarIndividual = async (bloco) => {
+    setGerandoId(bloco.id)
+    try {
+      await baixarPdf(
+        <DocumentoIndividual titulo={TITULO_BLOCO[bloco.tipo]} paciente={paciente} avaliador={avaliador} bloco={bloco} ctx={ctx} />,
+        `${TITULO_BLOCO[bloco.tipo].replace(/\s+/g, '_')}_${nomeArquivo}.pdf`
+      )
+    } catch (err) {
+      alert('Erro ao gerar PDF: ' + err.message)
+    }
+    setGerandoId(null)
+  }
+
+  const handleBaixarUnico = async () => {
+    setGerandoUnico(true)
+    try {
+      await baixarPdf(
+        <DocumentoUnico paciente={paciente} avaliador={avaliador} blocos={blocos} ctx={ctx} />,
+        `Prontuario_Nutricional_${nomeArquivo}.pdf`
+      )
+    } catch (err) {
+      alert('Erro ao gerar PDF: ' + err.message)
+    }
+    setGerandoUnico(false)
+  }
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 overflow-y-auto">
       <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-xl w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden">
@@ -429,18 +457,15 @@ export default function GeradorPdfCompleto({ paciente, avaliadorUserId, aoFechar
                       </div>
                     ) : (
                       bloco.incluido && (
-                        <PDFDownloadLink
-                          document={<DocumentoIndividual titulo={TITULO_BLOCO[bloco.tipo]} paciente={paciente} avaliador={avaliador} bloco={bloco} ctx={ctx} />}
-                          fileName={`${TITULO_BLOCO[bloco.tipo].replace(/\s+/g, '_')}_${nomeArquivo}.pdf`}
-                          className="flex items-center gap-1 px-2 py-1 bg-primary-50 dark:bg-primary-900/20 text-primary-700 dark:text-primary-400 text-[11px] font-semibold rounded-lg hover:bg-primary-100 shrink-0"
+                        <button
+                          type="button"
+                          onClick={() => handleBaixarIndividual(bloco)}
+                          disabled={gerandoId === bloco.id}
+                          className="flex items-center gap-1 px-2 py-1 bg-primary-50 dark:bg-primary-900/20 text-primary-700 dark:text-primary-400 text-[11px] font-semibold rounded-lg hover:bg-primary-100 shrink-0 disabled:opacity-50"
                         >
-                          {({ loading: gerando }) => (
-                            <>
-                              <FileDown size={12} />
-                              {gerando ? '...' : 'Baixar'}
-                            </>
-                          )}
-                        </PDFDownloadLink>
+                          <FileDown size={12} />
+                          {gerandoId === bloco.id ? '...' : 'Baixar'}
+                        </button>
                       )
                     )}
                   </div>
@@ -478,18 +503,15 @@ export default function GeradorPdfCompleto({ paciente, avaliadorUserId, aoFechar
             {modo === 'separado' ? 'Fechar' : 'Cancelar'}
           </button>
           {!loading && modo === 'unico' && algumIncluido && (
-            <PDFDownloadLink
-              document={<DocumentoUnico paciente={paciente} avaliador={avaliador} blocos={blocos} ctx={ctx} />}
-              fileName={`Prontuario_Nutricional_${nomeArquivo}.pdf`}
-              className="flex items-center gap-2 px-5 py-2 bg-primary-600 text-white text-sm font-semibold rounded-lg hover:bg-primary-700 shadow"
+            <button
+              type="button"
+              onClick={handleBaixarUnico}
+              disabled={gerandoUnico}
+              className="flex items-center gap-2 px-5 py-2 bg-primary-600 text-white text-sm font-semibold rounded-lg hover:bg-primary-700 shadow disabled:opacity-50"
             >
-              {({ loading: gerando }) => (
-                <>
-                  <FileDown size={16} />
-                  {gerando ? 'Gerando...' : 'Gerar PDF'}
-                </>
-              )}
-            </PDFDownloadLink>
+              <FileDown size={16} />
+              {gerandoUnico ? 'Gerando...' : 'Gerar PDF'}
+            </button>
           )}
         </div>
       </div>
