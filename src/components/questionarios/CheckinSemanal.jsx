@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react'
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
 import { supabase } from '../../supabaseClient'
 import { useTheme } from '../../contexts/ThemeContext'
-import { MessageCircle, TrendingUp, X, Plus } from 'lucide-react'
+import { MessageCircle, TrendingUp, X, Plus, ChevronDown, ChevronRight } from 'lucide-react'
 
 const CORES_LINHA = ['#2563eb', '#059669', '#d97706', '#dc2626', '#7c3aed']
 const TIPOS_NO_RELATORIO = ['numero', 'escala_linear']
@@ -24,6 +24,7 @@ function CardCheckin({ checkin, paciente, userId, aoRemovido }) {
   const [gerandoLembrete, setGerandoLembrete] = useState(false)
   const [salvando, setSalvando] = useState(false)
   const [mostrarGrafico, setMostrarGrafico] = useState(!!checkin.mostrar_grafico_paciente)
+  const [aberto, setAberto] = useState(false)
 
   const carregarRelatorio = async () => {
     const { data: envios } = await supabase
@@ -105,7 +106,18 @@ function CardCheckin({ checkin, paciente, userId, aoRemovido }) {
   return (
     <div className="border border-gray-200 dark:border-slate-700 rounded-xl p-4 space-y-3">
       <div className="flex items-center justify-between gap-2">
-        <p className="text-sm font-black text-gray-800 dark:text-slate-100">{checkin.questionarios.titulo}</p>
+        <button
+          type="button"
+          onClick={() => setAberto((v) => !v)}
+          className="flex-1 flex items-center gap-1.5 text-left min-w-0"
+        >
+          {aberto ? (
+            <ChevronDown size={16} className="text-gray-400 dark:text-slate-500 shrink-0" />
+          ) : (
+            <ChevronRight size={16} className="text-gray-400 dark:text-slate-500 shrink-0" />
+          )}
+          <p className="text-sm font-black text-gray-800 dark:text-slate-100 truncate">{checkin.questionarios.titulo}</p>
+        </button>
         <button
           type="button"
           onClick={handleRemover}
@@ -117,6 +129,8 @@ function CardCheckin({ checkin, paciente, userId, aoRemovido }) {
         </button>
       </div>
 
+      {aberto && (
+      <>
       <div className="flex flex-wrap items-center gap-3">
         <button
           type="button"
@@ -145,26 +159,36 @@ function CardCheckin({ checkin, paciente, userId, aoRemovido }) {
         </button>
       </div>
 
-      {dadosRelatorio.length > 0 && (
-        <div className="pt-2 space-y-2">
+      {dadosRelatorio.length > 0 && seriesNumericas.length > 0 && (
+        <div className="pt-2 space-y-3">
           <p className="text-xs font-bold text-gray-600 dark:text-slate-400 flex items-center gap-1.5">
             <TrendingUp size={13} /> Relatório — respostas ao longo do tempo
           </p>
-          <div className="w-full h-[220px]">
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={dadosRelatorio} margin={{ top: 5, right: 10, left: -20, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={darkMode ? '#334155' : '#e2e8f0'} />
-                <XAxis dataKey="data" tick={{ fontSize: 10, fill: darkMode ? '#94a3b8' : '#64748b' }} tickLine={false} axisLine={false} />
-                <YAxis tick={{ fontSize: 10, fill: darkMode ? '#94a3b8' : '#64748b' }} tickLine={false} axisLine={false} />
-                <Tooltip contentStyle={{ fontSize: 11, borderRadius: 8 }} />
-                <Legend wrapperStyle={{ fontSize: 11 }} />
-                {seriesNumericas.map((nome, idx) => (
-                  <Line key={nome} type="monotone" dataKey={nome} stroke={CORES_LINHA[idx % CORES_LINHA.length]} strokeWidth={2} dot={{ r: 3 }} connectNulls />
-                ))}
-              </LineChart>
-            </ResponsiveContainer>
-          </div>
+          {/* Um mini-gráfico por pergunta em vez de um gráfico só com todas
+              as séries — com perguntas de texto longo (comum em escala
+              linear), uma legenda combinada tomava o espaço todo e o
+              gráfico em si nem aparecia. */}
+          {seriesNumericas.map((nome, idx) => (
+            <div key={nome} className="space-y-1">
+              <p className="text-[11px] font-semibold text-gray-500 dark:text-slate-400 line-clamp-2" title={nome}>
+                {nome}
+              </p>
+              <div className="w-full h-[110px]">
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={dadosRelatorio} margin={{ top: 5, right: 10, left: -20, bottom: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={darkMode ? '#334155' : '#e2e8f0'} />
+                    <XAxis dataKey="data" tick={{ fontSize: 9, fill: darkMode ? '#94a3b8' : '#64748b' }} tickLine={false} axisLine={false} />
+                    <YAxis tick={{ fontSize: 9, fill: darkMode ? '#94a3b8' : '#64748b' }} tickLine={false} axisLine={false} width={24} />
+                    <Tooltip contentStyle={{ fontSize: 11, borderRadius: 8 }} />
+                    <Line type="monotone" dataKey={nome} stroke={CORES_LINHA[idx % CORES_LINHA.length]} strokeWidth={2} dot={{ r: 3 }} connectNulls />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+          ))}
         </div>
+      )}
+      </>
       )}
     </div>
   )

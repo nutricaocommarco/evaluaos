@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { supabase } from '../supabaseClient'
+import { aplicarBuscaPorPalavras } from '../utils/buscaAlimentos'
 
 // A maioria das medidas caseiras já vem com a contagem embutida na
 // descrição ("1 colher de sopa cheia") — só antepõe "1 " se ainda não
@@ -110,10 +111,11 @@ export default function TabelaAlimentos({ userId }) {
 
     const delayDebounce = setTimeout(async () => {
       setBuscando(true)
-      const { data, error } = await supabase
-        .from('tabela_alimentos')
-        .select('*')
-        .ilike('nome', `%${busca.trim()}%`)
+      const { data, error } = await aplicarBuscaPorPalavras(
+        supabase.from('tabela_alimentos').select('*'),
+        'nome',
+        busca
+      )
         .order('nome')
         .limit(50)
 
