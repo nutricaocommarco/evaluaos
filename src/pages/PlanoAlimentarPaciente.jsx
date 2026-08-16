@@ -184,7 +184,7 @@ function BlocoPlano({ plano, aberto, aoAlternar, refeicoesAbertas, aoAlternarRef
               <div>
                 <p className="text-gray-400 dark:text-slate-500 text-sm">Calorias</p>
                 <p className="font-black text-gray-800 dark:text-slate-100">
-                  {fmt(totalDia.kcal)} {plano.vet_target ? `/ ${plano.vet_target}` : ''} kcal
+                  {fmt(totalDia.kcal)} kcal
                 </p>
               </div>
               <div>
