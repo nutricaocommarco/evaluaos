@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react'
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
 import { supabase } from '../supabaseClient'
+import { useTheme } from '../contexts/ThemeContext'
 import { ChevronLeft, ChevronRight, Pencil, Trash2, TrendingUp, TrendingDown, Wallet } from 'lucide-react'
 
 const MESES = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez']
@@ -26,11 +28,13 @@ function formatarData(dataStr) {
 }
 
 export default function Financeiro({ userId }) {
+  const { darkMode } = useTheme()
   const [loading, setLoading] = useState(true)
   const [movimentacoes, setMovimentacoes] = useState([])
   const [pacientes, setPacientes] = useState([])
   const [ano, setAno] = useState(new Date().getFullYear())
   const [mesSelecionado, setMesSelecionado] = useState(new Date().getMonth()) // null = ano todo
+  const [abaAtiva, setAbaAtiva] = useState('movimentacoes') // 'movimentacoes' | 'fluxo'
 
   const [showModal, setShowModal] = useState(false)
   const [editingId, setEditingId] = useState(null)
@@ -74,6 +78,17 @@ export default function Financeiro({ userId }) {
   const totalReceitas = movimentacoesDoPeriodo.filter((m) => m.tipo === 'receita').reduce((acc, m) => acc + Number(m.valor), 0)
   const totalDespesas = movimentacoesDoPeriodo.filter((m) => m.tipo === 'despesa').reduce((acc, m) => acc + Number(m.valor), 0)
   const saldo = totalReceitas - totalDespesas
+
+  // Fluxo de caixa: receitas x despesas de cada mês do ano inteiro, pra
+  // comparar de relance — independe do mês selecionado no seletor acima.
+  const dadosFluxoCaixa = MESES.map((mes, idx) => {
+    const doMes = movimentacoes.filter((m) => new Date(`${m.data}T00:00:00`).getMonth() === idx)
+    return {
+      mes,
+      Receitas: doMes.filter((m) => m.tipo === 'receita').reduce((acc, m) => acc + Number(m.valor), 0),
+      Despesas: doMes.filter((m) => m.tipo === 'despesa').reduce((acc, m) => acc + Number(m.valor), 0),
+    }
+  })
 
   const abrirNova = () => {
     setEditingId(null)
@@ -155,6 +170,29 @@ export default function Financeiro({ userId }) {
         </button>
       </div>
 
+      <div className="flex gap-1 border-b border-gray-200 dark:border-slate-800">
+        <button
+          onClick={() => setAbaAtiva('movimentacoes')}
+          className={`px-4 py-2 text-sm font-semibold border-b-2 -mb-px transition-colors ${
+            abaAtiva === 'movimentacoes'
+              ? 'border-primary-600 text-primary-600'
+              : 'border-transparent text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-200'
+          }`}
+        >
+          Movimentações
+        </button>
+        <button
+          onClick={() => setAbaAtiva('fluxo')}
+          className={`px-4 py-2 text-sm font-semibold border-b-2 -mb-px transition-colors ${
+            abaAtiva === 'fluxo'
+              ? 'border-primary-600 text-primary-600'
+              : 'border-transparent text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-200'
+          }`}
+        >
+          Fluxo de Caixa
+        </button>
+      </div>
+
       <div className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-gray-100 dark:border-slate-800 shadow-sm space-y-3">
         <div className="flex items-center justify-center gap-3">
           <button onClick={() => setAno((a) => a - 1)} className="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-slate-200">
@@ -207,6 +245,7 @@ export default function Financeiro({ userId }) {
         </div>
       </div>
 
+      {abaAtiva === 'movimentacoes' && (
       <div className="bg-white dark:bg-slate-900 rounded-xl border border-gray-100 dark:border-slate-800 shadow-sm overflow-hidden">
         {loading ? (
           <p className="text-sm text-primary-600 font-semibold text-center py-8 animate-pulse">Carregando...</p>
@@ -242,6 +281,39 @@ export default function Financeiro({ userId }) {
           </div>
         )}
       </div>
+      )}
+
+      {abaAtiva === 'fluxo' && (
+      <div className="bg-white dark:bg-slate-900 p-5 rounded-xl border border-gray-100 dark:border-slate-800 shadow-sm">
+        <h3 className="text-sm font-black text-gray-800 dark:text-slate-100">Fluxo de Caixa</h3>
+        <p className="text-xs text-gray-500 dark:text-slate-400 mt-0.5 mb-4">
+          Quanto entrou e saiu do caixa em cada mês de {ano}.
+        </p>
+        {loading ? (
+          <p className="text-sm text-primary-600 font-semibold text-center py-8 animate-pulse">Carregando...</p>
+        ) : (
+          <div className="w-full h-[300px]">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={dadosFluxoCaixa} margin={{ top: 5, right: 10, left: 10, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={darkMode ? '#334155' : '#e2e8f0'} />
+                <XAxis dataKey="mes" tick={{ fontSize: 11, fill: darkMode ? '#94a3b8' : '#64748b' }} tickLine={false} axisLine={false} />
+                <YAxis
+                  tick={{ fontSize: 11, fill: darkMode ? '#94a3b8' : '#64748b' }}
+                  tickLine={false}
+                  axisLine={false}
+                  tickFormatter={(v) => fmtMoeda(v).replace(/,00$/, '')}
+                  width={80}
+                />
+                <Tooltip formatter={(v) => fmtMoeda(v)} contentStyle={{ fontSize: 12, borderRadius: 8 }} />
+                <Legend wrapperStyle={{ fontSize: 12 }} />
+                <Bar dataKey="Receitas" fill="#2563eb" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="Despesas" fill="#d97706" radius={[4, 4, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        )}
+      </div>
+      )}
 
       {showModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 overflow-y-auto">
