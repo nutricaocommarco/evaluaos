@@ -32,11 +32,6 @@ const SECOES = [
     cor: 'text-rose-600 bg-rose-50 dark:bg-rose-900/20 dark:text-rose-400',
     itens: [
       {
-        chave: 'modulo-financeiro',
-        titulo: 'Financeiro',
-        texto: 'Controle financeiro do seu consultório: receitas, despesas e histórico de pagamentos dos pacientes.',
-      },
-      {
         chave: 'modulo-antropometria-crianca',
         titulo: 'Antropometria para Criança',
         texto: 'Avaliação antropométrica com curvas e referências específicas pro público infantil.',
