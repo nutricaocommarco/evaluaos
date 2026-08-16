@@ -26,6 +26,17 @@
       "destination": "/api/og-preview?token=:token"
     },
     {
+      "source": "/questionario/:token",
+      "has": [
+        {
+          "type": "header",
+          "key": "user-agent",
+          "value": ".*(facebookexternalhit|WhatsApp|Twitterbot|LinkedInBot|Slackbot|TelegramBot|Discordbot|Googlebot|Bingbot|Pinterest|redditbot|SkypeUriPreview).*"
+        }
+      ],
+      "destination": "/api/og-preview?token=:token&tipo=questionario"
+    },
+    {
       "source": "/(.*)",
       "destination": "/index.html"
     }
