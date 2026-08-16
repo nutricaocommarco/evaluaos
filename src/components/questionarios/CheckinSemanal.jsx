@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
 import { supabase } from '../../supabaseClient'
 import { useTheme } from '../../contexts/ThemeContext'
 import { MessageCircle, TrendingUp, X, Plus, ChevronDown, ChevronRight } from 'lucide-react'
@@ -28,30 +28,57 @@ function CardCheckin({ checkin, paciente, userId, aoRemovido }) {
   const [aberto, setAberto] = useState(false)
 
   const carregarRelatorio = async () => {
-    const { data: envios } = await supabase
-      .from('questionario_envios')
-      .select('id, status, respondido_em, questionario_respostas(resposta, questionario_perguntas(texto, tipo))')
-      .eq('id_paciente', paciente.id)
-      .eq('id_questionario', checkin.id_questionario)
-      .order('created_at', { ascending: true })
+    const [avalRes, enviosRes] = await Promise.all([
+      supabase
+        .from('avaliacoes')
+        .select('altura_paciente')
+        .eq('id_paciente', paciente.id)
+        .order('data_avaliacao', { ascending: false })
+        .limit(1)
+        .maybeSingle(),
+      supabase
+        .from('questionario_envios')
+        .select('id, status, respondido_em, questionario_respostas(resposta, questionario_perguntas(texto, tipo, campo_especial))')
+        .eq('id_paciente', paciente.id)
+        .eq('id_questionario', checkin.id_questionario)
+        .order('created_at', { ascending: true }),
+    ])
 
+    const envios = enviosRes.data
     const pendente = (envios || []).filter((e) => e.status === 'aguardando').slice(-1)[0] || null
     setEnvioPendente(pendente)
     setUltimoEnvio((envios || []).slice(-1)[0] || null)
 
+    let alturaCm = avalRes.data?.altura_paciente || null
+    let temPeso = false
     const respondidos = (envios || []).filter((e) => e.status !== 'aguardando' && e.respondido_em)
     const nomesSeries = new Set()
     const linhas = respondidos.map((envio) => {
       const linha = { data: formatarData(envio.respondido_em) }
+      let alturaManual = null
       for (const resp of envio.questionario_respostas || []) {
-        if (TIPOS_NO_RELATORIO.includes(resp.questionario_perguntas?.tipo) && resp.resposta) {
-          const nome = resp.questionario_perguntas.texto || 'Valor'
+        const pergunta = resp.questionario_perguntas
+        if (!pergunta || !resp.resposta) continue
+        if (pergunta.campo_especial === 'altura') { alturaManual = Number(resp.resposta); continue }
+        if (TIPOS_NO_RELATORIO.includes(pergunta.tipo)) {
+          const nome = pergunta.campo_especial === 'peso' ? 'Peso (kg)' : (pergunta.texto || 'Valor')
           linha[nome] = Number(resp.resposta)
           nomesSeries.add(nome)
+          if (pergunta.campo_especial === 'peso') temPeso = true
         }
       }
+      if (alturaManual && !alturaCm) alturaCm = alturaManual
       return linha
     })
+
+    if (temPeso && alturaCm) {
+      const alturaM = alturaCm / 100
+      for (const linha of linhas) {
+        if (linha['Peso (kg)']) linha['IMC'] = Number((linha['Peso (kg)'] / (alturaM * alturaM)).toFixed(1))
+      }
+      nomesSeries.add('IMC')
+    }
+
     setDadosRelatorio(linhas)
     setSeriesNumericas([...nomesSeries])
   }
@@ -189,11 +216,29 @@ function CardCheckin({ checkin, paciente, userId, aoRemovido }) {
           <p className="text-xs font-bold text-gray-600 dark:text-slate-400 flex items-center gap-1.5">
             <TrendingUp size={13} /> Relatório — respostas ao longo do tempo
           </p>
-          {/* Um mini-gráfico por pergunta em vez de um gráfico só com todas
-              as séries — com perguntas de texto longo (comum em escala
-              linear), uma legenda combinada tomava o espaço todo e o
-              gráfico em si nem aparecia. */}
-          {seriesNumericas.map((nome, idx) => (
+
+          {/* Peso e IMC ficam juntos num gráfico só (dupla, com legenda) —
+              igual ao que o paciente vê. As demais perguntas (texto pode
+              ser uma frase inteira, comum em escala linear) viram mini-
+              gráficos individuais sem legenda combinada, senão a legenda
+              toma o espaço todo e o gráfico nem aparece. */}
+          {(seriesNumericas.includes('Peso (kg)') || seriesNumericas.includes('IMC')) && (
+            <div className="w-full h-[160px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={dadosRelatorio} margin={{ top: 5, right: 10, left: -20, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={darkMode ? '#334155' : '#e2e8f0'} />
+                  <XAxis dataKey="data" tick={{ fontSize: 9, fill: darkMode ? '#94a3b8' : '#64748b' }} tickLine={false} axisLine={false} />
+                  <YAxis tick={{ fontSize: 9, fill: darkMode ? '#94a3b8' : '#64748b' }} tickLine={false} axisLine={false} width={30} />
+                  <Tooltip contentStyle={{ fontSize: 11, borderRadius: 8 }} />
+                  <Legend wrapperStyle={{ fontSize: 10 }} />
+                  {seriesNumericas.includes('Peso (kg)') && <Line type="monotone" dataKey="Peso (kg)" stroke="#2563eb" strokeWidth={2} dot={{ r: 3 }} connectNulls />}
+                  {seriesNumericas.includes('IMC') && <Line type="monotone" dataKey="IMC" stroke="#059669" strokeWidth={2} dot={{ r: 3 }} connectNulls />}
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          )}
+
+          {seriesNumericas.filter((nome) => nome !== 'Peso (kg)' && nome !== 'IMC').map((nome, idx) => (
             <div key={nome} className="space-y-1">
               <p className="text-[11px] font-semibold text-gray-500 dark:text-slate-400 line-clamp-2" title={nome}>
                 {nome}
