@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
 import { supabase } from '../supabaseClient'
 import { useTheme } from '../contexts/ThemeContext'
-import { ChevronLeft, ChevronRight, Pencil, Trash2, TrendingUp, TrendingDown, Wallet, Repeat } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Pencil, Trash2, TrendingUp, TrendingDown, Wallet, Repeat, AlertTriangle, Check } from 'lucide-react'
 
 const MESES = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez']
 const CATEGORIAS_RECEITA = ['Consultas', 'Venda de produtos', 'Outro']
@@ -17,6 +17,7 @@ const CAMPOS_VAZIOS = {
   data: new Date().toISOString().slice(0, 10),
   pago: false,
   recorrente: false,
+  data_vencimento: '',
 }
 
 function fmtMoeda(n) {
@@ -35,7 +36,9 @@ export default function Financeiro({ userId }) {
   const [pacientes, setPacientes] = useState([])
   const [ano, setAno] = useState(new Date().getFullYear())
   const [mesSelecionado, setMesSelecionado] = useState(new Date().getMonth()) // null = ano todo
-  const [abaAtiva, setAbaAtiva] = useState('movimentacoes') // 'movimentacoes' | 'fluxo'
+  const [abaAtiva, setAbaAtiva] = useState('movimentacoes') // 'movimentacoes' | 'pendencias' | 'fluxo'
+  const [pendencias, setPendencias] = useState([])
+  const [carregandoPendencias, setCarregandoPendencias] = useState(true)
 
   const [showModal, setShowModal] = useState(false)
   const [editingId, setEditingId] = useState(null)
@@ -54,10 +57,27 @@ export default function Financeiro({ userId }) {
     setLoading(false)
   }
 
+  // Pendências não são filtradas por ano/mês — um boleto vencido do ano
+  // passado continua pendente e precisa aparecer aqui até ser resolvido.
+  const carregarPendencias = async () => {
+    setCarregandoPendencias(true)
+    const { data } = await supabase
+      .from('movimentacoes_financeiras')
+      .select('*, pacientes(nome_completo)')
+      .eq('pago', false)
+      .order('data_vencimento', { ascending: true, nullsFirst: false })
+    setPendencias(data || [])
+    setCarregandoPendencias(false)
+  }
+
   useEffect(() => {
     carregarMovimentacoes(ano)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ano])
+
+  useEffect(() => {
+    carregarPendencias()
+  }, [])
 
   useEffect(() => {
     const carregarPacientes = async () => {
@@ -108,6 +128,7 @@ export default function Financeiro({ userId }) {
       data: m.data,
       pago: m.pago,
       recorrente: m.recorrente,
+      data_vencimento: m.data_vencimento || '',
     })
     setShowModal(true)
   }
@@ -131,6 +152,7 @@ export default function Financeiro({ userId }) {
       data: form.data,
       pago: form.pago,
       recorrente: form.recorrente,
+      data_vencimento: form.pago ? null : (form.data_vencimento || null),
     }
 
     if (editingId) {
@@ -145,6 +167,7 @@ export default function Financeiro({ userId }) {
 
     setShowModal(false)
     carregarMovimentacoes(ano)
+    carregarPendencias()
   }
 
   const handleExcluir = async (id) => {
@@ -152,8 +175,20 @@ export default function Financeiro({ userId }) {
     const { error } = await supabase.from('movimentacoes_financeiras').delete().eq('id', id)
     if (error) { alert('Erro ao excluir: ' + error.message); return }
     setMovimentacoes((prev) => prev.filter((m) => m.id !== id))
+    setPendencias((prev) => prev.filter((m) => m.id !== id))
   }
 
+  const handleMarcarPago = async (m) => {
+    const { error } = await supabase
+      .from('movimentacoes_financeiras')
+      .update({ pago: true, data_vencimento: null })
+      .eq('id', m.id)
+    if (error) { alert('Erro ao atualizar: ' + error.message); return }
+    setPendencias((prev) => prev.filter((p) => p.id !== m.id))
+    setMovimentacoes((prev) => prev.map((mv) => (mv.id === m.id ? { ...mv, pago: true, data_vencimento: null } : mv)))
+  }
+
+  const hojeStr = new Date().toISOString().slice(0, 10)
   const categoriasDoForm = form.tipo === 'receita' ? CATEGORIAS_RECEITA : CATEGORIAS_DESPESA
 
   return (
@@ -183,6 +218,21 @@ export default function Financeiro({ userId }) {
           }`}
         >
           Movimentações
+        </button>
+        <button
+          onClick={() => setAbaAtiva('pendencias')}
+          className={`px-4 py-2 text-sm font-semibold border-b-2 -mb-px transition-colors flex items-center gap-1.5 ${
+            abaAtiva === 'pendencias'
+              ? 'border-primary-600 text-primary-600'
+              : 'border-transparent text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-200'
+          }`}
+        >
+          Pendências
+          {pendencias.length > 0 && (
+            <span className="text-[10px] font-bold bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 rounded-full px-1.5 py-0.5">
+              {pendencias.length}
+            </span>
+          )}
         </button>
         <button
           onClick={() => setAbaAtiva('fluxo')}
@@ -286,6 +336,54 @@ export default function Financeiro({ userId }) {
                 </div>
               </div>
             ))}
+          </div>
+        )}
+      </div>
+      )}
+
+      {abaAtiva === 'pendencias' && (
+      <div className="bg-white dark:bg-slate-900 rounded-xl border border-gray-100 dark:border-slate-800 shadow-sm overflow-hidden">
+        {carregandoPendencias ? (
+          <p className="text-sm text-primary-600 font-semibold text-center py-8 animate-pulse">Carregando...</p>
+        ) : pendencias.length === 0 ? (
+          <p className="text-sm text-gray-400 dark:text-slate-500 text-center py-8">Nenhuma pendência — tudo pago e recebido.</p>
+        ) : (
+          <div className="divide-y divide-gray-100 dark:divide-slate-800">
+            {pendencias.map((m) => {
+              const atrasado = m.data_vencimento && m.data_vencimento < hojeStr
+              return (
+                <div key={m.id} className="flex items-center justify-between gap-3 p-4">
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-bold text-gray-800 dark:text-slate-100 truncate">{m.descricao}</p>
+                    <p className="text-xs text-gray-400 dark:text-slate-500">
+                      {m.categoria}
+                      {m.pacientes?.nome_completo && <> · {m.pacientes.nome_completo}</>}
+                      {m.data_vencimento && (
+                        <span className={atrasado ? 'text-red-600 dark:text-red-400 font-semibold' : ''}>
+                          {' '}· vence {formatarData(m.data_vencimento)}{atrasado ? ' (atrasado)' : ''}
+                        </span>
+                      )}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-3 shrink-0">
+                    {atrasado && <AlertTriangle size={14} className="text-red-500" />}
+                    <span className={`text-sm font-black ${m.tipo === 'receita' ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'}`}>
+                      {m.tipo === 'receita' ? '+' : '-'} {fmtMoeda(m.valor)}
+                    </span>
+                    <button
+                      onClick={() => handleMarcarPago(m)}
+                      title={m.tipo === 'receita' ? 'Marcar como recebido' : 'Marcar como pago'}
+                      className="flex items-center gap-1 px-2.5 py-1.5 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400 text-xs font-semibold rounded-lg hover:bg-emerald-100 dark:hover:bg-emerald-900/40"
+                    >
+                      <Check size={13} /> {m.tipo === 'receita' ? 'Recebido' : 'Pago'}
+                    </button>
+                    <button onClick={() => abrirEdicao(m)} className="text-gray-400 hover:text-primary-600 p-1">
+                      <Pencil size={14} />
+                    </button>
+                  </div>
+                </div>
+              )
+            })}
           </div>
         )}
       </div>
@@ -425,6 +523,21 @@ export default function Financeiro({ userId }) {
                   {form.tipo === 'receita' ? 'O paciente já pagou' : 'Já foi pago'}
                 </span>
               </label>
+
+              {!form.pago && (
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 dark:text-slate-300 uppercase tracking-wider mb-1">
+                    Data de vencimento (opcional)
+                  </label>
+                  <input
+                    type="date"
+                    value={form.data_vencimento}
+                    onChange={(e) => setForm({ ...form, data_vencimento: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-primary-500"
+                  />
+                  <p className="text-[11px] text-gray-400 dark:text-slate-500 mt-1">Alimenta a aba Pendências, com alerta pro que estiver atrasado.</p>
+                </div>
+              )}
 
               <label className="flex items-center gap-2 cursor-pointer w-fit">
                 <input
