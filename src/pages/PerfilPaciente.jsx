@@ -302,15 +302,18 @@ export default function PerfilPaciente({ userId }) {
             </div>
           </button>
 
-          <div className="bg-white dark:bg-slate-900 p-5 rounded-xl border border-dashed border-gray-200 dark:border-slate-700 shadow-sm flex items-center gap-3 opacity-60">
-            <div className="w-10 h-10 rounded-full bg-gray-50 dark:bg-slate-800 flex items-center justify-center text-gray-400 dark:text-slate-500 shrink-0">
+          <button
+            onClick={() => navigate('/financeiro', { state: { pacientePreSelecionado: paciente } })}
+            className="bg-white dark:bg-slate-900 p-5 rounded-xl border border-gray-100 dark:border-slate-800 shadow-sm flex items-center gap-3 text-left hover:border-primary-300 dark:hover:border-primary-700 transition-colors"
+          >
+            <div className="w-10 h-10 rounded-full bg-teal-50 dark:bg-teal-900/20 flex items-center justify-center text-teal-600 shrink-0">
               <CreditCard size={18} />
             </div>
             <div>
-              <p className="text-sm font-bold text-gray-600 dark:text-slate-300">Pagamentos</p>
-              <p className="text-xs text-gray-400 dark:text-slate-500">Em breve</p>
+              <p className="text-sm font-bold text-gray-800 dark:text-slate-100">Pagamentos</p>
+              <p className="text-xs text-gray-500 dark:text-slate-400">Ver histórico e registrar</p>
             </div>
-          </div>
+          </button>
         </div>
 
         <p className="text-[11px] text-gray-400 dark:text-slate-500 text-center flex items-center justify-center gap-1">

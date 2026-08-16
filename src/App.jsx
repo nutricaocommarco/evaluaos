@@ -3,7 +3,7 @@ import { BrowserRouter, Routes, Route, Navigate, useNavigate, useLocation } from
 import { supabase } from './supabaseClient'
 import { ThemeProvider } from './contexts/ThemeContext'
 import { PlanoProvider } from './contexts/PlanoContext'
-import { Users, Apple, UserCheck, Star, BookOpen, Settings, Map, LayoutTemplate, ClipboardList, Calendar } from 'lucide-react'
+import { Users, Apple, UserCheck, Star, BookOpen, Settings, Map, LayoutTemplate, ClipboardList, Calendar, Wallet } from 'lucide-react'
 
 // Importando suas telas 
 import HomePublica from './pages/HomePublica'
@@ -39,6 +39,7 @@ import GoogleOAuthCallback from './pages/GoogleOAuthCallback';
 import ConfirmarAgendamento from './pages/ConfirmarAgendamento';
 import PerfilPaciente from './pages/PerfilPaciente';
 import Roadmap from './pages/Roadmap';
+import Financeiro from './pages/Financeiro';
 import Modelos from './pages/Modelos';
 import Questionarios from './pages/Questionarios';
 import QuestionarioBuilder from './pages/QuestionarioBuilder';
@@ -105,6 +106,7 @@ function MainApp() {
     { name: 'Modelos', path: '/modelos', icon: <LayoutTemplate size={20} /> },
     { name: 'Questionários', path: '/questionarios', icon: <ClipboardList size={20} /> },
     { name: 'Agenda', path: '/agenda', icon: <Calendar size={20} /> },
+    { name: 'Financeiro', path: '/financeiro', icon: <Wallet size={20} /> },
     { name: 'Nutricionista', path: '/avaliador', icon: <UserCheck size={20} /> },
     { name: 'Meu Plano', path: '/meu-plano', icon: <Star size={20} /> },
     { name: 'Aprendizado', path: '/aprendizado', icon: <BookOpen size={20} /> },
@@ -285,6 +287,7 @@ function MainApp() {
             <Route path="/pacientes/:id/listas-recomendacoes" element={<ListasRecomendacoes userId={session.user.id} />} />
             <Route path="/pacientes/:id/exames-laboratoriais" element={<ExamesLaboratoriais userId={session.user.id} />} />
             <Route path="/agenda" element={<Agenda userId={session.user.id} />} />
+            <Route path="/financeiro" element={<Financeiro userId={session.user.id} />} />
             <Route path="/oauth/google/callback" element={<GoogleOAuthCallback />} />
             <Route path="/confirmar/:token" element={<ConfirmarAgendamento />} />
             <Route path="/alimentos" element={<TabelaAlimentos userId={session.user.id} />} />

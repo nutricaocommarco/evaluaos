@@ -75,6 +75,71 @@ async function rodarCheckinSemanal(admin) {
   return { criados, pulados, erros }
 }
 
+// Recorrência financeira mensal: uma movimentação com recorrente=true é o
+// "molde" (ela própria já é uma movimentação real do mês em que foi
+// criada) — todo dia 1, gera uma cópia pro mês corrente pra cada molde que
+// ainda não tem cópia nesse mês (id_origem aponta a cópia de volta pro
+// molde, e é isso que a checagem usa pra não duplicar). Mesmo raciocínio
+// de reaproveitar o cron diário existente em vez de criar um novo — só
+// roda uma vez por mês (getUTCDate() === 1), sem função nova no Vercel.
+async function rodarRecorrenciasFinanceiras(admin) {
+  const hoje = new Date()
+  const anoMes = `${hoje.getUTCFullYear()}-${String(hoje.getUTCMonth() + 1).padStart(2, '0')}`
+  const ultimoDiaMes = new Date(Date.UTC(hoje.getUTCFullYear(), hoje.getUTCMonth() + 1, 0)).getUTCDate()
+
+  const { data: moldes, error } = await admin
+    .from('movimentacoes_financeiras')
+    .select('*')
+    .eq('recorrente', true)
+
+  if (error) {
+    console.error('cron financeiro-recorrente: falha ao buscar moldes', error)
+    return { criados: 0, pulados: 0, erros: 1 }
+  }
+
+  let criados = 0
+  let pulados = 0
+  let erros = 0
+
+  for (const molde of moldes || []) {
+    try {
+      if (molde.data?.slice(0, 7) === anoMes) { pulados++; continue }
+
+      const { data: copiaExistente } = await admin
+        .from('movimentacoes_financeiras')
+        .select('id')
+        .eq('id_origem', molde.id)
+        .gte('data', `${anoMes}-01`)
+        .lte('data', `${anoMes}-31`)
+        .limit(1)
+        .maybeSingle()
+
+      if (copiaExistente) { pulados++; continue }
+
+      const dia = Math.min(Number(molde.data.slice(8, 10)), ultimoDiaMes)
+      const { error: insertError } = await admin.from('movimentacoes_financeiras').insert({
+        id_avaliador: molde.id_avaliador,
+        id_paciente: molde.id_paciente,
+        tipo: molde.tipo,
+        descricao: molde.descricao,
+        categoria: molde.categoria,
+        valor: molde.valor,
+        data: `${anoMes}-${String(dia).padStart(2, '0')}`,
+        pago: false,
+        recorrente: false,
+        id_origem: molde.id,
+      })
+      if (insertError) throw insertError
+      criados++
+    } catch (err) {
+      console.error(`cron financeiro-recorrente: falha pro molde ${molde.id}`, err)
+      erros++
+    }
+  }
+
+  return { criados, pulados, erros }
+}
+
 export default async function handler(req, res) {
   const authHeader = req.headers.authorization || ''
   if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
@@ -85,6 +150,7 @@ export default async function handler(req, res) {
   const admin = getSupabaseAdmin()
 
   const checkinSemanal = new Date().getUTCDay() === 1 ? await rodarCheckinSemanal(admin) : null
+  const financeiroRecorrente = new Date().getUTCDate() === 1 ? await rodarRecorrenciasFinanceiras(admin) : null
 
   const agora = new Date()
   const inicioJanela = new Date(agora.getTime() + 20 * 60 * 60 * 1000).toISOString()
@@ -144,5 +210,5 @@ export default async function handler(req, res) {
     }
   }
 
-  res.status(200).json({ enviados, pulados, erros, total: (agendamentos || []).length, checkinSemanal })
+  res.status(200).json({ enviados, pulados, erros, total: (agendamentos || []).length, checkinSemanal, financeiroRecorrente })
 }
