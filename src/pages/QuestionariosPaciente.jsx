@@ -4,7 +4,7 @@ import { supabase } from '../supabaseClient'
 import { useTheme } from '../contexts/ThemeContext'
 import CabecalhoPortalPaciente from '../components/CabecalhoPortalPaciente'
 import NavegacaoPortalPaciente from '../components/NavegacaoPortalPaciente'
-import GraficoPesoImcPaciente from '../components/questionarios/GraficoPesoImcPaciente'
+import RelatorioCheckinPaciente from '../components/questionarios/RelatorioCheckinPaciente'
 
 const STATUS_LABEL = {
   aguardando: 'Aguardando resposta',
@@ -34,6 +34,7 @@ export default function QuestionariosPaciente() {
   const [nomeAvaliador, setNomeAvaliador] = useState('')
   const [logomarcaUrl, setLogomarcaUrl] = useState('')
   const [envios, setEnvios] = useState([])
+  const [checkinsVisiveis, setCheckinsVisiveis] = useState([])
   const [sessaoAtiva, setSessaoAtiva] = useState(false)
   const [tokenLaudo, setTokenLaudo] = useState('')
 
@@ -78,7 +79,7 @@ export default function QuestionariosPaciente() {
         }
       }
 
-      const [enviosRes, avalRes] = await Promise.all([
+      const [enviosRes, avalRes, checkinsRes] = await Promise.all([
         supabase
           .from('questionario_envios')
           .select('*, questionarios(titulo)')
@@ -91,10 +92,16 @@ export default function QuestionariosPaciente() {
           .order('data_avaliacao', { ascending: false })
           .limit(1)
           .maybeSingle(),
+        supabase
+          .from('checkins_semanais_pacientes')
+          .select('id_questionario, questionarios(titulo)')
+          .eq('id_paciente', pacData.id)
+          .eq('mostrar_grafico_paciente', true),
       ])
 
       setEnvios(enviosRes.data || [])
       setTokenLaudo(avalRes.data?.token_publico || '')
+      setCheckinsVisiveis(checkinsRes.data || [])
       setLoading(false)
     }
     carregar()
@@ -138,7 +145,14 @@ export default function QuestionariosPaciente() {
           <p className="text-sm text-gray-500 dark:text-slate-400 mt-0.5">{paciente.nome_completo}</p>
         </div>
 
-        <GraficoPesoImcPaciente pacienteId={paciente.id} />
+        {checkinsVisiveis.map((c) => (
+          <RelatorioCheckinPaciente
+            key={c.id_questionario}
+            pacienteId={paciente.id}
+            idQuestionario={c.id_questionario}
+            titulo={c.questionarios?.titulo || 'Seu Check-in'}
+          />
+        ))}
 
         {envios.length === 0 ? (
           <div className="bg-white dark:bg-slate-900 p-8 rounded-xl border border-gray-100 dark:border-slate-800 shadow-sm text-center">

@@ -334,7 +334,7 @@ export default function QuestionarioBuilder({ userId }) {
 
       {questionario.recorrente_semanal && (
         <p className="text-xs text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 rounded-lg px-3 py-2 -mt-2">
-          Esse questionário pode ser ativado como Check-in Semanal, paciente por paciente, na Ficha do Paciente → Questionários. Quando ativo, um novo envio é criado automaticamente toda semana.
+          Esse questionário pode ser ativado como Check-in Semanal, paciente por paciente, na Ficha do Paciente → Questionários (dá pra ter mais de um ativo ao mesmo tempo). Quando ativo, um novo envio é criado automaticamente toda semana. Só perguntas de <strong>Número</strong> ou <strong>Escala Linear</strong> entram no relatório/gráfico automático — outros tipos continuam sendo coletados, só não aparecem no gráfico.
         </p>
       )}
 
