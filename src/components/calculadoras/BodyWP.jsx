@@ -10,9 +10,15 @@ export default function BodyWP({ formData, results, plannerData, setPlannerData,
 
   // ALGORITMO FISIOLÓGICO COMPLETO COM PERDA DE GLICOGÊNIO E ÁGUA BWP
   const simulateWeightTrajectory = (intake, days, initialWeight, height, age, isMale, bf, pal, formula, baselineTDEE, rmrOverride) => {
-    let currentWeight = initialWeight; 
-    let initialFM = bf ? initialWeight * (bf / 100) : 0; 
-    let currentFM = initialFM; 
+    let currentWeight = initialWeight;
+    // O %GC é opcional (o BWP original também projeta peso total sem exigir
+    // composição corporal) — só rastreamos massa gorda/%GC quando o dado
+    // existe de verdade. Sem isso, tratar massa gorda como zero faria o
+    // piso de segurança abaixo travar a %GC exibida em ~3% desde o primeiro
+    // dia, mesmo com o paciente emagrecendo de verdade.
+    const temBF = !!(bf && bf > 0);
+    let initialFM = temBF ? initialWeight * (bf / 100) : 0;
+    let currentFM = initialFM;
     let data = [];
     
     // Adaptação metabólica adaptativa (14% do déficit)
@@ -44,19 +50,19 @@ export default function BodyWP({ formData, results, plannerData, setPlannerData,
       const uncertainty = Number((2.8 * (1 - Math.exp(-i / 45))).toFixed(1));
       const bfUncertainty = Number((1.3 * (1 - Math.exp(-i / 45))).toFixed(1));
       
-      let currentBf = displayWeight > 0 ? (currentFM / displayWeight) * 100 : 0;
-      
+      const currentBf = temBF && displayWeight > 0 ? (currentFM / displayWeight) * 100 : 0;
+
       const pesoAlto = Number((displayWeight + uncertainty).toFixed(1));
       const pesoBaixo = Number((Math.max(30, displayWeight - uncertainty)).toFixed(1));
       const bfAlto = Number((currentBf + bfUncertainty).toFixed(1));
       const bfBaixo = Number((Math.max(3, currentBf - bfUncertainty)).toFixed(1));
 
-      data.push({ 
-        dia: i, 
-        pesoEstimado: displayWeight, 
-        pesoAlto, 
-        pesoBaixo, 
-        bfEstimado: Number(currentBf.toFixed(1)),
+      data.push({
+        dia: i,
+        pesoEstimado: displayWeight,
+        pesoAlto,
+        pesoBaixo,
+        bfEstimado: temBF ? Number(currentBf.toFixed(1)) : null,
         bfAlto,
         bfBaixo,
         glicogenioPerdido: Number(glycogenWaterLoss.toFixed(2))
@@ -71,11 +77,14 @@ export default function BodyWP({ formData, results, plannerData, setPlannerData,
       
       currentWeight -= weightChange;
       
-      // Particionamento de Forbes (75% gordura / 25% FFM no déficit)
-      if (weightChange > 0) currentFM -= (weightChange * 0.75); 
-      else currentFM -= (weightChange * 0.50); 
-      
-      if (currentFM < (displayWeight * 0.03)) currentFM = displayWeight * 0.03; 
+      // Particionamento de Forbes (75% gordura / 25% FFM no déficit) — só
+      // faz sentido rastrear se a gente sabe de onde partiu a massa gorda.
+      if (temBF) {
+        if (weightChange > 0) currentFM -= (weightChange * 0.75);
+        else currentFM -= (weightChange * 0.50);
+
+        if (currentFM < (displayWeight * 0.03)) currentFM = displayWeight * 0.03;
+      }
     }
 
     const lastDayData = data[data.length - 1];
@@ -262,14 +271,7 @@ export default function BodyWP({ formData, results, plannerData, setPlannerData,
     return null;
   };
 
-  // Todo modo de simulação depende do %GC pra rastrear massa gorda/magra
-  // corretamente (Forbes partitioning + fórmulas como Cunningham, que usam
-  // massa magra pro cálculo do metabolismo basal). Sem %GC, a simulação
-  // parte de massa gorda zero, bate no piso de segurança de 3% já no
-  // primeiro dia e trava a % de gordura exibida no gráfico pro resto da
-  // simulação — por isso todos os modos exigem %GC, não só os 2 que o
-  // usam diretamente como meta.
-  const precisaBF = true;
+  const precisaBF = plannerData.simulationMode === 'target_bf' || plannerData.simulationMode === 'target_fat_loss';
   const faltaBF = precisaBF && (!formData.bf || formData.bf <= 0);
   const massaGordaAtualKg = formData.weight > 0 && formData.bf > 0 ? (formData.weight * (formData.bf / 100)).toFixed(1) : 0;
 

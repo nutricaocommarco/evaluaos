@@ -91,9 +91,12 @@ const getBMRLocal = (weight, height, age, isMale, bf, activeFormula) => {
 };
 
 const simulateWeightTrajectory = (intake, days, initialWeight, height, age, isMale, bf, pal, formula, baselineTDEE) => {
-  let currentWeight = initialWeight; 
-  let initialFM = bf ? initialWeight * (bf / 100) : 0; 
-  let currentFM = initialFM; 
+  let currentWeight = initialWeight;
+  // %GC é opcional — só rastreamos massa gorda quando o dado existe de
+  // verdade (ver mesma correção em BodyWP.jsx).
+  const temBF = !!(bf && bf > 0);
+  let initialFM = temBF ? initialWeight * (bf / 100) : 0;
+  let currentFM = initialFM;
   let data = [];
   
   const metabolicAdaptation = intake < baselineTDEE ? (baselineTDEE - intake) * 0.14 : 0; 
@@ -114,31 +117,33 @@ const simulateWeightTrajectory = (intake, days, initialWeight, height, age, isMa
     // Mesma correção de BodyWP.jsx: incerteza assintótica em vez de linear
     // sem limite (senão uma projeção de 365 dias mostraria ±11,4kg de faixa).
     const uncertainty = Number((2.8 * (1 - Math.exp(-i / 45))).toFixed(1));
-    let currentBf = displayWeight > 0 ? (currentFM / displayWeight) * 100 : 0;
-    
+    const currentBf = temBF && displayWeight > 0 ? (currentFM / displayWeight) * 100 : 0;
+
     const pesoAlto = Number((displayWeight + uncertainty).toFixed(1));
     const pesoBaixo = Number((Math.max(30, displayWeight - uncertainty)).toFixed(1));
 
-    data.push({ 
-      dia: i, 
-      pesoEstimado: displayWeight, 
-      pesoAlto, 
-      pesoBaixo, 
-      bfEstimado: Number(currentBf.toFixed(1))
+    data.push({
+      dia: i,
+      pesoEstimado: displayWeight,
+      pesoAlto,
+      pesoBaixo,
+      bfEstimado: temBF ? Number(currentBf.toFixed(1)) : null
     });
 
     let dailyBMR = getBMRLocal(displayWeight, height, age, isMale, currentBf, formula);
-    const theoreticalTDEE = dailyBMR * pal; 
-    const actualTDEE = theoreticalTDEE - metabolicAdaptation; 
-    const dailyBalance = actualTDEE - intake; 
-    const weightChange = dailyBalance / energyDensity; 
-    
+    const theoreticalTDEE = dailyBMR * pal;
+    const actualTDEE = theoreticalTDEE - metabolicAdaptation;
+    const dailyBalance = actualTDEE - intake;
+    const weightChange = dailyBalance / energyDensity;
+
     currentWeight -= weightChange;
-    
-    if (weightChange > 0) currentFM -= (weightChange * 0.75); 
-    else currentFM -= (weightChange * 0.50); 
-    
-    if (currentFM < (displayWeight * 0.03)) currentFM = displayWeight * 0.03; 
+
+    if (temBF) {
+      if (weightChange > 0) currentFM -= (weightChange * 0.75);
+      else currentFM -= (weightChange * 0.50);
+
+      if (currentFM < (displayWeight * 0.03)) currentFM = displayWeight * 0.03;
+    }
   }
 
   return data;

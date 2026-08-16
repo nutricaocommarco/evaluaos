@@ -158,9 +158,8 @@ export default function CalculadoraGastoCalorico() {
     }
   };
 
-  // Todo modo de emagrecimento exige %GC agora (ver BodyWP.jsx) — não só
-  // Meta %GC e Kg Gordura.
-  const faltaBF_Save = (objetivoPlano === 'hipertrofia' || objetivoPlano === 'emagrecimento') && (!formData.bf || formData.bf <= 0);
+  const precisaBF = plannerData.simulationMode === 'target_bf' || plannerData.simulationMode === 'target_fat_loss';
+  const faltaBF_Save = (objetivoPlano === 'hipertrofia' || (objetivoPlano === 'emagrecimento' && precisaBF)) && (!formData.bf || formData.bf <= 0);
 
   return (
     <section className="py-6 md:py-24 bg-slate-50 dark:bg-slate-800 px-2 sm:px-6 container mx-auto max-w-5xl text-left">
