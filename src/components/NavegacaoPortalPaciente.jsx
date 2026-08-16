@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../supabaseClient'
-import { Home, TrendingUp, FileText, Utensils, MessageSquare, ClipboardList, ListChecks, FlaskConical, Calendar, Menu as MenuIcon, X } from 'lucide-react'
+import { Home, TrendingUp, FileText, Utensils, MessageSquare, ClipboardList, ClipboardCheck, ListChecks, FlaskConical, Calendar, Menu as MenuIcon, X } from 'lucide-react'
 
 // Navegação entre as telas do paciente (Início, Evolução, Laudo, Plano,
 // Orientações, Listas, Questionários) — só aparece pra quem está vendo o
@@ -22,9 +22,9 @@ export default function NavegacaoPortalPaciente({ tokenPaciente, tokenLaudo, tem
   const navigate = useNavigate()
   const [mobileAberto, setMobileAberto] = useState(false)
   const [temAgendamentosResolvido, setTemAgendamentosResolvido] = useState(false)
+  const [temCheckins, setTemCheckins] = useState(false)
 
   useEffect(() => {
-    if (temAgendamentos !== undefined) return
     let cancelado = false
 
     async function checar() {
@@ -35,15 +35,24 @@ export default function NavegacaoPortalPaciente({ tokenPaciente, tokenLaudo, tem
         .maybeSingle()
       if (!pacData || cancelado) return
 
-      const { count } = await supabase
-        .from('agendamentos')
+      if (temAgendamentos === undefined) {
+        const { count } = await supabase
+          .from('agendamentos')
+          .select('id', { count: 'exact', head: true })
+          .eq('id_paciente', pacData.id)
+          .eq('status', 'confirmado')
+          .eq('visivel_paciente', true)
+          .gte('data_inicio', new Date().toISOString())
+
+        if (!cancelado) setTemAgendamentosResolvido((count || 0) > 0)
+      }
+
+      const { count: countCheckins } = await supabase
+        .from('checkins_semanais_pacientes')
         .select('id', { count: 'exact', head: true })
         .eq('id_paciente', pacData.id)
-        .eq('status', 'confirmado')
-        .eq('visivel_paciente', true)
-        .gte('data_inicio', new Date().toISOString())
 
-      if (!cancelado) setTemAgendamentosResolvido((count || 0) > 0)
+      if (!cancelado) setTemCheckins((countCheckins || 0) > 0)
     }
     checar()
 
@@ -64,6 +73,7 @@ export default function NavegacaoPortalPaciente({ tokenPaciente, tokenLaudo, tem
     { key: 'listas', label: 'Listas', icone: ListChecks, href: `/area/${tokenPaciente}/listas` },
     { key: 'exames', label: 'Exames', icone: FlaskConical, href: `/area/${tokenPaciente}/exames` },
     { key: 'agenda', label: 'Agenda', icone: Calendar, href: agendaDisponivel ? `/area/${tokenPaciente}/agenda` : null },
+    { key: 'checkin', label: 'Check-in', icone: ClipboardCheck, href: temCheckins ? `/area/${tokenPaciente}/checkin` : null },
     { key: 'questionarios', label: 'Questionários', icone: ClipboardList, href: `/area/${tokenPaciente}/questionarios` },
   ]
   const itens = itensTodos.filter((i) => i.href)

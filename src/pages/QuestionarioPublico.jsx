@@ -122,7 +122,32 @@ export default function QuestionarioPublico() {
         .eq('id_questionario', envioData.id_questionario)
         .order('ordem')
 
-      setEtapas((et || []).map((e) => ({ ...e, questionario_perguntas: [...(e.questionario_perguntas || [])].sort((a, b) => a.ordem - b.ordem) })))
+      let perguntaAlturaEscondida = false
+      if (envioData.id_paciente) {
+        // A pergunta de campo_especial='altura' só faz sentido pro paciente
+        // que ainda não tem NENHUMA avaliação antropométrica e nunca
+        // respondeu ela antes (aí já sabemos a altura por um dos dois
+        // caminhos) — some sozinha assim que qualquer um dos dois existir.
+        const [avalRes, respostaAlturaRes] = await Promise.all([
+          supabase.from('avaliacoes').select('id').eq('id_paciente', envioData.id_paciente).limit(1).maybeSingle(),
+          supabase
+            .from('questionario_respostas')
+            .select('id, questionario_perguntas!inner(campo_especial), questionario_envios!inner(id_paciente)')
+            .eq('questionario_envios.id_paciente', envioData.id_paciente)
+            .eq('questionario_perguntas.campo_especial', 'altura')
+            .limit(1)
+            .maybeSingle(),
+        ])
+        perguntaAlturaEscondida = !!avalRes.data || !!respostaAlturaRes.data
+      }
+
+      const etapasFiltradas = (et || []).map((e) => ({
+        ...e,
+        questionario_perguntas: [...(e.questionario_perguntas || [])]
+          .filter((p) => !(perguntaAlturaEscondida && p.campo_especial === 'altura'))
+          .sort((a, b) => a.ordem - b.ordem),
+      }))
+      setEtapas(etapasFiltradas)
       setLoading(false)
     }
     carregar()

@@ -49,6 +49,7 @@ import PlanoAlimentarPaciente from './pages/PlanoAlimentarPaciente';
 import OrientacoesPaciente from './pages/OrientacoesPaciente';
 import ListasRecomendacoesPaciente from './pages/ListasRecomendacoesPaciente';
 import QuestionariosPaciente from './pages/QuestionariosPaciente';
+import CheckinPaciente from './pages/CheckinPaciente';
 import EmConstrucao from './components/EmConstrucao';
 import LayoutComPaciente from './components/LayoutComPaciente';
 import { CHAVE_ULTIMA_AREA_PACIENTE, emModoStandalone } from './utils/pwaAreaPaciente';
@@ -147,6 +148,7 @@ function MainApp() {
           <Route path="/area/:tokenUrl/orientacoes" element={<OrientacoesPaciente />} />
           <Route path="/area/:tokenUrl/listas" element={<ListasRecomendacoesPaciente />} />
           <Route path="/area/:tokenUrl/questionarios" element={<QuestionariosPaciente />} />
+          <Route path="/area/:tokenUrl/checkin" element={<CheckinPaciente />} />
           <Route path="/area/:tokenUrl/exames" element={<ExamesLaboratoriaisPaciente />} />
           <Route path="/area/:tokenUrl/agenda" element={<AgendaPaciente />} />
           <Route path="/oauth/google/callback" element={<GoogleOAuthCallback />} />
@@ -303,6 +305,7 @@ function MainApp() {
             <Route path="/area/:tokenUrl/orientacoes" element={<OrientacoesPaciente />} />
             <Route path="/area/:tokenUrl/listas" element={<ListasRecomendacoesPaciente />} />
             <Route path="/area/:tokenUrl/questionarios" element={<QuestionariosPaciente />} />
+            <Route path="/area/:tokenUrl/checkin" element={<CheckinPaciente />} />
             <Route path="/area/:tokenUrl/exames" element={<ExamesLaboratoriaisPaciente />} />
             <Route path="/area/:tokenUrl/agenda" element={<AgendaPaciente />} />
             <Route path="/pedido-exames/:tokenUrl" element={<VisualizacaoPublicaSolicitacao />} />

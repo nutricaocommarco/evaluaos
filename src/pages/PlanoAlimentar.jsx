@@ -6,6 +6,7 @@ import GeradorPdfNutricional from '../components/GeradorPdfNutricional'
 import InterruptorVisibilidade from '../components/InterruptorVisibilidade'
 import { FileDown, Save, Pencil, Trash2, StickyNote, ImagePlus } from 'lucide-react'
 import SeletorImagem from '../components/imagens/SeletorImagem'
+import { aplicarBuscaPorPalavras } from '../utils/buscaAlimentos'
 
 const CAMPOS_PLANO_VAZIOS = {
   titulo: 'Plano Alimentar',
@@ -73,10 +74,11 @@ function formatarMedidaCaseira(desc) {
 // tiver cadastrada) por cima da oficial — permite anotar "1 unidade ≈ 90g"
 // num alimento da TACO/IBGE sem alterar o valor nutricional compartilhado.
 async function buscarAlimentosComMedidaPessoal(termo, limite = 15) {
-  const { data } = await supabase
-    .from('tabela_alimentos')
-    .select('*')
-    .ilike('nome', `%${termo}%`)
+  const { data } = await aplicarBuscaPorPalavras(
+    supabase.from('tabela_alimentos').select('*'),
+    'nome',
+    termo
+  )
     .order('nome')
     .limit(limite)
   let lista = data || []

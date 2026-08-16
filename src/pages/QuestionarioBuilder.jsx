@@ -110,6 +110,21 @@ function PerguntaCard({ pergunta, onAtualizar, onExcluir, onMover, podeSubir, po
         </div>
       )}
 
+      {pergunta.tipo === 'numero' && (
+        <div className="pl-6">
+          <label className="block text-[10px] font-bold text-gray-500 dark:text-slate-400 uppercase tracking-wider mb-1">Campo especial (opcional)</label>
+          <select
+            value={pergunta.campo_especial || ''}
+            onChange={(e) => onAtualizar({ campo_especial: e.target.value || null })}
+            className="px-2.5 py-1.5 border border-gray-300 dark:border-slate-700 rounded-lg text-xs font-medium outline-none focus:ring-2 focus:ring-primary-500 bg-white dark:bg-slate-900"
+          >
+            <option value="">Nenhum</option>
+            <option value="peso">⚖️ Peso (kg)</option>
+            <option value="altura">📏 Altura (cm) — só se o paciente não tiver avaliação ainda</option>
+          </select>
+        </div>
+      )}
+
       {pergunta.tipo === 'escala_linear' && (
         <div className="pl-6 flex flex-wrap items-end gap-3">
           <div>
@@ -172,6 +187,12 @@ export default function QuestionarioBuilder({ userId }) {
   const handleRenomearQuestionario = async (titulo) => {
     setQuestionario((prev) => ({ ...prev, titulo }))
     await supabase.from('questionarios').update({ titulo }).eq('id', id)
+  }
+
+  const handleToggleRecorrente = async () => {
+    const novoValor = !questionario.recorrente_semanal
+    setQuestionario((prev) => ({ ...prev, recorrente_semanal: novoValor }))
+    await supabase.from('questionarios').update({ recorrente_semanal: novoValor }).eq('id', id)
   }
 
   const handleAdicionarEtapa = async () => {
@@ -296,7 +317,26 @@ export default function QuestionarioBuilder({ userId }) {
             {questionario.titulo} <span className="text-sm">✏️</span>
           </button>
         )}
+
+        <button
+          type="button"
+          onClick={handleToggleRecorrente}
+          title="Quando ligado, esse questionário pode ser ativado como Check-in Semanal em pacientes específicos (Ficha do Paciente > Questionários)"
+          className={`ml-auto shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-bold transition-colors ${
+            questionario.recorrente_semanal
+              ? 'bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800'
+              : 'bg-gray-100 dark:bg-slate-800 text-gray-400 dark:text-slate-500 border border-transparent'
+          }`}
+        >
+          🔁 Recorrência Semanal {questionario.recorrente_semanal ? 'ON' : 'OFF'}
+        </button>
       </div>
+
+      {questionario.recorrente_semanal && (
+        <p className="text-xs text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 rounded-lg px-3 py-2 -mt-2">
+          Esse questionário pode ser ativado como Check-in Semanal, paciente por paciente, na Ficha do Paciente → Questionários (dá pra ter mais de um ativo ao mesmo tempo). Quando ativo, um novo envio é criado automaticamente toda semana. Só perguntas de <strong>Número</strong> ou <strong>Escala Linear</strong> entram no relatório/gráfico automático — outros tipos continuam sendo coletados, só não aparecem no gráfico.
+        </p>
+      )}
 
       <div className="grid grid-cols-1 md:grid-cols-[220px_1fr] gap-6">
         <div className="space-y-2">
