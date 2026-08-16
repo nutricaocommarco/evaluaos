@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
 import { supabase } from '../supabaseClient'
 import { useTheme } from '../contexts/ThemeContext'
-import { ChevronLeft, ChevronRight, Pencil, Trash2, TrendingUp, TrendingDown, Wallet, Repeat, AlertTriangle, Check } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Pencil, Trash2, TrendingUp, TrendingDown, Wallet, Repeat, AlertTriangle, Check, Receipt } from 'lucide-react'
+import GeradorPdfRecibo from '../components/GeradorPdfRecibo'
 
 const MESES = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez']
 const CATEGORIAS_RECEITA = ['Consultas', 'Venda de produtos', 'Outro']
@@ -40,6 +41,7 @@ export default function Financeiro({ userId }) {
   const [abaAtiva, setAbaAtiva] = useState('movimentacoes') // 'movimentacoes' | 'pendencias' | 'fluxo'
   const [pendencias, setPendencias] = useState([])
   const [carregandoPendencias, setCarregandoPendencias] = useState(true)
+  const [movimentacaoParaRecibo, setMovimentacaoParaRecibo] = useState(null)
 
   const [showModal, setShowModal] = useState(false)
   const [editingId, setEditingId] = useState(null)
@@ -368,6 +370,11 @@ export default function Financeiro({ userId }) {
                   <span className={`text-sm font-black ${m.tipo === 'receita' ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'}`}>
                     {m.tipo === 'receita' ? '+' : '-'} {fmtMoeda(m.valor)}
                   </span>
+                  {m.tipo === 'receita' && m.pago && (
+                    <button onClick={() => setMovimentacaoParaRecibo(m)} title="Gerar recibo" className="text-gray-400 hover:text-emerald-600 p-1">
+                      <Receipt size={14} />
+                    </button>
+                  )}
                   <button onClick={() => abrirEdicao(m)} className="text-gray-400 hover:text-primary-600 p-1">
                     <Pencil size={14} />
                   </button>
@@ -640,6 +647,14 @@ export default function Financeiro({ userId }) {
             </form>
           </div>
         </div>
+      )}
+
+      {movimentacaoParaRecibo && (
+        <GeradorPdfRecibo
+          movimentacao={movimentacaoParaRecibo}
+          avaliadorUserId={userId}
+          aoFechar={() => setMovimentacaoParaRecibo(null)}
+        />
       )}
     </div>
   )
