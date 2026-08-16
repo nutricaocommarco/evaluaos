@@ -10,9 +10,15 @@ export default function BodyWP({ formData, results, plannerData, setPlannerData,
 
   // ALGORITMO FISIOLÓGICO COMPLETO COM PERDA DE GLICOGÊNIO E ÁGUA BWP
   const simulateWeightTrajectory = (intake, days, initialWeight, height, age, isMale, bf, pal, formula, baselineTDEE, rmrOverride) => {
-    let currentWeight = initialWeight; 
-    let initialFM = bf ? initialWeight * (bf / 100) : 0; 
-    let currentFM = initialFM; 
+    let currentWeight = initialWeight;
+    // O %GC é opcional (o BWP original também projeta peso total sem exigir
+    // composição corporal) — só rastreamos massa gorda/%GC quando o dado
+    // existe de verdade. Sem isso, tratar massa gorda como zero faria o
+    // piso de segurança abaixo travar a %GC exibida em ~3% desde o primeiro
+    // dia, mesmo com o paciente emagrecendo de verdade.
+    const temBF = !!(bf && bf > 0);
+    let initialFM = temBF ? initialWeight * (bf / 100) : 0;
+    let currentFM = initialFM;
     let data = [];
     
     // Adaptação metabólica adaptativa (14% do déficit)
@@ -38,23 +44,25 @@ export default function BodyWP({ formData, results, plannerData, setPlannerData,
       // Peso fisiológico real na balança (Tecidos + Depleção de Glicogênio/Água)
       const displayWeight = Number((currentWeight - glycogenWaterLoss).toFixed(1));
       
-      // Incerteza progressiva conforme o BWP original
-      const uncertainty = Number(((i / 90) * 2.8).toFixed(1)); 
-      const bfUncertainty = Number(((i / 90) * 1.3).toFixed(1));
+      // Incerteza progressiva que estabiliza com o tempo (assintótica) em vez de
+      // crescer linearmente pra sempre — do jeito antigo, uma projeção de 365
+      // dias chegava a ±11,4kg de faixa, o que não é fisiologicamente plausível.
+      const uncertainty = Number((2.8 * (1 - Math.exp(-i / 45))).toFixed(1));
+      const bfUncertainty = Number((1.3 * (1 - Math.exp(-i / 45))).toFixed(1));
       
-      let currentBf = displayWeight > 0 ? (currentFM / displayWeight) * 100 : 0;
-      
+      const currentBf = temBF && displayWeight > 0 ? (currentFM / displayWeight) * 100 : 0;
+
       const pesoAlto = Number((displayWeight + uncertainty).toFixed(1));
       const pesoBaixo = Number((Math.max(30, displayWeight - uncertainty)).toFixed(1));
       const bfAlto = Number((currentBf + bfUncertainty).toFixed(1));
       const bfBaixo = Number((Math.max(3, currentBf - bfUncertainty)).toFixed(1));
 
-      data.push({ 
-        dia: i, 
-        pesoEstimado: displayWeight, 
-        pesoAlto, 
-        pesoBaixo, 
-        bfEstimado: Number(currentBf.toFixed(1)),
+      data.push({
+        dia: i,
+        pesoEstimado: displayWeight,
+        pesoAlto,
+        pesoBaixo,
+        bfEstimado: temBF ? Number(currentBf.toFixed(1)) : null,
         bfAlto,
         bfBaixo,
         glicogenioPerdido: Number(glycogenWaterLoss.toFixed(2))
@@ -69,11 +77,14 @@ export default function BodyWP({ formData, results, plannerData, setPlannerData,
       
       currentWeight -= weightChange;
       
-      // Particionamento de Forbes (75% gordura / 25% FFM no déficit)
-      if (weightChange > 0) currentFM -= (weightChange * 0.75); 
-      else currentFM -= (weightChange * 0.50); 
-      
-      if (currentFM < (displayWeight * 0.03)) currentFM = displayWeight * 0.03; 
+      // Particionamento de Forbes (75% gordura / 25% FFM no déficit) — só
+      // faz sentido rastrear se a gente sabe de onde partiu a massa gorda.
+      if (temBF) {
+        if (weightChange > 0) currentFM -= (weightChange * 0.75);
+        else currentFM -= (weightChange * 0.50);
+
+        if (currentFM < (displayWeight * 0.03)) currentFM = displayWeight * 0.03;
+      }
     }
 
     const lastDayData = data[data.length - 1];
