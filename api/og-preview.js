@@ -1,6 +1,7 @@
 // Função serverless da Vercel — só é chamada pra robôs de rede social
 // (WhatsApp, Facebook, etc; ver vercel.json) que abrem um link da Área do
-// Paciente (/area/:token). Um navegador de verdade nunca cai aqui — vai
+// Paciente (/area/:token) ou um link de Questionário/Check-in
+// (/questionario/:token). Um navegador de verdade nunca cai aqui — vai
 // direto pro app normal via o rewrite catch-all.
 //
 // Por quê: o app é uma SPA (index.html estático + JS), então as tags
@@ -9,6 +10,11 @@
 // abrir cada link. Essa função busca a marca do avaliador (logo/nome do
 // consultório) em tempo de requisição e devolve um HTML só com as meta
 // tags certas pro robô ler, sem precisar renderizar o app inteiro.
+//
+// Os dois tipos de link usam token_publico de tabelas diferentes
+// (pacientes vs questionario_envios), por isso o rewrite manda um
+// ?tipo=questionario nesse segundo caso — sem isso não dá pra saber em
+// qual tabela procurar o token.
 import { createClient } from '@supabase/supabase-js'
 
 const supabase = createClient(
@@ -27,12 +33,39 @@ function escapeHtml(valor) {
 
 export default async function handler(req, res) {
   const token = typeof req.query.token === 'string' ? req.query.token : ''
+  const ehQuestionario = req.query.tipo === 'questionario'
 
   let titulo = 'EvaluaOS | Área do Paciente'
   let descricao = 'Acompanhe sua evolução, laudo, plano alimentar, orientações e questionários — tudo em um só lugar.'
   let imagem = IMAGEM_PADRAO
 
-  if (token) {
+  if (token && ehQuestionario) {
+    try {
+      const { data: envio } = await supabase
+        .from('questionario_envios')
+        .select('id_avaliador, questionarios(titulo)')
+        .eq('token_publico', token)
+        .maybeSingle()
+
+      if (envio?.id_avaliador) {
+        const { data: avaliador } = await supabase
+          .from('avaliadores')
+          .select('empresa, nome_completo, logomarca_url')
+          .eq('auth_id', envio.id_avaliador)
+          .maybeSingle()
+
+        if (avaliador) {
+          const nomeConsultorio = avaliador.empresa || avaliador.nome_completo || 'Consultório'
+          const tituloQuestionario = envio.questionarios?.titulo || 'Questionário'
+          titulo = `${tituloQuestionario} | ${nomeConsultorio}`
+          descricao = `Responda em menos de 1 minuto — direto de ${nomeConsultorio}.`
+          if (avaliador.logomarca_url) imagem = avaliador.logomarca_url
+        }
+      }
+    } catch (err) {
+      console.error('og-preview: falha ao buscar marca do avaliador (questionário)', err)
+    }
+  } else if (token) {
     try {
       const { data: paciente } = await supabase
         .from('pacientes')
@@ -61,7 +94,7 @@ export default async function handler(req, res) {
     }
   }
 
-  const urlAbsoluta = `${DOMINIO}/area/${token}`
+  const urlAbsoluta = ehQuestionario ? `${DOMINIO}/questionario/${token}` : `${DOMINIO}/area/${token}`
 
   const html = `<!DOCTYPE html>
 <html lang="pt-BR">
