@@ -1228,10 +1228,6 @@ function RefeicaoCard({ refeicao, onAtualizarCampo, onExcluir, onItensChange, on
         />
       )}
 
-      {refeicao.imagem_url && (
-        <img src={refeicao.imagem_url} alt="" className="w-full h-32 object-cover rounded-lg border border-gray-100 dark:border-slate-800" />
-      )}
-
       <div className="flex flex-wrap gap-3">
         {opcoesParaExibir.map((n) => (
           <OpcaoCard
