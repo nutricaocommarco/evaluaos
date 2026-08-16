@@ -5,9 +5,10 @@ import SidebarPaciente from '../components/SidebarPaciente'
 import RichTextEditor, { sanitizarHtmlEditor } from '../components/RichTextEditor'
 import GeradorPdfNutricional from '../components/GeradorPdfNutricional'
 import InterruptorVisibilidade from '../components/InterruptorVisibilidade'
+import CampoImagem from '../components/imagens/CampoImagem'
 import { ChevronDown, ChevronRight, FileDown } from 'lucide-react'
 
-const CAMPOS_VAZIOS = { titulo: 'Orientação', conteudo: '', salvarComoModelo: false }
+const CAMPOS_VAZIOS = { titulo: 'Orientação', conteudo: '', salvarComoModelo: false, imagem_url: null }
 
 function formatarDataHora(dataStr) {
   if (!dataStr) return '-'
@@ -69,7 +70,7 @@ export default function OrientacoesNutricionais({ userId }) {
 
   const abrirEdicaoOrientacao = (o) => {
     setEditingId(o.id)
-    setForm({ titulo: o.titulo || 'Orientação', conteudo: o.conteudo || '', salvarComoModelo: false })
+    setForm({ titulo: o.titulo || 'Orientação', conteudo: o.conteudo || '', salvarComoModelo: false, imagem_url: o.imagem_url || null })
     setShowModal(true)
   }
 
@@ -94,6 +95,7 @@ export default function OrientacoesNutricionais({ userId }) {
     const payload = {
       titulo: form.titulo || 'Orientação',
       conteudo: conteudoLimpo,
+      imagem_url: form.imagem_url || null,
       updated_at: new Date().toISOString(),
     }
 
@@ -220,7 +222,10 @@ export default function OrientacoesNutricionais({ userId }) {
                         </div>
                       </div>
                       {aberto && (
-                        <div className="px-4 pb-4">
+                        <div className="px-4 pb-4 space-y-3">
+                          {o.imagem_url && (
+                            <img src={o.imagem_url} alt="" className="w-full max-w-xs rounded-xl border border-gray-100 dark:border-slate-800 object-cover" />
+                          )}
                           {o.conteudo ? (
                             <div className="rte-html text-sm text-gray-700 dark:text-slate-300" dangerouslySetInnerHTML={{ __html: o.conteudo }} />
                           ) : (
@@ -258,6 +263,8 @@ export default function OrientacoesNutricionais({ userId }) {
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-primary-500"
                 />
               </div>
+
+              <CampoImagem valor={form.imagem_url} onChange={(url) => setForm((f) => ({ ...f, imagem_url: url }))} />
 
               <div>
                 <label className="block text-xs font-bold text-gray-700 dark:text-slate-300 uppercase tracking-wider mb-1">

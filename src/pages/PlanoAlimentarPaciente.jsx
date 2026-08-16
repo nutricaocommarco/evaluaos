@@ -86,7 +86,10 @@ function BlocoRefeicao({ refeicao, aberta, aoAlternar, mostrarMacros }) {
         <h3 className="text-base font-black text-gray-800 dark:text-slate-100">{refeicao.nome_refeicao}</h3>
       </button>
       {aberta && (
-        <div className="px-3 pb-3">
+        <div className="px-3 pb-3 space-y-3">
+          {refeicao.imagem_url && (
+            <img src={refeicao.imagem_url} alt="" className="w-full h-32 object-cover rounded-lg border border-gray-100 dark:border-slate-800" />
+          )}
           <div className="flex flex-wrap gap-3">
             {(opcoes.length > 0 ? opcoes : [1]).map((n) => {
               const itensOpcao = (refeicao.itens_refeicao || []).filter((i) => i.opcao_numero === n)

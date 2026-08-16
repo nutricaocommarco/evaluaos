@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { supabase } from '../supabaseClient'
 import { ArrowLeft, Trash2, ChevronUp, ChevronDown, Plus, X } from 'lucide-react'
+import CampoImagem from '../components/imagens/CampoImagem'
 
 const TIPOS = [
   { valor: 'resposta_curta', label: 'Resposta curta' },
@@ -97,6 +98,10 @@ function PerguntaCard({ pergunta, onAtualizar, onExcluir, onMover, podeSubir, po
           />
           <span className="text-xs font-semibold text-gray-600 dark:text-slate-400">Obrigatória</span>
         </label>
+      </div>
+
+      <div className="pl-6">
+        <CampoImagem valor={pergunta.imagem_url} onChange={(url) => onAtualizar({ imagem_url: url })} label={null} />
       </div>
 
       {TIPOS_COM_OPCOES.includes(pergunta.tipo) && (

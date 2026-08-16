@@ -166,7 +166,10 @@ export default function ListasRecomendacoesPaciente() {
                     </div>
                   </button>
                   {aberta && (
-                    <div className="px-4 pb-4">
+                    <div className="px-4 pb-4 space-y-3">
+                      {l.imagem_url && (
+                        <img src={l.imagem_url} alt="" className="w-full max-w-xs rounded-xl border border-gray-100 dark:border-slate-800 object-cover" />
+                      )}
                       {l.conteudo ? (
                         <div className="rte-html text-sm text-gray-700 dark:text-slate-300" dangerouslySetInnerHTML={{ __html: l.conteudo }} />
                       ) : (
