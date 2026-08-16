@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react'
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
 import { supabase } from '../../supabaseClient'
 import { useTheme } from '../../contexts/ThemeContext'
-import { MessageCircle, TrendingUp, X, Plus, ChevronDown, ChevronRight } from 'lucide-react'
+import { MessageCircle, TrendingUp, X, Plus, ChevronDown, ChevronRight, History, Trash2 } from 'lucide-react'
 
 const CORES_LINHA = ['#2563eb', '#059669', '#d97706', '#dc2626', '#7c3aed']
 const TIPOS_NO_RELATORIO = ['numero', 'escala_linear']
@@ -26,6 +26,9 @@ function CardCheckin({ checkin, paciente, userId, aoRemovido }) {
   const [salvando, setSalvando] = useState(false)
   const [mostrarGrafico, setMostrarGrafico] = useState(!!checkin.mostrar_grafico_paciente)
   const [aberto, setAberto] = useState(false)
+  const [enviosHistorico, setEnviosHistorico] = useState([])
+  const [mostrarHistorico, setMostrarHistorico] = useState(false)
+  const [excluindoRespostaId, setExcluindoRespostaId] = useState(null)
 
   const carregarRelatorio = async () => {
     const [avalRes, enviosRes] = await Promise.all([
@@ -81,6 +84,35 @@ function CardCheckin({ checkin, paciente, userId, aoRemovido }) {
 
     setDadosRelatorio(linhas)
     setSeriesNumericas([...nomesSeries])
+
+    // Lista pro popup de histórico — permite ao nutri apagar uma resposta
+    // pontual (ex: paciente respondeu o check-in errado) sem afetar as
+    // outras, mais recente primeiro.
+    setEnviosHistorico(
+      respondidos
+        .map((envio, idx) => {
+          const linha = linhas[idx]
+          const resumo = Object.entries(linha)
+            .filter(([chave]) => chave !== 'data')
+            .map(([chave, valor]) => `${chave}: ${valor}`)
+            .join(' · ')
+          return { id: envio.id, respondidoEm: envio.respondido_em, resumo: resumo || 'Sem respostas numéricas' }
+        })
+        .reverse()
+    )
+  }
+
+  const handleExcluirResposta = async (idEnvio) => {
+    const digitado = window.prompt('⚠️ Ação irreversível!\n\nPara confirmar a exclusão desta resposta, digite exatamente a palavra APAGAR:')
+    if (digitado !== 'APAGAR') {
+      if (digitado !== null) alert('Palavra incorreta. A exclusão foi cancelada.')
+      return
+    }
+    setExcluindoRespostaId(idEnvio)
+    const { error } = await supabase.from('questionario_envios').delete().eq('id', idEnvio)
+    setExcluindoRespostaId(null)
+    if (error) { alert('Erro ao excluir: ' + error.message); return }
+    carregarRelatorio()
   }
 
   useEffect(() => {
@@ -193,6 +225,17 @@ function CardCheckin({ checkin, paciente, userId, aoRemovido }) {
           <MessageCircle size={14} /> {gerandoLembrete ? 'Preparando...' : envioPendente ? 'Enviar Lembrete (já tem um pendente)' : 'Enviar Lembrete'}
         </button>
 
+        {enviosHistorico.length > 0 && (
+          <button
+            type="button"
+            onClick={() => setMostrarHistorico(true)}
+            title="Ver e, se precisar, apagar uma resposta (ex: paciente respondeu o check-in errado)"
+            className="flex items-center gap-1.5 px-3 py-2 bg-gray-100 dark:bg-slate-800 text-gray-600 dark:text-slate-300 text-xs font-semibold rounded-lg hover:bg-gray-200 dark:hover:bg-slate-700"
+          >
+            <History size={14} /> Histórico ({enviosHistorico.length})
+          </button>
+        )}
+
         <button
           type="button"
           onClick={handleToggleGrafico}
@@ -259,6 +302,42 @@ function CardCheckin({ checkin, paciente, userId, aoRemovido }) {
         </div>
       )}
       </>
+      )}
+
+      {mostrarHistorico && (
+        <div
+          className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4"
+          onClick={() => setMostrarHistorico(false)}
+        >
+          <div
+            className="bg-white dark:bg-slate-900 rounded-2xl max-w-md w-full p-6 space-y-4 shadow-xl max-h-[80vh] flex flex-col"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex justify-between items-center border-b border-gray-100 dark:border-slate-800 pb-3">
+              <h3 className="text-base font-bold text-gray-800 dark:text-slate-100">Histórico: {checkin.questionarios.titulo}</h3>
+              <button onClick={() => setMostrarHistorico(false)} className="text-gray-400 dark:text-slate-400 hover:text-gray-600 p-1 rounded">✕</button>
+            </div>
+
+            <div className="space-y-2 overflow-y-auto pr-1">
+              {enviosHistorico.map((e) => (
+                <div key={e.id} className="flex justify-between items-start gap-2 p-3 border border-gray-100 dark:border-slate-800 rounded-lg">
+                  <div className="min-w-0">
+                    <p className="text-sm font-bold text-gray-800 dark:text-slate-100">{formatarData(e.respondidoEm)}</p>
+                    <p className="text-xs text-gray-500 dark:text-slate-400 mt-0.5 break-words">{e.resumo}</p>
+                  </div>
+                  <button
+                    onClick={() => handleExcluirResposta(e.id)}
+                    disabled={excluindoRespostaId === e.id}
+                    title="Excluir essa resposta (ex: paciente respondeu o check-in errado)"
+                    className="p-1.5 text-red-500 hover:bg-red-100 dark:hover:bg-red-900/30 dark:bg-red-900/20 rounded transition-colors disabled:opacity-50 shrink-0"
+                  >
+                    <Trash2 size={15} />
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
       )}
     </div>
   )

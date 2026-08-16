@@ -177,7 +177,17 @@ function BlocoPlano({ plano, aberto, aoAlternar, refeicoesAbertas, aoAlternarRef
         </div>
       </button>
 
-      {aberto && (
+      {aberto && plano.modo === 'qualitativo' && (
+        <div className="px-4 pb-4">
+          {plano.conteudo ? (
+            <div className="rte-html text-sm text-gray-700 dark:text-slate-300" dangerouslySetInnerHTML={{ __html: plano.conteudo }} />
+          ) : (
+            <p className="text-sm text-gray-400 dark:text-slate-500">-</p>
+          )}
+        </div>
+      )}
+
+      {aberto && plano.modo !== 'qualitativo' && (
         <div className="px-4 pb-4 space-y-3">
           {mostrarMacros && (
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-base bg-gray-50 dark:bg-slate-800/50 rounded-lg p-3">

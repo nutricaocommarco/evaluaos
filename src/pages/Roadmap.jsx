@@ -20,11 +20,6 @@ const SECOES = [
         texto: 'Compare o plano também com referências de vitaminas e minerais, além dos macronutrientes.',
       },
       {
-        chave: 'plano-qualitativo',
-        titulo: 'Plano tipo "Qualitativo"',
-        texto: 'Um modo alternativo de prescrição em texto livre, pra quando você não precisa calcular macros.',
-      },
-      {
         chave: 'mais-produtos-alimentos',
         titulo: 'Mais produtos na lista de Alimentos',
         texto: 'Ampliação contínua da base de alimentos cadastrados, cobrindo mais produtos e marcas do mercado.',
