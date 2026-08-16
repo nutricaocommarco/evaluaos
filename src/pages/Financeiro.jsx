@@ -18,6 +18,7 @@ const CAMPOS_VAZIOS = {
   pago: false,
   recorrente: false,
   data_vencimento: '',
+  numero_parcelas: 1,
 }
 
 function fmtMoeda(n) {
@@ -129,6 +130,7 @@ export default function Financeiro({ userId }) {
       pago: m.pago,
       recorrente: m.recorrente,
       data_vencimento: m.data_vencimento || '',
+      numero_parcelas: 1,
     })
     setShowModal(true)
   }
@@ -142,6 +144,45 @@ export default function Financeiro({ userId }) {
     e.preventDefault()
     if (!form.descricao || !form.valor) return
     setSalvando(true)
+
+    const numParcelas = editingId ? 1 : Number(form.numero_parcelas) || 1
+
+    if (numParcelas > 1) {
+      const valorTotal = Number(form.valor)
+      const valorParcela = Math.floor((valorTotal / numParcelas) * 100) / 100
+      const grupo = crypto.randomUUID()
+      const linhas = []
+      let somaParcelas = 0
+      for (let i = 0; i < numParcelas; i++) {
+        const dataParcela = new Date(`${form.data}T00:00:00`)
+        dataParcela.setMonth(dataParcela.getMonth() + i)
+        const ehUltima = i === numParcelas - 1
+        const valor = ehUltima ? Number((valorTotal - somaParcelas).toFixed(2)) : valorParcela
+        somaParcelas += valor
+        linhas.push({
+          id_avaliador: userId,
+          id_paciente: form.id_paciente || null,
+          tipo: form.tipo,
+          descricao: `${form.descricao} (${i + 1}/${numParcelas})`,
+          categoria: form.categoria,
+          valor,
+          data: dataParcela.toISOString().slice(0, 10),
+          pago: false,
+          recorrente: false,
+          data_vencimento: null,
+          parcela_numero: i + 1,
+          parcela_total: numParcelas,
+          grupo_parcelamento: grupo,
+        })
+      }
+      const { error } = await supabase.from('movimentacoes_financeiras').insert(linhas)
+      setSalvando(false)
+      if (error) { alert('Erro ao registrar parcelas: ' + error.message); return }
+      setShowModal(false)
+      carregarMovimentacoes(ano)
+      carregarPendencias()
+      return
+    }
 
     const payload = {
       tipo: form.tipo,
@@ -486,6 +527,26 @@ export default function Financeiro({ userId }) {
                 </div>
               </div>
 
+              {!editingId && (
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 dark:text-slate-300 uppercase tracking-wider mb-1">Número de parcelas</label>
+                  <select
+                    value={form.numero_parcelas}
+                    onChange={(e) => setForm({ ...form, numero_parcelas: Number(e.target.value) })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-primary-500"
+                  >
+                    {Array.from({ length: 12 }, (_, i) => i + 1).map((n) => (
+                      <option key={n} value={n}>{n}x{n > 1 ? ` de ${fmtMoeda(Number(form.valor || 0) / n)}` : ''}</option>
+                    ))}
+                  </select>
+                  {form.numero_parcelas > 1 && (
+                    <p className="text-[11px] text-gray-400 dark:text-slate-500 mt-1">
+                      Cria {form.numero_parcelas} movimentações, uma por mês a partir da data abaixo, cada uma pendente até você marcar como paga.
+                    </p>
+                  )}
+                </div>
+              )}
+
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-bold text-gray-700 dark:text-slate-300 uppercase tracking-wider mb-1">Data</label>
@@ -512,6 +573,7 @@ export default function Financeiro({ userId }) {
                 </div>
               </div>
 
+              {form.numero_parcelas <= 1 && (
               <label className="flex items-center gap-2 cursor-pointer w-fit">
                 <input
                   type="checkbox"
@@ -523,8 +585,9 @@ export default function Financeiro({ userId }) {
                   {form.tipo === 'receita' ? 'O paciente já pagou' : 'Já foi pago'}
                 </span>
               </label>
+              )}
 
-              {!form.pago && (
+              {form.numero_parcelas <= 1 && !form.pago && (
                 <div>
                   <label className="block text-xs font-bold text-gray-700 dark:text-slate-300 uppercase tracking-wider mb-1">
                     Data de vencimento (opcional)
@@ -539,6 +602,7 @@ export default function Financeiro({ userId }) {
                 </div>
               )}
 
+              {form.numero_parcelas <= 1 && (
               <label className="flex items-center gap-2 cursor-pointer w-fit">
                 <input
                   type="checkbox"
@@ -550,7 +614,8 @@ export default function Financeiro({ userId }) {
                   <Repeat size={13} /> Se repete todo mês
                 </span>
               </label>
-              {form.recorrente && (
+              )}
+              {form.numero_parcelas <= 1 && form.recorrente && (
                 <p className="text-[11px] text-gray-500 dark:text-slate-400 -mt-2">
                   Todo dia 1, uma cópia é gerada automaticamente pro mês, com o mesmo dia e valor (você pode editar cada cópia depois).
                 </p>
