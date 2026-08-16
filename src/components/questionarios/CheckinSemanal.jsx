@@ -98,7 +98,16 @@ function CardCheckin({ checkin, paciente, userId, aoRemovido }) {
     const link = `${window.location.origin}/questionario/${envio.token_publico}`
     const telefoneLimpo = paciente.telefone?.replace(/\D/g, '')
     if (!telefoneLimpo) { alert('Este paciente não tem telefone cadastrado.'); return }
-    const mensagem = `Olá *${paciente.nome_completo.split(' ')[0]}*, tudo bem?\n\nHora do seu check-in: "${checkin.questionarios.titulo}". É rapidinho:\n\n${link}\n\nQualquer dúvida, me chama!`
+    const mensagem = [
+      `Olá, ${paciente.nome_completo.split(' ')[0]}! 👋`,
+      '',
+      `Hora do seu check-in: *${checkin.questionarios.titulo}* 📝`,
+      '',
+      'É rapidinho, leva menos de 1 minuto:',
+      link,
+      '',
+      'Qualquer dúvida, é só chamar por aqui!',
+    ].join('\n')
     const numero = telefoneLimpo.startsWith('55') ? telefoneLimpo : '55' + telefoneLimpo
     window.open(`https://wa.me/${numero}?text=${encodeURIComponent(mensagem)}`, '_blank')
   }
