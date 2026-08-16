@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
 import { supabase } from '../supabaseClient'
 import { useTheme } from '../contexts/ThemeContext'
-import { ChevronLeft, ChevronRight, Pencil, Trash2, TrendingUp, TrendingDown, Wallet } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Pencil, Trash2, TrendingUp, TrendingDown, Wallet, Repeat } from 'lucide-react'
 
 const MESES = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez']
 const CATEGORIAS_RECEITA = ['Consultas', 'Venda de produtos', 'Outro']
@@ -16,6 +16,7 @@ const CAMPOS_VAZIOS = {
   valor: '',
   data: new Date().toISOString().slice(0, 10),
   pago: false,
+  recorrente: false,
 }
 
 function fmtMoeda(n) {
@@ -106,6 +107,7 @@ export default function Financeiro({ userId }) {
       valor: String(m.valor),
       data: m.data,
       pago: m.pago,
+      recorrente: m.recorrente,
     })
     setShowModal(true)
   }
@@ -128,6 +130,7 @@ export default function Financeiro({ userId }) {
       valor: Number(form.valor),
       data: form.data,
       pago: form.pago,
+      recorrente: form.recorrente,
     }
 
     if (editingId) {
@@ -256,7 +259,12 @@ export default function Financeiro({ userId }) {
             {movimentacoesDoPeriodo.map((m) => (
               <div key={m.id} className="flex items-center justify-between gap-3 p-4">
                 <div className="min-w-0 flex-1">
-                  <p className="text-sm font-bold text-gray-800 dark:text-slate-100 truncate">{m.descricao}</p>
+                  <p className="text-sm font-bold text-gray-800 dark:text-slate-100 truncate flex items-center gap-1.5">
+                    {m.descricao}
+                    {(m.recorrente || m.id_origem) && (
+                      <Repeat size={11} className="text-gray-400 dark:text-slate-500 shrink-0" title="Movimentação recorrente" />
+                    )}
+                  </p>
                   <p className="text-xs text-gray-400 dark:text-slate-500">
                     {formatarData(m.data)} · {m.categoria}
                     {m.pacientes?.nome_completo && <> · {m.pacientes.nome_completo}</>}
@@ -417,6 +425,23 @@ export default function Financeiro({ userId }) {
                   {form.tipo === 'receita' ? 'O paciente já pagou' : 'Já foi pago'}
                 </span>
               </label>
+
+              <label className="flex items-center gap-2 cursor-pointer w-fit">
+                <input
+                  type="checkbox"
+                  checked={form.recorrente}
+                  onChange={(e) => setForm({ ...form, recorrente: e.target.checked })}
+                  className="w-4 h-4 accent-primary-600"
+                />
+                <span className="text-xs font-semibold text-gray-700 dark:text-slate-300 flex items-center gap-1">
+                  <Repeat size={13} /> Se repete todo mês
+                </span>
+              </label>
+              {form.recorrente && (
+                <p className="text-[11px] text-gray-500 dark:text-slate-400 -mt-2">
+                  Todo dia 1, uma cópia é gerada automaticamente pro mês, com o mesmo dia e valor (você pode editar cada cópia depois).
+                </p>
+              )}
 
               <div className="flex justify-end gap-3 pt-2">
                 <button
