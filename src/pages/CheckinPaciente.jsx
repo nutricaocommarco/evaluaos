@@ -4,25 +4,20 @@ import { supabase } from '../supabaseClient'
 import { useTheme } from '../contexts/ThemeContext'
 import CabecalhoPortalPaciente from '../components/CabecalhoPortalPaciente'
 import NavegacaoPortalPaciente from '../components/NavegacaoPortalPaciente'
-
-const STATUS_LABEL = {
-  aguardando: 'Aguardando resposta',
-  respondido: 'Respondido',
-  revisado: 'Revisado',
-}
-
-const STATUS_COR = {
-  aguardando: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400',
-  respondido: 'bg-gray-100 text-gray-700 dark:bg-slate-800 dark:text-slate-300',
-  revisado: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400',
-}
+import RelatorioCheckinPaciente from '../components/questionarios/RelatorioCheckinPaciente'
 
 function formatarData(dataStr) {
   if (!dataStr) return '-'
   return new Date(dataStr).toLocaleDateString('pt-BR')
 }
 
-export default function QuestionariosPaciente() {
+// Tela dedicada de Check-in, separada de Questionários — os pendentes
+// (status aguardando, ligados a algum check-in ativo) ficam no topo, com
+// "Responder" levando pro formulário; ao voltar aqui depois de responder,
+// o pendente já não existe mais (o status virou 'respondido' no envio,
+// então a query nem traz ele de volta) — some sozinho, sem precisar de
+// nenhuma lógica extra. Os gráficos ficam sempre embaixo dos pendentes.
+export default function CheckinPaciente() {
   const { tokenUrl } = useParams()
   const navigate = useNavigate()
   const { setDarkMode, setCorPrimaria } = useTheme()
@@ -32,7 +27,8 @@ export default function QuestionariosPaciente() {
   const [nomeEmpresa, setNomeEmpresa] = useState('')
   const [nomeAvaliador, setNomeAvaliador] = useState('')
   const [logomarcaUrl, setLogomarcaUrl] = useState('')
-  const [envios, setEnvios] = useState([])
+  const [pendentes, setPendentes] = useState([])
+  const [checkinsVisiveis, setCheckinsVisiveis] = useState([])
   const [sessaoAtiva, setSessaoAtiva] = useState(false)
   const [tokenLaudo, setTokenLaudo] = useState('')
 
@@ -77,12 +73,11 @@ export default function QuestionariosPaciente() {
         }
       }
 
-      const [enviosRes, avalRes] = await Promise.all([
+      const [checkinsAtivosRes, avalRes] = await Promise.all([
         supabase
-          .from('questionario_envios')
-          .select('*, questionarios(titulo, recorrente_semanal)')
-          .eq('id_paciente', pacData.id)
-          .order('created_at', { ascending: false }),
+          .from('checkins_semanais_pacientes')
+          .select('id_questionario, mostrar_grafico_paciente, questionarios(titulo)')
+          .eq('id_paciente', pacData.id),
         supabase
           .from('avaliacoes')
           .select('token_publico')
@@ -92,9 +87,23 @@ export default function QuestionariosPaciente() {
           .maybeSingle(),
       ])
 
-      // Check-ins semanais têm tela própria (/checkin) — não duplica aqui.
-      const enviosAvulsos = (enviosRes.data || []).filter((e) => !e.questionarios?.recorrente_semanal)
-      setEnvios(enviosAvulsos)
+      const checkinsAtivos = checkinsAtivosRes.data || []
+      const idsCheckin = checkinsAtivos.map((c) => c.id_questionario)
+
+      if (idsCheckin.length > 0) {
+        const { data: enviosPendentes } = await supabase
+          .from('questionario_envios')
+          .select('id, token_publico, created_at, questionarios(titulo)')
+          .eq('id_paciente', pacData.id)
+          .eq('status', 'aguardando')
+          .in('id_questionario', idsCheckin)
+          .order('created_at', { ascending: false })
+        setPendentes(enviosPendentes || [])
+      } else {
+        setPendentes([])
+      }
+
+      setCheckinsVisiveis(checkinsAtivos.filter((c) => c.mostrar_grafico_paciente))
       setTokenLaudo(avalRes.data?.token_publico || '')
       setLoading(false)
     }
@@ -105,7 +114,7 @@ export default function QuestionariosPaciente() {
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-slate-950">
-        <p className="text-primary-600 font-bold animate-pulse">Carregando questionários...</p>
+        <p className="text-primary-600 font-bold animate-pulse">Carregando check-in...</p>
       </div>
     )
   }
@@ -131,40 +140,45 @@ export default function QuestionariosPaciente() {
         />
 
         {!sessaoAtiva && (
-          <NavegacaoPortalPaciente tokenPaciente={tokenUrl} tokenLaudo={tokenLaudo} ativo="questionarios" />
+          <NavegacaoPortalPaciente tokenPaciente={tokenUrl} tokenLaudo={tokenLaudo} ativo="checkin" />
         )}
 
         <div>
-          <h2 className="text-xl font-black text-gray-800 dark:text-slate-100">Questionários</h2>
+          <h2 className="text-xl font-black text-gray-800 dark:text-slate-100">Check-in</h2>
           <p className="text-sm text-gray-500 dark:text-slate-400 mt-0.5">{paciente.nome_completo}</p>
         </div>
 
-        {envios.length === 0 ? (
-          <div className="bg-white dark:bg-slate-900 p-8 rounded-xl border border-gray-100 dark:border-slate-800 shadow-sm text-center">
-            <p className="text-gray-500 dark:text-slate-400 text-sm">Nenhum questionário por aqui ainda.</p>
-          </div>
-        ) : (
+        {pendentes.length > 0 && (
           <div className="space-y-3">
-            {envios.map((envio) => (
-              <div key={envio.id} className="bg-white dark:bg-slate-900 rounded-xl border border-gray-100 dark:border-slate-800 shadow-sm p-4 flex items-center justify-between gap-3">
+            {pendentes.map((envio) => (
+              <div key={envio.id} className="bg-white dark:bg-slate-900 rounded-xl border border-amber-200 dark:border-amber-800 shadow-sm p-4 flex items-center justify-between gap-3">
                 <div className="min-w-0">
                   <p className="text-sm font-black text-gray-800 dark:text-slate-100 truncate">{envio.questionarios?.titulo}</p>
                   <p className="text-[11px] text-gray-400 dark:text-slate-500">Recebido em {formatarData(envio.created_at)}</p>
                 </div>
-                {envio.status === 'aguardando' ? (
-                  <button
-                    onClick={() => navigate(`/questionario/${envio.token_publico}`)}
-                    className="px-4 py-2 bg-primary-600 text-white text-xs font-semibold rounded-lg hover:bg-primary-700 shadow shrink-0"
-                  >
-                    Responder
-                  </button>
-                ) : (
-                  <span className={`px-2.5 py-1 rounded-full text-[11px] font-bold shrink-0 ${STATUS_COR[envio.status]}`}>
-                    {STATUS_LABEL[envio.status]}
-                  </span>
-                )}
+                <button
+                  onClick={() => navigate(`/questionario/${envio.token_publico}`)}
+                  className="px-4 py-2 bg-primary-600 text-white text-xs font-semibold rounded-lg hover:bg-primary-700 shadow shrink-0"
+                >
+                  Responder
+                </button>
               </div>
             ))}
+          </div>
+        )}
+
+        {checkinsVisiveis.map((c) => (
+          <RelatorioCheckinPaciente
+            key={c.id_questionario}
+            pacienteId={paciente.id}
+            idQuestionario={c.id_questionario}
+            titulo={c.questionarios?.titulo || 'Seu Check-in'}
+          />
+        ))}
+
+        {pendentes.length === 0 && checkinsVisiveis.length === 0 && (
+          <div className="bg-white dark:bg-slate-900 p-8 rounded-xl border border-gray-100 dark:border-slate-800 shadow-sm text-center">
+            <p className="text-gray-500 dark:text-slate-400 text-sm">Nenhum check-in por aqui no momento.</p>
           </div>
         )}
       </div>
