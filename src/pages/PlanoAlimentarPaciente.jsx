@@ -88,7 +88,7 @@ function BlocoRefeicao({ refeicao, aberta, aoAlternar, mostrarMacros }) {
       {aberta && (
         <div className="px-3 pb-3 space-y-3">
           {refeicao.imagem_url && (
-            <img src={refeicao.imagem_url} alt="" className="w-full h-32 object-cover rounded-lg border border-gray-100 dark:border-slate-800" />
+            <img src={refeicao.imagem_url} alt="" className="w-full h-56 object-cover rounded-lg border border-gray-100 dark:border-slate-800" />
           )}
           <div className="flex flex-wrap gap-3">
             {(opcoes.length > 0 ? opcoes : [1]).map((n) => {
