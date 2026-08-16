@@ -3,12 +3,14 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { supabase } from '../supabaseClient'
 import SidebarPaciente from '../components/SidebarPaciente'
 import RichTextEditor, { sanitizarHtmlEditor } from '../components/RichTextEditor'
+import CampoImagem from '../components/imagens/CampoImagem'
 
 const CAMPOS_VAZIOS = {
   id_prontuario: '',
   conteudo: '',
   salvarComoModelo: false,
   tituloModelo: '',
+  imagem_url: null,
 }
 
 function formatarData(dataStr) {
@@ -82,13 +84,13 @@ export default function Anamnese({ userId }) {
 
   const abrirNovaAnamnese = () => {
     setEditingId(null)
-    setForm({ id_prontuario: prontuarios[0]?.id ?? '', conteudo: '', salvarComoModelo: false, tituloModelo: '' })
+    setForm({ id_prontuario: prontuarios[0]?.id ?? '', conteudo: '', salvarComoModelo: false, tituloModelo: '', imagem_url: null })
     setShowModal(true)
   }
 
   const abrirEdicaoAnamnese = (a) => {
     setEditingId(a.id)
-    setForm({ id_prontuario: a.id_prontuario ?? '', conteudo: a.conteudo || '', salvarComoModelo: false, tituloModelo: '' })
+    setForm({ id_prontuario: a.id_prontuario ?? '', conteudo: a.conteudo || '', salvarComoModelo: false, tituloModelo: '', imagem_url: a.imagem_url || null })
     setShowModal(true)
   }
 
@@ -101,6 +103,7 @@ export default function Anamnese({ userId }) {
     const payload = {
       id_prontuario: form.id_prontuario,
       conteudo: conteudoLimpo,
+      imagem_url: form.imagem_url || null,
       updated_at: new Date().toISOString(),
     }
 
@@ -212,6 +215,9 @@ export default function Anamnese({ userId }) {
                           <button onClick={() => handleExcluir(a.id)} className="text-xs font-semibold text-red-600 hover:underline">Excluir</button>
                         </div>
                       </div>
+                      {a.imagem_url && (
+                        <img src={a.imagem_url} alt="" className="w-full max-w-xs rounded-xl border border-gray-100 dark:border-slate-800 object-cover" />
+                      )}
                       {a.conteudo ? (
                         <div className="rte-html text-sm text-gray-700 dark:text-slate-300" dangerouslySetInnerHTML={{ __html: a.conteudo }} />
                       ) : (
@@ -252,6 +258,8 @@ export default function Anamnese({ userId }) {
                   ))}
                 </select>
               </div>
+
+              <CampoImagem valor={form.imagem_url} onChange={(url) => setForm((f) => ({ ...f, imagem_url: url }))} />
 
               <div>
                 <label className="block text-xs font-bold text-gray-700 dark:text-slate-300 uppercase tracking-wider mb-1">

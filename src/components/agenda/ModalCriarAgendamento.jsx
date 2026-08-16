@@ -29,7 +29,7 @@ async function fetchComTimeout(url, opcoes, timeoutMs = 20000) {
 // Modal "Criar agendamento" — campos iguais à referência (Paciente,
 // Data, Hora início/término, Fuso horário, Local). Ao salvar: insere em
 // `agendamentos`; se o Google estiver conectado, chama
-// api/google/create-event.js pra gerar o evento com Meet; se o WhatsApp
+// api/google/gerenciar.js pra gerar o evento com Meet; se o WhatsApp
 // estiver conectado e o paciente tiver telefone, chama
 // api/whatsapp/send.js pra mandar a confirmação (Trigger A). As duas
 // integrações falham de forma graciosa — um aviso, não trava o
@@ -78,10 +78,10 @@ export default function ModalCriarAgendamento({ pacientes, pacientePreSelecionad
     if (googleConectado) {
       try {
         const { data: { session } } = await supabase.auth.getSession()
-        const res = await fetchComTimeout('/api/google/create-event', {
+        const res = await fetchComTimeout('/api/google/gerenciar', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
-          body: JSON.stringify({ agendamento_id: agendamento.id }),
+          body: JSON.stringify({ acao: 'criar-evento', agendamento_id: agendamento.id }),
         })
         const eventoData = await res.json()
         if (res.ok) {

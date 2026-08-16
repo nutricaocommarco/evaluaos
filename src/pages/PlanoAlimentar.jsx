@@ -4,7 +4,8 @@ import { supabase } from '../supabaseClient'
 import SidebarPaciente from '../components/SidebarPaciente'
 import GeradorPdfNutricional from '../components/GeradorPdfNutricional'
 import InterruptorVisibilidade from '../components/InterruptorVisibilidade'
-import { FileDown, Save, Pencil, Trash2, StickyNote } from 'lucide-react'
+import { FileDown, Save, Pencil, Trash2, StickyNote, ImagePlus } from 'lucide-react'
+import SeletorImagem from '../components/imagens/SeletorImagem'
 
 const CAMPOS_PLANO_VAZIOS = {
   titulo: 'Plano Alimentar',
@@ -1106,6 +1107,7 @@ function OpcaoCard({ refeicaoId, opcaoNumero, itens, onItemExcluido, onItemAdici
 function RefeicaoCard({ refeicao, onAtualizarCampo, onExcluir, onItensChange, onMover, podeSubir, podeDescer, onDuplicarRefeicao, onAbrirSubstitutos, onSalvarComoModelo }) {
   const [novaOpcaoAberta, setNovaOpcaoAberta] = useState(false)
   const [notaAberta, setNotaAberta] = useState(!!refeicao.nota)
+  const [seletorImagemAberto, setSeletorImagemAberto] = useState(false)
 
   const opcoesExistentes = [...new Set(refeicao.itens_refeicao.map((i) => i.opcao_numero))].sort((a, b) => a - b)
   const proximaOpcao = opcoesExistentes.length > 0 ? Math.max(...opcoesExistentes) + 1 : 1
@@ -1170,6 +1172,17 @@ function RefeicaoCard({ refeicao, onAtualizarCampo, onExcluir, onItensChange, on
           />
         </div>
         <div className="flex items-center gap-1 shrink-0">
+          <button
+            onClick={() => setSeletorImagemAberto(true)}
+            title="Imagem de capa da refeição"
+            className="p-1.5 rounded transition-colors text-gray-400 dark:text-slate-500 hover:bg-gray-100 dark:hover:bg-slate-800 shrink-0"
+          >
+            {refeicao.imagem_url ? (
+              <img src={refeicao.imagem_url} alt="" className="w-[15px] h-[15px] rounded object-cover" />
+            ) : (
+              <ImagePlus size={15} />
+            )}
+          </button>
           <button
             onClick={() => setNotaAberta((v) => !v)}
             title="Nota da refeição (aparece pro paciente)"
@@ -1252,6 +1265,13 @@ function RefeicaoCard({ refeicao, onAtualizarCampo, onExcluir, onItensChange, on
         >
           + Nova Opção (substituição)
         </button>
+      )}
+
+      {seletorImagemAberto && (
+        <SeletorImagem
+          aoFechar={() => setSeletorImagemAberto(false)}
+          aoSelecionar={(url) => onAtualizarCampo(refeicao.id, 'imagem_url', url)}
+        />
       )}
     </div>
   )

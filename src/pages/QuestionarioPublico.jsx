@@ -234,6 +234,9 @@ export default function QuestionarioPublico() {
 
           {etapaAtual?.questionario_perguntas.map((pergunta) => (
             <div key={pergunta.id}>
+              {pergunta.imagem_url && (
+                <img src={pergunta.imagem_url} alt="" className="w-full max-w-xs rounded-xl border border-gray-100 mb-2 object-cover" />
+              )}
               <label className="block text-sm font-bold text-gray-800 mb-2">
                 {pergunta.texto} {pergunta.obrigatoria && <span className="text-red-500">*</span>}
               </label>
