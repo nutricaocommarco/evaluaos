@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react'
+import { useLocation } from 'react-router-dom'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
 import { supabase } from '../supabaseClient'
 import { useTheme } from '../contexts/ThemeContext'
-import { ChevronLeft, ChevronRight, Pencil, Trash2, TrendingUp, TrendingDown, Wallet, Repeat, AlertTriangle, Check, Receipt } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Pencil, Trash2, TrendingUp, TrendingDown, Wallet, Repeat, AlertTriangle, Check, Receipt, X } from 'lucide-react'
 import GeradorPdfRecibo from '../components/GeradorPdfRecibo'
 
 const MESES = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez']
@@ -33,6 +34,7 @@ function formatarData(dataStr) {
 
 export default function Financeiro({ userId }) {
   const { darkMode } = useTheme()
+  const location = useLocation()
   const [loading, setLoading] = useState(true)
   const [movimentacoes, setMovimentacoes] = useState([])
   const [pacientes, setPacientes] = useState([])
@@ -42,6 +44,10 @@ export default function Financeiro({ userId }) {
   const [pendencias, setPendencias] = useState([])
   const [carregandoPendencias, setCarregandoPendencias] = useState(true)
   const [movimentacaoParaRecibo, setMovimentacaoParaRecibo] = useState(null)
+  // Vindo do botão "Pagamentos" na Ficha do Paciente (mesmo padrão de
+  // pacientePreSelecionado já usado pra Agenda) — filtra tudo por esse
+  // paciente até o nutri limpar o filtro.
+  const [pacienteFiltro, setPacienteFiltro] = useState(location.state?.pacientePreSelecionado || null)
 
   const [showModal, setShowModal] = useState(false)
   const [editingId, setEditingId] = useState(null)
@@ -94,7 +100,11 @@ export default function Financeiro({ userId }) {
     carregarPacientes()
   }, [userId])
 
-  const movimentacoesDoPeriodo = movimentacoes.filter((m) => {
+  const movimentacoesDoPaciente = pacienteFiltro
+    ? movimentacoes.filter((m) => m.id_paciente === pacienteFiltro.id)
+    : movimentacoes
+
+  const movimentacoesDoPeriodo = movimentacoesDoPaciente.filter((m) => {
     if (mesSelecionado === null) return true
     return new Date(`${m.data}T00:00:00`).getMonth() === mesSelecionado
   })
@@ -103,10 +113,14 @@ export default function Financeiro({ userId }) {
   const totalDespesas = movimentacoesDoPeriodo.filter((m) => m.tipo === 'despesa').reduce((acc, m) => acc + Number(m.valor), 0)
   const saldo = totalReceitas - totalDespesas
 
+  const pendenciasFiltradas = pacienteFiltro
+    ? pendencias.filter((p) => p.id_paciente === pacienteFiltro.id)
+    : pendencias
+
   // Fluxo de caixa: receitas x despesas de cada mês do ano inteiro, pra
   // comparar de relance — independe do mês selecionado no seletor acima.
   const dadosFluxoCaixa = MESES.map((mes, idx) => {
-    const doMes = movimentacoes.filter((m) => new Date(`${m.data}T00:00:00`).getMonth() === idx)
+    const doMes = movimentacoesDoPaciente.filter((m) => new Date(`${m.data}T00:00:00`).getMonth() === idx)
     return {
       mes,
       Receitas: doMes.filter((m) => m.tipo === 'receita').reduce((acc, m) => acc + Number(m.valor), 0),
@@ -116,7 +130,7 @@ export default function Financeiro({ userId }) {
 
   const abrirNova = () => {
     setEditingId(null)
-    setForm(CAMPOS_VAZIOS)
+    setForm({ ...CAMPOS_VAZIOS, id_paciente: pacienteFiltro ? String(pacienteFiltro.id) : '' })
     setShowModal(true)
   }
 
@@ -251,6 +265,15 @@ export default function Financeiro({ userId }) {
         </button>
       </div>
 
+      {pacienteFiltro && (
+        <div className="flex items-center gap-2 bg-primary-50 dark:bg-primary-900/20 text-primary-700 dark:text-primary-400 text-xs font-semibold px-3 py-2 rounded-lg w-fit">
+          Filtrando por: {pacienteFiltro.nome_completo}
+          <button onClick={() => setPacienteFiltro(null)} title="Limpar filtro" className="hover:text-primary-900 dark:hover:text-primary-200">
+            <X size={13} />
+          </button>
+        </div>
+      )}
+
       <div className="flex gap-1 border-b border-gray-200 dark:border-slate-800">
         <button
           onClick={() => setAbaAtiva('movimentacoes')}
@@ -271,9 +294,9 @@ export default function Financeiro({ userId }) {
           }`}
         >
           Pendências
-          {pendencias.length > 0 && (
+          {pendenciasFiltradas.length > 0 && (
             <span className="text-[10px] font-bold bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 rounded-full px-1.5 py-0.5">
-              {pendencias.length}
+              {pendenciasFiltradas.length}
             </span>
           )}
         </button>
@@ -393,11 +416,11 @@ export default function Financeiro({ userId }) {
       <div className="bg-white dark:bg-slate-900 rounded-xl border border-gray-100 dark:border-slate-800 shadow-sm overflow-hidden">
         {carregandoPendencias ? (
           <p className="text-sm text-primary-600 font-semibold text-center py-8 animate-pulse">Carregando...</p>
-        ) : pendencias.length === 0 ? (
+        ) : pendenciasFiltradas.length === 0 ? (
           <p className="text-sm text-gray-400 dark:text-slate-500 text-center py-8">Nenhuma pendência — tudo pago e recebido.</p>
         ) : (
           <div className="divide-y divide-gray-100 dark:divide-slate-800">
-            {pendencias.map((m) => {
+            {pendenciasFiltradas.map((m) => {
               const atrasado = m.data_vencimento && m.data_vencimento < hojeStr
               return (
                 <div key={m.id} className="flex items-center justify-between gap-3 p-4">
