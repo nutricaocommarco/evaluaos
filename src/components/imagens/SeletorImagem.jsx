@@ -28,7 +28,7 @@ export default function SeletorImagem({ aoFechar, aoSelecionar }) {
   const carregarMinhasImagens = async (busca = '') => {
     setCarregandoMinhas(true)
     const { data: { session } } = await supabase.auth.getSession()
-    const res = await fetch(`/api/uploads/minhas-imagens?busca=${encodeURIComponent(busca)}`, {
+    const res = await fetch(`/api/uploads/imagens?busca=${encodeURIComponent(busca)}`, {
       headers: { Authorization: `Bearer ${session.access_token}` },
     })
     const data = await res.json()
@@ -53,7 +53,7 @@ export default function SeletorImagem({ aoFechar, aoSelecionar }) {
     setCarregandoBanco(true)
     const t = setTimeout(async () => {
       const { data: { session } } = await supabase.auth.getSession()
-      const res = await fetch(`/api/uploads/pexels-search?busca=${encodeURIComponent(buscaBanco)}`, {
+      const res = await fetch(`/api/uploads/imagens?recurso=pexels&busca=${encodeURIComponent(buscaBanco)}`, {
         headers: { Authorization: `Bearer ${session.access_token}` },
       })
       const data = await res.json()
@@ -80,7 +80,7 @@ export default function SeletorImagem({ aoFechar, aoSelecionar }) {
       })
 
       const { data: { session } } = await supabase.auth.getSession()
-      const presignRes = await fetch('/api/uploads/presign', {
+      const presignRes = await fetch('/api/uploads/imagens', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
         body: JSON.stringify({ nomeArquivo: arquivo.name.replace(/\.[^.]+$/, '.jpg'), contentType: 'image/jpeg', tamanhoBytes: comprimido.size }),

@@ -271,9 +271,10 @@ export default function Avaliador() {
     setDesconectandoGoogle(true)
     const { data: { session } } = await supabase.auth.getSession()
     try {
-      const res = await fetch('/api/google/disconnect', {
+      const res = await fetch('/api/google/gerenciar', {
         method: 'POST',
-        headers: { Authorization: `Bearer ${session.access_token}` },
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
+        body: JSON.stringify({ acao: 'desconectar' }),
       })
       if (!res.ok) throw new Error('Falha ao desconectar')
       setGoogleConectado(false)

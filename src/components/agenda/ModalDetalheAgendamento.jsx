@@ -24,10 +24,10 @@ export default function ModalDetalheAgendamento({ agendamento, aoFechar, aoExclu
     if (agendamento.google_event_id) {
       try {
         const { data: { session } } = await supabase.auth.getSession()
-        const res = await fetch('/api/google/delete-event', {
+        const res = await fetch('/api/google/gerenciar', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
-          body: JSON.stringify({ agendamento_id: agendamento.id }),
+          body: JSON.stringify({ acao: 'excluir-evento', agendamento_id: agendamento.id }),
         })
         if (!res.ok) avisoGoogle = 'Não foi possível cancelar o evento no Google Calendar — apague manualmente lá.'
       } catch {
