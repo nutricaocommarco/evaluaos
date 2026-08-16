@@ -111,7 +111,9 @@ const simulateWeightTrajectory = (intake, days, initialWeight, height, age, isMa
   for (let i = 0; i <= days; i++) {
     const glycogenWaterLoss = maxGlycogenWaterLoss * (1 - Math.exp(-i / 3.5));
     const displayWeight = Number((currentWeight - glycogenWaterLoss).toFixed(1));
-    const uncertainty = Number(((i / 90) * 2.8).toFixed(1)); 
+    // Mesma correção de BodyWP.jsx: incerteza assintótica em vez de linear
+    // sem limite (senão uma projeção de 365 dias mostraria ±11,4kg de faixa).
+    const uncertainty = Number((2.8 * (1 - Math.exp(-i / 45))).toFixed(1));
     let currentBf = displayWeight > 0 ? (currentFM / displayWeight) * 100 : 0;
     
     const pesoAlto = Number((displayWeight + uncertainty).toFixed(1));
@@ -617,7 +619,13 @@ export default function ResultadoAvaliacao() {
   const heightCalc = Number(aval?.altura_paciente || 170);
   const ageCalc = idade || 25;
   const isMaleCalc = pac.sexo === 'M';
-  const bfCalc = Number(aval?.percentual_de_gordura || 0);
+  // Mesmo fallback que a calculadora usa ao importar a avaliação: se não
+  // tem percentual_de_gordura preenchido direto, deriva de massa_gorda/peso
+  // (comum em avaliações por dobras cutâneas). Sem isso, a reconstrução da
+  // curva aqui no Laudo cairia pra 0% e travaria a % de gordura exibida.
+  const bfCalc = percentualGordura > 0
+    ? Number(percentualGordura)
+    : (massaGorda2C > 0 && weightCalc > 0 ? Number(((massaGorda2C / weightCalc) * 100).toFixed(1)) : 0);
   const palCalc = Number(dados?.fator_atividade || 1.2);
   const eqNome = (dados?.equacao_metabolica || '').toLowerCase();
   const formulaCalc = eqNome.includes('harris') ? 'harris' :

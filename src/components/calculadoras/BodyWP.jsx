@@ -38,9 +38,11 @@ export default function BodyWP({ formData, results, plannerData, setPlannerData,
       // Peso fisiológico real na balança (Tecidos + Depleção de Glicogênio/Água)
       const displayWeight = Number((currentWeight - glycogenWaterLoss).toFixed(1));
       
-      // Incerteza progressiva conforme o BWP original
-      const uncertainty = Number(((i / 90) * 2.8).toFixed(1)); 
-      const bfUncertainty = Number(((i / 90) * 1.3).toFixed(1));
+      // Incerteza progressiva que estabiliza com o tempo (assintótica) em vez de
+      // crescer linearmente pra sempre — do jeito antigo, uma projeção de 365
+      // dias chegava a ±11,4kg de faixa, o que não é fisiologicamente plausível.
+      const uncertainty = Number((2.8 * (1 - Math.exp(-i / 45))).toFixed(1));
+      const bfUncertainty = Number((1.3 * (1 - Math.exp(-i / 45))).toFixed(1));
       
       let currentBf = displayWeight > 0 ? (currentFM / displayWeight) * 100 : 0;
       
@@ -260,7 +262,14 @@ export default function BodyWP({ formData, results, plannerData, setPlannerData,
     return null;
   };
 
-  const precisaBF = plannerData.simulationMode === 'target_bf' || plannerData.simulationMode === 'target_fat_loss';
+  // Todo modo de simulação depende do %GC pra rastrear massa gorda/magra
+  // corretamente (Forbes partitioning + fórmulas como Cunningham, que usam
+  // massa magra pro cálculo do metabolismo basal). Sem %GC, a simulação
+  // parte de massa gorda zero, bate no piso de segurança de 3% já no
+  // primeiro dia e trava a % de gordura exibida no gráfico pro resto da
+  // simulação — por isso todos os modos exigem %GC, não só os 2 que o
+  // usam diretamente como meta.
+  const precisaBF = true;
   const faltaBF = precisaBF && (!formData.bf || formData.bf <= 0);
   const massaGordaAtualKg = formData.weight > 0 && formData.bf > 0 ? (formData.weight * (formData.bf / 100)).toFixed(1) : 0;
 
