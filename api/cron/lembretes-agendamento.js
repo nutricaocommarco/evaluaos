@@ -22,6 +22,60 @@ function primeiroNome(nomeCompleto) {
 
 const DOMINIO = 'https://evaluaos.nutricaocommarco.com.br'
 
+// Check-in semanal: cria um novo envio de questionário automaticamente
+// pra cada paciente com `id_questionario_semanal` configurado (Liga/Desliga
+// por paciente em PacienteQuestionarios.jsx). Roda dentro do mesmo cron
+// diário (só na segunda-feira) em vez de um cron próprio — o Vercel Hobby
+// limita o total de Serverless Functions, e um arquivo novo só pra isso
+// custaria uma função inteira por uma tarefa que roda 1x/semana. Sem
+// nenhum envio de WhatsApp automático aqui: só cria a linha no banco, o
+// paciente vê no Portal dele sozinho; o lembrete por WhatsApp continua
+// manual (botão "Enviar Lembrete", mesmo link wa.me de sempre).
+async function rodarCheckinSemanal(admin) {
+  const { data: pacientes, error } = await admin
+    .from('pacientes')
+    .select('id, id_avaliador, id_questionario_semanal')
+    .not('id_questionario_semanal', 'is', null)
+
+  if (error) {
+    console.error('cron checkin-semanal: falha ao buscar pacientes', error)
+    return { criados: 0, pulados: 0, erros: 1 }
+  }
+
+  let criados = 0
+  let pulados = 0
+  let erros = 0
+  const seteDiasAtras = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()
+
+  for (const pac of pacientes || []) {
+    try {
+      const { data: envioRecente } = await admin
+        .from('questionario_envios')
+        .select('id')
+        .eq('id_paciente', pac.id)
+        .eq('id_questionario', pac.id_questionario_semanal)
+        .gte('created_at', seteDiasAtras)
+        .limit(1)
+        .maybeSingle()
+
+      if (envioRecente) { pulados++; continue }
+
+      const { error: insertError } = await admin.from('questionario_envios').insert({
+        id_questionario: pac.id_questionario_semanal,
+        id_avaliador: pac.id_avaliador,
+        id_paciente: pac.id,
+      })
+      if (insertError) throw insertError
+      criados++
+    } catch (err) {
+      console.error(`cron checkin-semanal: falha pro paciente ${pac.id}`, err)
+      erros++
+    }
+  }
+
+  return { criados, pulados, erros }
+}
+
 export default async function handler(req, res) {
   const authHeader = req.headers.authorization || ''
   if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
@@ -30,6 +84,8 @@ export default async function handler(req, res) {
   }
 
   const admin = getSupabaseAdmin()
+
+  const checkinSemanal = new Date().getUTCDay() === 1 ? await rodarCheckinSemanal(admin) : null
 
   const agora = new Date()
   const inicioJanela = new Date(agora.getTime() + 20 * 60 * 60 * 1000).toISOString()
@@ -89,5 +145,5 @@ export default async function handler(req, res) {
     }
   }
 
-  res.status(200).json({ enviados, pulados, erros, total: (agendamentos || []).length })
+  res.status(200).json({ enviados, pulados, erros, total: (agendamentos || []).length, checkinSemanal })
 }

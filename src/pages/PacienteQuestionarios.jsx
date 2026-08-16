@@ -5,6 +5,7 @@ import SidebarPaciente from '../components/SidebarPaciente'
 import ListaEnvios from '../components/questionarios/ListaEnvios'
 import ModalEnviarQuestionario from '../components/questionarios/ModalEnviarQuestionario'
 import ModalRespostas from '../components/questionarios/ModalRespostas'
+import CheckinSemanal from '../components/questionarios/CheckinSemanal'
 
 export default function PacienteQuestionarios({ userId }) {
   const { id } = useParams()
@@ -99,6 +100,8 @@ export default function PacienteQuestionarios({ userId }) {
             Enviar questionário
           </button>
         </div>
+
+        <CheckinSemanal paciente={paciente} userId={userId} />
 
         <ListaEnvios envios={envios} onVerRespostas={setModalRespostasEnvio} onExcluir={handleExcluirEnvio} mostrarFiltroPaciente={false} />
       </div>

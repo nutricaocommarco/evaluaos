@@ -4,6 +4,7 @@ import { supabase } from '../supabaseClient'
 import { useTheme } from '../contexts/ThemeContext'
 import CabecalhoPortalPaciente from '../components/CabecalhoPortalPaciente'
 import NavegacaoPortalPaciente from '../components/NavegacaoPortalPaciente'
+import GraficoPesoImcPaciente from '../components/questionarios/GraficoPesoImcPaciente'
 
 const STATUS_LABEL = {
   aguardando: 'Aguardando resposta',
@@ -136,6 +137,8 @@ export default function QuestionariosPaciente() {
           <h2 className="text-xl font-black text-gray-800 dark:text-slate-100">Questionários</h2>
           <p className="text-sm text-gray-500 dark:text-slate-400 mt-0.5">{paciente.nome_completo}</p>
         </div>
+
+        <GraficoPesoImcPaciente pacienteId={paciente.id} />
 
         {envios.length === 0 ? (
           <div className="bg-white dark:bg-slate-900 p-8 rounded-xl border border-gray-100 dark:border-slate-800 shadow-sm text-center">
