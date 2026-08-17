@@ -175,12 +175,22 @@ function faixaDri(idade, sexo) {
 function calcularMacrosItem(item) {
   const alimento = item.tabela_alimentos
   const micronutrientesVazios = Object.fromEntries(MICRONUTRIENTES.map((m) => [m.chave, 0]))
+  const semDadoVazio = Object.fromEntries(MICRONUTRIENTES.map((m) => [m.chave, false]))
   if (!alimento || item.ignorar_nos_calculos) {
-    return { kcal: 0, proteina: 0, carbo: 0, lipidio: 0, fibra: 0, micronutrientes: micronutrientesVazios }
+    return { kcal: 0, proteina: 0, carbo: 0, lipidio: 0, fibra: 0, micronutrientes: micronutrientesVazios, temDado: semDadoVazio }
   }
   const fator = (Number(item.quantidade_g) || 0) / 100
   const micronutrientes = Object.fromEntries(
     MICRONUTRIENTES.map((m) => [m.chave, (alimento[m.chave] || 0) * fator])
+  )
+  // Marca por nutriente se ESSE alimento tem valor cadastrado (mesmo que
+  // 0 de verdade) — diferencia "não tem esse mineral" de "não sabemos".
+  // A base (USDA e derivados) frequentemente não reporta Cromo, Iodo e
+  // Biotina pra praticamente nenhum alimento, então sem essa distinção o
+  // total apareceria como "0" (zero confirmado) quando na real é "sem
+  // dado" pra boa parte do prato.
+  const temDado = Object.fromEntries(
+    MICRONUTRIENTES.map((m) => [m.chave, alimento[m.chave] !== null && alimento[m.chave] !== undefined])
   )
   return {
     kcal: (alimento.energia_kcal || 0) * fator,
@@ -189,6 +199,7 @@ function calcularMacrosItem(item) {
     lipidio: (alimento.lipidios_g || 0) * fator,
     fibra: (alimento.fibra_g || 0) * fator,
     micronutrientes,
+    temDado,
   }
 }
 
@@ -203,6 +214,11 @@ function somarMacros(lista) {
       micronutrientes: Object.fromEntries(
         MICRONUTRIENTES.map((n) => [n.chave, acc.micronutrientes[n.chave] + (m.micronutrientes?.[n.chave] || 0)])
       ),
+      // "Tem dado" pro total = pelo menos UM alimento do dia tinha esse
+      // nutriente cadastrado (não precisa ser todos).
+      temDado: Object.fromEntries(
+        MICRONUTRIENTES.map((n) => [n.chave, acc.temDado[n.chave] || !!m.temDado?.[n.chave]])
+      ),
     }),
     {
       kcal: 0,
@@ -211,6 +227,7 @@ function somarMacros(lista) {
       lipidio: 0,
       fibra: 0,
       micronutrientes: Object.fromEntries(MICRONUTRIENTES.map((n) => [n.chave, 0])),
+      temDado: Object.fromEntries(MICRONUTRIENTES.map((n) => [n.chave, false])),
     }
   )
 }
@@ -1465,8 +1482,22 @@ function textoTooltipMicronutriente(ref, total) {
   return partes.join(' · ') + '. ' + veredito.charAt(0).toUpperCase() + veredito.slice(1) + '.'
 }
 
-function LinhaMicronutriente({ referencia, total }) {
+function LinhaMicronutriente({ referencia, total, temDado }) {
   if (!referencia) return null
+  if (!temDado) {
+    return (
+      <div
+        className="py-1.5 opacity-60"
+        title={`${referencia.nutriente} — nenhum alimento deste plano tem esse nutriente cadastrado na base (comum pra Cromo, Iodo e Biotina — o USDA raramente reporta esses três). Não é o mesmo que "0" — é dado ausente, não confundir com ingestão zero.`}
+      >
+        <div className="flex items-baseline justify-between gap-2 mb-1">
+          <span className="text-xs font-semibold text-gray-700 dark:text-slate-300">{referencia.nutriente}</span>
+          <span className="text-xs font-semibold text-gray-400 dark:text-slate-500 italic">sem dado na base</span>
+        </div>
+        <div className="h-2.5 w-full rounded-full bg-gray-100 dark:bg-slate-800 bg-[repeating-linear-gradient(45deg,transparent,transparent_4px,rgba(148,163,184,0.35)_4px,rgba(148,163,184,0.35)_8px)]" />
+      </div>
+    )
+  }
   const barra = calcularBarraMicronutriente(referencia, total)
   return (
     <div className="py-1.5" title={textoTooltipMicronutriente(referencia, total)}>
@@ -2445,6 +2476,7 @@ export default function PlanoAlimentar({ userId }) {
                           key={m.chave}
                           referencia={referencia}
                           total={totalDia.micronutrientes[m.chave] || 0}
+                          temDado={!!totalDia.temDado[m.chave]}
                         />
                       )
                     })}

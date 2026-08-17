@@ -62,12 +62,19 @@ const MICRONUTRIENTES = [
 function calcularMacrosItem(item) {
   const alimento = item.tabela_alimentos
   const micronutrientesVazios = Object.fromEntries(MICRONUTRIENTES.map((m) => [m.chave, 0]))
+  const semDadoVazio = Object.fromEntries(MICRONUTRIENTES.map((m) => [m.chave, false]))
   if (!alimento || item.ignorar_nos_calculos) {
-    return { kcal: 0, proteina: 0, carbo: 0, lipidio: 0, fibra: 0, micronutrientes: micronutrientesVazios }
+    return { kcal: 0, proteina: 0, carbo: 0, lipidio: 0, fibra: 0, micronutrientes: micronutrientesVazios, temDado: semDadoVazio }
   }
   const fator = (Number(item.quantidade_g) || 0) / 100
   const micronutrientes = Object.fromEntries(
     MICRONUTRIENTES.map((m) => [m.chave, (alimento[m.chave] || 0) * fator])
+  )
+  // "Tem dado" por nutriente — a base frequentemente não reporta Cromo,
+  // Iodo e Biotina pra quase nenhum alimento, então sem essa distinção o
+  // total apareceria como "0" (confirmado) em vez de "sem dado".
+  const temDado = Object.fromEntries(
+    MICRONUTRIENTES.map((m) => [m.chave, alimento[m.chave] !== null && alimento[m.chave] !== undefined])
   )
   return {
     kcal: (alimento.energia_kcal || 0) * fator,
@@ -76,6 +83,7 @@ function calcularMacrosItem(item) {
     lipidio: (alimento.lipidios_g || 0) * fator,
     fibra: (alimento.fibra_g || 0) * fator,
     micronutrientes,
+    temDado,
   }
 }
 
@@ -90,6 +98,9 @@ function somarMacros(lista) {
       micronutrientes: Object.fromEntries(
         MICRONUTRIENTES.map((n) => [n.chave, acc.micronutrientes[n.chave] + (m.micronutrientes?.[n.chave] || 0)])
       ),
+      temDado: Object.fromEntries(
+        MICRONUTRIENTES.map((n) => [n.chave, acc.temDado[n.chave] || !!m.temDado?.[n.chave]])
+      ),
     }),
     {
       kcal: 0,
@@ -98,6 +109,7 @@ function somarMacros(lista) {
       lipidio: 0,
       fibra: 0,
       micronutrientes: Object.fromEntries(MICRONUTRIENTES.map((n) => [n.chave, 0])),
+      temDado: Object.fromEntries(MICRONUTRIENTES.map((n) => [n.chave, false])),
     }
   )
 }
@@ -268,9 +280,13 @@ function BlocoPlano({ plano, aberto, aoAlternar, refeicoesAbertas, aoAlternarRef
               {MICRONUTRIENTES.map((m) => (
                 <div key={m.chave}>
                   <p className="text-gray-400 dark:text-slate-500 text-xs">{m.nome}</p>
-                  <p className="font-black text-gray-800 dark:text-slate-100">
-                    {fmt(totalDia.micronutrientes[m.chave])} {m.unidade}
-                  </p>
+                  {totalDia.temDado[m.chave] ? (
+                    <p className="font-black text-gray-800 dark:text-slate-100">
+                      {fmt(totalDia.micronutrientes[m.chave])} {m.unidade}
+                    </p>
+                  ) : (
+                    <p className="font-semibold text-gray-400 dark:text-slate-500 italic text-sm">sem dado</p>
+                  )}
                 </div>
               ))}
             </div>
