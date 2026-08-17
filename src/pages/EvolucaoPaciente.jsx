@@ -108,7 +108,7 @@ export default function EvolucaoPaciente() {
             .maybeSingle();
 
           if (isPublicView && configData) {
-            setDarkMode(!!configData.dark_mode);
+            setDarkMode(pacienteAtual.tema_dark_mode != null ? pacienteAtual.tema_dark_mode : !!configData.dark_mode);
             if (configData.cor_primaria) setCorPrimaria(configData.cor_primaria);
           }
 

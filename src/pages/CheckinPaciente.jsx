@@ -67,7 +67,7 @@ export default function CheckinPaciente() {
             .maybeSingle()
 
           if (configData) {
-            setDarkMode(!!configData.dark_mode)
+            setDarkMode(pacData.tema_dark_mode != null ? pacData.tema_dark_mode : !!configData.dark_mode)
             if (configData.cor_primaria) setCorPrimaria(configData.cor_primaria)
           }
         }

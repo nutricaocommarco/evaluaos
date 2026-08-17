@@ -5,6 +5,7 @@ import { supabase } from '../supabaseClient'
 import { useTheme } from '../contexts/ThemeContext'
 import { ChevronLeft, ChevronRight, Pencil, Trash2, TrendingUp, TrendingDown, Wallet, Repeat, AlertTriangle, Check, Receipt, X } from 'lucide-react'
 import GeradorPdfRecibo from '../components/GeradorPdfRecibo'
+import AbaOrcamentos from '../components/financeiro/AbaOrcamentos'
 
 const MESES = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez']
 const CATEGORIAS_RECEITA = ['Consultas', 'Venda de produtos', 'Outro']
@@ -40,7 +41,7 @@ export default function Financeiro({ userId }) {
   const [pacientes, setPacientes] = useState([])
   const [ano, setAno] = useState(new Date().getFullYear())
   const [mesSelecionado, setMesSelecionado] = useState(new Date().getMonth()) // null = ano todo
-  const [abaAtiva, setAbaAtiva] = useState('movimentacoes') // 'movimentacoes' | 'pendencias' | 'fluxo'
+  const [abaAtiva, setAbaAtiva] = useState('movimentacoes') // 'movimentacoes' | 'pendencias' | 'fluxo' | 'orcamentos'
   const [pendencias, setPendencias] = useState([])
   const [carregandoPendencias, setCarregandoPendencias] = useState(true)
   const [movimentacaoParaRecibo, setMovimentacaoParaRecibo] = useState(null)
@@ -257,15 +258,17 @@ export default function Financeiro({ userId }) {
           </h2>
           <p className="text-xs text-gray-500 dark:text-slate-400 mt-0.5">Receitas e despesas do seu consultório</p>
         </div>
-        <button
-          onClick={abrirNova}
-          className="px-4 py-2 bg-primary-600 text-white text-sm font-semibold rounded-lg hover:bg-primary-700 shadow transition-colors shrink-0"
-        >
-          + Registrar movimentação
-        </button>
+        {abaAtiva !== 'orcamentos' && (
+          <button
+            onClick={abrirNova}
+            className="px-4 py-2 bg-primary-600 text-white text-sm font-semibold rounded-lg hover:bg-primary-700 shadow transition-colors shrink-0"
+          >
+            + Registrar movimentação
+          </button>
+        )}
       </div>
 
-      {pacienteFiltro && (
+      {abaAtiva !== 'orcamentos' && pacienteFiltro && (
         <div className="flex items-center gap-2 bg-primary-50 dark:bg-primary-900/20 text-primary-700 dark:text-primary-400 text-xs font-semibold px-3 py-2 rounded-lg w-fit">
           Filtrando por: {pacienteFiltro.nome_completo}
           <button onClick={() => setPacienteFiltro(null)} title="Limpar filtro" className="hover:text-primary-900 dark:hover:text-primary-200">
@@ -274,44 +277,64 @@ export default function Financeiro({ userId }) {
         </div>
       )}
 
-      <div className="flex gap-1 border-b border-gray-200 dark:border-slate-800">
-        <button
-          onClick={() => setAbaAtiva('movimentacoes')}
-          className={`px-4 py-2 text-sm font-semibold border-b-2 -mb-px transition-colors ${
-            abaAtiva === 'movimentacoes'
-              ? 'border-primary-600 text-primary-600'
-              : 'border-transparent text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-200'
-          }`}
-        >
-          Movimentações
-        </button>
-        <button
-          onClick={() => setAbaAtiva('pendencias')}
-          className={`px-4 py-2 text-sm font-semibold border-b-2 -mb-px transition-colors flex items-center gap-1.5 ${
-            abaAtiva === 'pendencias'
-              ? 'border-primary-600 text-primary-600'
-              : 'border-transparent text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-200'
-          }`}
-        >
-          Pendências
-          {pendenciasFiltradas.length > 0 && (
-            <span className="text-[10px] font-bold bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 rounded-full px-1.5 py-0.5">
-              {pendenciasFiltradas.length}
-            </span>
-          )}
-        </button>
-        <button
-          onClick={() => setAbaAtiva('fluxo')}
-          className={`px-4 py-2 text-sm font-semibold border-b-2 -mb-px transition-colors ${
-            abaAtiva === 'fluxo'
-              ? 'border-primary-600 text-primary-600'
-              : 'border-transparent text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-200'
-          }`}
-        >
-          Fluxo de Caixa
-        </button>
+      <div className="relative w-full flex items-center">
+        <div className="flex items-center gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden pr-10 scroll-smooth w-full">
+          <button
+            onClick={() => setAbaAtiva('movimentacoes')}
+            className={`px-4 py-2 rounded-xl text-xs font-semibold whitespace-nowrap transition-all shrink-0 ${
+              abaAtiva === 'movimentacoes'
+                ? 'bg-primary-600 text-white shadow-md'
+                : 'bg-gray-100 dark:bg-slate-800 text-gray-600 dark:text-slate-300 hover:bg-gray-200 dark:hover:bg-slate-700'
+            }`}
+          >
+            Movimentações
+          </button>
+          <button
+            onClick={() => setAbaAtiva('pendencias')}
+            className={`px-4 py-2 rounded-xl text-xs font-semibold whitespace-nowrap transition-all shrink-0 flex items-center gap-1.5 ${
+              abaAtiva === 'pendencias'
+                ? 'bg-primary-600 text-white shadow-md'
+                : 'bg-gray-100 dark:bg-slate-800 text-gray-600 dark:text-slate-300 hover:bg-gray-200 dark:hover:bg-slate-700'
+            }`}
+          >
+            Pendências
+            {pendenciasFiltradas.length > 0 && (
+              <span className="text-[10px] font-bold bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 rounded-full px-1.5 py-0.5">
+                {pendenciasFiltradas.length}
+              </span>
+            )}
+          </button>
+          <button
+            onClick={() => setAbaAtiva('fluxo')}
+            className={`px-4 py-2 rounded-xl text-xs font-semibold whitespace-nowrap transition-all shrink-0 ${
+              abaAtiva === 'fluxo'
+                ? 'bg-primary-600 text-white shadow-md'
+                : 'bg-gray-100 dark:bg-slate-800 text-gray-600 dark:text-slate-300 hover:bg-gray-200 dark:hover:bg-slate-700'
+            }`}
+          >
+            Fluxo de Caixa
+          </button>
+          <button
+            onClick={() => setAbaAtiva('orcamentos')}
+            className={`px-4 py-2 rounded-xl text-xs font-semibold whitespace-nowrap transition-all shrink-0 ${
+              abaAtiva === 'orcamentos'
+                ? 'bg-primary-600 text-white shadow-md'
+                : 'bg-gray-100 dark:bg-slate-800 text-gray-600 dark:text-slate-300 hover:bg-gray-200 dark:hover:bg-slate-700'
+            }`}
+          >
+            Orçamentos
+          </button>
+        </div>
+
+        <div className="absolute right-0 top-0 bottom-1 flex items-center justify-end w-12 bg-gradient-to-l from-white dark:from-slate-950 via-white/80 dark:via-slate-950/80 to-transparent pointer-events-none sm:hidden">
+          <span className="text-primary-600 text-xs font-bold animate-pulse mr-1">➔</span>
+        </div>
       </div>
 
+      {abaAtiva === 'orcamentos' && <AbaOrcamentos userId={userId} />}
+
+      {abaAtiva !== 'orcamentos' && (
+      <>
       <div className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-gray-100 dark:border-slate-800 shadow-sm space-y-3">
         <div className="flex items-center justify-center gap-3">
           <button onClick={() => setAno((a) => a - 1)} className="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-slate-200">
@@ -363,6 +386,8 @@ export default function Financeiro({ userId }) {
           <p className={`text-xl font-black mt-1 ${saldo >= 0 ? 'text-gray-800 dark:text-slate-100' : 'text-red-600 dark:text-red-400'}`}>{fmtMoeda(saldo)}</p>
         </div>
       </div>
+      </>
+      )}
 
       {abaAtiva === 'movimentacoes' && (
       <div className="bg-white dark:bg-slate-900 rounded-xl border border-gray-100 dark:border-slate-800 shadow-sm overflow-hidden">

@@ -282,7 +282,7 @@ export default function ResultadoAvaliacao() {
             .maybeSingle();
 
           if (isPublicView && configData) {
-            setDarkMode(!!configData.dark_mode);
+            setDarkMode(pac.tema_dark_mode != null ? pac.tema_dark_mode : !!configData.dark_mode);
             if (configData.cor_primaria) setCorPrimaria(configData.cor_primaria);
           }
 

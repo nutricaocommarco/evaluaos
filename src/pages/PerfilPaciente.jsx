@@ -4,7 +4,7 @@ import { supabase } from '../supabaseClient'
 import SidebarPaciente from '../components/SidebarPaciente'
 import GeradorPdfCompleto from '../components/GeradorPdfCompleto'
 import InterruptorVisibilidade from '../components/InterruptorVisibilidade'
-import { User, Mail, Phone, Briefcase, Activity, FileText, TrendingUp, CreditCard, Pencil, FileDown, History, PlusCircle, ClipboardList, Link2, Check, Stethoscope, Calendar } from 'lucide-react'
+import { User, Mail, Phone, Briefcase, Activity, FileText, TrendingUp, CreditCard, Pencil, FileDown, History, PlusCircle, ClipboardList, Link2, Check, Stethoscope, Calendar, Settings, Sun, Moon, MonitorSmartphone } from 'lucide-react'
 
 function calcularIdade(dataNascimento) {
   if (!dataNascimento) return null
@@ -92,6 +92,14 @@ export default function PerfilPaciente({ userId }) {
     await navigator.clipboard.writeText(link)
     setLinkCopiado(true)
     setTimeout(() => setLinkCopiado(false), 2000)
+  }
+
+  // null = segue o tema configurado no perfil do nutricionista (padrão de
+  // hoje); true/false trava claro/escuro só no app desse paciente.
+  const handleAlterarTema = async (valor) => {
+    setPaciente((prev) => ({ ...prev, tema_dark_mode: valor }))
+    const { error } = await supabase.from('pacientes').update({ tema_dark_mode: valor }).eq('id', paciente.id)
+    if (error) alert('Erro ao salvar tema: ' + error.message)
   }
 
   const abrirHistorico = async () => {
@@ -221,6 +229,47 @@ export default function PerfilPaciente({ userId }) {
               <p className="text-sm text-gray-700 dark:text-slate-300 whitespace-pre-wrap">{paciente.observacoes}</p>
             </div>
           )}
+        </div>
+
+        <div className="bg-white dark:bg-slate-900 p-5 rounded-xl border border-gray-100 dark:border-slate-800 shadow-sm">
+          <p className="text-[10px] font-bold text-gray-400 dark:text-slate-500 uppercase tracking-wider mb-1 flex items-center gap-1.5">
+            <Settings size={12} /> Configuração do App do Paciente
+          </p>
+          <p className="text-xs text-gray-500 dark:text-slate-400 mb-3">
+            Tema do portal desse paciente — independente do tema que você usa no seu painel.
+          </p>
+          <div className="flex rounded-lg border border-gray-200 dark:border-slate-700 overflow-hidden w-fit">
+            <button
+              onClick={() => handleAlterarTema(null)}
+              className={`flex items-center gap-1.5 px-3 py-2 text-xs font-semibold transition-colors ${
+                paciente.tema_dark_mode == null
+                  ? 'bg-primary-600 text-white'
+                  : 'bg-white dark:bg-slate-900 text-gray-600 dark:text-slate-400 hover:bg-gray-50 dark:hover:bg-slate-800'
+              }`}
+            >
+              <MonitorSmartphone size={13} /> Padrão
+            </button>
+            <button
+              onClick={() => handleAlterarTema(false)}
+              className={`flex items-center gap-1.5 px-3 py-2 text-xs font-semibold border-l border-gray-200 dark:border-slate-700 transition-colors ${
+                paciente.tema_dark_mode === false
+                  ? 'bg-primary-600 text-white'
+                  : 'bg-white dark:bg-slate-900 text-gray-600 dark:text-slate-400 hover:bg-gray-50 dark:hover:bg-slate-800'
+              }`}
+            >
+              <Sun size={13} /> Claro
+            </button>
+            <button
+              onClick={() => handleAlterarTema(true)}
+              className={`flex items-center gap-1.5 px-3 py-2 text-xs font-semibold border-l border-gray-200 dark:border-slate-700 transition-colors ${
+                paciente.tema_dark_mode === true
+                  ? 'bg-primary-600 text-white'
+                  : 'bg-white dark:bg-slate-900 text-gray-600 dark:text-slate-400 hover:bg-gray-50 dark:hover:bg-slate-800'
+              }`}
+            >
+              <Moon size={13} /> Escuro
+            </button>
+          </div>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

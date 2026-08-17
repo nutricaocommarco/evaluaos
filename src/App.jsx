@@ -33,6 +33,7 @@ import ListasRecomendacoes from './pages/ListasRecomendacoes';
 import ExamesLaboratoriais from './pages/ExamesLaboratoriais';
 import ExamesLaboratoriaisPaciente from './pages/ExamesLaboratoriaisPaciente';
 import VisualizacaoPublicaSolicitacao from './pages/VisualizacaoPublicaSolicitacao';
+import VisualizacaoPublicaOrcamento from './pages/VisualizacaoPublicaOrcamento';
 import Agenda from './pages/Agenda';
 import AgendaPaciente from './pages/AgendaPaciente';
 import GoogleOAuthCallback from './pages/GoogleOAuthCallback';
@@ -145,6 +146,7 @@ function MainApp() {
           <Route path="/evolucao/:tokenUrl" element={<EvolucaoPaciente />} />
           <Route path="/questionario/:tokenUrl" element={<QuestionarioPublico />} />
           <Route path="/pedido-exames/:tokenUrl" element={<VisualizacaoPublicaSolicitacao />} />
+          <Route path="/orcamento/:tokenUrl" element={<VisualizacaoPublicaOrcamento />} />
           <Route path="/area/:tokenUrl" element={<AreaPaciente />} />
           <Route path="/area/:tokenUrl/plano" element={<PlanoAlimentarPaciente />} />
           <Route path="/area/:tokenUrl/orientacoes" element={<OrientacoesPaciente />} />
@@ -312,6 +314,7 @@ function MainApp() {
             <Route path="/area/:tokenUrl/exames" element={<ExamesLaboratoriaisPaciente />} />
             <Route path="/area/:tokenUrl/agenda" element={<AgendaPaciente />} />
             <Route path="/pedido-exames/:tokenUrl" element={<VisualizacaoPublicaSolicitacao />} />
+            <Route path="/orcamento/:tokenUrl" element={<VisualizacaoPublicaOrcamento />} />
             <Route path="/contato" element={<Contato />} />
             <Route path="/politica-de-privacidade" element={<PoliticaPrivacidade />} />
             <Route path="/termos-de-servico" element={<TermosDeServico />} />
