@@ -128,7 +128,7 @@ const EvolucaoPDF = ({ historico, paciente, avaliador, idade, configVisibilidade
           <View style={styles.headerLeft}>
             <Text style={styles.title}>Evolução Antropométrica</Text>
             <Text style={[styles.title, { fontSize: 16, color: '#4B5563', marginBottom: 4 }]}>{paciente?.nome_completo}</Text>
-            <Text style={styles.subtitle}>{consultorio} | Avaliador(a): {avaliador?.nome_completo || '-'}</Text>
+            <Text style={styles.subtitle}>{consultorio} | Nutricionista: {avaliador?.nome_completo || '-'}</Text>
           </View>
           <View style={styles.headerRight}>
             {avaliador?.logomarca_url ? (

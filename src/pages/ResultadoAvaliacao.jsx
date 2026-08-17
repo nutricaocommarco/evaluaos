@@ -661,7 +661,7 @@ export default function ResultadoAvaliacao() {
             )}
             <div>
               <h1 className="text-sm font-bold text-gray-800 dark:text-slate-100 uppercase tracking-wide">{nomeEmpresa || 'Consultório'}</h1>
-              <p className="text-xs text-gray-500 dark:text-slate-400">Avaliador(a): <span className="font-semibold text-gray-700 dark:text-slate-300">{nomeAvaliador || '-'}</span></p>
+              <p className="text-xs text-gray-500 dark:text-slate-400">Nutricionista: <span className="font-semibold text-gray-700 dark:text-slate-300">{nomeAvaliador || '-'}</span></p>
             </div>
           </div>
 
