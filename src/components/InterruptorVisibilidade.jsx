@@ -6,7 +6,7 @@ import { Eye, EyeOff } from 'lucide-react'
 // recebe o evento do clique — quem usa decide se precisa de
 // e.stopPropagation() (ex: quando o switch fica dentro de um elemento
 // clicável maior, como o pill de seleção de plano).
-export default function InterruptorVisibilidade({ ativo, onToggle, titulo }) {
+export default function InterruptorVisibilidade({ ativo, onToggle, titulo, textoAtivo, textoInativo }) {
   return (
     <button
       type="button"
@@ -26,6 +26,7 @@ export default function InterruptorVisibilidade({ ativo, onToggle, titulo }) {
         />
       </span>
       {ativo ? <Eye size={11} /> : <EyeOff size={11} />}
+      {(textoAtivo || textoInativo) && <span>{ativo ? textoAtivo : textoInativo}</span>}
     </button>
   )
 }

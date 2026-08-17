@@ -5,7 +5,7 @@ import SidebarPaciente from '../components/SidebarPaciente'
 import GeradorPdfNutricional from '../components/GeradorPdfNutricional'
 import InterruptorVisibilidade from '../components/InterruptorVisibilidade'
 import RichTextEditor, { sanitizarHtmlEditor } from '../components/RichTextEditor'
-import { FileDown, Save, Pencil, Trash2, StickyNote, ImagePlus } from 'lucide-react'
+import { FileDown, Save, Pencil, Trash2, StickyNote, ImagePlus, ChevronDown, ChevronRight } from 'lucide-react'
 import SeletorImagem from '../components/imagens/SeletorImagem'
 import { aplicarBuscaPorPalavras } from '../utils/buscaAlimentos'
 
@@ -22,6 +22,39 @@ const CAMPOS_PLANO_VAZIOS = {
 
 // Fatores de Atwater (kcal por grama) — padrão usado pela TACO/TBCA/IBGE.
 const KCAL_POR_G = { proteina: 4, carbo: 4, lipidio: 9 }
+
+// As 27 colunas de micronutrientes de tabela_alimentos (migration 0054),
+// na mesma chave usada por dri_referencias.chave — usado tanto pra somar
+// o plano quanto pra renderizar a lista de comparação.
+const MICRONUTRIENTES = [
+  { chave: 'calcio_mg', nome: 'Cálcio', unidade: 'mg' },
+  { chave: 'ferro_mg', nome: 'Ferro', unidade: 'mg' },
+  { chave: 'magnesio_mg', nome: 'Magnésio', unidade: 'mg' },
+  { chave: 'fosforo_mg', nome: 'Fósforo', unidade: 'mg' },
+  { chave: 'potassio_mg', nome: 'Potássio', unidade: 'mg' },
+  { chave: 'sodio_mg', nome: 'Sódio', unidade: 'mg' },
+  { chave: 'zinco_mg', nome: 'Zinco', unidade: 'mg' },
+  { chave: 'cromo_mcg', nome: 'Cromo', unidade: 'µg' },
+  { chave: 'cobre_mcg', nome: 'Cobre', unidade: 'µg' },
+  { chave: 'iodo_mcg', nome: 'Iodo', unidade: 'µg' },
+  { chave: 'manganes_mg', nome: 'Manganês', unidade: 'mg' },
+  { chave: 'molibdenio_mcg', nome: 'Molibdênio', unidade: 'µg' },
+  { chave: 'selenio_mcg', nome: 'Selênio', unidade: 'µg' },
+  { chave: 'vitamina_a_mcg', nome: 'Vitamina A', unidade: 'µg' },
+  { chave: 'vitamina_e_mg', nome: 'Vitamina E', unidade: 'mg' },
+  { chave: 'vitamina_d_mcg', nome: 'Vitamina D', unidade: 'µg' },
+  { chave: 'vitamina_c_mg', nome: 'Vitamina C', unidade: 'mg' },
+  { chave: 'tiamina_mg', nome: 'Tiamina (B1)', unidade: 'mg' },
+  { chave: 'riboflavina_mg', nome: 'Riboflavina (B2)', unidade: 'mg' },
+  { chave: 'niacina_mg', nome: 'Niacina (B3)', unidade: 'mg' },
+  { chave: 'acido_pantotenico_mg', nome: 'Ácido Pantotênico (B5)', unidade: 'mg' },
+  { chave: 'vitamina_b6_mg', nome: 'Vitamina B6', unidade: 'mg' },
+  { chave: 'biotina_mcg', nome: 'Biotina (B7)', unidade: 'µg' },
+  { chave: 'folato_mcg', nome: 'Folato', unidade: 'µg' },
+  { chave: 'vitamina_b12_mcg', nome: 'Vitamina B12', unidade: 'µg' },
+  { chave: 'colina_mg', nome: 'Colina', unidade: 'mg' },
+  { chave: 'vitamina_k_mcg', nome: 'Vitamina K', unidade: 'µg' },
+]
 
 // Medidas caseiras — só ajudam a digitar a quantidade (o peso final em
 // gramas é sempre o que vai pro cálculo, editável antes de salvar). Os
@@ -116,16 +149,57 @@ function formatarData(dataStr) {
   return new Date(dataStr).toLocaleDateString('pt-BR')
 }
 
+// Mesma lógica de src/pages/PerfilPaciente.jsx (não exportada de lá — função
+// pura pequena, duplicada aqui como o resto do arquivo já faz).
+function calcularIdade(dataNascimento) {
+  if (!dataNascimento) return null
+  const nasc = new Date(dataNascimento + 'T12:00:00')
+  const hoje = new Date()
+  let idade = hoje.getFullYear() - nasc.getFullYear()
+  const m = hoje.getMonth() - nasc.getMonth()
+  if (m < 0 || (m === 0 && hoje.getDate() < nasc.getDate())) idade--
+  return idade
+}
+
+// Mapeia idade pra uma das 4 faixas cadastradas em dri_referencias
+// (19-30/31-50/51-70/71-120). Menor de 19 anos = sem referência DRI
+// cadastrada ainda (ver migration 0055/0096).
+function faixaDri(idade, sexo) {
+  if (!Number.isFinite(idade) || idade < 19 || (sexo !== 'M' && sexo !== 'F')) return null
+  if (idade <= 30) return { idade_min: 19, idade_max: 30 }
+  if (idade <= 50) return { idade_min: 31, idade_max: 50 }
+  if (idade <= 70) return { idade_min: 51, idade_max: 70 }
+  return { idade_min: 71, idade_max: 120 }
+}
+
 function calcularMacrosItem(item) {
   const alimento = item.tabela_alimentos
-  if (!alimento || item.ignorar_nos_calculos) return { kcal: 0, proteina: 0, carbo: 0, lipidio: 0, fibra: 0 }
+  const micronutrientesVazios = Object.fromEntries(MICRONUTRIENTES.map((m) => [m.chave, 0]))
+  const semDadoVazio = Object.fromEntries(MICRONUTRIENTES.map((m) => [m.chave, false]))
+  if (!alimento || item.ignorar_nos_calculos) {
+    return { kcal: 0, proteina: 0, carbo: 0, lipidio: 0, fibra: 0, micronutrientes: micronutrientesVazios, temDado: semDadoVazio }
+  }
   const fator = (Number(item.quantidade_g) || 0) / 100
+  const micronutrientes = Object.fromEntries(
+    MICRONUTRIENTES.map((m) => [m.chave, (alimento[m.chave] || 0) * fator])
+  )
+  // Marca por nutriente se ESSE alimento tem valor cadastrado (mesmo que
+  // 0 de verdade) — diferencia "não tem esse mineral" de "não sabemos".
+  // A base (USDA e derivados) frequentemente não reporta Cromo, Iodo e
+  // Biotina pra praticamente nenhum alimento, então sem essa distinção o
+  // total apareceria como "0" (zero confirmado) quando na real é "sem
+  // dado" pra boa parte do prato.
+  const temDado = Object.fromEntries(
+    MICRONUTRIENTES.map((m) => [m.chave, alimento[m.chave] !== null && alimento[m.chave] !== undefined])
+  )
   return {
     kcal: (alimento.energia_kcal || 0) * fator,
     proteina: (alimento.proteina_g || 0) * fator,
     carbo: (alimento.carboidrato_g || 0) * fator,
     lipidio: (alimento.lipidios_g || 0) * fator,
     fibra: (alimento.fibra_g || 0) * fator,
+    micronutrientes,
+    temDado,
   }
 }
 
@@ -137,8 +211,24 @@ function somarMacros(lista) {
       carbo: acc.carbo + m.carbo,
       lipidio: acc.lipidio + m.lipidio,
       fibra: acc.fibra + (m.fibra || 0),
+      micronutrientes: Object.fromEntries(
+        MICRONUTRIENTES.map((n) => [n.chave, acc.micronutrientes[n.chave] + (m.micronutrientes?.[n.chave] || 0)])
+      ),
+      // "Tem dado" pro total = pelo menos UM alimento do dia tinha esse
+      // nutriente cadastrado (não precisa ser todos).
+      temDado: Object.fromEntries(
+        MICRONUTRIENTES.map((n) => [n.chave, acc.temDado[n.chave] || !!m.temDado?.[n.chave]])
+      ),
     }),
-    { kcal: 0, proteina: 0, carbo: 0, lipidio: 0, fibra: 0 }
+    {
+      kcal: 0,
+      proteina: 0,
+      carbo: 0,
+      lipidio: 0,
+      fibra: 0,
+      micronutrientes: Object.fromEntries(MICRONUTRIENTES.map((n) => [n.chave, 0])),
+      temDado: Object.fromEntries(MICRONUTRIENTES.map((n) => [n.chave, false])),
+    }
   )
 }
 
@@ -1348,6 +1438,88 @@ function BlocoQualitativo({ plano, onAtualizado, onExcluir }) {
   )
 }
 
+// Monta as zonas coloridas da régua de um micronutriente (0 até um teto
+// visual) a partir da linha de dri_referencias: vermelho até o EAR (ou até
+// o AI/RDA quando não há EAR — só existe AI), amarelo do EAR até o AI/RDA,
+// verde do AI/RDA até o UL, vermelho acima do UL. Teto = UL*1,15 (folga
+// visual) ou AI/RDA*2 quando o nutriente não tem UL estabelecido.
+function calcularBarraMicronutriente(ref, total) {
+  const valor = Number(ref.valor) || 0
+  const ear = ref.ear != null ? Number(ref.ear) : null
+  const ul = ref.ul != null ? Number(ref.ul) : null
+  const teto = ul ? ul * 1.15 : valor * 2 || 1
+  const pct = (v) => Math.max(0, Math.min(100, (v / teto) * 100))
+  const pctEar = ear != null ? pct(ear) : null
+  const pctValor = pct(valor)
+  const pctUl = ul != null ? pct(ul) : null
+
+  const segmentos = []
+  if (pctEar != null) {
+    segmentos.push({ cor: 'bg-red-300 dark:bg-red-900/60', largura: pctEar })
+    segmentos.push({ cor: 'bg-amber-300 dark:bg-amber-800/70', largura: Math.max(0, pctValor - pctEar) })
+  } else {
+    segmentos.push({ cor: 'bg-amber-300 dark:bg-amber-800/70', largura: pctValor })
+  }
+  segmentos.push({ cor: 'bg-emerald-300 dark:bg-emerald-800/70', largura: Math.max(0, (pctUl ?? 100) - pctValor) })
+  if (pctUl != null) {
+    segmentos.push({ cor: 'bg-red-300 dark:bg-red-900/60', largura: Math.max(0, 100 - pctUl) })
+  }
+  return { segmentos, marcador: pct(total) }
+}
+
+// Texto do tooltip (atributo title nativo — só aparece pro nutricionista,
+// a régua inteira não é renderizada na tela do paciente).
+function textoTooltipMicronutriente(ref, total) {
+  const partes = [`${ref.nutriente} — plano: ${fmt(total)} ${ref.unidade}`]
+  if (ref.ear != null) partes.push(`necessidade média (EAR): ${fmt(ref.ear)} ${ref.unidade}`)
+  partes.push(`${ref.eh_ai ? 'ingestão adequada (AI)' : 'recomendado (RDA)'}: ${fmt(ref.valor)} ${ref.unidade}`)
+  partes.push(ref.ul != null ? `limite superior (UL): ${fmt(ref.ul)} ${ref.unidade}` : 'sem limite superior (UL) estabelecido pelo IOM')
+  let veredito
+  if (ref.ear != null && total < ref.ear) veredito = 'abaixo da necessidade média — risco alto de inadequação'
+  else if (total < ref.valor) veredito = `abaixo do ${ref.eh_ai ? 'AI' : 'RDA'} — pode não atender à maioria dos indivíduos`
+  else if (ref.ul != null && total > ref.ul) veredito = 'acima do limite superior — risco de excesso'
+  else veredito = 'dentro da faixa adequada'
+  return partes.join(' · ') + '. ' + veredito.charAt(0).toUpperCase() + veredito.slice(1) + '.'
+}
+
+function LinhaMicronutriente({ referencia, total, temDado }) {
+  if (!referencia) return null
+  if (!temDado) {
+    return (
+      <div
+        className="py-1.5 opacity-60"
+        title={`${referencia.nutriente} — nenhum alimento deste plano tem esse nutriente cadastrado na base (comum pra Cromo, Iodo e Biotina — o USDA raramente reporta esses três). Não é o mesmo que "0" — é dado ausente, não confundir com ingestão zero.`}
+      >
+        <div className="flex items-baseline justify-between gap-2 mb-1">
+          <span className="text-xs font-semibold text-gray-700 dark:text-slate-300">{referencia.nutriente}</span>
+          <span className="text-xs font-semibold text-gray-400 dark:text-slate-500 italic">sem dado na base</span>
+        </div>
+        <div className="h-2.5 w-full rounded-full bg-gray-100 dark:bg-slate-800 bg-[repeating-linear-gradient(45deg,transparent,transparent_4px,rgba(148,163,184,0.35)_4px,rgba(148,163,184,0.35)_8px)]" />
+      </div>
+    )
+  }
+  const barra = calcularBarraMicronutriente(referencia, total)
+  return (
+    <div className="py-1.5" title={textoTooltipMicronutriente(referencia, total)}>
+      <div className="flex items-baseline justify-between gap-2 mb-1">
+        <span className="text-xs font-semibold text-gray-700 dark:text-slate-300">{referencia.nutriente}</span>
+        <span className="text-xs font-black text-gray-800 dark:text-slate-100">
+          {fmt(total)} <span className="font-normal text-gray-400 dark:text-slate-500">/ {fmt(referencia.valor)} {referencia.unidade} ({referencia.eh_ai ? 'AI' : 'RDA'})</span>
+        </span>
+      </div>
+      <div className="relative h-2.5 w-full rounded-full overflow-hidden flex bg-gray-100 dark:bg-slate-800">
+        {barra.segmentos.map((s, i) => (
+          <div key={i} className={s.cor} style={{ width: `${s.largura}%` }} />
+        ))}
+        <div
+          className="absolute -top-0.5 -bottom-0.5 w-0.5 bg-gray-800 dark:bg-white rounded-full"
+          style={{ left: `calc(${barra.marcador}% - 1px)` }}
+        />
+      </div>
+    </div>
+  )
+}
+
 export default function PlanoAlimentar({ userId }) {
   const { id } = useParams()
   const navigate = useNavigate()
@@ -1363,6 +1535,8 @@ export default function PlanoAlimentar({ userId }) {
   const [pesoAtual, setPesoAtual] = useState(null)
   const [vetSugerido, setVetSugerido] = useState(null)
   const [idAvaliacaoRecente, setIdAvaliacaoRecente] = useState(null)
+  const [driReferencias, setDriReferencias] = useState([])
+  const [microExpandido, setMicroExpandido] = useState(true)
 
   const [showModalNovoPlano, setShowModalNovoPlano] = useState(false)
   const [editingPlanoId, setEditingPlanoId] = useState(null)
@@ -1386,6 +1560,20 @@ export default function PlanoAlimentar({ userId }) {
   const carregarPaciente = async () => {
     const { data } = await supabase.from('pacientes').select('*').eq('id', id).maybeSingle()
     setPaciente(data || null)
+    return data || null
+  }
+
+  // Busca as 27 linhas de dri_referencias (uma por micronutriente) da
+  // faixa de sexo/idade do paciente, pra comparar contra o plano.
+  const carregarDriReferencias = async (pacienteData) => {
+    const faixa = faixaDri(calcularIdade(pacienteData?.data_nascimento), pacienteData?.sexo)
+    if (!faixa) { setDriReferencias([]); return }
+    const { data } = await supabase
+      .from('dri_referencias')
+      .select('*')
+      .eq('sexo', pacienteData.sexo)
+      .eq('idade_min', faixa.idade_min)
+    setDriReferencias(data || [])
   }
 
   const carregarPlanos = async () => {
@@ -1444,10 +1632,11 @@ export default function PlanoAlimentar({ userId }) {
   useEffect(() => {
     const iniciar = async () => {
       setLoading(true)
-      await carregarPaciente()
+      const pacienteData = await carregarPaciente()
       const listaPlanos = await carregarPlanos()
       await carregarDadosRecentes()
       await carregarModelos()
+      await carregarDriReferencias(pacienteData)
 
       const ativo = listaPlanos.find((p) => p.ativo) || listaPlanos[0]
       if (ativo) setPlanoSelecionadoId(ativo.id)
@@ -1931,6 +2120,13 @@ export default function PlanoAlimentar({ userId }) {
     setPlanos((prev) => prev.map((p) => (p.id === plano.id ? { ...p, mostrar_macros: novoValor } : p)))
   }
 
+  const toggleMostrarMicronutrientes = async (plano) => {
+    const novoValor = !plano.mostrar_micronutrientes
+    const { error } = await supabase.from('planos_alimentares').update({ mostrar_micronutrientes: novoValor }).eq('id', plano.id)
+    if (error) { alert('Erro ao atualizar exibição de micronutrientes do plano: ' + error.message); return }
+    setPlanos((prev) => prev.map((p) => (p.id === plano.id ? { ...p, mostrar_micronutrientes: novoValor } : p)))
+  }
+
   const handleNovaRefeicao = async () => {
     const { data, error } = await supabase
       .from('refeicoes_prescritas')
@@ -2233,6 +2429,59 @@ export default function PlanoAlimentar({ userId }) {
                 <p className="text-[11px] text-amber-600 dark:text-amber-400 mt-2">
                   Sem peso de avaliação recente pra converter metas g/kg em gramas.
                 </p>
+              )}
+            </div>
+
+            <div className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-gray-100 dark:border-slate-800 shadow-sm">
+              <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
+                <button
+                  type="button"
+                  onClick={() => setMicroExpandido((v) => !v)}
+                  className="flex items-center gap-1 text-[10px] font-bold text-gray-400 dark:text-slate-500 uppercase tracking-wider hover:text-gray-600 dark:hover:text-slate-300"
+                >
+                  {microExpandido ? <ChevronDown size={13} /> : <ChevronRight size={13} />}
+                  Micronutrientes vs. Referências DRI (Opção 1 de cada refeição)
+                  <span className="normal-case font-semibold text-primary-600 ml-1">
+                    {microExpandido ? '— esconder' : '— mostrar'}
+                  </span>
+                </button>
+                {driReferencias.length > 0 && (
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-xs text-gray-500 dark:text-slate-400">Pro paciente:</span>
+                    <InterruptorVisibilidade
+                      ativo={!!planoSelecionado.mostrar_micronutrientes}
+                      onToggle={() => toggleMostrarMicronutrientes(planoSelecionado)}
+                      textoAtivo="Ver"
+                      textoInativo="Não ver"
+                      titulo={
+                        planoSelecionado.mostrar_micronutrientes
+                          ? 'Paciente vê o total de cada vitamina/mineral do plano — clique pra esconder'
+                          : 'Paciente não vê micronutrientes — clique pra mostrar (só os números, sem a régua)'
+                      }
+                    />
+                  </div>
+                )}
+              </div>
+              {microExpandido && (
+                driReferencias.length === 0 ? (
+                  <p className="text-xs text-gray-400 dark:text-slate-500">
+                    Cadastre data de nascimento e sexo do paciente (19 a 120 anos) pra habilitar essa comparação.
+                  </p>
+                ) : (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6">
+                    {MICRONUTRIENTES.map((m) => {
+                      const referencia = driReferencias.find((d) => d.chave === m.chave)
+                      return (
+                        <LinhaMicronutriente
+                          key={m.chave}
+                          referencia={referencia}
+                          total={totalDia.micronutrientes[m.chave] || 0}
+                          temDado={!!totalDia.temDado[m.chave]}
+                        />
+                      )
+                    })}
+                  </div>
+                )
               )}
             </div>
 
