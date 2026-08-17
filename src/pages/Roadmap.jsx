@@ -15,11 +15,6 @@ const SECOES = [
         texto: 'Listas reutilizáveis (como "Carboidratos", "Proteínas", "Frutas") pra montar planos mais rápido, deixando o paciente escolher entre as opções do grupo.',
       },
       {
-        chave: 'comparacao-micronutrientes',
-        titulo: 'Comparação com micronutrientes',
-        texto: 'Compare o plano também com referências de vitaminas e minerais, além dos macronutrientes.',
-      },
-      {
         chave: 'mais-produtos-alimentos',
         titulo: 'Mais produtos na lista de Alimentos',
         texto: 'Ampliação contínua da base de alimentos cadastrados, cobrindo mais produtos e marcas do mercado.',

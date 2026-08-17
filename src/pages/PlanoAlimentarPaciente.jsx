@@ -26,16 +26,56 @@ function labelUnidade(valor) {
   return UNIDADES_MEDIDA.find((u) => u.valor === valor)?.label.replace(/\s*\(~.*\)/, '') || valor
 }
 
+// As 27 colunas de micronutrientes de tabela_alimentos (migration 0054) —
+// mesma lista de src/pages/PlanoAlimentar.jsx, duplicada de propósito
+// (ver comentário no topo do arquivo).
+const MICRONUTRIENTES = [
+  { chave: 'calcio_mg', nome: 'Cálcio', unidade: 'mg' },
+  { chave: 'ferro_mg', nome: 'Ferro', unidade: 'mg' },
+  { chave: 'magnesio_mg', nome: 'Magnésio', unidade: 'mg' },
+  { chave: 'fosforo_mg', nome: 'Fósforo', unidade: 'mg' },
+  { chave: 'potassio_mg', nome: 'Potássio', unidade: 'mg' },
+  { chave: 'sodio_mg', nome: 'Sódio', unidade: 'mg' },
+  { chave: 'zinco_mg', nome: 'Zinco', unidade: 'mg' },
+  { chave: 'cromo_mcg', nome: 'Cromo', unidade: 'µg' },
+  { chave: 'cobre_mcg', nome: 'Cobre', unidade: 'µg' },
+  { chave: 'iodo_mcg', nome: 'Iodo', unidade: 'µg' },
+  { chave: 'manganes_mg', nome: 'Manganês', unidade: 'mg' },
+  { chave: 'molibdenio_mcg', nome: 'Molibdênio', unidade: 'µg' },
+  { chave: 'selenio_mcg', nome: 'Selênio', unidade: 'µg' },
+  { chave: 'vitamina_a_mcg', nome: 'Vitamina A', unidade: 'µg' },
+  { chave: 'vitamina_e_mg', nome: 'Vitamina E', unidade: 'mg' },
+  { chave: 'vitamina_d_mcg', nome: 'Vitamina D', unidade: 'µg' },
+  { chave: 'vitamina_c_mg', nome: 'Vitamina C', unidade: 'mg' },
+  { chave: 'tiamina_mg', nome: 'Tiamina (B1)', unidade: 'mg' },
+  { chave: 'riboflavina_mg', nome: 'Riboflavina (B2)', unidade: 'mg' },
+  { chave: 'niacina_mg', nome: 'Niacina (B3)', unidade: 'mg' },
+  { chave: 'acido_pantotenico_mg', nome: 'Ácido Pantotênico (B5)', unidade: 'mg' },
+  { chave: 'vitamina_b6_mg', nome: 'Vitamina B6', unidade: 'mg' },
+  { chave: 'biotina_mcg', nome: 'Biotina (B7)', unidade: 'µg' },
+  { chave: 'folato_mcg', nome: 'Folato', unidade: 'µg' },
+  { chave: 'vitamina_b12_mcg', nome: 'Vitamina B12', unidade: 'µg' },
+  { chave: 'colina_mg', nome: 'Colina', unidade: 'mg' },
+  { chave: 'vitamina_k_mcg', nome: 'Vitamina K', unidade: 'µg' },
+]
+
 function calcularMacrosItem(item) {
   const alimento = item.tabela_alimentos
-  if (!alimento || item.ignorar_nos_calculos) return { kcal: 0, proteina: 0, carbo: 0, lipidio: 0, fibra: 0 }
+  const micronutrientesVazios = Object.fromEntries(MICRONUTRIENTES.map((m) => [m.chave, 0]))
+  if (!alimento || item.ignorar_nos_calculos) {
+    return { kcal: 0, proteina: 0, carbo: 0, lipidio: 0, fibra: 0, micronutrientes: micronutrientesVazios }
+  }
   const fator = (Number(item.quantidade_g) || 0) / 100
+  const micronutrientes = Object.fromEntries(
+    MICRONUTRIENTES.map((m) => [m.chave, (alimento[m.chave] || 0) * fator])
+  )
   return {
     kcal: (alimento.energia_kcal || 0) * fator,
     proteina: (alimento.proteina_g || 0) * fator,
     carbo: (alimento.carboidrato_g || 0) * fator,
     lipidio: (alimento.lipidios_g || 0) * fator,
     fibra: (alimento.fibra_g || 0) * fator,
+    micronutrientes,
   }
 }
 
@@ -47,8 +87,18 @@ function somarMacros(lista) {
       carbo: acc.carbo + m.carbo,
       lipidio: acc.lipidio + m.lipidio,
       fibra: acc.fibra + (m.fibra || 0),
+      micronutrientes: Object.fromEntries(
+        MICRONUTRIENTES.map((n) => [n.chave, acc.micronutrientes[n.chave] + (m.micronutrientes?.[n.chave] || 0)])
+      ),
     }),
-    { kcal: 0, proteina: 0, carbo: 0, lipidio: 0, fibra: 0 }
+    {
+      kcal: 0,
+      proteina: 0,
+      carbo: 0,
+      lipidio: 0,
+      fibra: 0,
+      micronutrientes: Object.fromEntries(MICRONUTRIENTES.map((n) => [n.chave, 0])),
+    }
   )
 }
 
@@ -154,8 +204,9 @@ function BlocoRefeicao({ refeicao, aberta, aoAlternar, mostrarMacros }) {
 
 function BlocoPlano({ plano, aberto, aoAlternar, refeicoesAbertas, aoAlternarRefeicao }) {
   const mostrarMacros = plano.mostrar_macros !== false
+  const mostrarMicro = plano.mostrar_micronutrientes === true
   const refeicoesOrdenadas = [...(plano.refeicoes_prescritas || [])].sort(compararRefeicoes)
-  const totalDia = mostrarMacros
+  const totalDia = (mostrarMacros || mostrarMicro)
     ? somarMacros(refeicoesOrdenadas.flatMap((r) => (r.itens_refeicao || []).filter((i) => i.opcao_numero === 1).map(calcularMacrosItem)))
     : null
 
@@ -209,6 +260,19 @@ function BlocoPlano({ plano, aberto, aoAlternar, refeicoesAbertas, aoAlternarRef
                 <p className="text-gray-400 dark:text-slate-500 text-sm">Lipídio</p>
                 <p className="font-black text-gray-800 dark:text-slate-100">{fmt(totalDia.lipidio)}g</p>
               </div>
+            </div>
+          )}
+
+          {mostrarMicro && (
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-3 gap-y-2 text-sm bg-gray-50 dark:bg-slate-800/50 rounded-lg p-3">
+              {MICRONUTRIENTES.map((m) => (
+                <div key={m.chave}>
+                  <p className="text-gray-400 dark:text-slate-500 text-xs">{m.nome}</p>
+                  <p className="font-black text-gray-800 dark:text-slate-100">
+                    {fmt(totalDia.micronutrientes[m.chave])} {m.unidade}
+                  </p>
+                </div>
+              ))}
             </div>
           )}
 
