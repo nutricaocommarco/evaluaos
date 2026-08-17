@@ -1,9 +1,11 @@
 import React, { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { supabase } from '../supabaseClient'
 
 export default function Login({ onLoginSuccess }) {
-  const [isSignUp, setIsSignUp] = useState(false)
+  const [searchParams] = useSearchParams()
+  const codigoIndicacaoRef = searchParams.get('ref') || null
+  const [isSignUp, setIsSignUp] = useState(!!codigoIndicacaoRef)
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [nome, setNome] = useState('')
@@ -25,6 +27,7 @@ export default function Login({ onLoginSuccess }) {
         const { data: authData, error: authError } = await supabase.auth.signUp({
           email,
           password,
+          options: codigoIndicacaoRef ? { data: { codigo_indicacao_ref: codigoIndicacaoRef } } : undefined,
         })
 
         if (authError) throw authError

@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react'
+import { Link } from 'react-router-dom'
 import { supabase } from '../supabaseClient'
+import { Link2, Check, AlertTriangle } from 'lucide-react'
 
 // Importação Modular dos Componentes Separados
 import ToleranciasForm from '../components/configuracoes/ToleranciasForm'
@@ -29,7 +31,16 @@ export default function Configuracoes() {
   })
 
   // 🔗 COLOQUE O SEU LINK DE AFILIADO DA HOTMART AQUI
-  const LINK_AFILIADO_HOTMART = "https://affiliate.hotmart.com/affiliate-recruiting/view/2019E106982311" 
+  const LINK_AFILIADO_HOTMART = "https://affiliate.hotmart.com/affiliate-recruiting/view/2019E106982311"
+
+  const EMAIL_ADMIN_INDICACOES = 'manjunior007@gmail.com'
+
+  const [codigoIndicacao, setCodigoIndicacao] = useState(null)
+  const [chavePixCadastrada, setChavePixCadastrada] = useState(null)
+  const [indicados, setIndicados] = useState([])
+  const [souAdminIndicacoes, setSouAdminIndicacoes] = useState(false)
+  const [carregandoIndicados, setCarregandoIndicados] = useState(true)
+  const [linkIndicacaoCopiado, setLinkIndicacaoCopiado] = useState(false)
 
   useEffect(() => {
     async function carregarConfiguracoes() {
@@ -49,11 +60,67 @@ export default function Configuracoes() {
       if (data) {
         setConfig(data)
       }
+
+      const { data: avalData } = await supabase
+        .from('avaliadores')
+        .select('id, codigo_indicacao, chave_pix')
+        .eq('auth_id', authData.user.id)
+        .maybeSingle()
+
+      if (avalData) {
+        setCodigoIndicacao(avalData.codigo_indicacao)
+        setChavePixCadastrada(avalData.chave_pix || '')
+
+        const ehAdmin = authData.user.email === EMAIL_ADMIN_INDICACOES
+        setSouAdminIndicacoes(ehAdmin)
+
+        const query = ehAdmin
+          ? supabase
+              .from('avaliadores')
+              .select('nome_completo, email, plano_status, periodicidade_plano, indicacao_virou_pro_em, indicacao_paga_em, created_at, indicador:indicado_por(nome_completo, email)')
+              .not('indicado_por', 'is', null)
+              .order('created_at', { ascending: false })
+          : supabase
+              .from('avaliadores')
+              .select('nome_completo, email, plano_status, periodicidade_plano, indicacao_virou_pro_em, indicacao_paga_em, created_at')
+              .eq('indicado_por', avalData.id)
+              .order('created_at', { ascending: false })
+
+        const { data: indicadosData } = await query
+
+        setIndicados(indicadosData || [])
+      }
+      setCarregandoIndicados(false)
+
       setLoading(false)
     }
 
     carregarConfiguracoes()
   }, [])
+
+  const handleCopiarLinkIndicacao = async () => {
+    if (!codigoIndicacao) return
+    const link = `${window.location.origin}/login?ref=${codigoIndicacao}`
+    await navigator.clipboard.writeText(link)
+    setLinkIndicacaoCopiado(true)
+    setTimeout(() => setLinkIndicacaoCopiado(false), 2000)
+  }
+
+  function statusIndicacao(item) {
+    if (item.indicacao_paga_em) {
+      return { label: `Pago em ${new Date(item.indicacao_paga_em).toLocaleDateString('pt-BR')}`, cor: 'bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400' }
+    }
+    if (item.indicacao_virou_pro_em) {
+      const valor = item.periodicidade_plano === 'mensal' ? 5 : item.periodicidade_plano === 'anual' ? 50 : null
+      const liberadoEm = new Date(new Date(item.indicacao_virou_pro_em).getTime() + 7 * 24 * 60 * 60 * 1000)
+      const jaLiberado = liberadoEm <= new Date()
+      const valorTexto = valor ? `R$ ${valor.toFixed(2).replace('.', ',')}` : 'valor a confirmar'
+      return jaLiberado
+        ? { label: `Liberado pra pagamento — ${valorTexto}`, cor: 'bg-primary-50 dark:bg-primary-900/20 text-primary-700 dark:text-primary-400' }
+        : { label: `Virou Pro — libera em ${liberadoEm.toLocaleDateString('pt-BR')}`, cor: 'bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400' }
+    }
+    return { label: 'Cadastrado (grátis)', cor: 'bg-gray-100 dark:bg-slate-800 text-gray-500 dark:text-slate-400' }
+  }
 
   const handleSalvarTudo = async () => {
     setSaving(true)
@@ -147,6 +214,64 @@ export default function Configuracoes() {
               <p className="text-xs text-gray-500 dark:text-slate-400 mt-1">
                 Indique o EvaluaOS para colegas nutricionistas, estudantes e antropometristas e receba comissões diretas a cada assinatura.
               </p>
+            </div>
+
+            <div className="bg-gray-50 dark:bg-slate-800 p-5 rounded-xl border border-gray-200 dark:border-slate-700 space-y-4">
+              <div>
+                <h4 className="text-xs font-bold text-gray-800 dark:text-slate-100">Seu link de indicação EvaluaOS</h4>
+                <p className="text-xs text-gray-500 dark:text-slate-400 mt-0.5">
+                  Você ganha <strong>R$ 5</strong> quando quem você indicou assina o Mensal, ou <strong>R$ 50</strong> no Anual — pago via Pix 7 dias depois dele virar Pro.
+                </p>
+              </div>
+              {!carregandoIndicados && !chavePixCadastrada ? (
+                <div className="flex items-start gap-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-900/40 rounded-lg p-3.5">
+                  <AlertTriangle size={16} className="text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+                  <div className="min-w-0">
+                    <p className="text-xs font-bold text-amber-800 dark:text-amber-300">Cadastre sua chave Pix pra liberar seu link</p>
+                    <p className="text-[11px] text-amber-700 dark:text-amber-400 mt-0.5">
+                      É pra onde a recompensa das suas indicações é paga — sem chave cadastrada, o link fica desativado.
+                    </p>
+                    <Link
+                      to="/avaliador"
+                      className="inline-flex items-center gap-1.5 mt-2 text-xs font-bold text-amber-800 dark:text-amber-300 hover:underline"
+                    >
+                      Cadastrar Chave Pix agora →
+                    </Link>
+                  </div>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={handleCopiarLinkIndicacao}
+                  disabled={!codigoIndicacao}
+                  className="flex items-center gap-2 px-4 py-2.5 bg-primary-600 text-white text-xs font-bold rounded-lg hover:bg-primary-700 shadow-sm disabled:opacity-50 transition-colors"
+                >
+                  {linkIndicacaoCopiado ? <Check size={14} /> : <Link2 size={14} />}
+                  {linkIndicacaoCopiado ? 'Link copiado!' : 'Copiar meu link de indicação'}
+                </button>
+              )}
+
+              {!carregandoIndicados && indicados.length > 0 && (
+                <div className="pt-2 border-t border-gray-200 dark:border-slate-700 space-y-2">
+                  <p className="text-[11px] font-bold text-gray-400 dark:text-slate-500 uppercase tracking-wider">
+                    {souAdminIndicacoes ? 'Todas as indicações do sistema' : 'Quem você já indicou'}
+                  </p>
+                  {indicados.map((item, i) => {
+                    const status = statusIndicacao(item)
+                    return (
+                      <div key={i} className="flex items-center justify-between gap-3 bg-white dark:bg-slate-900 px-3 py-2 rounded-lg border border-gray-100 dark:border-slate-800">
+                        <div className="min-w-0">
+                          <span className="text-xs font-semibold text-gray-700 dark:text-slate-300 truncate block">{item.nome_completo || item.email}</span>
+                          {souAdminIndicacoes && (
+                            <span className="text-[10px] text-gray-400 dark:text-slate-500 truncate block">indicado por {item.indicador?.nome_completo || item.indicador?.email || '?'}</span>
+                          )}
+                        </div>
+                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0 ${status.cor}`}>{status.label}</span>
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
