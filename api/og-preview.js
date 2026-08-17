@@ -1,8 +1,8 @@
 // Função serverless da Vercel — só é chamada pra robôs de rede social
 // (WhatsApp, Facebook, etc; ver vercel.json) que abrem um link da Área do
-// Paciente (/area/:token) ou um link de Questionário/Check-in
-// (/questionario/:token). Um navegador de verdade nunca cai aqui — vai
-// direto pro app normal via o rewrite catch-all.
+// Paciente (/area/:token), Questionário/Check-in (/questionario/:token)
+// ou Orçamento/Protocolo (/orcamento/:token). Um navegador de verdade
+// nunca cai aqui — vai direto pro app normal via o rewrite catch-all.
 //
 // Por quê: o app é uma SPA (index.html estático + JS), então as tags
 // og:image/og:title do build (prerender-seo-evaluaos.js) são fixas e
@@ -11,10 +11,10 @@
 // consultório) em tempo de requisição e devolve um HTML só com as meta
 // tags certas pro robô ler, sem precisar renderizar o app inteiro.
 //
-// Os dois tipos de link usam token_publico de tabelas diferentes
-// (pacientes vs questionario_envios), por isso o rewrite manda um
-// ?tipo=questionario nesse segundo caso — sem isso não dá pra saber em
-// qual tabela procurar o token.
+// Os três tipos de link usam token_publico de tabelas diferentes
+// (pacientes, questionario_envios, orcamentos), por isso o rewrite manda
+// ?tipo=questionario / ?tipo=orcamento nesses casos — sem isso não dá
+// pra saber em qual tabela procurar o token.
 import { createClient } from '@supabase/supabase-js'
 
 const supabase = createClient(
@@ -31,15 +31,46 @@ function escapeHtml(valor) {
   }[c]))
 }
 
+function fmtMoeda(n) {
+  return (Number(n) || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
+}
+
 export default async function handler(req, res) {
   const token = typeof req.query.token === 'string' ? req.query.token : ''
   const ehQuestionario = req.query.tipo === 'questionario'
+  const ehOrcamento = req.query.tipo === 'orcamento'
 
   let titulo = 'EvaluaOS | Área do Paciente'
   let descricao = 'Acompanhe sua evolução, laudo, plano alimentar, orientações e questionários — tudo em um só lugar.'
   let imagem = IMAGEM_PADRAO
 
-  if (token && ehQuestionario) {
+  if (token && ehOrcamento) {
+    try {
+      const { data: orcamento } = await supabase
+        .from('orcamentos')
+        .select('id_avaliador, titulo, valor_total')
+        .eq('token_publico', token)
+        .maybeSingle()
+
+      if (orcamento?.id_avaliador) {
+        const { data: avaliador } = await supabase
+          .from('avaliadores')
+          .select('empresa, nome_completo, logomarca_url')
+          .eq('auth_id', orcamento.id_avaliador)
+          .maybeSingle()
+
+        if (avaliador) {
+          const nomeConsultorio = avaliador.empresa || avaliador.nome_completo || 'Consultório'
+          const tituloOrcamento = orcamento.titulo || 'Orçamento'
+          titulo = `${tituloOrcamento} | ${nomeConsultorio}`
+          descricao = `${fmtMoeda(orcamento.valor_total)} — direto de ${nomeConsultorio}.`
+          if (avaliador.logomarca_url) imagem = avaliador.logomarca_url
+        }
+      }
+    } catch (err) {
+      console.error('og-preview: falha ao buscar marca do avaliador (orçamento)', err)
+    }
+  } else if (token && ehQuestionario) {
     try {
       const { data: envio } = await supabase
         .from('questionario_envios')
@@ -94,7 +125,11 @@ export default async function handler(req, res) {
     }
   }
 
-  const urlAbsoluta = ehQuestionario ? `${DOMINIO}/questionario/${token}` : `${DOMINIO}/area/${token}`
+  const urlAbsoluta = ehOrcamento
+    ? `${DOMINIO}/orcamento/${token}`
+    : ehQuestionario
+      ? `${DOMINIO}/questionario/${token}`
+      : `${DOMINIO}/area/${token}`
 
   const html = `<!DOCTYPE html>
 <html lang="pt-BR">
