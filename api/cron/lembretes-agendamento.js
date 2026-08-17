@@ -140,6 +140,71 @@ async function rodarRecorrenciasFinanceiras(admin) {
   return { criados, pulados, erros }
 }
 
+// Indique & Ganhe: resumo diário por e-mail (via Formspree, mesmo serviço
+// já usado nos formulários do blog — sem precisar de chave de API nova)
+// com indicações novas nas últimas 24h + indicações que acabaram de
+// liberar pagamento (virou_pro_em + 7 dias caiu nesse intervalo) + um
+// lembrete de qualquer coisa liberada em dias anteriores que ainda não
+// foi paga. Reaproveita o cron diário existente — mesmo raciocínio do
+// checkin semanal/financeiro recorrente, sem função nova no Vercel.
+const FORMSPREE_INDICACOES = 'https://formspree.io/f/xjybazkg'
+
+function fmtMoeda(n) {
+  return (Number(n) || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
+}
+
+async function rodarNotificacaoIndicacoes(admin) {
+  const agora = new Date()
+  const ontem = new Date(agora.getTime() - 24 * 60 * 60 * 1000)
+
+  const { data: novos, error: errNovos } = await admin
+    .from('avaliadores')
+    .select('nome_completo, email, created_at, indicador:indicado_por(nome_completo, email)')
+    .not('indicado_por', 'is', null)
+    .gte('created_at', ontem.toISOString())
+
+  const { data: aPagar, error: errPagar } = await admin
+    .from('indicacoes_a_pagar')
+    .select('*')
+
+  if (errNovos || errPagar) {
+    console.error('cron indicacoes: falha ao buscar dados', errNovos || errPagar)
+    return { enviado: false, erro: true }
+  }
+
+  const liberadasHoje = (aPagar || []).filter((i) => new Date(i.liberado_em) >= ontem)
+  const pendentesAntigas = (aPagar || []).filter((i) => new Date(i.liberado_em) < ontem)
+
+  if (!novos?.length && !liberadasHoje.length) return { enviado: false }
+
+  const linhas = []
+  if (novos?.length) {
+    linhas.push(`🆕 ${novos.length} indicação(ões) nova(s) nas últimas 24h:`)
+    novos.forEach((n) => linhas.push(`  - ${n.indicador?.nome_completo || n.indicador?.email || '?'} indicou ${n.nome_completo || n.email}`))
+    linhas.push('')
+  }
+  if (liberadasHoje.length) {
+    linhas.push(`💰 ${liberadasHoje.length} indicação(ões) liberada(s) pra pagamento agora:`)
+    liberadasHoje.forEach((i) => linhas.push(`  - ${i.indicador_nome}: pagar ${fmtMoeda(i.valor_a_pagar)} via Pix (${i.indicador_pix || 'sem chave cadastrada'}) — indicado: ${i.indicado_nome}`))
+    linhas.push('')
+  }
+  if (pendentesAntigas.length) {
+    linhas.push(`⏳ Lembrete: ${pendentesAntigas.length} indicação(ões) liberada(s) em dias anteriores ainda esperando pagamento.`)
+  }
+
+  try {
+    await fetch(FORMSPREE_INDICACOES, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+      body: JSON.stringify({ _subject: 'EvaluaOS — Indique & Ganhe: resumo diário', resumo: linhas.join('\n') }),
+    })
+    return { enviado: true, novos: novos?.length || 0, liberadasHoje: liberadasHoje.length, pendentesAntigas: pendentesAntigas.length }
+  } catch (err) {
+    console.error('cron indicacoes: falha ao notificar Formspree', err)
+    return { enviado: false, erro: true }
+  }
+}
+
 export default async function handler(req, res) {
   const authHeader = req.headers.authorization || ''
   if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
@@ -151,6 +216,7 @@ export default async function handler(req, res) {
 
   const checkinSemanal = new Date().getUTCDay() === 1 ? await rodarCheckinSemanal(admin) : null
   const financeiroRecorrente = new Date().getUTCDate() === 1 ? await rodarRecorrenciasFinanceiras(admin) : null
+  const indicacoes = await rodarNotificacaoIndicacoes(admin)
 
   const agora = new Date()
   const inicioJanela = new Date(agora.getTime() + 20 * 60 * 60 * 1000).toISOString()
@@ -210,5 +276,5 @@ export default async function handler(req, res) {
     }
   }
 
-  res.status(200).json({ enviados, pulados, erros, total: (agendamentos || []).length, checkinSemanal, financeiroRecorrente })
+  res.status(200).json({ enviados, pulados, erros, total: (agendamentos || []).length, checkinSemanal, financeiroRecorrente, indicacoes })
 }
