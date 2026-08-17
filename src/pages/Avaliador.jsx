@@ -21,6 +21,7 @@ export default function Avaliador() {
   const [instagram, setInstagram] = useState('')
   const [empresa, setEmpresa] = useState('')
   const [crnNumep, setCrnNumep] = useState('')
+  const [chavePix, setChavePix] = useState('')
   const [videoUrlPadrao, setVideoUrlPadrao] = useState('') // 📹 Novo estado
 
   // Estados dos Equipamentos
@@ -81,6 +82,7 @@ export default function Avaliador() {
         setInstagram(perfilData.instagram || '')
         setEmpresa(perfilData.empresa || '')
         setCrnNumep(perfilData.crn_numep || '')
+        setChavePix(perfilData.chave_pix || '')
         setVideoUrlPadrao(perfilData.video_url_padrao || '')
         setLogoUrl(perfilData.logomarca_url || '')
         setGoogleConectado(!!perfilData.google_calendar_conectado)
@@ -127,6 +129,7 @@ export default function Avaliador() {
       instagram,
       empresa: isPro ? empresa : null,
       crn_numep: crnNumep || null,
+      chave_pix: chavePix || null,
       video_url_padrao: videoUrlPadrao ? videoUrlPadrao.trim() : null
     }
 
@@ -432,6 +435,22 @@ export default function Avaliador() {
             />
             <p className="text-[11px] text-gray-400 dark:text-slate-400 mt-1">
               Aparece no PDF de solicitação de exames. Se for "Estudante", o PDF mostra "Pedido sem Validade - Estudante" no lugar do número.
+            </p>
+          </div>
+
+          <div className="pt-2 border-t border-gray-100 dark:border-slate-800">
+            <label className="block text-xs font-semibold text-gray-700 dark:text-slate-300 uppercase mb-1">
+              Chave Pix
+            </label>
+            <input
+              type="text"
+              value={chavePix}
+              onChange={(e) => setChavePix(e.target.value)}
+              className="w-full px-3 py-2 border rounded-md text-sm focus:ring-primary-500 focus:border-primary-500 bg-white dark:bg-slate-900"
+              placeholder="CPF, e-mail, telefone ou chave aleatória"
+            />
+            <p className="text-[11px] text-gray-400 dark:text-slate-400 mt-1">
+              Aparece automaticamente nos Orçamentos e Protocolos gerados em Financeiro.
             </p>
           </div>
 
