@@ -608,7 +608,7 @@ export default function EvolucaoPaciente() {
             )}
             <div className="flex flex-col min-w-0 overflow-hidden">
               <span className="text-sm font-bold text-gray-800 dark:text-slate-100 uppercase tracking-wide truncate">{avaliador?.empresa || 'Consultório'}</span>
-              <span className="text-xs text-gray-500 dark:text-slate-400 truncate">Avaliador(a): <span className="font-bold text-gray-700 dark:text-slate-300">{avaliador?.nome_completo || '-'}</span></span>
+              <span className="text-xs text-gray-500 dark:text-slate-400 truncate">Nutricionista: <span className="font-bold text-gray-700 dark:text-slate-300">{avaliador?.nome_completo || '-'}</span></span>
             </div>
           </div>
 
