@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react'
+import { Link } from 'react-router-dom'
 import { supabase } from '../supabaseClient'
-import { Link2, Check } from 'lucide-react'
+import { Link2, Check, AlertTriangle } from 'lucide-react'
 
 // Importação Modular dos Componentes Separados
 import ToleranciasForm from '../components/configuracoes/ToleranciasForm'
@@ -35,6 +36,7 @@ export default function Configuracoes() {
   const EMAIL_ADMIN_INDICACOES = 'manjunior007@gmail.com'
 
   const [codigoIndicacao, setCodigoIndicacao] = useState(null)
+  const [chavePixCadastrada, setChavePixCadastrada] = useState(null)
   const [indicados, setIndicados] = useState([])
   const [souAdminIndicacoes, setSouAdminIndicacoes] = useState(false)
   const [carregandoIndicados, setCarregandoIndicados] = useState(true)
@@ -61,12 +63,13 @@ export default function Configuracoes() {
 
       const { data: avalData } = await supabase
         .from('avaliadores')
-        .select('id, codigo_indicacao')
+        .select('id, codigo_indicacao, chave_pix')
         .eq('auth_id', authData.user.id)
         .maybeSingle()
 
       if (avalData) {
         setCodigoIndicacao(avalData.codigo_indicacao)
+        setChavePixCadastrada(avalData.chave_pix || '')
 
         const ehAdmin = authData.user.email === EMAIL_ADMIN_INDICACOES
         setSouAdminIndicacoes(ehAdmin)
@@ -220,15 +223,33 @@ export default function Configuracoes() {
                   Você ganha <strong>R$ 5</strong> quando quem você indicou assina o Mensal, ou <strong>R$ 50</strong> no Anual — pago via Pix 7 dias depois dele virar Pro.
                 </p>
               </div>
-              <button
-                type="button"
-                onClick={handleCopiarLinkIndicacao}
-                disabled={!codigoIndicacao}
-                className="flex items-center gap-2 px-4 py-2.5 bg-primary-600 text-white text-xs font-bold rounded-lg hover:bg-primary-700 shadow-sm disabled:opacity-50 transition-colors"
-              >
-                {linkIndicacaoCopiado ? <Check size={14} /> : <Link2 size={14} />}
-                {linkIndicacaoCopiado ? 'Link copiado!' : 'Copiar meu link de indicação'}
-              </button>
+              {!carregandoIndicados && !chavePixCadastrada ? (
+                <div className="flex items-start gap-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-900/40 rounded-lg p-3.5">
+                  <AlertTriangle size={16} className="text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+                  <div className="min-w-0">
+                    <p className="text-xs font-bold text-amber-800 dark:text-amber-300">Cadastre sua chave Pix pra liberar seu link</p>
+                    <p className="text-[11px] text-amber-700 dark:text-amber-400 mt-0.5">
+                      É pra onde a recompensa das suas indicações é paga — sem chave cadastrada, o link fica desativado.
+                    </p>
+                    <Link
+                      to="/avaliador"
+                      className="inline-flex items-center gap-1.5 mt-2 text-xs font-bold text-amber-800 dark:text-amber-300 hover:underline"
+                    >
+                      Cadastrar Chave Pix agora →
+                    </Link>
+                  </div>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={handleCopiarLinkIndicacao}
+                  disabled={!codigoIndicacao}
+                  className="flex items-center gap-2 px-4 py-2.5 bg-primary-600 text-white text-xs font-bold rounded-lg hover:bg-primary-700 shadow-sm disabled:opacity-50 transition-colors"
+                >
+                  {linkIndicacaoCopiado ? <Check size={14} /> : <Link2 size={14} />}
+                  {linkIndicacaoCopiado ? 'Link copiado!' : 'Copiar meu link de indicação'}
+                </button>
+              )}
 
               {!carregandoIndicados && indicados.length > 0 && (
                 <div className="pt-2 border-t border-gray-200 dark:border-slate-700 space-y-2">
