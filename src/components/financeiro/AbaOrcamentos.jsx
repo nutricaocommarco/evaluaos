@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { supabase } from '../../supabaseClient'
-import { Pencil, Trash2, FileDown, MessageCircle, ClipboardList } from 'lucide-react'
+import { Pencil, Trash2, FileDown, MessageCircle, ClipboardList, Link2, Check } from 'lucide-react'
 import ModalOrcamento from './ModalOrcamento'
 import GeradorPdfOrcamento from '../GeradorPdfOrcamento'
 
@@ -30,6 +30,7 @@ export default function AbaOrcamentos({ userId }) {
   const [showModal, setShowModal] = useState(false)
   const [orcamentoEditando, setOrcamentoEditando] = useState(null)
   const [orcamentoParaPdf, setOrcamentoParaPdf] = useState(null)
+  const [linkCopiadoId, setLinkCopiadoId] = useState(null)
 
   const carregar = async () => {
     setLoading(true)
@@ -78,14 +79,21 @@ export default function AbaOrcamentos({ userId }) {
     setOrcamentos((prev) => prev.map((item) => (item.id === o.id ? { ...item, status: novoStatus } : item)))
   }
 
+  const linkPublico = (o) => `${window.location.origin}/orcamento/${o.token_publico}`
+
   const linkWhatsApp = (o) => {
     const nome = o.pacientes?.nome_completo || o.nome_lead || 'tudo bem'
     const telefone = (o.pacientes?.telefone || o.telefone_lead || '').replace(/\D/g, '')
     if (!telefone) return null
-    const link = `${window.location.origin}/orcamento/${o.token_publico}`
-    const mensagem = `Olá ${nome}, tudo bem?\n\nSegue seu ${o.titulo} — ${fmtMoeda(o.valor_total)}.\n\nVeja os detalhes aqui: ${link}\n\nQualquer dúvida, me chama!`
+    const mensagem = `Olá ${nome}, tudo bem?\n\nSegue seu ${o.titulo} — ${fmtMoeda(o.valor_total)}.\n\nVeja os detalhes aqui: ${linkPublico(o)}\n\nQualquer dúvida, me chama!`
     const numeroCompleto = telefone.startsWith('55') ? telefone : `55${telefone}`
     return `https://wa.me/${numeroCompleto}?text=${encodeURIComponent(mensagem)}`
+  }
+
+  const handleCopiarLink = async (o) => {
+    await navigator.clipboard.writeText(linkPublico(o))
+    setLinkCopiadoId(o.id)
+    setTimeout(() => setLinkCopiadoId((atual) => (atual === o.id ? null : atual)), 2000)
   }
 
   return (
@@ -137,6 +145,13 @@ export default function AbaOrcamentos({ userId }) {
                       <option value="aceito">Aceito</option>
                       <option value="recusado">Recusado</option>
                     </select>
+                    <button
+                      onClick={() => handleCopiarLink(o)}
+                      title="Copiar link público"
+                      className="p-2 text-gray-400 hover:text-primary-600"
+                    >
+                      {linkCopiadoId === o.id ? <Check size={16} className="text-emerald-600" /> : <Link2 size={16} />}
+                    </button>
                     {wa && (
                       <a
                         href={wa}
