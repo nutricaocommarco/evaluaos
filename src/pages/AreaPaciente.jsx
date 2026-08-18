@@ -5,7 +5,7 @@ import { useTheme } from '../contexts/ThemeContext'
 import CabecalhoPortalPaciente from '../components/CabecalhoPortalPaciente'
 import NavegacaoPortalPaciente from '../components/NavegacaoPortalPaciente'
 import BotaoInstalarPWA from '../components/BotaoInstalarPWA'
-import { TrendingUp, FileText, ClipboardList, MessageSquare, Utensils, ListChecks, FlaskConical, Calendar } from 'lucide-react'
+import { TrendingUp, FileText, ClipboardList, MessageSquare, Utensils, NotebookPen, ListChecks, FlaskConical, Calendar } from 'lucide-react'
 import { CHAVE_ULTIMA_AREA_PACIENTE } from '../utils/pwaAreaPaciente'
 
 function CardAcao({ icone: Icone, cor, titulo, subtitulo, onClick, desabilitado }) {
@@ -228,6 +228,15 @@ export default function AreaPaciente() {
               titulo="Plano Alimentar"
               subtitulo={`${qtdPlanosVisiveis} plano(s) disponível(is)`}
               onClick={() => navigate(`/area/${tokenUrl}/plano`)}
+            />
+          )}
+          {qtdPlanosVisiveis > 0 && paciente?.diario_alimentar_ativo && (
+            <CardAcao
+              icone={NotebookPen}
+              cor="bg-lime-50 dark:bg-lime-900/20 text-lime-600"
+              titulo="Diário Alimentar"
+              subtitulo="Registre o que você comeu"
+              onClick={() => navigate(`/area/${tokenUrl}/diario`)}
             />
           )}
           {qtdOrientacoes > 0 && (

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { supabase } from '../supabaseClient'
-import { Link2, Check, AlertTriangle } from 'lucide-react'
+import { Link2, Check, AlertTriangle, UserCheck } from 'lucide-react'
 
 // Importação Modular dos Componentes Separados
 import ToleranciasForm from '../components/configuracoes/ToleranciasForm'
@@ -182,8 +182,17 @@ export default function Configuracoes() {
         <p className="text-sm text-gray-500 dark:text-slate-400">Personalize regras de medição, campos de formulário e a experiência do aluno.</p>
       </div>
 
-      {/* MENU DE ABAS */}
+      {/* MENU DE ABAS — "Nutricionista" é um link de verdade (sai da página,
+          vai pra /avaliador), não um estado de aba local, mas fica no
+          mesmo visual/lugar pra não abrir mais um item no menu principal. */}
       <div className="grid grid-cols-2 sm:flex sm:flex-wrap gap-2 border-b border-gray-200 dark:border-slate-800 pb-3 w-full min-w-0">
+        <Link
+          to="/avaliador"
+          className="flex items-center justify-center sm:justify-start gap-2 px-3 sm:px-4 py-2.5 font-bold text-[11px] sm:text-xs rounded-lg transition-colors w-full sm:w-auto text-center bg-white dark:bg-slate-900 border border-gray-100 dark:border-slate-800 text-gray-600 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-slate-800"
+        >
+          <UserCheck size={14} />
+          <span className="truncate">Nutricionista</span>
+        </Link>
         {abas.map(aba => (
           <button
             key={aba.id}

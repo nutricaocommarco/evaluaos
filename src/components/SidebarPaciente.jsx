@@ -44,6 +44,7 @@ const GRUPOS_TODOS = [
     itens: [
       { key: 'anamneses', label: 'Anamneses', tipo: 'anamnese' },
       { key: 'planos', label: 'Planos Alimentares', tipo: 'plano_alimentar' },
+      { key: 'diario_alimentar', label: 'Diário Alimentar', tipo: 'diario_alimentar' },
       { key: 'listas', label: 'Listas de Recomendações', tipo: 'listas' },
       { key: 'orientacoes', label: 'Orientações Nutricionais', tipo: 'orientacoes' },
       { key: 'exames', label: 'Exames Laboratoriais', tipo: 'exames' },
@@ -68,6 +69,9 @@ export default function SidebarPaciente({ paciente, itemAtivo, onSelecionarItem 
     } else if (item.tipo === 'plano_alimentar') {
       onSelecionarItem?.(item.key)
       navigate(`/pacientes/${paciente.id}/plano-alimentar`)
+    } else if (item.tipo === 'diario_alimentar') {
+      onSelecionarItem?.(item.key)
+      navigate(`/pacientes/${paciente.id}/diario-alimentar`)
     } else if (item.tipo === 'anamnese') {
       onSelecionarItem?.(item.key)
       navigate(`/pacientes/${paciente.id}/anamnese`)
