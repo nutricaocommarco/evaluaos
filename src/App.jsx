@@ -3,7 +3,7 @@ import { BrowserRouter, Routes, Route, Navigate, useNavigate, useLocation } from
 import { supabase } from './supabaseClient'
 import { ThemeProvider } from './contexts/ThemeContext'
 import { PlanoProvider } from './contexts/PlanoContext'
-import { Users, UserCheck, Star, BookOpen, Settings, Map, Library, Kanban, ClipboardList, Calendar, Wallet } from 'lucide-react'
+import { Users, Star, BookOpen, Settings, Map, Library, Kanban, ClipboardList, Calendar, Wallet } from 'lucide-react'
 
 // Importando suas telas 
 import HomePublica from './pages/HomePublica'
@@ -93,7 +93,6 @@ function MainApp() {
     { name: 'Questionários', path: '/questionarios', icon: <ClipboardList size={20} /> },
     { name: 'Agenda', path: '/agenda', icon: <Calendar size={20} /> },
     { name: 'Financeiro', path: '/financeiro', icon: <Wallet size={20} /> },
-    { name: 'Nutricionista', path: '/avaliador', icon: <UserCheck size={20} /> },
     { name: 'Meu Plano', path: '/meu-plano', icon: <Star size={20} /> },
     { name: 'Aprendizado', path: '/aprendizado', icon: <BookOpen size={20} /> },
     { name: 'Roadmap', path: '/roadmap', icon: <Map size={20} /> },
