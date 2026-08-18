@@ -237,7 +237,7 @@ export default function Configuracoes() {
               <div>
                 <h4 className="text-xs font-bold text-gray-800 dark:text-slate-100">Seu link de indicação EvaluaOS</h4>
                 <p className="text-xs text-gray-500 dark:text-slate-400 mt-0.5">
-                  Você ganha <strong>R$ 5</strong> quando quem você indicou assina o Mensal, ou <strong>R$ 50</strong> no Anual — pago via Pix 7 dias depois dele virar Pro.
+                  Você ganha <strong>R$ 5</strong> quando quem você indicou assina o Mensal, ou <strong>R$ 50</strong> no Anual.
                 </p>
               </div>
               {!carregandoIndicados && !chavePixCadastrada ? (
@@ -305,8 +305,10 @@ export default function Configuracoes() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="p-4 bg-primary-50/60 dark:bg-primary-900/20 dark:bg-primary-900/20 border border-primary-100 dark:border-primary-900/40 rounded-xl space-y-1">
                 <span className="text-2xl">💰</span>
-                <h4 className="text-xs font-bold text-primary-900 dark:text-primary-300">Comissões Recorrentes</h4>
-                <p className="text-[11px] text-primary-700 dark:text-primary-400">Ganhe por cada mensalidade ou anuidade gerada pelas suas indicações.</p>
+                <h4 className="text-xs font-bold text-primary-900 dark:text-primary-300">Pagamento único, sem enrolação</h4>
+                <p className="text-[11px] text-primary-700 dark:text-primary-400">
+                  Não é recorrente: é um valor único por cada indicação que vira Pro. Depois de 7 dias (prazo de arrependimento), o pagamento entra pra fila e é feito via Pix na 1ª semana do mês seguinte.
+                </p>
               </div>
 
               <div className="p-4 bg-purple-50/60 dark:bg-purple-950/30 dark:bg-purple-900/20 border border-purple-100 dark:border-purple-900/40 rounded-xl space-y-1">
