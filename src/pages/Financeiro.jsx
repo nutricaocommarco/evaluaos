@@ -6,6 +6,7 @@ import { useTheme } from '../contexts/ThemeContext'
 import { ChevronLeft, ChevronRight, Pencil, Trash2, TrendingUp, TrendingDown, Wallet, Repeat, AlertTriangle, Check, Receipt, X } from 'lucide-react'
 import GeradorPdfRecibo from '../components/GeradorPdfRecibo'
 import AbaOrcamentos from '../components/financeiro/AbaOrcamentos'
+import AbaAfiliados from '../components/financeiro/AbaAfiliados'
 
 const MESES = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez']
 const CATEGORIAS_RECEITA = ['Consultas', 'Venda de produtos', 'Outro']
@@ -41,7 +42,8 @@ export default function Financeiro({ userId }) {
   const [pacientes, setPacientes] = useState([])
   const [ano, setAno] = useState(new Date().getFullYear())
   const [mesSelecionado, setMesSelecionado] = useState(new Date().getMonth()) // null = ano todo
-  const [abaAtiva, setAbaAtiva] = useState('movimentacoes') // 'movimentacoes' | 'pendencias' | 'fluxo' | 'orcamentos'
+  const [abaAtiva, setAbaAtiva] = useState('movimentacoes') // 'movimentacoes' | 'pendencias' | 'fluxo' | 'orcamentos' | 'afiliados'
+  const [temAfiliados, setTemAfiliados] = useState(false)
   const [pendencias, setPendencias] = useState([])
   const [carregandoPendencias, setCarregandoPendencias] = useState(true)
   const [movimentacaoParaRecibo, setMovimentacaoParaRecibo] = useState(null)
@@ -88,6 +90,29 @@ export default function Financeiro({ userId }) {
   useEffect(() => {
     carregarPendencias()
   }, [])
+
+  // Aba "Afiliados" só aparece quando o nutricionista tem alguma indicação
+  // que já virou Pro (provisionada ou já paga) e não foi cancelada.
+  useEffect(() => {
+    const verificarAfiliados = async () => {
+      if (!userId) return
+      const { data: avalData } = await supabase
+        .from('avaliadores')
+        .select('id')
+        .eq('auth_id', userId)
+        .maybeSingle()
+      if (!avalData) return
+      const { data } = await supabase
+        .from('avaliadores')
+        .select('id')
+        .eq('indicado_por', avalData.id)
+        .not('indicacao_virou_pro_em', 'is', null)
+        .is('indicacao_cancelada_em', null)
+        .limit(1)
+      setTemAfiliados((data || []).length > 0)
+    }
+    verificarAfiliados()
+  }, [userId])
 
   useEffect(() => {
     const carregarPacientes = async () => {
@@ -258,7 +283,7 @@ export default function Financeiro({ userId }) {
           </h2>
           <p className="text-xs text-gray-500 dark:text-slate-400 mt-0.5">Receitas e despesas do seu consultório</p>
         </div>
-        {abaAtiva !== 'orcamentos' && (
+        {abaAtiva !== 'orcamentos' && abaAtiva !== 'afiliados' && (
           <button
             onClick={abrirNova}
             className="px-4 py-2 bg-primary-600 text-white text-sm font-semibold rounded-lg hover:bg-primary-700 shadow transition-colors shrink-0"
@@ -268,7 +293,7 @@ export default function Financeiro({ userId }) {
         )}
       </div>
 
-      {abaAtiva !== 'orcamentos' && pacienteFiltro && (
+      {abaAtiva !== 'orcamentos' && abaAtiva !== 'afiliados' && pacienteFiltro && (
         <div className="flex items-center gap-2 bg-primary-50 dark:bg-primary-900/20 text-primary-700 dark:text-primary-400 text-xs font-semibold px-3 py-2 rounded-lg w-fit">
           Filtrando por: {pacienteFiltro.nome_completo}
           <button onClick={() => setPacienteFiltro(null)} title="Limpar filtro" className="hover:text-primary-900 dark:hover:text-primary-200">
@@ -324,6 +349,18 @@ export default function Financeiro({ userId }) {
           >
             Orçamentos
           </button>
+          {temAfiliados && (
+            <button
+              onClick={() => setAbaAtiva('afiliados')}
+              className={`px-4 py-2 rounded-xl text-xs font-semibold whitespace-nowrap transition-all shrink-0 ${
+                abaAtiva === 'afiliados'
+                  ? 'bg-primary-600 text-white shadow-md'
+                  : 'bg-gray-100 dark:bg-slate-800 text-gray-600 dark:text-slate-300 hover:bg-gray-200 dark:hover:bg-slate-700'
+              }`}
+            >
+              Afiliados
+            </button>
+          )}
         </div>
 
         <div className="absolute right-0 top-0 bottom-1 flex items-center justify-end w-12 bg-gradient-to-l from-white dark:from-slate-950 via-white/80 dark:via-slate-950/80 to-transparent pointer-events-none sm:hidden">
@@ -333,7 +370,9 @@ export default function Financeiro({ userId }) {
 
       {abaAtiva === 'orcamentos' && <AbaOrcamentos userId={userId} />}
 
-      {abaAtiva !== 'orcamentos' && (
+      {abaAtiva === 'afiliados' && <AbaAfiliados userId={userId} />}
+
+      {abaAtiva !== 'orcamentos' && abaAtiva !== 'afiliados' && (
       <>
       <div className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-gray-100 dark:border-slate-800 shadow-sm space-y-3">
         <div className="flex items-center justify-center gap-3">

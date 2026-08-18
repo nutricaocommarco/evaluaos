@@ -30,9 +30,6 @@ export default function Configuracoes() {
     cor_primaria: DEFAULT_PRIMARY_HEX
   })
 
-  // 🔗 COLOQUE O SEU LINK DE AFILIADO DA HOTMART AQUI
-  const LINK_AFILIADO_HOTMART = "https://affiliate.hotmart.com/affiliate-recruiting/view/2019E106982311"
-
   const EMAIL_ADMIN_INDICACOES = 'manjunior007@gmail.com'
 
   const [codigoIndicacao, setCodigoIndicacao] = useState(null)
@@ -77,12 +74,12 @@ export default function Configuracoes() {
         const query = ehAdmin
           ? supabase
               .from('avaliadores')
-              .select('nome_completo, email, plano_status, periodicidade_plano, indicacao_virou_pro_em, indicacao_paga_em, created_at, indicador:indicado_por(nome_completo, email)')
+              .select('id, nome_completo, email, plano_status, periodicidade_plano, indicacao_virou_pro_em, indicacao_paga_em, indicacao_cancelada_em, created_at, indicador:indicado_por(nome_completo, email)')
               .not('indicado_por', 'is', null)
               .order('created_at', { ascending: false })
           : supabase
               .from('avaliadores')
-              .select('nome_completo, email, plano_status, periodicidade_plano, indicacao_virou_pro_em, indicacao_paga_em, created_at')
+              .select('nome_completo, email, plano_status, periodicidade_plano, indicacao_virou_pro_em, indicacao_paga_em, indicacao_cancelada_em, created_at')
               .eq('indicado_por', avalData.id)
               .order('created_at', { ascending: false })
 
@@ -107,6 +104,9 @@ export default function Configuracoes() {
   }
 
   function statusIndicacao(item) {
+    if (item.indicacao_cancelada_em) {
+      return { label: `Cancelado em ${new Date(item.indicacao_cancelada_em).toLocaleDateString('pt-BR')}`, cor: 'bg-gray-100 dark:bg-slate-800 text-gray-500 dark:text-slate-400' }
+    }
     if (item.indicacao_paga_em) {
       return { label: `Pago em ${new Date(item.indicacao_paga_em).toLocaleDateString('pt-BR')}`, cor: 'bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400' }
     }
@@ -120,6 +120,23 @@ export default function Configuracoes() {
         : { label: `Virou Pro — libera em ${liberadoEm.toLocaleDateString('pt-BR')}`, cor: 'bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400' }
     }
     return { label: 'Cadastrado (grátis)', cor: 'bg-gray-100 dark:bg-slate-800 text-gray-500 dark:text-slate-400' }
+  }
+
+  function podeMarcarPago(item) {
+    if (item.indicacao_cancelada_em || item.indicacao_paga_em || !item.indicacao_virou_pro_em) return false
+    const liberadoEm = new Date(new Date(item.indicacao_virou_pro_em).getTime() + 7 * 24 * 60 * 60 * 1000)
+    return liberadoEm <= new Date()
+  }
+
+  const handleMarcarPago = async (item) => {
+    const nome = item.nome_completo || item.email
+    if (!window.confirm(`Marcar a indicação de "${nome}" como paga (Pix já enviado)?`)) return
+    const { error } = await supabase
+      .from('avaliadores')
+      .update({ indicacao_paga_em: new Date().toISOString() })
+      .eq('id', item.id)
+    if (error) return alert('Erro ao marcar como pago: ' + error.message)
+    setIndicados((prev) => prev.map((i) => (i.id === item.id ? { ...i, indicacao_paga_em: new Date().toISOString() } : i)))
   }
 
   const handleSalvarTudo = async () => {
@@ -220,7 +237,7 @@ export default function Configuracoes() {
               <div>
                 <h4 className="text-xs font-bold text-gray-800 dark:text-slate-100">Seu link de indicação EvaluaOS</h4>
                 <p className="text-xs text-gray-500 dark:text-slate-400 mt-0.5">
-                  Você ganha <strong>R$ 5</strong> quando quem você indicou assina o Mensal, ou <strong>R$ 50</strong> no Anual — pago via Pix 7 dias depois dele virar Pro.
+                  Você ganha <strong>R$ 5</strong> quando quem você indicou assina o Mensal, ou <strong>R$ 50</strong> no Anual.
                 </p>
               </div>
               {!carregandoIndicados && !chavePixCadastrada ? (
@@ -266,7 +283,18 @@ export default function Configuracoes() {
                             <span className="text-[10px] text-gray-400 dark:text-slate-500 truncate block">indicado por {item.indicador?.nome_completo || item.indicador?.email || '?'}</span>
                           )}
                         </div>
-                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0 ${status.cor}`}>{status.label}</span>
+                        <div className="flex items-center gap-2 shrink-0">
+                          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${status.cor}`}>{status.label}</span>
+                          {souAdminIndicacoes && podeMarcarPago(item) && (
+                            <button
+                              type="button"
+                              onClick={() => handleMarcarPago(item)}
+                              className="text-[10px] font-bold px-2 py-1 rounded-full bg-emerald-600 text-white hover:bg-emerald-700 transition-colors"
+                            >
+                              Marcar como PAGO
+                            </button>
+                          )}
+                        </div>
                       </div>
                     )
                   })}
@@ -274,17 +302,13 @@ export default function Configuracoes() {
               )}
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="p-4 bg-primary-50/60 dark:bg-primary-900/20 dark:bg-primary-900/20 border border-primary-100 dark:border-primary-900/40 rounded-xl space-y-1">
                 <span className="text-2xl">💰</span>
-                <h4 className="text-xs font-bold text-primary-900 dark:text-primary-300">Comissões Recorrentes</h4>
-                <p className="text-[11px] text-primary-700 dark:text-primary-400">Ganhe por cada mensalidade ou anuidade gerada pelas suas indicações.</p>
-              </div>
-
-              <div className="p-4 bg-blue-50/60 dark:bg-blue-950/30 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-900/40 rounded-xl space-y-1">
-                <span className="text-2xl">⚡</span>
-                <h4 className="text-xs font-bold text-blue-900 dark:text-blue-300">Gestão via Hotmart</h4>
-                <p className="text-[11px] text-blue-700 dark:text-blue-400">Acompanhamento transparente de cliques, conversões e pagamentos garantidos.</p>
+                <h4 className="text-xs font-bold text-primary-900 dark:text-primary-300">Pagamento único, sem enrolação</h4>
+                <p className="text-[11px] text-primary-700 dark:text-primary-400">
+                  Não é recorrente: é um valor único por cada indicação que vira Pro. Depois de 7 dias (prazo de arrependimento), o pagamento entra pra fila e é feito via Pix na 1ª semana do mês seguinte.
+                </p>
               </div>
 
               <div className="p-4 bg-purple-50/60 dark:bg-purple-950/30 dark:bg-purple-900/20 border border-purple-100 dark:border-purple-900/40 rounded-xl space-y-1">
@@ -292,24 +316,6 @@ export default function Configuracoes() {
                 <h4 className="text-xs font-bold text-purple-900 dark:text-purple-300">Indicação Natural</h4>
                 <p className="text-[11px] text-purple-700 dark:text-purple-400">Mostre seus laudos interativos para colegas do consultório ou da faculdade.</p>
               </div>
-            </div>
-
-            <div className="bg-gray-50 dark:bg-slate-800 p-5 rounded-xl border border-gray-200 dark:border-slate-700 flex flex-col sm:flex-row justify-between items-center gap-4">
-              <div>
-                <h4 className="text-xs font-bold text-gray-800 dark:text-slate-100">Como se tornar um parceiro?</h4>
-                <p className="text-xs text-gray-500 dark:text-slate-400 mt-0.5">
-                  Ao se cadastrar no programa via Hotmart, você obtém seu link exclusivo de divulgação para indicar quando quiser.
-                </p>
-              </div>
-
-              <a
-                href={LINK_AFILIADO_HOTMART}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="w-full sm:w-auto px-6 py-3 bg-primary-600 text-white rounded-xl text-xs font-bold hover:bg-primary-700 shadow-sm flex items-center justify-center gap-2 transition-all shrink-0"
-              >
-                <span>🚀</span> Quero me Tornar um Afiliado
-              </a>
             </div>
           </div>
         )}

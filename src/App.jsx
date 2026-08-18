@@ -3,7 +3,7 @@ import { BrowserRouter, Routes, Route, Navigate, useNavigate, useLocation } from
 import { supabase } from './supabaseClient'
 import { ThemeProvider } from './contexts/ThemeContext'
 import { PlanoProvider } from './contexts/PlanoContext'
-import { Users, Apple, UserCheck, Star, BookOpen, Settings, Map, LayoutTemplate, ClipboardList, Calendar, Wallet } from 'lucide-react'
+import { Users, UserCheck, Star, BookOpen, Settings, Map, Library, Kanban, ClipboardList, Calendar, Wallet } from 'lucide-react'
 
 // Importando suas telas 
 import HomePublica from './pages/HomePublica'
@@ -24,7 +24,8 @@ import PoliticaPrivacidade from './pages/PoliticaPrivacidade'
 import TermosDeServico from './pages/TermosDeServico'
 import CalculadoraGastoCalorico from './pages/CalculadoraGastoCalorico';
 import ProntuarioPaciente from './pages/ProntuarioPaciente';
-import TabelaAlimentos from './pages/TabelaAlimentos';
+import Biblioteca from './pages/Biblioteca';
+import CRM from './pages/CRM';
 import PlanoAlimentar from './pages/PlanoAlimentar';
 import Anamnese from './pages/Anamnese';
 import OrientacoesNutricionais from './pages/OrientacoesNutricionais';
@@ -41,7 +42,6 @@ import ConfirmarAgendamento from './pages/ConfirmarAgendamento';
 import PerfilPaciente from './pages/PerfilPaciente';
 import Roadmap from './pages/Roadmap';
 import Financeiro from './pages/Financeiro';
-import Modelos from './pages/Modelos';
 import Questionarios from './pages/Questionarios';
 import QuestionarioBuilder from './pages/QuestionarioBuilder';
 import QuestionarioPublico from './pages/QuestionarioPublico';
@@ -103,8 +103,8 @@ function MainApp() {
   // fica só com o que não é por-paciente.
   const menuItems = [
     { name: 'Pacientes', path: '/pacientes', icon: <Users size={20} /> },
-    { name: 'Alimentos', path: '/alimentos', icon: <Apple size={20} /> },
-    { name: 'Modelos', path: '/modelos', icon: <LayoutTemplate size={20} /> },
+    { name: 'CRM', path: '/crm', icon: <Kanban size={20} /> },
+    { name: 'Biblioteca', path: '/biblioteca', icon: <Library size={20} /> },
     { name: 'Questionários', path: '/questionarios', icon: <ClipboardList size={20} /> },
     { name: 'Agenda', path: '/agenda', icon: <Calendar size={20} /> },
     { name: 'Financeiro', path: '/financeiro', icon: <Wallet size={20} /> },
@@ -292,8 +292,8 @@ function MainApp() {
             <Route path="/financeiro" element={<Financeiro userId={session.user.id} />} />
             <Route path="/oauth/google/callback" element={<GoogleOAuthCallback />} />
             <Route path="/confirmar/:token" element={<ConfirmarAgendamento />} />
-            <Route path="/alimentos" element={<TabelaAlimentos userId={session.user.id} />} />
-            <Route path="/modelos" element={<Modelos />} />
+            <Route path="/biblioteca" element={<Biblioteca userId={session.user.id} />} />
+            <Route path="/crm" element={<CRM userId={session.user.id} />} />
             <Route path="/questionarios" element={<Questionarios userId={session.user.id} />} />
             <Route path="/questionarios/:id/editar" element={<QuestionarioBuilder userId={session.user.id} />} />
             <Route path="/pacientes/:id/questionarios" element={<PacienteQuestionarios userId={session.user.id} />} />
