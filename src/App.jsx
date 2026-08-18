@@ -27,6 +27,7 @@ import ProntuarioPaciente from './pages/ProntuarioPaciente';
 import Biblioteca from './pages/Biblioteca';
 import CRM from './pages/CRM';
 import PlanoAlimentar from './pages/PlanoAlimentar';
+import DiarioAlimentarNutri from './pages/DiarioAlimentarNutri';
 import Anamnese from './pages/Anamnese';
 import OrientacoesNutricionais from './pages/OrientacoesNutricionais';
 import LinhaDoTempo from './pages/LinhaDoTempo';
@@ -48,6 +49,7 @@ import QuestionarioPublico from './pages/QuestionarioPublico';
 import PacienteQuestionarios from './pages/PacienteQuestionarios';
 import AreaPaciente from './pages/AreaPaciente';
 import PlanoAlimentarPaciente from './pages/PlanoAlimentarPaciente';
+import DiarioAlimentarPaciente from './pages/DiarioAlimentarPaciente';
 import OrientacoesPaciente from './pages/OrientacoesPaciente';
 import ListasRecomendacoesPaciente from './pages/ListasRecomendacoesPaciente';
 import QuestionariosPaciente from './pages/QuestionariosPaciente';
@@ -131,6 +133,7 @@ function MainApp() {
         <Route path="/orcamento/:tokenUrl" element={<VisualizacaoPublicaOrcamento />} />
         <Route path="/area/:tokenUrl" element={<AreaPaciente />} />
         <Route path="/area/:tokenUrl/plano" element={<PlanoAlimentarPaciente />} />
+        <Route path="/area/:tokenUrl/diario" element={<DiarioAlimentarPaciente />} />
         <Route path="/area/:tokenUrl/orientacoes" element={<OrientacoesPaciente />} />
         <Route path="/area/:tokenUrl/listas" element={<ListasRecomendacoesPaciente />} />
         <Route path="/area/:tokenUrl/questionarios" element={<QuestionariosPaciente />} />
@@ -264,6 +267,7 @@ function MainApp() {
             <Route path="/pacientes/:id/perfil" element={<PerfilPaciente userId={session.user.id} />} />
             <Route path="/pacientes/:id/prontuario" element={<ProntuarioPaciente userId={session.user.id} />} />
             <Route path="/pacientes/:id/plano-alimentar" element={<PlanoAlimentar userId={session.user.id} />} />
+            <Route path="/pacientes/:id/diario-alimentar" element={<DiarioAlimentarNutri userId={session.user.id} />} />
             <Route path="/pacientes/:id/anamnese" element={<Anamnese userId={session.user.id} />} />
             <Route path="/pacientes/:id/orientacoes-nutricionais" element={<OrientacoesNutricionais userId={session.user.id} />} />
             <Route path="/pacientes/:id/linha-do-tempo" element={<LinhaDoTempo />} />
@@ -288,6 +292,7 @@ function MainApp() {
                 tela chromeless que o paciente veria. */}
             <Route path="/area/:tokenUrl" element={<AreaPaciente />} />
             <Route path="/area/:tokenUrl/plano" element={<PlanoAlimentarPaciente />} />
+            <Route path="/area/:tokenUrl/diario" element={<DiarioAlimentarPaciente />} />
             <Route path="/area/:tokenUrl/orientacoes" element={<OrientacoesPaciente />} />
             <Route path="/area/:tokenUrl/questionarios" element={<QuestionariosPaciente />} />
         <Route path="/area/:tokenUrl/checkin" element={<CheckinPaciente />} />

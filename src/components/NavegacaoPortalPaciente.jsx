@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../supabaseClient'
-import { Home, TrendingUp, FileText, Utensils, MessageSquare, ClipboardList, ClipboardCheck, ListChecks, FlaskConical, Calendar, Menu as MenuIcon, X } from 'lucide-react'
+import { Home, TrendingUp, FileText, Utensils, NotebookPen, MessageSquare, ClipboardList, ClipboardCheck, ListChecks, FlaskConical, Calendar, Menu as MenuIcon, X } from 'lucide-react'
 
 // Navegação entre as telas do paciente (Início, Evolução, Laudo, Plano,
 // Orientações, Listas, Questionários) — só aparece pra quem está vendo o
@@ -23,6 +23,8 @@ export default function NavegacaoPortalPaciente({ tokenPaciente, tokenLaudo, tem
   const [mobileAberto, setMobileAberto] = useState(false)
   const [temAgendamentosResolvido, setTemAgendamentosResolvido] = useState(false)
   const [temCheckins, setTemCheckins] = useState(false)
+  const [temPlano, setTemPlano] = useState(false)
+  const [diarioAtivo, setDiarioAtivo] = useState(false)
 
   useEffect(() => {
     let cancelado = false
@@ -30,7 +32,7 @@ export default function NavegacaoPortalPaciente({ tokenPaciente, tokenLaudo, tem
     async function checar() {
       const { data: pacData } = await supabase
         .from('pacientes')
-        .select('id')
+        .select('id, diario_alimentar_ativo')
         .eq('token_publico', tokenPaciente)
         .maybeSingle()
       if (!pacData || cancelado) return
@@ -53,6 +55,15 @@ export default function NavegacaoPortalPaciente({ tokenPaciente, tokenLaudo, tem
         .eq('id_paciente', pacData.id)
 
       if (!cancelado) setTemCheckins((countCheckins || 0) > 0)
+
+      const { count: countPlano } = await supabase
+        .from('planos_alimentares')
+        .select('id', { count: 'exact', head: true })
+        .eq('id_paciente', pacData.id)
+        .eq('ativo', true)
+
+      if (!cancelado) setTemPlano((countPlano || 0) > 0)
+      if (!cancelado) setDiarioAtivo(pacData.diario_alimentar_ativo !== false)
     }
     checar()
 
@@ -69,6 +80,7 @@ export default function NavegacaoPortalPaciente({ tokenPaciente, tokenLaudo, tem
     { key: 'evolucao', label: 'Evolução', icone: TrendingUp, href: tokenLaudo ? `/evolucao/${tokenPaciente}` : null },
     { key: 'laudo', label: 'Laudo', icone: FileText, href: tokenLaudo ? `/laudo/${tokenLaudo}` : null },
     { key: 'plano', label: 'Plano', icone: Utensils, href: `/area/${tokenPaciente}/plano` },
+    { key: 'diario', label: 'Diário', icone: NotebookPen, href: temPlano && diarioAtivo ? `/area/${tokenPaciente}/diario` : null },
     { key: 'orientacoes', label: 'Orientações', icone: MessageSquare, href: `/area/${tokenPaciente}/orientacoes` },
     { key: 'listas', label: 'Listas', icone: ListChecks, href: `/area/${tokenPaciente}/listas` },
     { key: 'exames', label: 'Exames', icone: FlaskConical, href: `/area/${tokenPaciente}/exames` },
