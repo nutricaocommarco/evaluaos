@@ -41,11 +41,6 @@ const SECOES = [
         titulo: 'Acompanhamento Nutricional para Gestantes',
         texto: 'Acompanhamento nutricional contínuo pensado pra gestantes.',
       },
-      {
-        chave: 'modulo-crm',
-        titulo: 'CRM para Nutricionistas',
-        texto: 'Um funil visual de atendimento pra organizar cada etapa da jornada do paciente no seu consultório.',
-      },
     ],
   },
   {
