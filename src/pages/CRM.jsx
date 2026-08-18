@@ -143,13 +143,17 @@ export default function CRM({ userId }) {
     return grupos
   }, [leads])
 
-  // Uma etapa desligada some do board, mas só se estiver vazia — se
-  // ainda tem card lá dentro ela continua aparecendo até o nutricionista
-  // mover ou converter todos (evita "perder" um lead de vista).
-  const etapasVisiveis = useMemo(
-    () => ETAPAS.filter((et) => etapasAtivas.includes(et.id) || (leadsPorEtapa[et.id]?.length || 0) > 0),
-    [etapasAtivas, leadsPorEtapa]
-  )
+  // As colunas seguem a ORDEM salva em etapasAtivas (reordenável em
+  // ModalEtapas.jsx), não a ordem fixa do catálogo. Uma etapa desligada
+  // some do board, mas só se estiver vazia — se ainda tem card lá dentro
+  // ela continua aparecendo (no fim, na ordem do catálogo) até o
+  // nutricionista mover ou converter todos (evita "perder" um lead de
+  // vista).
+  const etapasVisiveis = useMemo(() => {
+    const ativasOrdenadas = etapasAtivas.map((id) => ETAPAS.find((et) => et.id === id)).filter(Boolean)
+    const extras = ETAPAS.filter((et) => !etapasAtivas.includes(et.id) && (leadsPorEtapa[et.id]?.length || 0) > 0)
+    return [...ativasOrdenadas, ...extras]
+  }, [etapasAtivas, leadsPorEtapa])
 
   const abrirNovo = () => {
     setLeadEditando(null)
@@ -171,6 +175,11 @@ export default function CRM({ userId }) {
       const existe = prev.some((l) => l.id === salvo.id)
       return existe ? prev.map((l) => (l.id === salvo.id ? salvo : l)) : [salvo, ...prev]
     })
+    fecharModal()
+  }
+
+  const aoExcluirLead = (id) => {
+    setLeads((prev) => prev.filter((l) => l.id !== id))
     fecharModal()
   }
 
@@ -284,6 +293,7 @@ export default function CRM({ userId }) {
           etapasVisiveis={etapasAtivas}
           aoFechar={fecharModal}
           aoSalvar={aoSalvarLead}
+          aoExcluir={aoExcluirLead}
           aoConverter={handleConverter}
         />
       )}
