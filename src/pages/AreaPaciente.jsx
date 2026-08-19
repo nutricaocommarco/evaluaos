@@ -1,27 +1,64 @@
 import React, { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
 import { supabase } from '../supabaseClient'
 import { useTheme } from '../contexts/ThemeContext'
 import CabecalhoPortalPaciente from '../components/CabecalhoPortalPaciente'
 import NavegacaoPortalPaciente from '../components/NavegacaoPortalPaciente'
 import BotaoInstalarPWA from '../components/BotaoInstalarPWA'
-import { TrendingUp, FileText, ClipboardList, MessageSquare, Utensils, NotebookPen, ListChecks, FlaskConical, Calendar } from 'lucide-react'
+import RelatorioCheckinPaciente from '../components/questionarios/RelatorioCheckinPaciente'
+import { Utensils, TrendingUp } from 'lucide-react'
 import { CHAVE_ULTIMA_AREA_PACIENTE } from '../utils/pwaAreaPaciente'
 
-function CardAcao({ icone: Icone, cor, titulo, subtitulo, onClick, desabilitado }) {
+function formatarDataCurta(dataStr) {
+  if (!dataStr) return '-'
+  return new Date(dataStr + 'T12:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })
+}
+
+// Mini-gráfico de peso — versão compacta da Evolução completa (que já tem
+// gráfico próprio em EvolucaoPaciente.jsx) só pra dar um resumo visual
+// aqui na home, com link pra abrir o relatório completo se quiser mais
+// detalhe (dobras, perímetros, composição corporal etc).
+function CardEvolucaoPeso({ historico, darkMode, onAbrirCompleto }) {
+  const pesos = historico.filter((h) => h.peso_paciente != null)
+  if (pesos.length < 2) return null
+
+  const primeiro = pesos[0].peso_paciente
+  const ultimo = pesos[pesos.length - 1].peso_paciente
+  const delta = ultimo - primeiro
+
   return (
     <button
-      onClick={onClick}
-      disabled={desabilitado}
-      className="bg-white dark:bg-slate-900 p-5 rounded-xl border border-gray-100 dark:border-slate-800 shadow-sm flex items-center gap-3 text-left hover:border-primary-300 dark:hover:border-primary-700 transition-colors disabled:opacity-50 disabled:hover:border-gray-100 dark:disabled:hover:border-slate-800"
+      onClick={onAbrirCompleto}
+      className="w-full text-left bg-white dark:bg-slate-900 p-4 rounded-xl border border-gray-100 dark:border-slate-800 shadow-sm hover:border-emerald-300 dark:hover:border-emerald-700 transition-colors"
     >
-      <div className={`w-11 h-11 rounded-full flex items-center justify-center shrink-0 ${cor}`}>
-        <Icone size={19} />
+      <div className="flex items-center justify-between gap-2 mb-2">
+        <div className="flex items-center gap-2">
+          <div className="w-8 h-8 rounded-full bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 flex items-center justify-center shrink-0">
+            <TrendingUp size={15} />
+          </div>
+          <p className="text-sm font-bold text-gray-800 dark:text-slate-100">Sua Evolução de Peso</p>
+        </div>
+        <span className={`text-xs font-bold shrink-0 ${delta < 0 ? 'text-emerald-600' : delta > 0 ? 'text-amber-600' : 'text-gray-400'}`}>
+          {delta > 0 ? '+' : ''}{delta.toFixed(1)}kg
+        </span>
       </div>
-      <div className="min-w-0">
-        <p className="text-sm font-bold text-gray-800 dark:text-slate-100">{titulo}</p>
-        <p className="text-xs text-gray-500 dark:text-slate-400">{subtitulo}</p>
+      <div className="h-24">
+        <ResponsiveContainer width="100%" height="100%">
+          <LineChart data={pesos} margin={{ top: 5, right: 5, left: -20, bottom: 0 }}>
+            <CartesianGrid strokeDasharray="3 3" stroke={darkMode ? '#334155' : '#f1f5f9'} vertical={false} />
+            <XAxis dataKey="data_avaliacao" tickFormatter={formatarDataCurta} tick={{ fontSize: 10, fill: darkMode ? '#64748b' : '#94a3b8' }} axisLine={false} tickLine={false} />
+            <YAxis domain={['dataMin - 1', 'dataMax + 1']} tick={{ fontSize: 10, fill: darkMode ? '#64748b' : '#94a3b8' }} axisLine={false} tickLine={false} width={30} />
+            <Tooltip
+              labelFormatter={formatarDataCurta}
+              formatter={(v) => [`${v} kg`, 'Peso']}
+              contentStyle={{ fontSize: 12, borderRadius: 8, border: 'none', boxShadow: '0 2px 8px rgba(0,0,0,0.15)' }}
+            />
+            <Line type="monotone" dataKey="peso_paciente" stroke="#059669" strokeWidth={2} dot={{ r: 3 }} activeDot={{ r: 5 }} />
+          </LineChart>
+        </ResponsiveContainer>
       </div>
+      <p className="text-[11px] text-gray-400 dark:text-slate-500 mt-1 text-right">Ver evolução completa →</p>
     </button>
   )
 }
@@ -29,7 +66,7 @@ function CardAcao({ icone: Icone, cor, titulo, subtitulo, onClick, desabilitado 
 export default function AreaPaciente() {
   const { tokenUrl } = useParams()
   const navigate = useNavigate()
-  const { setDarkMode, setCorPrimaria } = useTheme()
+  const { setDarkMode, setCorPrimaria, darkMode } = useTheme()
 
   const [loading, setLoading] = useState(true)
   const [paciente, setPaciente] = useState(null)
@@ -37,13 +74,10 @@ export default function AreaPaciente() {
   const [nomeAvaliador, setNomeAvaliador] = useState('')
   const [logomarcaUrl, setLogomarcaUrl] = useState('')
   const [avaliacaoRecente, setAvaliacaoRecente] = useState(null)
-  const [qtdAvaliacoesVisiveis, setQtdAvaliacoesVisiveis] = useState(0)
+  const [historicoPeso, setHistoricoPeso] = useState([])
   const [qtdPlanosVisiveis, setQtdPlanosVisiveis] = useState(0)
-  const [qtdOrientacoes, setQtdOrientacoes] = useState(0)
-  const [qtdListas, setQtdListas] = useState(0)
-  const [qtdExames, setQtdExames] = useState(0)
+  const [checkinsVisiveis, setCheckinsVisiveis] = useState([])
   const [qtdAgendamentosFuturos, setQtdAgendamentosFuturos] = useState(0)
-  const [qtdQuestionariosPendentes, setQtdQuestionariosPendentes] = useState(0)
   const [sessaoAtiva, setSessaoAtiva] = useState(false)
 
   useEffect(() => {
@@ -93,50 +127,22 @@ export default function AreaPaciente() {
         }
       }
 
-      const [avalRes, avalCountRes, planoRes, orientRes, listasRes, questRes, solExamesRes, regExamesRes, agendamentosRes] = await Promise.all([
+      const [avaliacoesRes, planoRes, checkinsRes, agendamentosRes] = await Promise.all([
         supabase
           .from('avaliacoes')
-          .select('id, token_publico, data_avaliacao')
+          .select('id, token_publico, data_avaliacao, peso_paciente')
           .eq('id_paciente', pacData.id)
           .eq('visivel_paciente', true)
-          .order('data_avaliacao', { ascending: false })
-          .limit(1)
-          .maybeSingle(),
-        supabase
-          .from('avaliacoes')
-          .select('id', { count: 'exact', head: true })
-          .eq('id_paciente', pacData.id)
-          .eq('visivel_paciente', true),
+          .order('data_avaliacao', { ascending: true }),
         supabase
           .from('planos_alimentares')
           .select('id', { count: 'exact', head: true })
           .eq('id_paciente', pacData.id)
           .eq('ativo', true),
         supabase
-          .from('orientacoes_nutricionais')
-          .select('id', { count: 'exact', head: true })
-          .eq('id_paciente', pacData.id)
-          .eq('visivel_paciente', true),
-        supabase
-          .from('listas_recomendacoes')
-          .select('id', { count: 'exact', head: true })
-          .eq('id_paciente', pacData.id)
-          .eq('visivel_paciente', true),
-        supabase
-          .from('questionario_envios')
-          .select('id', { count: 'exact', head: true })
-          .eq('id_paciente', pacData.id)
-          .eq('status', 'aguardando'),
-        supabase
-          .from('exames_solicitacoes')
-          .select('id', { count: 'exact', head: true })
-          .eq('id_paciente', pacData.id)
-          .eq('visivel_paciente', true),
-        supabase
-          .from('exames_registros')
-          .select('id', { count: 'exact', head: true })
-          .eq('id_paciente', pacData.id)
-          .eq('visivel_paciente', true),
+          .from('checkins_semanais_pacientes')
+          .select('id_questionario, mostrar_grafico_paciente, questionarios(titulo)')
+          .eq('id_paciente', pacData.id),
         supabase
           .from('agendamentos')
           .select('id', { count: 'exact', head: true })
@@ -146,13 +152,11 @@ export default function AreaPaciente() {
           .gte('data_inicio', new Date().toISOString()),
       ])
 
-      setAvaliacaoRecente(avalRes.data || null)
-      setQtdAvaliacoesVisiveis(avalCountRes.count || 0)
+      const listaAvaliacoes = avaliacoesRes.data || []
+      setHistoricoPeso(listaAvaliacoes)
+      setAvaliacaoRecente(listaAvaliacoes[listaAvaliacoes.length - 1] || null)
       setQtdPlanosVisiveis(planoRes.count || 0)
-      setQtdOrientacoes(orientRes.count || 0)
-      setQtdListas(listasRes.count || 0)
-      setQtdQuestionariosPendentes(questRes.count || 0)
-      setQtdExames((solExamesRes.count || 0) + (regExamesRes.count || 0))
+      setCheckinsVisiveis((checkinsRes.data || []).filter((c) => c.mostrar_grafico_paciente))
       setQtdAgendamentosFuturos(agendamentosRes.count || 0)
 
       setLoading(false)
@@ -179,14 +183,18 @@ export default function AreaPaciente() {
     )
   }
 
+  const nadaAindaLiberado = !avaliacaoRecente && qtdPlanosVisiveis === 0 && checkinsVisiveis.length === 0
+
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-slate-950 py-8 px-4">
       <div className="max-w-3xl mx-auto space-y-4">
         <CabecalhoPortalPaciente logomarcaUrl={logomarcaUrl} nomeEmpresa={nomeEmpresa} nomeAvaliador={nomeAvaliador} />
 
-        {!sessaoAtiva && (
-          <NavegacaoPortalPaciente tokenPaciente={tokenUrl} tokenLaudo={avaliacaoRecente?.token_publico} temAgendamentos={qtdAgendamentosFuturos > 0} ativo="inicio" />
-        )}
+        {/* Sempre visível, esteja o paciente de verdade sem sessão ou o
+            nutri vendo o próprio link logado — sem isso, tirar os cards
+            de atalho abaixo deixaria a tela sem nenhuma navegação pro
+            nutri nesse segundo caso. */}
+        <NavegacaoPortalPaciente tokenPaciente={tokenUrl} tokenLaudo={avaliacaoRecente?.token_publico} temAgendamentos={qtdAgendamentosFuturos > 0} ativo="inicio" />
 
         {!sessaoAtiva && <BotaoInstalarPWA />}
 
@@ -195,94 +203,37 @@ export default function AreaPaciente() {
           <p className="text-sm text-gray-500 dark:text-slate-400 mt-0.5">Aqui você acompanha tudo do seu acompanhamento nutricional.</p>
         </div>
 
-        {!avaliacaoRecente && qtdPlanosVisiveis === 0 && qtdOrientacoes === 0 && qtdListas === 0 && qtdExames === 0 && qtdAgendamentosFuturos === 0 && (
+        {nadaAindaLiberado && (
           <div className="bg-white dark:bg-slate-900 p-6 rounded-xl border border-gray-100 dark:border-slate-800 shadow-sm text-center">
             <p className="text-gray-500 dark:text-slate-400 text-sm">Ainda não há nada liberado aqui — assim que seu nutricionista registrar sua primeira avaliação, plano ou orientação, aparece nesta tela.</p>
           </div>
         )}
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          {avaliacaoRecente && (
-            <CardAcao
-              icone={TrendingUp}
-              cor="bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600"
-              titulo="Evolução"
-              subtitulo={qtdAvaliacoesVisiveis >= 2 ? 'Gráficos e comparativos' : 'Precisa de mais 1 avaliação'}
-              desabilitado={qtdAvaliacoesVisiveis < 2}
-              onClick={() => navigate(`/evolucao/${tokenUrl}`)}
-            />
-          )}
-          {avaliacaoRecente && (
-            <CardAcao
-              icone={FileText}
-              cor="bg-primary-50 dark:bg-primary-900/20 text-primary-600"
-              titulo="Laudo Antropométrico"
-              subtitulo="Ver relatório mais recente"
-              onClick={() => navigate(`/laudo/${avaliacaoRecente.token_publico}`)}
-            />
-          )}
-          {qtdPlanosVisiveis > 0 && (
-            <CardAcao
-              icone={Utensils}
-              cor="bg-amber-50 dark:bg-amber-900/20 text-amber-600"
-              titulo="Plano Alimentar"
-              subtitulo={`${qtdPlanosVisiveis} plano(s) disponível(is)`}
-              onClick={() => navigate(`/area/${tokenUrl}/plano`)}
-            />
-          )}
-          {qtdPlanosVisiveis > 0 && paciente?.diario_alimentar_ativo && (
-            <CardAcao
-              icone={NotebookPen}
-              cor="bg-lime-50 dark:bg-lime-900/20 text-lime-600"
-              titulo="Diário Alimentar"
-              subtitulo="Registre o que você comeu"
-              onClick={() => navigate(`/area/${tokenUrl}/diario`)}
-            />
-          )}
-          {qtdOrientacoes > 0 && (
-            <CardAcao
-              icone={MessageSquare}
-              cor="bg-violet-50 dark:bg-violet-900/20 text-violet-600"
-              titulo="Orientações"
-              subtitulo={`${qtdOrientacoes} orientação(ões)`}
-              onClick={() => navigate(`/area/${tokenUrl}/orientacoes`)}
-            />
-          )}
-          {qtdListas > 0 && (
-            <CardAcao
-              icone={ListChecks}
-              cor="bg-cyan-50 dark:bg-cyan-900/20 text-cyan-600"
-              titulo="Listas de Recomendações"
-              subtitulo={`${qtdListas} lista(s)`}
-              onClick={() => navigate(`/area/${tokenUrl}/listas`)}
-            />
-          )}
-          {qtdExames > 0 && (
-            <CardAcao
-              icone={FlaskConical}
-              cor="bg-sky-50 dark:bg-sky-900/20 text-sky-600"
-              titulo="Exames Laboratoriais"
-              subtitulo="Pedidos e resultados"
-              onClick={() => navigate(`/area/${tokenUrl}/exames`)}
-            />
-          )}
-          {qtdAgendamentosFuturos > 0 && (
-            <CardAcao
-              icone={Calendar}
-              cor="bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600"
-              titulo="Agenda"
-              subtitulo={`${qtdAgendamentosFuturos} horário(s) marcado(s)`}
-              onClick={() => navigate(`/area/${tokenUrl}/agenda`)}
-            />
-          )}
-          <CardAcao
-            icone={ClipboardList}
-            cor="bg-rose-50 dark:bg-rose-900/20 text-rose-600"
-            titulo="Questionários"
-            subtitulo={qtdQuestionariosPendentes > 0 ? `${qtdQuestionariosPendentes} pendente(s)` : 'Nenhum pendente'}
-            onClick={() => navigate(`/area/${tokenUrl}/questionarios`)}
+        {qtdPlanosVisiveis > 0 && (
+          <button
+            onClick={() => navigate(`/area/${tokenUrl}/plano`)}
+            className="w-full flex items-center gap-3 bg-primary-600 hover:bg-primary-700 transition-colors text-white p-5 rounded-xl shadow-sm text-left"
+          >
+            <div className="w-11 h-11 rounded-full bg-white/15 flex items-center justify-center shrink-0">
+              <Utensils size={20} />
+            </div>
+            <div className="min-w-0">
+              <p className="text-base font-black">Plano Alimentar</p>
+              <p className="text-xs text-primary-100">Ver o que você deve comer hoje</p>
+            </div>
+          </button>
+        )}
+
+        <CardEvolucaoPeso historico={historicoPeso} darkMode={darkMode} onAbrirCompleto={() => navigate(`/evolucao/${tokenUrl}`)} />
+
+        {checkinsVisiveis.map((c) => (
+          <RelatorioCheckinPaciente
+            key={c.id_questionario}
+            pacienteId={paciente.id}
+            idQuestionario={c.id_questionario}
+            titulo={c.questionarios?.titulo || 'Seu Check-in'}
           />
-        </div>
+        ))}
       </div>
     </div>
   )
