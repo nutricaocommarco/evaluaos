@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { supabase } from '../supabaseClient'
-import { ChevronDown, ChevronRight, UtensilsCrossed, ClipboardList, FileText, Stethoscope } from 'lucide-react'
+import { ChevronDown, ChevronRight, UtensilsCrossed, ClipboardList, FileText, Stethoscope, ListChecks } from 'lucide-react'
 
 function formatarDataHora(dataStr) {
   if (!dataStr) return '-'
@@ -101,20 +101,23 @@ export default function Modelos() {
   const [modelosRefeicoes, setModelosRefeicoes] = useState([])
   const [modelosPlanos, setModelosPlanos] = useState([])
   const [modelosOrientacoes, setModelosOrientacoes] = useState([])
+  const [modelosListas, setModelosListas] = useState([])
   const [modelosAnamneses, setModelosAnamneses] = useState([])
   const [abertos, setAbertos] = useState(new Set())
 
   const carregarTudo = async () => {
     setLoading(true)
-    const [refRes, planoRes, orientRes, anamRes] = await Promise.all([
+    const [refRes, planoRes, orientRes, listasRes, anamRes] = await Promise.all([
       supabase.from('modelos_refeicoes').select('*, modelos_refeicoes_itens(*, tabela_alimentos(nome))').order('titulo'),
       supabase.from('modelos_planos').select('*, modelos_planos_refeicoes(*, modelos_planos_itens(*, tabela_alimentos(nome)))').order('titulo'),
       supabase.from('modelos_orientacoes').select('*').order('titulo'),
+      supabase.from('modelos_listas_recomendacoes').select('*').order('titulo'),
       supabase.from('modelos_anamneses').select('*').order('titulo'),
     ])
     setModelosRefeicoes(refRes.data || [])
     setModelosPlanos(planoRes.data || [])
     setModelosOrientacoes(orientRes.data || [])
+    setModelosListas(listasRes.data || [])
     setModelosAnamneses(anamRes.data || [])
     setLoading(false)
   }
@@ -150,8 +153,8 @@ export default function Modelos() {
         <h2 className="text-2xl font-bold text-gray-800 dark:text-slate-100">Modelos</h2>
         <p className="text-sm text-gray-500 dark:text-slate-400 mt-1">
           Organize num só lugar os modelos reutilizáveis que você salvou. Modelos de refeição e plano alimentar
-          são criados a partir do Plano Alimentar de qualquer paciente; orientações e anamnese, a partir das
-          respectivas telas do paciente.
+          são criados a partir do Plano Alimentar de qualquer paciente; orientações, listas de recomendações e
+          anamnese, a partir das respectivas telas do paciente.
         </p>
       </div>
 
@@ -257,6 +260,32 @@ export default function Modelos() {
             onToggle={() => toggleAberto(`orientacao-${m.id}`)}
             onRenomear={(id, titulo) => renomear('modelos_orientacoes', id, titulo, setModelosOrientacoes)}
             onExcluir={(id) => excluir('modelos_orientacoes', id, setModelosOrientacoes)}
+          >
+            {m.conteudo ? (
+              <div className="rte-html text-xs text-gray-700 dark:text-slate-300" dangerouslySetInnerHTML={{ __html: m.conteudo }} />
+            ) : (
+              <p className="text-xs text-gray-400 dark:text-slate-500">-</p>
+            )}
+          </LinhaModelo>
+        ))}
+      </Secao>
+
+      <Secao
+        titulo="Listas de Recomendações"
+        icone={ListChecks}
+        cor="text-sky-600 bg-sky-50 dark:bg-sky-900/20 dark:text-sky-400"
+        itens={modelosListas}
+        carregando={loading}
+        vazio='Nenhum modelo de lista ainda. Salve um marcando "Salvar também como modelo", dentro de Listas de Recomendações de um paciente.'
+      >
+        {modelosListas.map((m) => (
+          <LinhaModelo
+            key={m.id}
+            modelo={m}
+            aberto={abertos.has(`lista-${m.id}`)}
+            onToggle={() => toggleAberto(`lista-${m.id}`)}
+            onRenomear={(id, titulo) => renomear('modelos_listas_recomendacoes', id, titulo, setModelosListas)}
+            onExcluir={(id) => excluir('modelos_listas_recomendacoes', id, setModelosListas)}
           >
             {m.conteudo ? (
               <div className="rte-html text-xs text-gray-700 dark:text-slate-300" dangerouslySetInnerHTML={{ __html: m.conteudo }} />

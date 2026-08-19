@@ -110,9 +110,10 @@ export default function OrientacoesNutricionais({ userId }) {
     }
 
     if (form.salvarComoModelo) {
-      await supabase
+      const { error: erroModelo } = await supabase
         .from('modelos_orientacoes')
         .insert({ id_avaliador: userId, titulo: form.titulo || 'Modelo', conteudo: conteudoLimpo })
+      if (erroModelo) alert('Orientação salva, mas o modelo não pôde ser salvo: ' + erroModelo.message)
     }
 
     setSaving(false)

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, Link } from 'react-router-dom'
 import { supabase } from '../supabaseClient'
 import { usePlano } from '../contexts/PlanoContext'
 import ModalConectarWhatsApp from '../components/agenda/ModalConectarWhatsApp'
@@ -353,11 +353,40 @@ export default function Avaliador() {
     return <div className="p-8 text-center text-gray-500 dark:text-slate-400">Carregando dados do nutricionista...</div>
   }
 
+  // Mesma barra de "abas" de Configuracoes.jsx — Nutricionista é a primeira
+  // aba de lá (link de verdade, não estado local), então essa página
+  // precisa da mesma barra pra não virar um beco sem saída: sem isso, quem
+  // chega aqui só tem o "Voltar" do navegador pra achar as outras abas.
+  const abasConfiguracoes = [
+    { id: 'coleta', label: 'Formulário & Coleta', icon: '📝' },
+    { id: 'preferencias', label: 'Protocolos & Margens', icon: '⚡' },
+    { id: 'privacidade', label: 'Visibilidade', icon: '👁️' },
+    { id: 'aparencia', label: 'Aparência', icon: '🎨' },
+    { id: 'afiliados', label: 'Indique & Ganhe', icon: '🤝' },
+    { id: 'backup', label: 'Backup & Dados', icon: '💾' },
+  ]
+
   return (
     <div className="max-w-4xl mx-auto space-y-8 pb-12">
       <div>
         <h2 className="text-2xl font-bold text-gray-800 dark:text-slate-100">Painel do Nutricionista</h2>
         <p className="text-sm text-gray-500 dark:text-slate-400">Gerencie suas informações profissionais, equipamentos de precisão e segurança da conta.</p>
+      </div>
+
+      <div className="grid grid-cols-2 sm:flex sm:flex-wrap gap-2 border-b border-gray-200 dark:border-slate-800 pb-3 w-full min-w-0">
+        <span className="flex items-center justify-center sm:justify-start gap-2 px-3 sm:px-4 py-2.5 font-bold text-[11px] sm:text-xs rounded-lg w-full sm:w-auto text-center bg-primary-600 text-white shadow-sm">
+          <span className="truncate">Nutricionista</span>
+        </span>
+        {abasConfiguracoes.map((aba) => (
+          <Link
+            key={aba.id}
+            to={`/configuracoes?aba=${aba.id}`}
+            className="flex items-center justify-center sm:justify-start gap-2 px-3 sm:px-4 py-2.5 font-bold text-[11px] sm:text-xs rounded-lg transition-colors w-full sm:w-auto text-center bg-white dark:bg-slate-900 border border-gray-100 dark:border-slate-800 text-gray-600 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-slate-800"
+          >
+            <span>{aba.icon}</span>
+            <span className="truncate">{aba.label}</span>
+          </Link>
+        ))}
       </div>
 
       {/* SEÇÃO 1: DADOS PESSOAIS E PROFISSIONAIS */}
