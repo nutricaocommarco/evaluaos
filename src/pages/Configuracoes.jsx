@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import { supabase } from '../supabaseClient'
 import { Link2, Check, AlertTriangle, UserCheck } from 'lucide-react'
 
@@ -15,7 +15,11 @@ import { DEFAULT_PRIMARY_HEX } from '../utils/colorTheme'
 export default function Configuracoes() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
-  const [abaAtiva, setAbaAtiva] = useState('coleta') // 'coleta', 'preferencias', 'privacidade', 'backup', 'afiliados'
+  const [searchParams] = useSearchParams()
+  // Lê ?aba= na primeira carga pra permitir link direto de fora (ex: a
+  // barra de "abas" que Avaliador.jsx replica pra voltar pra uma aba
+  // específica daqui). 'coleta', 'preferencias', 'privacidade', 'backup', 'afiliados'
+  const [abaAtiva, setAbaAtiva] = useState(() => searchParams.get('aba') || 'coleta')
   
   const [config, setConfig] = useState({
     tolerancia_dobras: 5.0,

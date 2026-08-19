@@ -110,9 +110,10 @@ export default function ListasRecomendacoes({ userId }) {
     }
 
     if (form.salvarComoModelo) {
-      await supabase
+      const { error: erroModelo } = await supabase
         .from('modelos_listas_recomendacoes')
         .insert({ id_avaliador: userId, titulo: form.titulo || 'Modelo', conteudo: conteudoLimpo })
+      if (erroModelo) alert('Lista salva, mas o modelo não pôde ser salvo: ' + erroModelo.message)
     }
 
     setSaving(false)

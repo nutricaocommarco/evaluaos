@@ -102,34 +102,39 @@ export default function RichTextEditor({ initialHtml, onChange, modelos = [], on
   }
 
   return (
+    <div className="space-y-1.5">
+      {/* "Utilizar modelo" fica FORA da barra de ferramentas, de propósito:
+          misturado com os ícones de formatação (negrito, itálico...) ele
+          passava despercebido — era a ação mais importante da tela e
+          parecia só mais um botão de estilo. Como pill colorida e própria,
+          fica óbvio que dá pra reaproveitar um modelo salvo. */}
+      {modelos.length > 0 && (
+        <div className="relative inline-block" ref={modelosRef}>
+          <button
+            type="button"
+            onClick={() => setShowModelos((v) => !v)}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-primary-50 dark:bg-primary-900/20 text-primary-700 dark:text-primary-400 border border-primary-200 dark:border-primary-800 hover:bg-primary-100 dark:hover:bg-primary-900/30 transition-colors"
+          >
+            <Wand2 size={14} /> Utilizar modelo salvo
+          </button>
+          {showModelos && (
+            <ul className="absolute left-0 z-20 mt-1 w-56 bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-700 rounded-lg shadow-xl max-h-52 overflow-y-auto">
+              {modelos.map((m) => (
+                <li key={m.id} className="flex items-center justify-between px-3 py-2 text-xs border-b border-gray-100 dark:border-slate-800 last:border-0 hover:bg-gray-50 dark:hover:bg-slate-800">
+                  <button type="button" onClick={() => aplicarModelo(m)} className="flex-1 text-left truncate">{m.titulo}</button>
+                  {onExcluirModelo && (
+                    <button type="button" onClick={() => onExcluirModelo(m.id)} className="text-gray-400 hover:text-red-600 shrink-0 ml-2" title="Excluir modelo">
+                      <Trash2 size={12} />
+                    </button>
+                  )}
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
     <div className="border border-gray-300 dark:border-slate-700 rounded-lg overflow-hidden">
       <div className="flex items-center gap-0.5 px-2 py-1.5 border-b border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-800/50 flex-wrap">
-        {modelos.length > 0 && (
-          <div className="relative" ref={modelosRef}>
-            <button
-              type="button"
-              onClick={() => setShowModelos((v) => !v)}
-              className="flex items-center gap-1 px-2 py-1 rounded text-xs font-semibold text-gray-600 dark:text-slate-300 hover:bg-gray-100 dark:hover:bg-slate-800"
-            >
-              <Wand2 size={14} /> Utilizar modelo
-            </button>
-            {showModelos && (
-              <ul className="absolute left-0 z-20 mt-1 w-56 bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-700 rounded-lg shadow-xl max-h-52 overflow-y-auto">
-                {modelos.map((m) => (
-                  <li key={m.id} className="flex items-center justify-between px-3 py-2 text-xs border-b border-gray-100 dark:border-slate-800 last:border-0 hover:bg-gray-50 dark:hover:bg-slate-800">
-                    <button type="button" onClick={() => aplicarModelo(m)} className="flex-1 text-left truncate">{m.titulo}</button>
-                    {onExcluirModelo && (
-                      <button type="button" onClick={() => onExcluirModelo(m.id)} className="text-gray-400 hover:text-red-600 shrink-0 ml-2" title="Excluir modelo">
-                        <Trash2 size={12} />
-                      </button>
-                    )}
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
-        )}
-        <span className="w-px h-4 bg-gray-300 dark:bg-slate-700 mx-1" />
         <BotaoToolbar onClick={() => exec('bold')} title="Negrito"><Bold size={14} /></BotaoToolbar>
         <BotaoToolbar onClick={() => exec('italic')} title="Itálico"><Italic size={14} /></BotaoToolbar>
         <BotaoToolbar onClick={() => exec('underline')} title="Sublinhado"><Underline size={14} /></BotaoToolbar>
@@ -175,6 +180,7 @@ export default function RichTextEditor({ initialHtml, onChange, modelos = [], on
           color: #9ca3af;
         }
       `}</style>
+    </div>
     </div>
   )
 }
