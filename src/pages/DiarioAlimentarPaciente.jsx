@@ -183,7 +183,7 @@ function AdicionarItem({ onAdicionar }) {
           )}
         </div>
 
-        <div className="flex gap-2 shrink-0">
+        <div className="flex flex-wrap gap-2">
           <input
             type="number"
             min="0"
@@ -196,7 +196,7 @@ function AdicionarItem({ onAdicionar }) {
           <select
             value={unidade}
             onChange={(e) => setUnidade(e.target.value)}
-            className="px-2 py-2 border border-gray-300 dark:border-slate-700 rounded-lg text-sm bg-white dark:bg-slate-900 focus:ring-2 focus:ring-primary-500 outline-none"
+            className="min-w-0 flex-1 sm:flex-initial px-2 py-2 border border-gray-300 dark:border-slate-700 rounded-lg text-sm bg-white dark:bg-slate-900 focus:ring-2 focus:ring-primary-500 outline-none"
           >
             {UNIDADES.map((u) => <option key={u.valor} value={u.valor}>{u.label}</option>)}
           </select>
@@ -213,7 +213,7 @@ function AdicionarItem({ onAdicionar }) {
           <button
             onClick={handleAdicionar}
             disabled={salvando}
-            className="flex items-center gap-1 px-3 py-2 bg-primary-600 text-white text-sm font-semibold rounded-lg hover:bg-primary-700 disabled:opacity-50 transition-colors shrink-0"
+            className="flex items-center justify-center gap-1 px-3 py-2 bg-primary-600 text-white text-sm font-semibold rounded-lg hover:bg-primary-700 disabled:opacity-50 transition-colors"
           >
             <Plus size={15} /> Adicionar
           </button>
@@ -353,7 +353,7 @@ function ItemPrescrito({ item, onRegistrarRapido }) {
                   },
                   alimento: item.tabela_alimentos,
                 })}
-                className="px-2.5 py-1.5 bg-primary-600 text-white text-xs font-bold rounded-lg hover:bg-primary-700 transition-colors whitespace-nowrap"
+                className="px-2.5 py-1.5 bg-white dark:bg-slate-800 border border-primary-300 dark:border-primary-700 text-primary-700 dark:text-primary-400 text-xs font-bold rounded-lg hover:bg-primary-50 dark:hover:bg-primary-900/20 transition-colors whitespace-nowrap"
               >
                 ✓ Comi isso
               </button>
@@ -362,7 +362,7 @@ function ItemPrescrito({ item, onRegistrarRapido }) {
               <button
                 onClick={() => setTrocaAberta((v) => !v)}
                 title="Troquei por outra opção"
-                className={`p-1.5 rounded-lg transition-colors ${trocaAberta ? 'bg-primary-600 text-white' : 'text-primary-600 hover:bg-primary-100 dark:hover:bg-primary-900/30'}`}
+                className={`p-1.5 rounded-lg transition-colors ${trocaAberta ? 'bg-primary-100 dark:bg-primary-900/30 text-primary-700 dark:text-primary-400' : 'text-primary-600 hover:bg-primary-100 dark:hover:bg-primary-900/30'}`}
               >
                 <Repeat2 size={15} />
               </button>
