@@ -41,7 +41,7 @@ function CardCheckin({ checkin, paciente, userId, aoRemovido }) {
         .maybeSingle(),
       supabase
         .from('questionario_envios')
-        .select('id, status, respondido_em, questionario_respostas(resposta, questionario_perguntas(texto, tipo, campo_especial))')
+        .select('id, status, respondido_em, token_publico, questionario_respostas(resposta, questionario_perguntas(texto, tipo, campo_especial))')
         .eq('id_paciente', paciente.id)
         .eq('id_questionario', checkin.id_questionario)
         .order('created_at', { ascending: true }),
