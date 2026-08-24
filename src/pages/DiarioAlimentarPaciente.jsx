@@ -420,12 +420,17 @@ function ItemPrescrito({ item, onRegistrarRapido }) {
 // Refeições extras (editavel=true) têm o nome num campo editável — mesmo
 // padrão (input transparente que vira caixa de texto no hover/foco) que
 // Montar Plano Alimentar já usa pro nutricionista renomear as próprias.
-function SecaoRefeicao({ nome, horario, itensPrescritos, itensRegistrados, carregando, onRegistrarRapido, onAdicionarBusca, onRemover, editavel, onRenomear }) {
+function SecaoRefeicao({ nome, horario, itensPrescritos, itensRegistrados, carregando, onRegistrarRapido, onAdicionarBusca, onRemover, editavel, onRenomear, observacao, onSalvarObservacao }) {
   const [nomeEdicao, setNomeEdicao] = useState(nome)
+  const [obsEdicao, setObsEdicao] = useState(observacao || '')
 
   useEffect(() => {
     setNomeEdicao(nome)
   }, [nome])
+
+  useEffect(() => {
+    setObsEdicao(observacao || '')
+  }, [observacao, nome])
 
   return (
     <div className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-gray-100 dark:border-slate-800 shadow-sm space-y-3">
@@ -479,6 +484,23 @@ function SecaoRefeicao({ nome, horario, itensPrescritos, itensRegistrados, carre
 
       <div className="pt-1 border-t border-gray-100 dark:border-slate-800">
         <AdicionarItem onAdicionar={onAdicionarBusca} />
+      </div>
+
+      <div>
+        <label className="text-[11px] font-bold text-gray-400 dark:text-slate-500 uppercase tracking-wider">
+          Observação (opcional)
+        </label>
+        <textarea
+          value={obsEdicao}
+          onChange={(e) => setObsEdicao(e.target.value)}
+          onBlur={() => {
+            const valor = obsEdicao.trim()
+            if (valor !== (observacao || '')) onSalvarObservacao(valor)
+          }}
+          placeholder="Comeu fora de hora? Trocou sem querer? Conta aqui pro seu nutricionista..."
+          rows={2}
+          className="mt-1 w-full px-3 py-2 border border-gray-200 dark:border-slate-700 rounded-lg text-sm bg-gray-50 dark:bg-slate-800/50 focus:bg-white dark:focus:bg-slate-900 focus:ring-2 focus:ring-primary-500 outline-none resize-none text-gray-700 dark:text-slate-300 placeholder:text-gray-400 dark:placeholder:text-slate-500"
+        />
       </div>
     </div>
   )
@@ -573,6 +595,7 @@ export default function DiarioAlimentarPaciente() {
   const [dataSelecionada, setDataSelecionada] = useState(hoje())
   const [registros, setRegistros] = useState([])
   const [carregandoRegistros, setCarregandoRegistros] = useState(true)
+  const [observacoes, setObservacoes] = useState({})
   const [refeicoesExtrasPendentes, setRefeicoesExtrasPendentes] = useState([])
   const [diasComRegistro, setDiasComRegistro] = useState(new Set())
   const [mostrarCalendario, setMostrarCalendario] = useState(false)
@@ -662,6 +685,29 @@ export default function DiarioAlimentarPaciente() {
     setCarregandoRegistros(false)
   }
 
+  const carregarObservacoes = async () => {
+    if (!paciente) return
+    const { data } = await supabase
+      .from('diario_alimentar_observacoes')
+      .select('nome_refeicao, observacao')
+      .eq('id_paciente', paciente.id)
+      .eq('data', dataSelecionada)
+    const mapa = {}
+    for (const o of data || []) mapa[o.nome_refeicao] = o.observacao
+    setObservacoes(mapa)
+  }
+
+  const handleSalvarObservacao = async (nomeRefeicao, texto) => {
+    const { error } = await supabase
+      .from('diario_alimentar_observacoes')
+      .upsert(
+        { id_paciente: paciente.id, id_avaliador: paciente.id_avaliador, data: dataSelecionada, nome_refeicao: nomeRefeicao, observacao: texto, updated_at: new Date().toISOString() },
+        { onConflict: 'id_paciente,data,nome_refeicao' }
+      )
+    if (error) return alert('Erro ao salvar observação: ' + error.message)
+    setObservacoes((prev) => ({ ...prev, [nomeRefeicao]: texto }))
+  }
+
   // Datas com pelo menos 1 registro — pra marcar a faixa de dias e o
   // calendário (dias "preenchidos"). Sem filtro de intervalo: o volume por
   // paciente é pequeno o bastante pra trazer tudo de uma vez.
@@ -677,6 +723,7 @@ export default function DiarioAlimentarPaciente() {
   useEffect(() => {
     carregarRegistros()
     carregarDiasComRegistro()
+    carregarObservacoes()
     setRefeicoesExtrasPendentes([])
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [paciente, dataSelecionada])
@@ -717,6 +764,11 @@ export default function DiarioAlimentarPaciente() {
       return alert('Já existe uma refeição com esse nome.')
     }
     setRefeicoesExtrasPendentes((prev) => prev.map((n) => (n === nomeAntigo ? nomeNovo : n)))
+    setObservacoes((prev) => {
+      if (!(nomeAntigo in prev)) return prev
+      const { [nomeAntigo]: valor, ...resto } = prev
+      return { ...resto, [nomeNovo]: valor }
+    })
     const temRegistro = registros.some((r) => r.nome_refeicao === nomeAntigo)
     if (temRegistro) {
       const { error } = await supabase
@@ -727,6 +779,15 @@ export default function DiarioAlimentarPaciente() {
         .eq('nome_refeicao', nomeAntigo)
       if (error) return alert('Erro ao renomear: ' + error.message)
       carregarRegistros()
+    }
+    if (observacoes[nomeAntigo]) {
+      const { error: erroObs } = await supabase
+        .from('diario_alimentar_observacoes')
+        .update({ nome_refeicao: nomeNovo })
+        .eq('id_paciente', paciente.id)
+        .eq('data', dataSelecionada)
+        .eq('nome_refeicao', nomeAntigo)
+      if (erroObs) alert('Erro ao mover observação pro novo nome: ' + erroObs.message)
     }
   }
 
@@ -858,6 +919,8 @@ export default function DiarioAlimentarPaciente() {
                 onRegistrarRapido={(item) => handleAdicionar(refeicao.nome_refeicao, item)}
                 onAdicionarBusca={(item) => handleAdicionar(refeicao.nome_refeicao, item)}
                 onRemover={handleRemover}
+                observacao={observacoes[refeicao.nome_refeicao]}
+                onSalvarObservacao={(texto) => handleSalvarObservacao(refeicao.nome_refeicao, texto)}
               />
             ))}
 
@@ -874,6 +937,8 @@ export default function DiarioAlimentarPaciente() {
                 onRemover={handleRemover}
                 editavel
                 onRenomear={(nomeNovo) => handleRenomearRefeicaoExtra(nome, nomeNovo)}
+                observacao={observacoes[nome]}
+                onSalvarObservacao={(texto) => handleSalvarObservacao(nome, texto)}
               />
             ))}
 
