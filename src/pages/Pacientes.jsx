@@ -183,10 +183,12 @@ export default function Pacientes({ userId }) {
   // --- LÓGICA DE FILTRAGEM ---
   const pacientesFiltrados = pacientes.filter(p => {
     const termo = searchTerm.toLowerCase();
+    const termoDigitos = searchTerm.replace(/\D/g, '');
 
-    const matchBusca = 
-      p.nome_completo?.toLowerCase().includes(termo) || 
-      p.email?.toLowerCase().includes(termo);
+    const matchBusca =
+      p.nome_completo?.toLowerCase().includes(termo) ||
+      p.email?.toLowerCase().includes(termo) ||
+      (termoDigitos && p.telefone?.replace(/\D/g, '').includes(termoDigitos));
 
     const matchSexo = filterSexo === 'Todos' || p.sexo === filterSexo;
 
@@ -228,7 +230,7 @@ export default function Pacientes({ userId }) {
           <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 dark:text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
           <input 
             type="text" 
-            placeholder="Buscar paciente por nome ou e-mail..." 
+            placeholder="Buscar paciente por nome, e-mail ou telefone..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="w-full pl-9 pr-4 py-2 bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-lg text-sm focus:bg-white focus:ring-2 focus:ring-primary-500 outline-none transition-colors"
