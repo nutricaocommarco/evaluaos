@@ -56,8 +56,8 @@ const ClassBadge = ({ cor, texto }) => {
 // Recharts, então mapeamos valor→pixel manualmente. Pontos com valor <= 0
 // (medida não registrada, ex: apVAT sem coxa máxima) quebram a linha em vez
 // de puxar uma queda falsa até zero.
-function LineChartPdf({ historico, series, titulo, largura = 480, altura = 165 }) {
-  const padL = 34, padR = 8, padT = 8, padB = 18;
+function LineChartPdf({ historico, series, titulo, largura = 480, altura = 165, casas = 1 }) {
+  const padL = 34, padR = 8, padT = 14, padB = 18;
   const plotW = largura - padL - padR;
   const plotH = altura - padT - padB;
   const n = historico.length;
@@ -72,36 +72,71 @@ function LineChartPdf({ historico, series, titulo, largura = 480, altura = 165 }
   const yFor = (v) => padT + plotH - ((v - escalaMin) / ((escalaMax - escalaMin) || 1)) * plotH;
   const gridYs = [0, 1, 2, 3].map((i) => padT + (plotH / 3) * i);
 
+  // Um PDF não tem hover — sem número escrito no gráfico, a linha sozinha não
+  // diz nada. Cada série ganha o valor escrito ao lado de cada ponto
+  // (alternando acima/abaixo por série, pra Massa Muscular x Massa Gorda não
+  // colidirem quando as linhas se cruzam), além do valor mínimo e máximo do
+  // eixo Y à esquerda pra dar escala.
+  const seriesComPontos = series.map((s, si) => ({
+    ...s,
+    acima: si % 2 === 0,
+    pontos: historico.map((h, i) => {
+      const v = Number(h[s.dataKey]);
+      return v > 0 ? { x: xFor(i), y: yFor(v), valor: v } : null;
+    }),
+  }));
+
   return (
     <View style={{ marginBottom: 10 }} wrap={false}>
       {titulo && <Text style={{ fontSize: 9, fontWeight: 'bold', color: '#374151', marginBottom: 4 }}>{titulo}</Text>}
-      <Svg width={largura} height={altura}>
-        {gridYs.map((gy, i) => (
-          <LinhaSvg key={`grid-${i}`} x1={padL} y1={gy} x2={largura - padR} y2={gy} stroke="#F3F4F6" strokeWidth={1} />
-        ))}
-        <LinhaSvg x1={padL} y1={altura - padB} x2={largura - padR} y2={altura - padB} stroke="#E5E7EB" strokeWidth={1} />
-        {series.map((s) => {
-          const pontos = historico.map((h, i) => {
-            const v = Number(h[s.dataKey]);
-            return v > 0 ? { x: xFor(i), y: yFor(v) } : null;
-          });
-          const segmentos = [];
-          let atual = [];
-          pontos.forEach((p) => {
-            if (p) atual.push(p);
-            else { if (atual.length > 1) segmentos.push(atual); atual = []; }
-          });
-          if (atual.length > 1) segmentos.push(atual);
-          return (
-            <React.Fragment key={s.dataKey}>
-              {segmentos.map((seg, si) => (
-                <Path key={si} d={`M ${seg.map((p) => `${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' L ')}`} stroke={s.cor} strokeWidth={s.grosso ? 2.5 : 2} fill="none" />
-              ))}
-              {pontos.map((p, i) => (p ? <Circle key={i} cx={p.x} cy={p.y} r={s.grosso ? 3 : 2.4} fill={s.cor} /> : null))}
-            </React.Fragment>
-          );
-        })}
-      </Svg>
+      <View style={{ position: 'relative', width: largura, height: altura }}>
+        <Svg width={largura} height={altura}>
+          {gridYs.map((gy, i) => (
+            <LinhaSvg key={`grid-${i}`} x1={padL} y1={gy} x2={largura - padR} y2={gy} stroke="#F3F4F6" strokeWidth={1} />
+          ))}
+          <LinhaSvg x1={padL} y1={altura - padB} x2={largura - padR} y2={altura - padB} stroke="#E5E7EB" strokeWidth={1} />
+          {seriesComPontos.map((s) => {
+            const segmentos = [];
+            let atual = [];
+            s.pontos.forEach((p) => {
+              if (p) atual.push(p);
+              else { if (atual.length > 1) segmentos.push(atual); atual = []; }
+            });
+            if (atual.length > 1) segmentos.push(atual);
+            return (
+              <React.Fragment key={s.dataKey}>
+                {segmentos.map((seg, si) => (
+                  <Path key={si} d={`M ${seg.map((p) => `${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' L ')}`} stroke={s.cor} strokeWidth={s.grosso ? 2.5 : 2} fill="none" />
+                ))}
+                {s.pontos.map((p, i) => (p ? <Circle key={i} cx={p.x} cy={p.y} r={s.grosso ? 3 : 2.4} fill={s.cor} /> : null))}
+              </React.Fragment>
+            );
+          })}
+        </Svg>
+
+        {/* Escala do eixo Y (mín/máx) */}
+        <Text style={{ position: 'absolute', left: 0, top: padT - 5, width: padL - 4, fontSize: 6, color: '#9CA3AF', textAlign: 'right' }}>{escalaMax.toFixed(casas)}</Text>
+        <Text style={{ position: 'absolute', left: 0, top: altura - padB - 5, width: padL - 4, fontSize: 6, color: '#9CA3AF', textAlign: 'right' }}>{escalaMin.toFixed(casas)}</Text>
+
+        {/* Valor de cada ponto, junto da linha */}
+        {seriesComPontos.map((s) => s.pontos.map((p, i) => p && (
+          <Text
+            key={`${s.dataKey}-${i}`}
+            style={{
+              position: 'absolute',
+              left: p.x - 15,
+              top: s.acima ? p.y - 12 : p.y + 4,
+              width: 30,
+              fontSize: 6.5,
+              fontWeight: 'bold',
+              color: s.cor,
+              textAlign: 'center',
+            }}
+          >
+            {p.valor.toFixed(casas)}
+          </Text>
+        )))}
+      </View>
       <View style={{ flexDirection: 'row', gap: 12, justifyContent: 'center', marginTop: 3 }}>
         {series.map((s) => (
           <View key={s.dataKey} style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}>
