@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { Document, Page, Text, View, Image } from '@react-pdf/renderer'
 import { supabase } from '../supabaseClient'
-import { classificarImc, classificarRcq, classificarRce } from '../utils/escalasNormativas'
+import { classificarImc, classificarRcq, classificarRce, classificarApVat, classificarImo } from '../utils/escalasNormativas'
 import { ArrowUp, ArrowDown, FileDown } from 'lucide-react'
 import {
   styles, fmt, calcularFibraRecomendada, converterHtmlParaPdf, BlocoPlanoAlimentar, baixarPdf,
@@ -31,6 +31,26 @@ function BadgePdf({ cor, texto }) {
   )
 }
 
+// Título de bloco no mesmo estilo (uppercase + linha embaixo) que os PDFs
+// próprios de Laudo (BotaoExportarPDF.jsx) e Evolução
+// (BotaoExportarEvolucaoPDF.jsx) usam — antes esses resumos usavam docTitulo
+// (sem linha, sem uppercase), o que destoava visualmente das telas de origem.
+function TituloBloco({ texto }) {
+  return <Text style={[styles.sectionTitle, { textTransform: 'uppercase' }]}>{texto}</Text>
+}
+
+// Card de classificação de risco (apVAT/IMO/etc.) — mesmo padrão visual dos
+// PDFs dedicados de Laudo e Evolução: rótulo cinza + badge colorido.
+function RiscoCard({ label, texto, cor }) {
+  if (!texto || texto === '-') return null
+  return (
+    <View style={{ backgroundColor: '#FFFFFF', padding: 8, borderRadius: 6, borderWidth: 1, borderColor: '#E5E7EB', flex: 1 }}>
+      <Text style={{ fontSize: 8, color: '#6B7280', marginBottom: 3 }}>{label}</Text>
+      <BadgePdf cor={cor} texto={texto} />
+    </View>
+  )
+}
+
 function calcularIdadeEm(dataNascimento, dataReferencia) {
   if (!dataNascimento) return null
   const nasc = new Date(dataNascimento + 'T12:00:00')
@@ -47,11 +67,13 @@ function BlocoLaudoResumo({ paciente, avaliacao, calc }) {
   const infoImc = classificarImc(calc?.imc)
   const infoRcq = classificarRcq(calc?.relacao_cintura_quadril, paciente?.sexo)
   const infoRce = classificarRce(calc?.relacao_cintura_estatura)
+  const infoApVat = classificarApVat(Number(calc?.area_previsao_visceral_apvat) || 0, paciente?.sexo)
+  const infoImo = classificarImo(Number(calc?.indice_massa_ossea_imo) || 0, paciente?.sexo)
   const dataFormatada = avaliacao?.data_avaliacao ? new Date(avaliacao.data_avaliacao + 'T12:00:00').toLocaleDateString('pt-BR') : '-'
 
   return (
     <View>
-      <Text style={styles.docTitulo}>📐 Laudo Antropométrico (resumo)</Text>
+      <TituloBloco texto="📐 Laudo Antropométrico (resumo)" />
       <Text style={styles.sectionSubtitle}>Avaliação de {dataFormatada}{idade != null ? ` · ${idade} anos` : ''} — laudo completo disponível na tela de Laudo</Text>
       <View style={styles.metaGrid}>
         <View style={styles.metaItem}>
@@ -93,6 +115,16 @@ function BlocoLaudoResumo({ paciente, avaliacao, calc }) {
           <Text style={styles.metaValue}>{fmt(Number(calc?.relacao_cintura_estatura)) || '-'}</Text>
           <BadgePdf cor={infoRce.cor} texto={infoRce.classificacao} />
         </View>
+        <View style={styles.metaItem}>
+          <Text style={styles.metaLabel}>Área Visceral (apVAT)</Text>
+          <Text style={styles.metaValue}>{fmt(Number(calc?.area_previsao_visceral_apvat)) || '-'} cm²</Text>
+          <BadgePdf cor={infoApVat.cor} texto={infoApVat.classificacao} />
+        </View>
+        <View style={styles.metaItem}>
+          <Text style={styles.metaLabel}>Índice Massa Óssea (IMO)</Text>
+          <Text style={styles.metaValue}>{Number(calc?.indice_massa_ossea_imo) > 0 ? Number(calc.indice_massa_ossea_imo).toFixed(3) : '-'}</Text>
+          <BadgePdf cor={infoImo.cor} texto={infoImo.classificacao} />
+        </View>
       </View>
     </View>
   )
@@ -125,9 +157,12 @@ function BlocoEvolucaoResumo({ paciente, avaliacaoInicial, calcInicial, avaliaca
   const dataIni = avaliacaoInicial?.data_avaliacao ? new Date(avaliacaoInicial.data_avaliacao + 'T12:00:00').toLocaleDateString('pt-BR') : '-'
   const dataAtual = avaliacaoAtual?.data_avaliacao ? new Date(avaliacaoAtual.data_avaliacao + 'T12:00:00').toLocaleDateString('pt-BR') : '-'
 
+  const infoApVat = classificarApVat(Number(calcAtual?.area_previsao_visceral_apvat) || 0, paciente?.sexo)
+  const infoImo = classificarImo(Number(calcAtual?.indice_massa_ossea_imo) || 0, paciente?.sexo)
+
   return (
     <View>
-      <Text style={styles.docTitulo}>📈 Evolução Antropométrica (resumo)</Text>
+      <TituloBloco texto="📈 Evolução Antropométrica (resumo)" />
       <Text style={styles.sectionSubtitle}>Primeira avaliação ({dataIni}) comparada com a mais recente ({dataAtual}) — evolução completa com todas as avaliações disponível na tela de Evolução</Text>
       <View style={styles.refeicaoCard} wrap={false}>
         <View style={styles.refeicaoHeader}>
@@ -142,7 +177,14 @@ function BlocoEvolucaoResumo({ paciente, avaliacaoInicial, calcInicial, avaliaca
         <LinhaComparativa label="Massa Gorda" unidade="kg" valorInicial={calcInicial?.massa_gorda} valorAtual={calcAtual?.massa_gorda} inverso casas={1} />
         <LinhaComparativa label="Massa Magra" unidade="kg" valorInicial={calcInicial?.massa_magra} valorAtual={calcAtual?.massa_magra} casas={1} />
         <LinhaComparativa label="Massa Muscular" unidade="kg" valorInicial={calcInicial?.massa_muscular} valorAtual={calcAtual?.massa_muscular} casas={1} />
+        <LinhaComparativa label="Área Visceral (apVAT)" unidade="cm²" valorInicial={calcInicial?.area_previsao_visceral_apvat} valorAtual={calcAtual?.area_previsao_visceral_apvat} inverso casas={1} />
       </View>
+      {(infoApVat.classificacao !== '-' || infoImo.classificacao !== '-') && (
+        <View style={{ flexDirection: 'row', gap: 8, marginTop: 8 }}>
+          <RiscoCard label="Risco apVAT (última avaliação)" texto={infoApVat.classificacao} cor={infoApVat.cor} />
+          <RiscoCard label="Classificação IMO (última avaliação)" texto={infoImo.classificacao} cor={infoImo.cor} />
+        </View>
+      )}
     </View>
   )
 }

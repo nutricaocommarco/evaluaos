@@ -1,5 +1,5 @@
 import React from 'react';
-import { Document, Page, Text, View, StyleSheet, PDFDownloadLink, Svg, Line, Polygon, Circle, Image } from '@react-pdf/renderer';
+import { Document, Page, Text, View, StyleSheet, PDFDownloadLink, Svg, Line, Polygon, Circle, Path, Image } from '@react-pdf/renderer';
 import {
   classificarImc,
   classificarRcq,
@@ -33,7 +33,7 @@ const styles = StyleSheet.create({
   subtitle: { fontSize: 9, color: '#6B7280', textTransform: 'uppercase' },
   sectionTitle: { fontSize: 11, fontWeight: 'bold', color: '#1F2937', textTransform: 'uppercase', marginBottom: 8, borderBottomWidth: 1, borderBottomColor: '#E5E7EB', paddingBottom: 4 },
   cardGroup: { flexDirection: 'row', gap: 10, marginBottom: 15 },
-  cardGray: { backgroundColor: '#F9FAFB', padding: 12, borderRadius: 6, borderWidth: 1, borderColor: '#F3F4F6' },
+  cardGray: { backgroundColor: '#F9FAFB', padding: 12, borderRadius: 8, borderWidth: 1, borderColor: '#F3F4F6' },
   cardWhite: { backgroundColor: '#FFFFFF', padding: 12, borderRadius: 8, borderWidth: 1, borderColor: '#E5E7EB', flex: 1 },
   cardGrayTitle: { fontSize: 8, fontWeight: 'bold', color: '#6B7280', textTransform: 'uppercase', marginBottom: 6 },
   cardGrayText: { fontSize: 10, color: '#374151', marginBottom: 3 },
@@ -50,7 +50,7 @@ const styles = StyleSheet.create({
   highlightCardLeftBorder: { borderLeftWidth: 4, borderLeftColor: '#10B981' },
   highlightCardLeftBorderBlue: { borderLeftWidth: 4, borderLeftColor: '#3B82F6' },
   highlightLabel: { fontSize: 7, fontWeight: 'bold', color: '#6B7280', textTransform: 'uppercase', marginBottom: 4 },
-  highlightValue: { fontSize: 14, fontWeight: 'bold', color: '#1F2937' },
+  highlightValue: { fontSize: 17, fontWeight: 'bold', color: '#1F2937' },
   highlightRef: { fontSize: 7, color: '#9CA3AF', marginTop: 4 },
   textAmber: { color: '#F59E0B' }, textAmberDark: { color: '#D97706' }, textBlue: { color: '#2563EB' }, textEmerald: { color: '#047857' }, textIndigo: { color: '#4F46E5' }, textSlate: { color: '#475569' },
   badgeGreen: { backgroundColor: '#D1FAE5', color: '#065F46', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4, fontSize: 8, fontWeight: 'bold', textTransform: 'uppercase' },
@@ -77,8 +77,8 @@ const MeasureItem = ({ label, value, unit, styleClass }) => {
   );
 };
 
-const HighlightCard = ({ label, value, unit, valColor, showBorder, refText, isBlueBorder, classInfo }) => (
-  <View style={[styles.highlightCard, showBorder ? (isBlueBorder ? styles.highlightCardLeftBorderBlue : styles.highlightCardLeftBorder) : {}]}>
+const HighlightCard = ({ label, value, unit, valColor, showBorder, refText, isBlueBorder, classInfo, corAccent }) => (
+  <View style={[styles.highlightCard, showBorder ? { borderLeftWidth: 4, borderLeftColor: isBlueBorder ? '#3B82F6' : (corAccent || '#10B981') } : {}]}>
     <Text style={styles.highlightLabel}>{label}</Text>
     <Text style={[styles.highlightValue, valColor]}>{value > 0 ? (value % 1 !== 0 ? value.toFixed(2) : value) : '-'} <Text style={styles.gridUnit}>{unit}</Text></Text>
     {refText && <Text style={styles.highlightRef}>{refText}</Text>}
@@ -105,6 +105,83 @@ const ClassBadge = ({ cor, texto, align = 'flex-end' }) => {
   );
 };
 
+// Donut (anel) de composição corporal desenhado à mão em SVG — mesma técnica
+// de path já usada na somatocarta abaixo, só que com arcos em vez de reta.
+// Espelha o PieChart (innerRadius/outerRadius/paddingAngle) que a tela usa
+// pros fracionamentos 2C e 4C, que antes não tinham nenhum equivalente no PDF.
+function DonutChartPdf({ dados, size = 108, innerRatio = 0.6, paddingAngle = 4 }) {
+  const total = (dados || []).reduce((s, d) => s + (Number(d.value) || 0), 0);
+  if (!total) return null;
+
+  const cx = size / 2, cy = size / 2;
+  const rOuter = size / 2 - 2;
+  const rInner = rOuter * innerRatio;
+  const gapRad = (paddingAngle * Math.PI) / 180;
+
+  let anguloAcumulado = -Math.PI / 2; // começa às 12h, igual ao padrão do Recharts
+  const arcos = dados.map((d) => {
+    const fatia = ((Number(d.value) || 0) / total) * (2 * Math.PI);
+    const inicio = anguloAcumulado + gapRad / 2;
+    const fim = anguloAcumulado + fatia - gapRad / 2;
+    anguloAcumulado += fatia;
+    if (fim <= inicio) return null; // fatia menor que o próprio gap — pula
+
+    const largeArc = (fim - inicio) > Math.PI ? 1 : 0;
+    const p1 = { x: cx + rOuter * Math.cos(inicio), y: cy + rOuter * Math.sin(inicio) };
+    const p2 = { x: cx + rOuter * Math.cos(fim), y: cy + rOuter * Math.sin(fim) };
+    const p3 = { x: cx + rInner * Math.cos(fim), y: cy + rInner * Math.sin(fim) };
+    const p4 = { x: cx + rInner * Math.cos(inicio), y: cy + rInner * Math.sin(inicio) };
+
+    const path = [
+      `M ${p1.x.toFixed(2)} ${p1.y.toFixed(2)}`,
+      `A ${rOuter.toFixed(2)} ${rOuter.toFixed(2)} 0 ${largeArc} 1 ${p2.x.toFixed(2)} ${p2.y.toFixed(2)}`,
+      `L ${p3.x.toFixed(2)} ${p3.y.toFixed(2)}`,
+      `A ${rInner.toFixed(2)} ${rInner.toFixed(2)} 0 ${largeArc} 0 ${p4.x.toFixed(2)} ${p4.y.toFixed(2)}`,
+      'Z',
+    ].join(' ');
+
+    return { path, color: d.color };
+  }).filter(Boolean);
+
+  return (
+    <Svg width={size} height={size}>
+      {arcos.map((a, i) => <Path key={i} d={a.path} fill={a.color} />)}
+    </Svg>
+  );
+}
+
+// Card com o donut + legenda colorida ao lado (kg e %) — mesmo layout
+// "gráfico + lista" que a tela usa pros dois fracionamentos.
+function BlocoFracionamentoPdf({ titulo, dados, refText }) {
+  if (!dados || dados.every((d) => !d.value)) return null;
+  return (
+    <View style={styles.sectionWrap} wrap={false}>
+      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+        <Text style={styles.sectionTitle}>{titulo}</Text>
+        {refText && <Text style={{ fontSize: 8, color: '#9CA3AF', marginTop: -8 }}>{refText}</Text>}
+      </View>
+      <View style={{ flexDirection: 'row', gap: 12, alignItems: 'center' }}>
+        <View style={{ alignItems: 'center', justifyContent: 'center' }}>
+          <DonutChartPdf dados={dados} />
+        </View>
+        <View style={[styles.cardGray, { flex: 1, gap: 5 }]}>
+          {dados.map((item, idx) => (
+            <View key={idx} style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, flex: 1 }}>
+                <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: item.color }} />
+                <Text style={{ fontSize: 8, color: '#374151', flex: 1 }}>{item.name}</Text>
+              </View>
+              <Text style={{ fontSize: 9, fontWeight: 'bold', color: '#111827' }}>
+                {(Number(item.kg) || 0).toFixed(2)} kg <Text style={{ fontSize: 7, color: '#9CA3AF', fontWeight: 'normal' }}>({(Number(item.value) || 0).toFixed(1)}%)</Text>
+              </Text>
+            </View>
+          ))}
+        </View>
+      </View>
+    </View>
+  );
+}
+
 const ProgressBar = ({ label, value, valColor, barStyle }) => (
   <View style={{ marginBottom: 10 }}>
     <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 2 }}>
@@ -118,11 +195,12 @@ const ProgressBar = ({ label, value, valColor, barStyle }) => (
 );  
 
 // --- CORPO DO RELATÓRIO PDF ---
-const RelatorioPDF = ({ dados, idade, statusCintura, iamVal, imoVal, nomeEmpresa, logomarcaUrl, configVisibilidade }) => {
+const RelatorioPDF = ({ dados, idade, statusCintura, iamVal, imoVal, nomeEmpresa, logomarcaUrl, configVisibilidade, corPrimaria, dadosPizza2Comp, dadosPizza4Comp }) => {
   const aval = dados?.avaliacoes || {};
   const pac = dados?.pacientes || {};
   const dataFormatada = aval.data_avaliacao ? new Date(aval.data_avaliacao + 'T12:00:00').toLocaleDateString('pt-BR') : '-';
   const consultorio = nomeEmpresa || 'Consultório';
+  const corAccent = corPrimaria || '#059669';
 
   const coordX = 140 + ((dados?.somatocarta_eixo_x || 0) * 15);
   const coordY = 140 - ((dados?.somatocarta_eixo_y || 0) * 11);
@@ -184,7 +262,7 @@ const RelatorioPDF = ({ dados, idade, statusCintura, iamVal, imoVal, nomeEmpresa
             {logomarcaUrl ? (
               <Image src={logomarcaUrl} style={styles.logoImage} />
             ) : null}
-            <Text style={styles.watermark}>Gerado via <Text style={styles.watermarkBold}>EvaluaOS</Text></Text>
+            <Text style={styles.watermark}>Gerado via <Text style={[styles.watermarkBold, { color: corAccent }]}>EvaluaOS</Text></Text>
           </View>
         </View>
 
@@ -237,20 +315,32 @@ const RelatorioPDF = ({ dados, idade, statusCintura, iamVal, imoVal, nomeEmpresa
               {podeExibir('laudo_percentual_gordura') && <HighlightCard label="% Gordura" value={aval.percentual_de_gordura} unit="%" valColor={styles.textAmber} />}
               {podeExibir('laudo_massa_gorda') && <HighlightCard label="Massa Gorda" value={dados?.massa_gorda} unit="kg" valColor={styles.textAmberDark} />}
               {podeExibir('laudo_massa_magra') && <HighlightCard label="Massa Magra" value={dados?.massa_magra} unit="kg" valColor={styles.textBlue} />}
-              {podeExibir('laudo_massa_muscular') && <HighlightCard label="M. Muscular" value={dados?.massa_muscular} unit="kg" valColor={styles.textEmerald} showBorder={true} refText="Ref: Lee 2000" />}
+              {podeExibir('laudo_massa_muscular') && <HighlightCard label="M. Muscular" value={dados?.massa_muscular} unit="kg" valColor={styles.textEmerald} showBorder={true} refText="Ref: Lee 2000" corAccent={corAccent} />}
             </View>
           </View>
+        )}
+
+        {/* FRACIONAMENTO EM 2 COMPONENTES (Massa Gorda x MLG) — não existia no PDF */}
+        {podeExibir('laudo_fracionamento_2c') && dadosPizza2Comp && (
+          <BlocoFracionamentoPdf titulo="📊 Fracionamento em 2 Componentes (Modelo 2C)" dados={dadosPizza2Comp} />
         )}
 
         {/* FRACIONAMENTO 4C */}
         {podeExibir('laudo_fracionamento_4c') && aval.peso_paciente > 0 && (
           <View style={styles.sectionWrap} wrap={false}>
             <Text style={styles.sectionTitle}>🧩 Fracionamento Anatômico 4C</Text>
-            <View style={styles.gridContainer}>
-              <MeasureItem styleClass={styles.gridItem4Col} label="Tecido Adiposo" value={dados?.calcKerr} unit="kg" />
-              <MeasureItem styleClass={styles.gridItem4Col} label="Tecido Muscular" value={dados?.massa_muscular} unit="kg" />
-              <MeasureItem styleClass={styles.gridItem4Col} label="Tecido Ósseo" value={dados?.calcRocha} unit="kg" />
-              <MeasureItem styleClass={styles.gridItem4Col} label="Massa Residual" value={dados?.calcWurch} unit="kg" />
+            <View style={{ flexDirection: 'row', gap: 10, alignItems: 'center' }}>
+              {dadosPizza4Comp && (
+                <View style={{ alignItems: 'center', justifyContent: 'center' }}>
+                  <DonutChartPdf dados={dadosPizza4Comp} size={90} />
+                </View>
+              )}
+              <View style={[styles.gridContainer, { flex: 1 }]}>
+                <MeasureItem styleClass={styles.gridItem4Col} label="Tecido Adiposo" value={dados?.calcKerr} unit="kg" />
+                <MeasureItem styleClass={styles.gridItem4Col} label="Tecido Muscular" value={dados?.massa_muscular} unit="kg" />
+                <MeasureItem styleClass={styles.gridItem4Col} label="Tecido Ósseo" value={dados?.calcRocha} unit="kg" />
+                <MeasureItem styleClass={styles.gridItem4Col} label="Massa Residual" value={dados?.calcWurch} unit="kg" />
+              </View>
             </View>
           </View>
         )}
@@ -261,10 +351,10 @@ const RelatorioPDF = ({ dados, idade, statusCintura, iamVal, imoVal, nomeEmpresa
             <Text style={styles.sectionTitle}>🎯 Planejamento Metabólico & Metas</Text>
             <View style={{ flexDirection: 'row', gap: 6 }}>
               {podeExibir('laudo_plan_peso_alvo') && (
-                <HighlightCard label={`Peso Alvo (${dados?.dias_alvo || '-'} dias)`} value={dados?.peso_alvo} unit="kg" valColor={styles.textEmerald} showBorder={true} />
+                <HighlightCard label={`Peso Alvo (${dados?.dias_alvo || '-'} dias)`} value={dados?.peso_alvo} unit="kg" valColor={styles.textEmerald} showBorder={true} corAccent={corAccent} />
               )}
               {podeExibir('laudo_plan_bf_alvo') && dados?.meta_bf_percentual && (
-                <HighlightCard label="%GC Projetado" value={dados?.meta_bf_percentual} unit="%" valColor={styles.textAmber} showBorder={true} />
+                <HighlightCard label="%GC Projetado" value={dados?.meta_bf_percentual} unit="%" valColor={styles.textAmber} showBorder={true} corAccent={corAccent} />
               )}
               {podeExibir('laudo_plan_dieta') && (
                 <HighlightCard label="Dieta da Fase" value={dados?.calorias_fase_mudanca} unit="kcal" valColor={styles.textBlue} showBorder={true} isBlueBorder={true} />
@@ -409,7 +499,7 @@ const RelatorioPDF = ({ dados, idade, statusCintura, iamVal, imoVal, nomeEmpresa
                       <Line x1="20" y1="140" x2="260" y2="140" stroke="#CBD5E1" strokeWidth="1.5" strokeDasharray="4" />
                       <Polygon points="140,30 40,230 240,230" fill="none" stroke="#94A3B8" strokeWidth="1.5" />
                       {dados?.somatocarta_eixo_x != null && dados?.somatocarta_eixo_y != null && (
-                        <Circle cx={coordX} cy={coordY} r="7" fill="#10B981" stroke="#FFFFFF" strokeWidth="2" />
+                        <Circle cx={coordX} cy={coordY} r="7" fill={corAccent} stroke="#FFFFFF" strokeWidth="2" />
                       )}
                     </Svg>
                     <Text style={{ position: 'absolute', top: 5, left: 0, width: 180, textAlign: 'center', fontSize: 7, fontWeight: 'bold', color: '#2563EB' }}>MESOMORFIA</Text>
@@ -472,7 +562,7 @@ const RelatorioPDF = ({ dados, idade, statusCintura, iamVal, imoVal, nomeEmpresa
 };
 
 // --- BOTÃO DE EXPORTAÇÃO E WHATSAPP ---
-const BotaoExportarPDF = ({ dados, idade, statusCintura, iamVal, imoVal, nomeEmpresa, nomeAvaliador, logomarcaUrl, tokenPublico, isPublicView, configVisibilidade }) => {
+const BotaoExportarPDF = ({ dados, idade, statusCintura, iamVal, imoVal, nomeEmpresa, nomeAvaliador, logomarcaUrl, tokenPublico, isPublicView, configVisibilidade, corPrimaria, dadosPizza2Comp, dadosPizza4Comp }) => {
   const pac = dados?.pacientes || {};
   const nomeArquivo = pac.nome_completo ? pac.nome_completo.replace(/\s+/g, '_') : 'Paciente';
   const primeiroNome = pac.nome_completo ? pac.nome_completo.split(' ')[0] : 'Paciente';
@@ -515,15 +605,18 @@ const BotaoExportarPDF = ({ dados, idade, statusCintura, iamVal, imoVal, nomeEmp
 
       <PDFDownloadLink
         document={
-          <RelatorioPDF 
-            dados={dados} 
-            idade={idade} 
-            statusCintura={statusCintura} 
-            iamVal={iamVal} 
-            imoVal={imoVal} 
-            nomeEmpresa={nomeEmpresa} 
-            logomarcaUrl={logomarcaUrl} 
-            configVisibilidade={configVisibilidade} 
+          <RelatorioPDF
+            dados={dados}
+            idade={idade}
+            statusCintura={statusCintura}
+            iamVal={iamVal}
+            imoVal={imoVal}
+            nomeEmpresa={nomeEmpresa}
+            logomarcaUrl={logomarcaUrl}
+            configVisibilidade={configVisibilidade}
+            corPrimaria={corPrimaria}
+            dadosPizza2Comp={dadosPizza2Comp}
+            dadosPizza4Comp={dadosPizza4Comp}
           />
         }
         fileName={`Laudo_EvaluaOS_${nomeArquivo}.pdf`}

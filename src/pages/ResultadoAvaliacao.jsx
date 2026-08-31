@@ -179,7 +179,7 @@ export default function ResultadoAvaliacao() {
   const location = useLocation()
   const navigate = useNavigate()
   const { tokenUrl } = useParams()
-  const { darkMode, setDarkMode, setCorPrimaria } = useTheme()
+  const { darkMode, setDarkMode, corPrimaria, setCorPrimaria } = useTheme()
 
   const isPublicView = !!tokenUrl;
   const avaliacaoId = location.state?.avaliacaoId || null
@@ -980,8 +980,10 @@ export default function ResultadoAvaliacao() {
                   <div className="pt-2 border-t border-gray-50 flex justify-between items-center">
                     <span className="text-[10px] text-gray-400 dark:text-slate-400 font-medium">Classificação:</span>
                     <span className={`text-[9px] font-extrabold px-2 py-0.5 rounded uppercase tracking-wider ${
-                      infoRcq.cor === 'red' ? 'bg-red-100 dark:bg-red-900/30 dark:bg-red-900/20 text-red-800 dark:text-red-300' :
-                      infoRcq.cor === 'amber' ? 'bg-amber-100 dark:bg-amber-900/30 dark:bg-amber-900/20 text-amber-800 dark:text-amber-300' :
+                      infoRcq.cor === 'red' ? 'bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-300' :
+                      infoRcq.cor === 'orange' ? 'bg-orange-100 dark:bg-orange-900/30 text-orange-800 dark:text-orange-300' :
+                      infoRcq.cor === 'amber' ? 'bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-300' :
+                      infoRcq.cor === 'blue' ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300' :
                       'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-800 dark:text-emerald-300'
                     }`}>
                       {infoRcq.classificacao}
@@ -1107,8 +1109,10 @@ export default function ResultadoAvaliacao() {
                 <div className="pt-2 border-t border-gray-50 dark:border-slate-800 flex justify-between items-center">
                   <span className="text-[10px] text-gray-400 dark:text-slate-400 font-medium">Classificação:</span>
                   <span className={`text-[9px] font-extrabold px-2 py-0.5 rounded uppercase tracking-wider ${
-                    infoConicidade.cor === 'red' ? 'bg-red-100 dark:bg-red-900/30 dark:bg-red-900/20 text-red-800 dark:text-red-300' :
-                    infoConicidade.cor === 'amber' ? 'bg-amber-100 dark:bg-amber-900/30 dark:bg-amber-900/20 text-amber-800 dark:text-amber-300' :
+                    infoConicidade.cor === 'red' ? 'bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-300' :
+                    infoConicidade.cor === 'orange' ? 'bg-orange-100 dark:bg-orange-900/30 text-orange-800 dark:text-orange-300' :
+                    infoConicidade.cor === 'amber' ? 'bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-300' :
+                    infoConicidade.cor === 'blue' ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300' :
                     'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-800 dark:text-emerald-300'
                   }`}>
                     {infoConicidade.classificacao}
@@ -1647,18 +1651,21 @@ export default function ResultadoAvaliacao() {
       )}
 
       {dados && (
-        <BotaoExportarPDF 
-          dados={dados} 
-          idade={idade} 
-          statusCintura={statusCintura} 
-          iamVal={iamVal} 
-          imoVal={imoVal} 
+        <BotaoExportarPDF
+          dados={dados}
+          idade={idade}
+          statusCintura={statusCintura}
+          iamVal={iamVal}
+          imoVal={imoVal}
           nomeEmpresa={nomeEmpresa}
           nomeAvaliador={nomeAvaliador}
           logomarcaUrl={logomarcaUrl}
           tokenPublico={tokenPublico}
           isPublicView={isPublicView}
           configVisibilidade={configVisibilidade}
+          corPrimaria={corPrimaria}
+          dadosPizza2Comp={dadosPizza2Comp}
+          dadosPizza4Comp={dadosPizza4Comp}
         />
       )}
     </div>

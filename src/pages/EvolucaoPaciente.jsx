@@ -14,7 +14,7 @@ export default function EvolucaoPaciente() {
   const location = useLocation()
   const navigate = useNavigate()
   const { tokenUrl } = useParams() // Pega o token se for link público
-  const { setDarkMode, setCorPrimaria } = useTheme()
+  const { setDarkMode, corPrimaria, setCorPrimaria } = useTheme()
 
   const isPublicView = !!tokenUrl;
   
@@ -1084,6 +1084,7 @@ export default function EvolucaoPaciente() {
           paciente={pacienteLocal}
           avaliador={avaliador}
           idade={idade}
+          corPrimaria={corPrimaria}
           isPublicView={isPublicView}
           configVisibilidade={configVisibilidade}
         />
