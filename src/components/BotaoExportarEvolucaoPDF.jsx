@@ -113,6 +113,32 @@ const EvolucaoPDF = ({ historico, paciente, avaliador, idade, configVisibilidade
   const paresComMeta = historico.slice(1).map((av, i) => ({ avMeta: historico[i], avAtual: av }))
     .filter(p => p.avMeta.peso_alvo || p.avMeta.meta_bf_percentual);
 
+  // Meta definida na avaliação mais recente ainda não tem uma avaliação seguinte pra
+  // comparar — mostra mesmo assim (mesma lógica de EvolucaoPaciente.jsx).
+  const ultimaAvaliacaoDoHistorico = historico[historico.length - 1];
+  if (ultimaAvaliacaoDoHistorico && (ultimaAvaliacaoDoHistorico.peso_alvo || ultimaAvaliacaoDoHistorico.meta_bf_percentual)) {
+    paresComMeta.push({ avMeta: ultimaAvaliacaoDoHistorico, avAtual: ultimaAvaliacaoDoHistorico });
+  }
+
+  const renderLinhaMetaPDF = (titulo, unidade, inicial, alvo, atual, progresso, casasDecimais = 1) => {
+    const superou = progresso.progressoPct > 100;
+    const seAfastou = progresso.alcancado !== 0 && Math.sign(progresso.alcancado) !== Math.sign(progresso.totalPlanejado);
+    const pctBarra = Math.max(4, Math.min(100, progresso.progressoPct));
+    const corPct = superou ? '#059669' : seAfastou ? '#DC2626' : '#10B981';
+    const textoPct = superou ? 'Meta superada' : seAfastou ? 'Se afastou da meta' : `${Math.max(0, progresso.progressoPct).toFixed(0)}%`;
+
+    return (
+      <View style={{ marginBottom: 4 }}>
+        <View style={styles.metaTitleRow}>
+          <Text style={{ fontSize: 9, fontWeight: 'bold', color: '#1F2937' }}>{titulo}</Text>
+          <Text style={{ fontSize: 9, fontWeight: 'bold', color: corPct }}>{textoPct}</Text>
+        </View>
+        <View style={styles.metaBarBg}><View style={[styles.metaBarFill, { width: `${seAfastou ? 4 : pctBarra}%`, backgroundColor: seAfastou ? '#DC2626' : '#10B981' }]} /></View>
+        <Text style={{ fontSize: 8, color: '#4B5563' }}>Inicial: {Number(inicial).toFixed(casasDecimais)}{unidade} | Meta: {Number(alvo).toFixed(casasDecimais)}{unidade} | Atual: {Number(atual).toFixed(casasDecimais)}{unidade}</Text>
+      </View>
+    );
+  };
+
   // --- Classificações da última avaliação (mesmos classificadores usados na tela) ---
   const ultimaAval = historico[historico.length - 1] || {};
   const infoApVatEvolucao = classificarApVat(Number(ultimaAval.apvat || 0), paciente?.sexo);
@@ -252,28 +278,10 @@ const EvolucaoPDF = ({ historico, paciente, avaliador, idade, configVisibilidade
                 <View key={idx} style={styles.metaCard}>
                   <View style={styles.metaTitleRow}>
                     <Text style={{ fontSize: 8, fontWeight: 'bold', color: '#6B7280' }}>Meta de {par.avMeta.dataStr_curta}</Text>
-                    <Text style={{ fontSize: 8, fontWeight: 'bold', color: '#6B7280' }}>→ Avaliação de {par.avAtual.dataStr_curta}</Text>
+                    <Text style={{ fontSize: 8, fontWeight: 'bold', color: '#6B7280' }}>{par.avMeta.id === par.avAtual.id ? 'Aguardando avaliação de acompanhamento' : `→ Avaliação de ${par.avAtual.dataStr_curta}`}</Text>
                   </View>
-                  {progressoPeso && (
-                    <View style={{ marginBottom: 4 }}>
-                      <View style={styles.metaTitleRow}>
-                        <Text style={{ fontSize: 9, fontWeight: 'bold', color: '#1F2937' }}>Peso</Text>
-                        <Text style={{ fontSize: 9, fontWeight: 'bold', color: '#10B981' }}>{Math.max(0, progressoPeso.progressoPct).toFixed(0)}%</Text>
-                      </View>
-                      <View style={styles.metaBarBg}><View style={[styles.metaBarFill, { width: `${Math.max(4, Math.min(100, progressoPeso.progressoPct))}%` }]} /></View>
-                      <Text style={{ fontSize: 8, color: '#4B5563' }}>Inicial: {Number(par.avMeta.peso).toFixed(1)}kg | Meta: {Number(par.avMeta.peso_alvo).toFixed(1)}kg | Atual: {Number(par.avAtual.peso).toFixed(1)}kg</Text>
-                    </View>
-                  )}
-                  {progressoBf && (
-                    <View>
-                      <View style={styles.metaTitleRow}>
-                        <Text style={{ fontSize: 9, fontWeight: 'bold', color: '#1F2937' }}>% Gordura</Text>
-                        <Text style={{ fontSize: 9, fontWeight: 'bold', color: '#10B981' }}>{Math.max(0, progressoBf.progressoPct).toFixed(0)}%</Text>
-                      </View>
-                      <View style={styles.metaBarBg}><View style={[styles.metaBarFill, { width: `${Math.max(4, Math.min(100, progressoBf.progressoPct))}%` }]} /></View>
-                      <Text style={{ fontSize: 8, color: '#4B5563' }}>Inicial: {Number(par.avMeta.gordura_perc).toFixed(1)}% | Meta: {Number(par.avMeta.meta_bf_percentual).toFixed(1)}% | Atual: {Number(par.avAtual.gordura_perc).toFixed(1)}%</Text>
-                    </View>
-                  )}
+                  {progressoPeso && renderLinhaMetaPDF('Peso', 'kg', par.avMeta.peso, par.avMeta.peso_alvo, par.avAtual.peso, progressoPeso, 1)}
+                  {progressoBf && renderLinhaMetaPDF('% Gordura', '%', par.avMeta.gordura_perc, par.avMeta.meta_bf_percentual, par.avAtual.gordura_perc, progressoBf, 1)}
                 </View>
               );
             })}
