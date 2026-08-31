@@ -402,7 +402,7 @@ export function obterTabelaReferencia(tipo, { sexo, idade, valorAtual } = {}) {
     case 'apvat':
       return {
         titulo: 'apVAT — Área de Previsão Visceral',
-        fonte: 'Samouda et al., 2013; Ruiz-Castell et al., 2021',
+        fonte: 'Fórmula: Samouda et al., 2013 (validada por Brown et al., 2017/2018). Cortes de risco: Ruiz-Castell et al., 2021. Validado só em população branca/europeia — usar com cautela em outras etnias.',
         tipo: 'lista',
         linhas: sexo === 'M'
           ? [
