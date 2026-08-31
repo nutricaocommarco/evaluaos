@@ -463,7 +463,9 @@ export default function EscolhaPercGordura() {
                   <div className="flex gap-4 mt-1">
                     <div className="flex flex-col">
                       <span className="text-[9px] font-semibold text-gray-500 dark:text-slate-400">IMO</span>
-                      <span className="text-xs font-black text-gray-800 dark:text-slate-100">{recomendacaoEngine.indicadoresCruzados.imoVal}</span>
+                      <span className="text-xs font-black text-gray-800 dark:text-slate-100">
+                        {recomendacaoEngine.indicadoresCruzados.imoVal > 0 ? recomendacaoEngine.indicadoresCruzados.imoVal.toFixed(3) : '-'}
+                      </span>
                     </div>
                     <div className="flex flex-col">
                       <span className="text-[9px] font-semibold text-gray-500 dark:text-slate-400">IAM</span>

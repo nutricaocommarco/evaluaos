@@ -150,9 +150,22 @@ export function recomendarEquacaoIdeal(medidas = {}, paciente = {}) {
   const cCoxa = Number(medidas.perimetro_coxa_media) || 0
   const cPant = Number(medidas.perimetro_panturrilha) || 0
 
+  // Correção por π (Cm = Climb − πS, Lee et al. 2000, pág. 798) — só serve
+  // pra estimar área de secção transversa (massa muscular). NÃO é a mesma
+  // correção que a mesomorfia de Heath-Carter usa (ver bracoCorrMeso/
+  // pantCorrMeso abaixo) — reaproveitar essa aqui pra mesomorfia
+  // subestimava o componente e podia deixar de disparar o gate de
+  // hipertrofia (ehHipertrofiado) que evita falso "sobrepeso" no mesomorfo.
   const bracoCorr = pBraco > 0 ? pBraco - (tr * 0.314) : 0;
   const coxaCorr = cCoxa > 0 ? cCoxa - (cx * 0.314) : 0;
   const pantCorr = cPant > 0 ? cPant - (pa * 0.314) : 0;
+
+  // Correção linear (girth − dobra/10) — a que a fórmula de mesomorfia de
+  // Heath-Carter (Carter & Heath, 1990) realmente pede. Conferido contra a
+  // planilha original (PLAN_MEDSIZE Men/Women 2022, aba SOMATOTIPO e
+  // DIGITAÇÃO!AI57): "=...+(0.188*(F28-F19/10))+(0.161*(F36-F26/10))...".
+  const bracoCorrMeso = pBraco > 0 ? pBraco - (tr / 10) : 0;
+  const pantCorrMeso = cPant > 0 ? cPant - (pa / 10) : 0;
 
   let massaMuscularLee = 0
   if (alturaM > 0 && pBraco > 0 && cCoxa > 0 && cPant > 0) {
@@ -224,7 +237,7 @@ export function recomendarEquacaoIdeal(medidas = {}, paciente = {}) {
 
   let mesomorfia = 0
   if (alturaCm > 0) {
-    mesomorfia = (0.858 * dUmero) + (0.601 * dFemur) + (0.188 * bracoCorr) + (0.161 * pantCorr) - (0.131 * alturaCm) + 4.5
+    mesomorfia = (0.858 * dUmero) + (0.601 * dFemur) + (0.188 * bracoCorrMeso) + (0.161 * pantCorrMeso) - (0.131 * alturaCm) + 4.5
   }
 
   const imcVal = alturaM > 0 ? peso / (alturaM * alturaM) : 0
