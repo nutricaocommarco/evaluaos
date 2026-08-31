@@ -169,6 +169,17 @@ export default function QuestionarioPublico() {
     setEtapaIdx((i) => i + 1)
   }
 
+  // Campo especial "altura" é sempre em cm (ver QuestionarioBuilder.jsx). Se o
+  // paciente digitar em metros por engano (ex: 1.65), o valor sempre vem ≤ 3 —
+  // ninguém mede 3cm nem 3m de altura — então dá pra corrigir sem ambiguidade.
+  const normalizarValorResposta = (pergunta, valor) => {
+    if (pergunta.campo_especial === 'altura' && pergunta.tipo === 'numero') {
+      const num = Number(valor)
+      if (num > 0 && num <= 3) return String(num * 100)
+    }
+    return String(valor)
+  }
+
   const handleEnviar = async () => {
     if (faltamObrigatorias.length > 0) { alert('Responda as perguntas obrigatórias antes de enviar.'); return }
     setEnviando(true)
@@ -179,7 +190,7 @@ export default function QuestionarioPublico() {
       .map((p) => ({
         id_envio: envio.id,
         id_pergunta: p.id,
-        resposta: Array.isArray(respostas[p.id]) ? null : String(respostas[p.id]),
+        resposta: Array.isArray(respostas[p.id]) ? null : normalizarValorResposta(p, respostas[p.id]),
         resposta_multipla: Array.isArray(respostas[p.id]) ? respostas[p.id] : null,
       }))
 
