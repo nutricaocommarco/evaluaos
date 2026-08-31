@@ -325,24 +325,11 @@ const RelatorioPDF = ({ dados, idade, statusCintura, iamVal, imoVal, nomeEmpresa
           <BlocoFracionamentoPdf titulo="📊 Fracionamento em 2 Componentes (Modelo 2C)" dados={dadosPizza2Comp} />
         )}
 
-        {/* FRACIONAMENTO 4C */}
-        {podeExibir('laudo_fracionamento_4c') && aval.peso_paciente > 0 && (
-          <View style={styles.sectionWrap} wrap={false}>
-            <Text style={styles.sectionTitle}>🧩 Fracionamento Anatômico 4C</Text>
-            <View style={{ flexDirection: 'row', gap: 10, alignItems: 'center' }}>
-              {dadosPizza4Comp && (
-                <View style={{ alignItems: 'center', justifyContent: 'center' }}>
-                  <DonutChartPdf dados={dadosPizza4Comp} size={90} />
-                </View>
-              )}
-              <View style={[styles.gridContainer, { flex: 1 }]}>
-                <MeasureItem styleClass={styles.gridItem4Col} label="Tecido Adiposo" value={dados?.calcKerr} unit="kg" />
-                <MeasureItem styleClass={styles.gridItem4Col} label="Tecido Muscular" value={dados?.massa_muscular} unit="kg" />
-                <MeasureItem styleClass={styles.gridItem4Col} label="Tecido Ósseo" value={dados?.calcRocha} unit="kg" />
-                <MeasureItem styleClass={styles.gridItem4Col} label="Massa Residual" value={dados?.calcWurch} unit="kg" />
-              </View>
-            </View>
-          </View>
+        {/* FRACIONAMENTO 4C — mesmo bloco donut+legenda do 2C (a grade de 4
+            colunas ao lado do donut ficava espremida demais pra caber "Tecido
+            Adiposo"/"Tecido Muscular" e o valor na mesma linha). */}
+        {podeExibir('laudo_fracionamento_4c') && aval.peso_paciente > 0 && dadosPizza4Comp && (
+          <BlocoFracionamentoPdf titulo="🧩 Fracionamento Anatômico em 4 Componentes" dados={dadosPizza4Comp} />
         )}
 
         {/* 11. PLANEJAMENTO METABÓLICO & METAS */}
@@ -396,8 +383,8 @@ const RelatorioPDF = ({ dados, idade, statusCintura, iamVal, imoVal, nomeEmpresa
                   <Text style={styles.badgeGreen}>{statusCintura || '-'}</Text>
                 </View>
               )}
-              {podeExibir('laudo_soma_6') && <HighlightCard label={`Σ 6 Dobras`} value={dados?.somatorio_6_dobras} unit="mm" valColor={styles.textAmberDark} classInfo={{ cor: infoSoma6.cor, classificacao: infoSoma6.classificacao !== '-' ? `${rotuloSoma6}: ${infoSoma6.classificacao}` : null }} />}
-              {podeExibir('laudo_soma_8') && <HighlightCard label="Σ 8 Dobras" value={dados?.somatorio_8_dobras} unit="mm" valColor={styles.textAmberDark} />}
+              {podeExibir('laudo_soma_6') && <HighlightCard label="Soma 6 Dobras" value={dados?.somatorio_6_dobras} unit="mm" valColor={styles.textAmberDark} classInfo={{ cor: infoSoma6.cor, classificacao: infoSoma6.classificacao !== '-' ? `${rotuloSoma6}: ${infoSoma6.classificacao}` : null }} />}
+              {podeExibir('laudo_soma_8') && <HighlightCard label="Soma 8 Dobras" value={dados?.somatorio_8_dobras} unit="mm" valColor={styles.textAmberDark} />}
             </View>
 
             {(podeExibir('laudo_indice_cormico') || podeExibir('laudo_manouvrier') || podeExibir('laudo_envergadura_relativa') || podeExibir('laudo_conicidade')) && (

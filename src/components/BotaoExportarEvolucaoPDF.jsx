@@ -309,8 +309,8 @@ const EvolucaoPDF = ({ historico, paciente, avaliador, idade, corPrimaria, confi
             {renderRow('Abdominal', 'abdominal', 'mm', true, 'evo_dobra_abdominal')}
             {renderRow('Coxa Média', 'coxa', 'mm', true, 'evo_dobra_coxa')}
             {renderRow('Panturrilha', 'panturrilha', 'mm', true, 'evo_dobra_panturrilha')}
-            {renderRow('Σ 6 Dobras', 'soma_6', 'mm', true, 'evo_soma_6')}
-            {renderRow('Σ 8 Dobras', 'soma_8', 'mm', true, 'evo_soma_8')}
+            {renderRow('Soma 6 Dobras', 'soma_6', 'mm', true, 'evo_soma_6')}
+            {renderRow('Soma 8 Dobras', 'soma_8', 'mm', true, 'evo_soma_8')}
 
             {podeExibir('evo_grafico_barras_somatotipo') && (
               <>
