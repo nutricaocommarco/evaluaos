@@ -470,9 +470,17 @@ export default function AvaliacaoForm() {
           setHoraAvaliacao(avaliacaoData.hora_avaliacao || '')
           setVideoUrl(avaliacaoData.video_url || '')
 
+          // Avaliações salvas depois da migration 0119 guardam as leituras
+          // brutas (1ª/2ª/3ª) em medidas_brutas — reabre exatamente como foi
+          // digitado. Avaliações mais antigas não têm isso: cai no
+          // comportamento antigo (só o valor final, como se fosse 1 medida).
+          const brutas = avaliacaoData.medidas_brutas || {}
           const preencherEstado = (keys) => {
             return keys.reduce((acc, key) => {
-              acc[key] = { m1: avaliacaoData[key] != null ? String(avaliacaoData[key]) : '', m2: '', m3: '' }
+              const bruta = brutas[key]
+              acc[key] = bruta
+                ? { m1: bruta.m1 || '', m2: bruta.m2 || '', m3: bruta.m3 || '' }
+                : { m1: avaliacaoData[key] != null ? String(avaliacaoData[key]) : '', m2: '', m3: '' }
               return acc
             }, {})
           }
@@ -481,7 +489,8 @@ export default function AvaliacaoForm() {
           setDobras(preencherEstado(dobraKeys))
           setPerimetros(preencherEstado(perimetroKeys))
           setDiametros(preencherEstado(diametroKeys))
-          setIsSingleMode(true)
+          const temTriplicataSalva = Object.values(brutas).some((v) => v?.m2)
+          setIsSingleMode(!temTriplicataSalva)
         }
       }
       setLoading(false)
@@ -550,11 +559,17 @@ export default function AvaliacaoForm() {
       return
     }
 
+    // Guarda as leituras brutas (1ª/2ª/3ª) de cada campo, além do valor final
+    // já resolvido acima — assim dá pra reabrir a avaliação depois e conferir
+    // as medidas originais, não só a média/mediana que virou o resultado.
+    const medidasBrutas = { ...basicas, ...dobras, ...perimetros, ...diametros }
+
     const payloadBruto = {
       id_paciente: paciente.id,
       data_avaliacao: dataAvaliacao,
       hora_avaliacao: horaAvaliacao,
       video_url: videoUrl ? videoUrl.trim() : null,
+      medidas_brutas: medidasBrutas,
       ...resolvedBasicas,
       ...resolvedDobras,
       ...resolvedPerimetros,
