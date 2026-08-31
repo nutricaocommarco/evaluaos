@@ -144,18 +144,21 @@ export default function EvolucaoPaciente() {
 
       if (errCalc) console.error(errCalc)
 
-      let calcIdade = 25
-      if (pacienteAtual?.data_nascimento) {
-        const birthDate = new Date(pacienteAtual.data_nascimento + 'T12:00:00')
-        const evalDate = new Date()
-        calcIdade = evalDate.getFullYear() - birthDate.getFullYear()
-        const m = evalDate.getMonth() - birthDate.getMonth()
-        if (m < 0 || (m === 0 && evalDate.getDate() < birthDate.getDate())) calcIdade--
-      }
-
       // 6. Mescla e Formata os Dados
       const dadosMesclados = (avaliacoes || []).map((aval, index) => {
         const calc = calculos?.find(c => c.id_avaliacao === aval.id) || {}
+
+        // Idade do paciente NA DATA DESSA avaliação (não a idade atual) — usada
+        // só no fallback do apVAT abaixo, pra bater com o que AvaliacaoForm.jsx
+        // calcula na hora de salvar (calcularApVAT usa a idade na data do exame).
+        let idadeNaAvaliacao = 25
+        if (pacienteAtual?.data_nascimento) {
+          const birthDate = new Date(pacienteAtual.data_nascimento + 'T12:00:00')
+          const evalDate = new Date(aval.data_avaliacao + 'T12:00:00')
+          idadeNaAvaliacao = evalDate.getFullYear() - birthDate.getFullYear()
+          const m = evalDate.getMonth() - birthDate.getMonth()
+          if (m < 0 || (m === 0 && evalDate.getDate() < birthDate.getDate())) idadeNaAvaliacao--
+        }
 
         // Fallback dinâmico para apVAT
         let apvatCalculado = 0
@@ -169,10 +172,10 @@ export default function EvolucaoPaciente() {
 
           if (pCintura > 0 && pCoxaMax > 0) {
             if (pacienteAtual.sexo === 'M') {
-              apvatCalculado = (6 * pCintura) - (4.41 * pCoxaMax) + (1.19 * calcIdade) - 213.65
+              apvatCalculado = (6 * pCintura) - (4.41 * pCoxaMax) + (1.19 * idadeNaAvaliacao) - 213.65
             } else {
               const imcVal = (alturaVal > 0) ? pesoVal / Math.pow(alturaVal / 100, 2) : 0
-              apvatCalculado = (2.15 * pCintura) - (3.63 * pCoxaMax) + (1.46 * calcIdade) + (6.22 * imcVal) - 92.713
+              apvatCalculado = (2.15 * pCintura) - (3.63 * pCoxaMax) + (1.46 * idadeNaAvaliacao) + (6.22 * imcVal) - 92.713
             }
             apvatCalculado = Math.max(0, apvatCalculado)
           }
@@ -323,8 +326,13 @@ export default function EvolucaoPaciente() {
 
     const isVertical = totalAvaliacoes >= 3;
 
-    const renderBadge = (diferenca, extraClasses = "") => {
-      if (Number(diferenca) === 0) return <div className={`text-[11px] text-gray-500 dark:text-slate-300 font-bold bg-gray-50 dark:bg-slate-800 px-1.5 py-0.5 rounded-md border border-gray-100 dark:border-slate-700 ${extraClasses}`}>(0)</div>;
+    const renderBadge = (diferencaBruta, extraClasses = "") => {
+      // Arredonda ANTES de checar se é zero — senão erro de ponto flutuante
+      // (ex: 0.59-0.58 = 0.00999999...) faz o badge por-item mostrar uma seta
+      // colorida "↑0.0"/"↓0.0" enquanto o Delta Total (que já arredonda antes
+      // de comparar) mostra "(0)" pro mesmo dado.
+      const diferenca = Number(Number(diferencaBruta).toFixed(casasDecimais));
+      if (diferenca === 0) return <div className={`text-[11px] text-gray-500 dark:text-slate-300 font-bold bg-gray-50 dark:bg-slate-800 px-1.5 py-0.5 rounded-md border border-gray-100 dark:border-slate-700 ${extraClasses}`}>(0)</div>;
       const isPositivo = diferenca > 0;
       const isBom = isInverso ? !isPositivo : isPositivo;
       const corBadge = isBom ? 'text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-900/30 border-emerald-100 dark:border-emerald-900/40' : 'text-red-700 dark:text-red-300 bg-red-50 dark:bg-red-900/30 dark:bg-red-900/20 border-red-100 dark:border-red-900/40';
