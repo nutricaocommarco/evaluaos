@@ -1,5 +1,5 @@
 import React from 'react';
-import { Document, Page, Text, View, StyleSheet, PDFDownloadLink, Image } from '@react-pdf/renderer';
+import { Document, Page, Text, View, StyleSheet, PDFDownloadLink, Image, Svg, Path, Circle, Line as LinhaSvg } from '@react-pdf/renderer';
 import { classificarApVat, classificarImo, classificarConicidade } from '../utils/escalasNormativas';
 
 // --- ESTILOS DO PDF DE EVOLUÇÃO ---
@@ -51,9 +51,73 @@ const ClassBadge = ({ cor, texto }) => {
   return <Text style={styles[styleKey]}>{texto}</Text>;
 };
 
-const EvolucaoPDF = ({ historico, paciente, avaliador, idade, configVisibilidade }) => {
+// Gráfico de linha desenhado à mão em SVG (mesma técnica já usada pela
+// somatocarta do Laudo em BotaoExportarPDF.jsx) — react-pdf não roda
+// Recharts, então mapeamos valor→pixel manualmente. Pontos com valor <= 0
+// (medida não registrada, ex: apVAT sem coxa máxima) quebram a linha em vez
+// de puxar uma queda falsa até zero.
+function LineChartPdf({ historico, series, titulo, largura = 480, altura = 165 }) {
+  const padL = 34, padR = 8, padT = 8, padB = 18;
+  const plotW = largura - padL - padR;
+  const plotH = altura - padT - padB;
+  const n = historico.length;
+  const xFor = (i) => padL + (n > 1 ? (i / (n - 1)) * plotW : plotW / 2);
+
+  const todosValores = series.flatMap((s) => historico.map((h) => Number(h[s.dataKey])).filter((v) => v > 0));
+  const minV = todosValores.length ? Math.min(...todosValores) : 0;
+  const maxV = todosValores.length ? Math.max(...todosValores) : 1;
+  const folga = (maxV - minV || maxV || 1) * 0.15;
+  const escalaMin = Math.max(0, minV - folga);
+  const escalaMax = maxV + folga;
+  const yFor = (v) => padT + plotH - ((v - escalaMin) / ((escalaMax - escalaMin) || 1)) * plotH;
+  const gridYs = [0, 1, 2, 3].map((i) => padT + (plotH / 3) * i);
+
+  return (
+    <View style={{ marginBottom: 10 }} wrap={false}>
+      {titulo && <Text style={{ fontSize: 9, fontWeight: 'bold', color: '#374151', marginBottom: 4 }}>{titulo}</Text>}
+      <Svg width={largura} height={altura}>
+        {gridYs.map((gy, i) => (
+          <LinhaSvg key={`grid-${i}`} x1={padL} y1={gy} x2={largura - padR} y2={gy} stroke="#F3F4F6" strokeWidth={1} />
+        ))}
+        <LinhaSvg x1={padL} y1={altura - padB} x2={largura - padR} y2={altura - padB} stroke="#E5E7EB" strokeWidth={1} />
+        {series.map((s) => {
+          const pontos = historico.map((h, i) => {
+            const v = Number(h[s.dataKey]);
+            return v > 0 ? { x: xFor(i), y: yFor(v) } : null;
+          });
+          const segmentos = [];
+          let atual = [];
+          pontos.forEach((p) => {
+            if (p) atual.push(p);
+            else { if (atual.length > 1) segmentos.push(atual); atual = []; }
+          });
+          if (atual.length > 1) segmentos.push(atual);
+          return (
+            <React.Fragment key={s.dataKey}>
+              {segmentos.map((seg, si) => (
+                <Path key={si} d={`M ${seg.map((p) => `${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' L ')}`} stroke={s.cor} strokeWidth={s.grosso ? 2.5 : 2} fill="none" />
+              ))}
+              {pontos.map((p, i) => (p ? <Circle key={i} cx={p.x} cy={p.y} r={s.grosso ? 3 : 2.4} fill={s.cor} /> : null))}
+            </React.Fragment>
+          );
+        })}
+      </Svg>
+      <View style={{ flexDirection: 'row', gap: 12, justifyContent: 'center', marginTop: 3 }}>
+        {series.map((s) => (
+          <View key={s.dataKey} style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}>
+            <View style={{ width: 7, height: 7, borderRadius: 3.5, backgroundColor: s.cor }} />
+            <Text style={{ fontSize: 7, color: '#4B5563' }}>{s.label}</Text>
+          </View>
+        ))}
+      </View>
+    </View>
+  );
+}
+
+const EvolucaoPDF = ({ historico, paciente, avaliador, idade, corPrimaria, configVisibilidade }) => {
   const consultorio = avaliador?.empresa || 'Consultório';
   const dataHoje = new Date().toLocaleDateString('pt-BR');
+  const corAccent = corPrimaria || '#059669';
 
   const podeExibir = (chave) => {
     if (!configVisibilidade) return true;
@@ -124,7 +188,7 @@ const EvolucaoPDF = ({ historico, paciente, avaliador, idade, configVisibilidade
     const superou = progresso.progressoPct > 100;
     const seAfastou = progresso.alcancado !== 0 && Math.sign(progresso.alcancado) !== Math.sign(progresso.totalPlanejado);
     const pctBarra = Math.max(4, Math.min(100, progresso.progressoPct));
-    const corPct = superou ? '#059669' : seAfastou ? '#DC2626' : '#10B981';
+    const corPct = superou ? '#059669' : seAfastou ? '#DC2626' : corAccent;
     const textoPct = superou ? 'Meta superada' : seAfastou ? 'Se afastou da meta' : `${Math.max(0, progresso.progressoPct).toFixed(0)}%`;
 
     return (
@@ -133,7 +197,7 @@ const EvolucaoPDF = ({ historico, paciente, avaliador, idade, configVisibilidade
           <Text style={{ fontSize: 9, fontWeight: 'bold', color: '#1F2937' }}>{titulo}</Text>
           <Text style={{ fontSize: 9, fontWeight: 'bold', color: corPct }}>{textoPct}</Text>
         </View>
-        <View style={styles.metaBarBg}><View style={[styles.metaBarFill, { width: `${seAfastou ? 4 : pctBarra}%`, backgroundColor: seAfastou ? '#DC2626' : '#10B981' }]} /></View>
+        <View style={styles.metaBarBg}><View style={[styles.metaBarFill, { width: `${seAfastou ? 4 : pctBarra}%`, backgroundColor: seAfastou ? '#DC2626' : corAccent }]} /></View>
         <Text style={{ fontSize: 8, color: '#4B5563' }}>Inicial: {Number(inicial).toFixed(casasDecimais)}{unidade} | Meta: {Number(alvo).toFixed(casasDecimais)}{unidade} | Atual: {Number(atual).toFixed(casasDecimais)}{unidade}</Text>
       </View>
     );
@@ -160,7 +224,7 @@ const EvolucaoPDF = ({ historico, paciente, avaliador, idade, configVisibilidade
             {avaliador?.logomarca_url ? (
               <Image src={avaliador.logomarca_url} style={styles.logoImage} />
             ) : null}
-            <Text style={styles.watermark}>Gerado via <Text style={styles.watermarkBold}>EvaluaOS</Text></Text>
+            <Text style={styles.watermark}>Gerado via <Text style={[styles.watermarkBold, { color: corAccent }]}>EvaluaOS</Text></Text>
           </View>
         </View>
 
@@ -173,6 +237,31 @@ const EvolucaoPDF = ({ historico, paciente, avaliador, idade, configVisibilidade
           <View style={styles.infoItem}><Text style={styles.infoLabel}>Esporte</Text><Text style={styles.infoValue}>{(paciente?.pratica_esporte === 'true' || paciente?.pratica_esporte === true) ? paciente.modalidade_esportiva || 'Sim' : 'Não'}</Text></View>
           <View style={styles.infoItem}><Text style={styles.infoLabel}>Etnia</Text><Text style={styles.infoValue}>{paciente?.etnia || '-'}</Text></View>
         </View>
+
+        {/* GRÁFICOS VISUAIS (mesmos 2 primeiros gráficos do topo da tela de Evolução) */}
+        {(podeExibir('evo_grafico_massa') || podeExibir('evo_grafico_gordura')) && (
+          <View wrap={false}>
+            <Text style={styles.sectionTitle}>Gráficos Visuais</Text>
+            {podeExibir('evo_grafico_massa') && (
+              <LineChartPdf
+                titulo="Composição (kg)"
+                historico={historico}
+                series={[
+                  { dataKey: 'grafico_peso', label: 'Peso Total', cor: '#0ea5e9', grosso: true },
+                  { dataKey: 'grafico_massa_muscular', label: 'M. Muscular', cor: '#10b981' },
+                  { dataKey: 'grafico_massa_gorda', label: 'M. Gorda', cor: '#f59e0b' },
+                ]}
+              />
+            )}
+            {podeExibir('evo_grafico_gordura') && (
+              <LineChartPdf
+                titulo="Evolução % de Gordura"
+                historico={historico}
+                series={[{ dataKey: 'grafico_gordura', label: '% Gordura', cor: '#ef4444', grosso: true }]}
+              />
+            )}
+          </View>
+        )}
 
         {/* TABELA DE EVOLUÇÃO */}
         <View style={styles.table}>
@@ -296,7 +385,7 @@ const EvolucaoPDF = ({ historico, paciente, avaliador, idade, configVisibilidade
   )
 }
 
-export default function BotaoExportarEvolucaoPDF({ historico, paciente, avaliador, idade, isPublicView, configVisibilidade }) {
+export default function BotaoExportarEvolucaoPDF({ historico, paciente, avaliador, idade, corPrimaria, isPublicView, configVisibilidade }) {
   const telefoneLimpo = paciente?.telefone ? paciente.telefone.replace(/\D/g, '') : '';
   const primeiroNome = paciente?.nome_completo ? paciente.nome_completo.split(' ')[0] : 'Paciente';
   const saudacao = avaliador?.nome_completo ? avaliador.nome_completo : 'seu Avaliador';
@@ -329,7 +418,7 @@ export default function BotaoExportarEvolucaoPDF({ historico, paciente, avaliado
       ) : null}
 
           <PDFDownloadLink
-            document={<EvolucaoPDF historico={historico} paciente={paciente} avaliador={avaliador} idade={idade} configVisibilidade={configVisibilidade} />}
+            document={<EvolucaoPDF historico={historico} paciente={paciente} avaliador={avaliador} idade={idade} corPrimaria={corPrimaria} configVisibilidade={configVisibilidade} />}
             fileName={`Evolucao_${paciente?.nome_completo ? paciente.nome_completo.replace(/\s+/g, '_') : 'Paciente'}.pdf`}
             className="flex items-center justify-center px-4 py-2.5 bg-gray-800 text-white text-xs font-semibold rounded-lg shadow hover:bg-gray-900 transition-colors flex-1 md:flex-none"
           >

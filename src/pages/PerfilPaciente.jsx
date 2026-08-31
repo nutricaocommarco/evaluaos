@@ -217,6 +217,7 @@ export default function PerfilPaciente({ userId }) {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <CardInfo icone={Mail} label="E-mail" valor={paciente.email} />
             <CardInfo icone={Phone} label="Telefone" valor={paciente.telefone} />
+            <CardInfo icone={Calendar} label="Data de Nascimento" valor={paciente.data_nascimento ? `${formatarData(paciente.data_nascimento)}${idade != null ? ` (${idade} anos)` : ''}` : null} />
             <CardInfo icone={Briefcase} label="Ocupação" valor={paciente.ocupacao} />
             <CardInfo icone={User} label="Etnia / Nacionalidade" valor={[paciente.etnia, paciente.nacionalidade].filter(Boolean).join(' · ')} />
             {(paciente.pratica_esporte === true || paciente.pratica_esporte === 'true') && (
