@@ -5,6 +5,7 @@ import { obterUrlEmbedYouTube } from '../utils/youtube'
 import { useTheme } from '../contexts/ThemeContext'
 import BotaoExportarPDF from '../components/BotaoExportarPDF'
 import NavegacaoPortalPaciente from '../components/NavegacaoPortalPaciente'
+import BotaoReferencia from '../components/BotaoReferencia'
 import { 
   PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend,
   ComposedChart, Area, Line, XAxis, YAxis, CartesianGrid
@@ -776,7 +777,7 @@ export default function ResultadoAvaliacao() {
             {podeExibir('laudo_imc') && (
               <div className="bg-white dark:bg-slate-900 p-5 rounded-xl border border-gray-100 dark:border-slate-800 shadow-sm flex flex-col justify-between relative">
                 <div>
-                  <p className="text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase">IMC</p>
+                  <span className="text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase flex items-center gap-1">IMC <BotaoReferencia tipo="imc" /></span>
                   <p className="text-2xl font-black text-gray-800 dark:text-slate-100 mt-1">
                     {imc > 0 ? imc.toFixed(1) : '-'} <span className="text-xs font-normal text-gray-500 dark:text-slate-400">kg/m²</span>
                   </p>
@@ -972,7 +973,7 @@ export default function ResultadoAvaliacao() {
             {podeExibir('laudo_rcq') && (
               <div className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-gray-100 dark:border-slate-800 shadow-sm space-y-2">
                 <div className="flex justify-between items-center">
-                  <span className="text-xs font-bold text-gray-600 dark:text-slate-400">Relação Cintura-Quadril</span>
+                  <span className="text-xs font-bold text-gray-600 dark:text-slate-400 flex items-center gap-1">Relação Cintura-Quadril <BotaoReferencia tipo="rcq" sexo={pac.sexo} /></span>
                   <span className="text-lg font-black text-indigo-600">{rcq > 0 ? rcq.toFixed(2) : '-'}</span>
                 </div>
                 {rcq > 0 && (
@@ -993,7 +994,7 @@ export default function ResultadoAvaliacao() {
             {podeExibir('laudo_rce') && (
               <div className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-gray-100 dark:border-slate-800 shadow-sm space-y-2">
                 <div className="flex justify-between items-center">
-                  <span className="text-xs font-bold text-gray-600 dark:text-slate-400">Relação Cintura-Estatura</span>
+                  <span className="text-xs font-bold text-gray-600 dark:text-slate-400 flex items-center gap-1">Relação Cintura-Estatura <BotaoReferencia tipo="rce" /></span>
                   <span className="text-lg font-black text-indigo-600">{rce > 0 ? rce.toFixed(2) : '-'}</span>
                 </div>
                 {rce > 0 && (
@@ -1024,7 +1025,9 @@ export default function ResultadoAvaliacao() {
             {podeExibir('laudo_soma_6') && (
               <div className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-gray-100 dark:border-slate-800 shadow-sm space-y-2">
                 <div className="flex justify-between items-center">
-                  <span className="text-xs font-bold text-gray-600 dark:text-slate-400">Σ 6 Dobras</span>
+                  <span className="text-xs font-bold text-gray-600 dark:text-slate-400 flex items-center gap-1">
+                    Σ 6 Dobras <BotaoReferencia tipo={ehIdadeArgoref ? 'argoref' : 'percentil-isak'} sexo={pac.sexo} idade={idade} />
+                  </span>
                   <span className="text-lg font-black text-amber-600">{soma6 > 0 ? soma6.toFixed(1) : '-'} <span className="text-xs font-normal text-gray-400 dark:text-slate-400">mm</span></span>
                 </div>
                 {soma6 > 0 && (
@@ -1098,7 +1101,7 @@ export default function ResultadoAvaliacao() {
             {podeExibir('laudo_conicidade') && conicidadeVal > 0 && (
               <div className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-gray-100 dark:border-slate-800 shadow-sm space-y-2">
                 <div className="flex justify-between items-center">
-                  <span className="text-xs font-bold text-gray-600 dark:text-slate-400">Índice de Conicidade</span>
+                  <span className="text-xs font-bold text-gray-600 dark:text-slate-400 flex items-center gap-1">Índice de Conicidade <BotaoReferencia tipo="conicidade" sexo={pac.sexo} /></span>
                   <span className="text-lg font-black text-indigo-600">{conicidadeVal.toFixed(2)}</span>
                 </div>
                 <div className="pt-2 border-t border-gray-50 dark:border-slate-800 flex justify-between items-center">
@@ -1191,7 +1194,7 @@ export default function ResultadoAvaliacao() {
                   {/* Endomorfia */}
                   <div>
                     <div className="flex justify-between text-sm font-semibold mb-1">
-                      <span className="text-amber-700 dark:text-amber-400">Endomorfia (Adiposidade)</span>
+                      <span className="text-amber-700 dark:text-amber-400 flex items-center gap-1">Endomorfia (Adiposidade) <BotaoReferencia tipo="somatotipo" sexo="endomorfia" /></span>
                       <span>{dados.somatotipo_endomorfia || '-'}</span>
                     </div>
                     <div className="w-full bg-gray-100 dark:bg-slate-800 h-2.5 rounded-full mb-1">
@@ -1205,7 +1208,7 @@ export default function ResultadoAvaliacao() {
                   {/* Mesomorfia */}
                   <div>
                     <div className="flex justify-between text-sm font-semibold mb-1">
-                      <span className="text-blue-700 dark:text-blue-400">Mesomorfia (Musculosidade)</span>
+                      <span className="text-blue-700 dark:text-blue-400 flex items-center gap-1">Mesomorfia (Musculosidade) <BotaoReferencia tipo="somatotipo" sexo="mesomorfia" /></span>
                       <span>{dados.somatotipo_mesomorfia || '-'}</span>
                     </div>
                     <div className="w-full bg-gray-100 dark:bg-slate-800 h-2.5 rounded-full mb-1">
@@ -1219,7 +1222,7 @@ export default function ResultadoAvaliacao() {
                   {/* Ectomorfia */}
                   <div>
                     <div className="flex justify-between text-sm font-semibold mb-1">
-                      <span className="text-primary-700 dark:text-primary-400">Ectomorfia (Magreza / Linearidade)</span>
+                      <span className="text-primary-700 dark:text-primary-400 flex items-center gap-1">Ectomorfia (Magreza / Linearidade) <BotaoReferencia tipo="somatotipo" sexo="ectomorfia" /></span>
                       <span>{dados.somatotipo_ectomorfia || '-'}</span>
                     </div>
                     <div className="w-full bg-gray-100 dark:bg-slate-800 h-2.5 rounded-full mb-1">
@@ -1268,7 +1271,7 @@ export default function ResultadoAvaliacao() {
             {podeExibir('laudo_apvat') && (
               <div className="flex flex-col justify-between p-3 border border-gray-100 dark:border-slate-800 rounded-lg bg-gray-50 dark:bg-slate-800 space-y-1">
                 <div className="flex justify-between items-center">
-                  <span className="text-xs font-semibold text-gray-700 dark:text-slate-300">Área Visceral (apVAT)</span>
+                  <span className="text-xs font-semibold text-gray-700 dark:text-slate-300 flex items-center gap-1">Área Visceral (apVAT) <BotaoReferencia tipo="apvat" sexo={pac.sexo} /></span>
                   <span className="text-xs font-bold text-gray-800 dark:text-slate-100">
                     {apvatVal > 0 ? `${apvatVal.toFixed(1)} cm²` : '-'}
                   </span>
@@ -1292,7 +1295,7 @@ export default function ResultadoAvaliacao() {
             {podeExibir('laudo_morrow') && (
               <div className="flex flex-col justify-between p-3 border border-gray-100 dark:border-slate-800 rounded-lg bg-gray-50 dark:bg-slate-800 space-y-1">
                 <div className="flex justify-between items-center">
-                  <span className="text-xs font-semibold text-gray-700 dark:text-slate-300">Gordura (Morrow 2003)</span>
+                  <span className="text-xs font-semibold text-gray-700 dark:text-slate-300 flex items-center gap-1">Gordura (Morrow 2003) <BotaoReferencia tipo="morrow" sexo={pac.sexo} idade={idade} /></span>
                   <span className="text-xs font-bold text-gray-800 dark:text-slate-100">{percentualGordura > 0 ? `${percentualGordura.toFixed(1)}%` : '-'}</span>
                 </div>
                 {percentualGordura > 0 && (
@@ -1332,7 +1335,7 @@ export default function ResultadoAvaliacao() {
             {podeExibir('laudo_imo') && (
               <div className="flex flex-col p-3 border border-gray-100 dark:border-slate-800 rounded-lg bg-gray-50 dark:bg-slate-800 space-y-1">
                 <div className="flex justify-between items-center">
-                  <span className="text-xs font-semibold text-gray-700 dark:text-slate-300">Índice Músculo Ósseo (IMO)</span>
+                  <span className="text-xs font-semibold text-gray-700 dark:text-slate-300 flex items-center gap-1">Índice Músculo Ósseo (IMO) <BotaoReferencia tipo="imo" sexo={pac.sexo} /></span>
                   <span className="text-sm font-bold text-primary-700 dark:text-primary-400">
                     {imoVal > 0 ? imoVal.toFixed(3) : '-'}
                   </span>
