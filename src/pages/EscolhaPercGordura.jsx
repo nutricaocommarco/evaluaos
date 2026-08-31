@@ -3,6 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom'
 import { supabase } from '../supabaseClient'
 import * as Eq from '../utils/equacoes'
 import { recomendarEquacaoIdeal } from '../utils/EngineRecomendacaoEquacoes'
+import BotaoReferencia from '../components/BotaoReferencia'
 
 const listaFeminina = [
   { nome: 'Durnin et al. (1974) - 4skf', func: Eq.calcularFemDurnin1974 },
@@ -424,7 +425,7 @@ export default function EscolhaPercGordura() {
                   <span className="text-sm font-black text-gray-800 dark:text-slate-100">{recomendacaoEngine.indicadoresCruzados.peso}kg / {recomendacaoEngine.indicadoresCruzados.alturaCm}cm</span>
                 </div>
                 <div className="flex flex-col">
-                  <span className="text-[10px] font-bold text-gray-500 dark:text-slate-400 uppercase">IMC</span>
+                  <span className="text-[10px] font-bold text-gray-500 dark:text-slate-400 uppercase flex items-center gap-1">IMC <BotaoReferencia tipo="imc" /></span>
                   <span className="text-sm font-black text-gray-800 dark:text-slate-100">{recomendacaoEngine.indicadoresCruzados.imc} <span className="text-[10px] font-medium text-gray-500 dark:text-slate-400">({recomendacaoEngine.indicadoresCruzados.classificacaoImc})</span></span>
                 </div>
                 <div className="flex flex-col">
@@ -462,7 +463,7 @@ export default function EscolhaPercGordura() {
                   <span className="text-[10px] font-bold text-gray-500 dark:text-slate-400 uppercase">Índices e Somatotipo</span>
                   <div className="flex gap-4 mt-1">
                     <div className="flex flex-col">
-                      <span className="text-[9px] font-semibold text-gray-500 dark:text-slate-400">IMO</span>
+                      <span className="text-[9px] font-semibold text-gray-500 dark:text-slate-400 flex items-center gap-1">IMO <BotaoReferencia tipo="imo" sexo={pacienteSelecionado?.sexo} /></span>
                       <span className="text-xs font-black text-gray-800 dark:text-slate-100">
                         {recomendacaoEngine.indicadoresCruzados.imoVal > 0 ? recomendacaoEngine.indicadoresCruzados.imoVal.toFixed(3) : '-'}
                       </span>
