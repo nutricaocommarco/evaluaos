@@ -233,7 +233,7 @@ export default function Anamnese({ userId }) {
 
       {showModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 overflow-y-auto">
-          <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-xl w-full max-w-lg max-h-[90vh] flex flex-col overflow-hidden">
+          <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-xl w-full max-w-lg md:max-w-2xl lg:max-w-3xl max-h-[90vh] flex flex-col overflow-hidden">
             <div className="flex justify-between items-center px-6 py-4 border-b border-gray-100 dark:border-slate-800">
               <h3 className="text-lg font-bold text-gray-800 dark:text-slate-100">
                 {editingId ? 'Editar Anamnese' : 'Nova Anamnese'}
