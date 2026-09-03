@@ -32,6 +32,7 @@ import Anamnese from './pages/Anamnese';
 import OrientacoesNutricionais from './pages/OrientacoesNutricionais';
 import LinhaDoTempo from './pages/LinhaDoTempo';
 import ListasRecomendacoes from './pages/ListasRecomendacoes';
+import PacienteReceitas from './pages/PacienteReceitas';
 import ExamesLaboratoriais from './pages/ExamesLaboratoriais';
 import ExamesLaboratoriaisPaciente from './pages/ExamesLaboratoriaisPaciente';
 import VisualizacaoPublicaSolicitacao from './pages/VisualizacaoPublicaSolicitacao';
@@ -52,6 +53,7 @@ import PlanoAlimentarPaciente from './pages/PlanoAlimentarPaciente';
 import DiarioAlimentarPaciente from './pages/DiarioAlimentarPaciente';
 import OrientacoesPaciente from './pages/OrientacoesPaciente';
 import ListasRecomendacoesPaciente from './pages/ListasRecomendacoesPaciente';
+import ReceitasPaciente from './pages/ReceitasPaciente';
 import QuestionariosPaciente from './pages/QuestionariosPaciente';
 import CheckinPaciente from './pages/CheckinPaciente';
 import EmConstrucao from './components/EmConstrucao';
@@ -136,6 +138,7 @@ function MainApp() {
         <Route path="/area/:tokenUrl/diario" element={<DiarioAlimentarPaciente />} />
         <Route path="/area/:tokenUrl/orientacoes" element={<OrientacoesPaciente />} />
         <Route path="/area/:tokenUrl/listas" element={<ListasRecomendacoesPaciente />} />
+        <Route path="/area/:tokenUrl/receitas" element={<ReceitasPaciente />} />
         <Route path="/area/:tokenUrl/questionarios" element={<QuestionariosPaciente />} />
         <Route path="/area/:tokenUrl/checkin" element={<CheckinPaciente />} />
         <Route path="/area/:tokenUrl/exames" element={<ExamesLaboratoriaisPaciente />} />
@@ -272,6 +275,7 @@ function MainApp() {
             <Route path="/pacientes/:id/orientacoes-nutricionais" element={<OrientacoesNutricionais userId={session.user.id} />} />
             <Route path="/pacientes/:id/linha-do-tempo" element={<LinhaDoTempo />} />
             <Route path="/pacientes/:id/listas-recomendacoes" element={<ListasRecomendacoes userId={session.user.id} />} />
+            <Route path="/pacientes/:id/receitas" element={<PacienteReceitas userId={session.user.id} />} />
             <Route path="/pacientes/:id/exames-laboratoriais" element={<ExamesLaboratoriais userId={session.user.id} />} />
             <Route path="/agenda" element={<Agenda userId={session.user.id} />} />
             <Route path="/financeiro" element={<Financeiro userId={session.user.id} />} />
@@ -294,6 +298,7 @@ function MainApp() {
             <Route path="/area/:tokenUrl/plano" element={<PlanoAlimentarPaciente />} />
             <Route path="/area/:tokenUrl/diario" element={<DiarioAlimentarPaciente />} />
             <Route path="/area/:tokenUrl/orientacoes" element={<OrientacoesPaciente />} />
+            <Route path="/area/:tokenUrl/receitas" element={<ReceitasPaciente />} />
             <Route path="/area/:tokenUrl/questionarios" element={<QuestionariosPaciente />} />
         <Route path="/area/:tokenUrl/checkin" element={<CheckinPaciente />} />
             <Route path="/area/:tokenUrl/exames" element={<ExamesLaboratoriaisPaciente />} />
