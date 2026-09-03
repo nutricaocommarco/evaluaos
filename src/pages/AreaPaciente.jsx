@@ -5,7 +5,7 @@ import { useTheme } from '../contexts/ThemeContext'
 import CabecalhoPortalPaciente from '../components/CabecalhoPortalPaciente'
 import NavegacaoPortalPaciente from '../components/NavegacaoPortalPaciente'
 import BotaoInstalarPWA from '../components/BotaoInstalarPWA'
-import { TrendingUp, FileText, ClipboardList, MessageSquare, Utensils, NotebookPen, ListChecks, FlaskConical, Calendar } from 'lucide-react'
+import { TrendingUp, FileText, ClipboardList, MessageSquare, Utensils, NotebookPen, ListChecks, FlaskConical, Calendar, ChefHat } from 'lucide-react'
 import { CHAVE_ULTIMA_AREA_PACIENTE } from '../utils/pwaAreaPaciente'
 
 function CardAcao({ icone: Icone, cor, titulo, subtitulo, onClick, desabilitado }) {
@@ -41,6 +41,7 @@ export default function AreaPaciente() {
   const [qtdPlanosVisiveis, setQtdPlanosVisiveis] = useState(0)
   const [qtdOrientacoes, setQtdOrientacoes] = useState(0)
   const [qtdListas, setQtdListas] = useState(0)
+  const [qtdReceitas, setQtdReceitas] = useState(0)
   const [qtdExames, setQtdExames] = useState(0)
   const [qtdAgendamentosFuturos, setQtdAgendamentosFuturos] = useState(0)
   const [qtdQuestionariosPendentes, setQtdQuestionariosPendentes] = useState(0)
@@ -93,7 +94,7 @@ export default function AreaPaciente() {
         }
       }
 
-      const [avalRes, avalCountRes, planoRes, orientRes, listasRes, questRes, solExamesRes, regExamesRes, agendamentosRes] = await Promise.all([
+      const [avalRes, avalCountRes, planoRes, orientRes, listasRes, receitasRes, questRes, solExamesRes, regExamesRes, agendamentosRes] = await Promise.all([
         supabase
           .from('avaliacoes')
           .select('id, token_publico, data_avaliacao')
@@ -123,6 +124,10 @@ export default function AreaPaciente() {
           .eq('id_paciente', pacData.id)
           .eq('visivel_paciente', true),
         supabase
+          .from('receitas_pacientes')
+          .select('id', { count: 'exact', head: true })
+          .eq('id_paciente', pacData.id),
+        supabase
           .from('questionario_envios')
           .select('id', { count: 'exact', head: true })
           .eq('id_paciente', pacData.id)
@@ -151,6 +156,7 @@ export default function AreaPaciente() {
       setQtdPlanosVisiveis(planoRes.count || 0)
       setQtdOrientacoes(orientRes.count || 0)
       setQtdListas(listasRes.count || 0)
+      setQtdReceitas(receitasRes.count || 0)
       setQtdQuestionariosPendentes(questRes.count || 0)
       setQtdExames((solExamesRes.count || 0) + (regExamesRes.count || 0))
       setQtdAgendamentosFuturos(agendamentosRes.count || 0)
@@ -195,7 +201,7 @@ export default function AreaPaciente() {
           <p className="text-sm text-gray-500 dark:text-slate-400 mt-0.5">Aqui você acompanha tudo do seu acompanhamento nutricional.</p>
         </div>
 
-        {!avaliacaoRecente && qtdPlanosVisiveis === 0 && qtdOrientacoes === 0 && qtdListas === 0 && qtdExames === 0 && qtdAgendamentosFuturos === 0 && (
+        {!avaliacaoRecente && qtdPlanosVisiveis === 0 && qtdOrientacoes === 0 && qtdListas === 0 && qtdReceitas === 0 && qtdExames === 0 && qtdAgendamentosFuturos === 0 && (
           <div className="bg-white dark:bg-slate-900 p-6 rounded-xl border border-gray-100 dark:border-slate-800 shadow-sm text-center">
             <p className="text-gray-500 dark:text-slate-400 text-sm">Ainda não há nada liberado aqui — assim que seu nutricionista registrar sua primeira avaliação, plano ou orientação, aparece nesta tela.</p>
           </div>
@@ -255,6 +261,15 @@ export default function AreaPaciente() {
               titulo="Listas de Recomendações"
               subtitulo={`${qtdListas} lista(s)`}
               onClick={() => navigate(`/area/${tokenUrl}/listas`)}
+            />
+          )}
+          {qtdReceitas > 0 && (
+            <CardAcao
+              icone={ChefHat}
+              cor="bg-orange-50 dark:bg-orange-900/20 text-orange-600"
+              titulo="Receitas"
+              subtitulo={`${qtdReceitas} receita(s)`}
+              onClick={() => navigate(`/area/${tokenUrl}/receitas`)}
             />
           )}
           {qtdExames > 0 && (

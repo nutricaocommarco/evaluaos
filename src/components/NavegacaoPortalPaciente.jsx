@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../supabaseClient'
-import { Home, TrendingUp, FileText, Utensils, NotebookPen, MessageSquare, ClipboardList, ClipboardCheck, ListChecks, FlaskConical, Calendar, Menu as MenuIcon, X } from 'lucide-react'
+import { Home, TrendingUp, FileText, Utensils, NotebookPen, MessageSquare, ClipboardList, ClipboardCheck, ListChecks, FlaskConical, Calendar, ChefHat, Menu as MenuIcon, X } from 'lucide-react'
 
 // Navegação entre as telas do paciente (Início, Evolução, Laudo, Plano,
 // Orientações, Listas, Questionários) — só aparece pra quem está vendo o
@@ -25,6 +25,7 @@ export default function NavegacaoPortalPaciente({ tokenPaciente, tokenLaudo, tem
   const [temCheckins, setTemCheckins] = useState(false)
   const [temPlano, setTemPlano] = useState(false)
   const [diarioAtivo, setDiarioAtivo] = useState(false)
+  const [temReceitas, setTemReceitas] = useState(false)
 
   useEffect(() => {
     let cancelado = false
@@ -64,6 +65,13 @@ export default function NavegacaoPortalPaciente({ tokenPaciente, tokenLaudo, tem
 
       if (!cancelado) setTemPlano((countPlano || 0) > 0)
       if (!cancelado) setDiarioAtivo(pacData.diario_alimentar_ativo !== false)
+
+      const { count: countReceitas } = await supabase
+        .from('receitas_pacientes')
+        .select('id', { count: 'exact', head: true })
+        .eq('id_paciente', pacData.id)
+
+      if (!cancelado) setTemReceitas((countReceitas || 0) > 0)
     }
     checar()
 
@@ -83,6 +91,7 @@ export default function NavegacaoPortalPaciente({ tokenPaciente, tokenLaudo, tem
     { key: 'diario', label: 'Diário', icone: NotebookPen, href: temPlano && diarioAtivo ? `/area/${tokenPaciente}/diario` : null },
     { key: 'orientacoes', label: 'Orientações', icone: MessageSquare, href: `/area/${tokenPaciente}/orientacoes` },
     { key: 'listas', label: 'Listas', icone: ListChecks, href: `/area/${tokenPaciente}/listas` },
+    { key: 'receitas', label: 'Receitas', icone: ChefHat, href: temReceitas ? `/area/${tokenPaciente}/receitas` : null },
     { key: 'exames', label: 'Exames', icone: FlaskConical, href: `/area/${tokenPaciente}/exames` },
     { key: 'agenda', label: 'Agenda', icone: Calendar, href: agendaDisponivel ? `/area/${tokenPaciente}/agenda` : null },
     { key: 'checkin', label: 'Check-in', icone: ClipboardCheck, href: temCheckins ? `/area/${tokenPaciente}/checkin` : null },

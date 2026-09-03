@@ -47,6 +47,7 @@ const GRUPOS_TODOS = [
       { key: 'diario_alimentar', label: 'Diário Alimentar', tipo: 'diario_alimentar' },
       { key: 'listas', label: 'Listas de Recomendações', tipo: 'listas' },
       { key: 'orientacoes', label: 'Orientações Nutricionais', tipo: 'orientacoes' },
+      { key: 'receitas', label: 'Receitas', tipo: 'receitas' },
       { key: 'exames', label: 'Exames Laboratoriais', tipo: 'exames' },
       { key: 'questionarios', label: 'Questionários', tipo: 'questionarios' },
     ]
@@ -90,6 +91,9 @@ export default function SidebarPaciente({ paciente, itemAtivo, onSelecionarItem 
     } else if (item.tipo === 'listas') {
       onSelecionarItem?.(item.key)
       navigate(`/pacientes/${paciente.id}/listas-recomendacoes`)
+    } else if (item.tipo === 'receitas') {
+      onSelecionarItem?.(item.key)
+      navigate(`/pacientes/${paciente.id}/receitas`)
     } else if (item.tipo === 'evolucao') {
       navigate('/evolucao', { state: { paciente } })
     } else if (item.tipo === 'gasto_calorico') {
