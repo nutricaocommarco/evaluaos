@@ -194,6 +194,7 @@ export const styles = StyleSheet.create({
   itemNome: { flex: 2, fontSize: 9, color: '#374151' },
   itemQtd: { flex: 1, fontSize: 9, color: '#6B7280', textAlign: 'right' },
   itemMacro: { flex: 1.6, fontSize: 8, color: '#9CA3AF', textAlign: 'right' },
+  itemSubstitutos: { paddingHorizontal: 10, paddingBottom: 4, fontSize: 8, color: '#9CA3AF', fontStyle: 'italic' },
   refeicaoSubtotal: { flexDirection: 'row', justifyContent: 'flex-end', paddingHorizontal: 10, paddingVertical: 4, backgroundColor: '#FAFAFA' },
   refeicaoSubtotalTexto: { fontSize: 8, fontWeight: 'bold', color: '#4B5563' },
 
@@ -270,12 +271,21 @@ export function BlocoPlanoAlimentar({ plano, refeicoes, pesoAtual, incluirMacros
                 const partesItem = []
                 if (incluirMacros) partesItem.push(`${fmt(m.kcal)}kcal · P${fmt(m.proteina)} · C${fmt(m.carbo)} · L${fmt(m.lipidio)}`)
                 if (incluirFibra) partesItem.push(`Fb${fmt(m.fibra)}`)
+                const substitutos = [...(item.substitutos_item || [])].sort((a, b) => a.ordem - b.ordem)
+                const textoSubstitutos = substitutos
+                  .map((s) => `${s.tabela_alimentos?.nome || 'Alimento removido'} (${textoQuantidade(s)})`)
+                  .join(' · ')
                 return (
-                  <View key={item.id} style={styles.itemRow}>
-                    <Text style={styles.itemNome}>{nome}</Text>
-                    <Text style={styles.itemQtd}>{textoQuantidade(item)}</Text>
-                    {partesItem.length > 0 && <Text style={styles.itemMacro}>{partesItem.join(' · ')}</Text>}
-                  </View>
+                  <React.Fragment key={item.id}>
+                    <View style={styles.itemRow}>
+                      <Text style={styles.itemNome}>{nome}</Text>
+                      <Text style={styles.itemQtd}>{textoQuantidade(item)}</Text>
+                      {partesItem.length > 0 && <Text style={styles.itemMacro}>{partesItem.join(' · ')}</Text>}
+                    </View>
+                    {substitutos.length > 0 && (
+                      <Text style={styles.itemSubstitutos}>OU: {textoSubstitutos}</Text>
+                    )}
+                  </React.Fragment>
                 )
               })
             )}
@@ -401,7 +411,7 @@ export default function GeradorPdfNutricional({ paciente, avaliadorUserId, aoFec
       if (planoAtivo) {
         const { data } = await supabase
           .from('refeicoes_prescritas')
-          .select('*, itens_refeicao(*, tabela_alimentos(*))')
+          .select('*, itens_refeicao(*, tabela_alimentos(*), substitutos_item(*, tabela_alimentos(*)))')
           .eq('id_plano', planoAtivo.id)
           .order('ordem')
         listaRefeicoes = data || []

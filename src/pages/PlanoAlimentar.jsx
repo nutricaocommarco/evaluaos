@@ -206,6 +206,49 @@ async function duplicarItensComSubstitutos(itensOrigem, idRefeicaoDestino, mapOp
   return resultados.filter(Boolean)
 }
 
+// Insere um Grupo de Alimentos (Modelos > Grupos de Alimentos) numa
+// refeição: o primeiro alimento do grupo (por 'ordem') vira o item normal
+// da refeição, e os demais entram como substitutos_item dele — reaproveita
+// 100% do cálculo/exibição de substitutos que já existe (calcularMacrosItem,
+// SubstitutosModal, tela do paciente, PDF), sem precisar de nenhuma coluna
+// nova em itens_refeicao pra "item sem alimento único".
+async function inserirGrupoAlimentos(grupo, idRefeicao, opcaoNumero) {
+  const itensGrupo = [...(grupo.grupos_alimentos_modelo_itens || [])].sort((a, b) => a.ordem - b.ordem)
+  if (itensGrupo.length === 0) return null
+  const [primario, ...resto] = itensGrupo
+
+  const { data: novoItem, error } = await supabase
+    .from('itens_refeicao')
+    .insert({
+      id_refeicao: idRefeicao,
+      id_alimento: primario.id_alimento,
+      quantidade_g: primario.quantidade_g,
+      opcao_numero: opcaoNumero,
+      nome_customizado: grupo.titulo,
+    })
+    .select('*, tabela_alimentos(*)')
+    .single()
+
+  if (error || !novoItem) {
+    alert('Erro ao adicionar grupo: ' + (error?.message || 'grupo sem alimentos'))
+    return null
+  }
+
+  let substitutos = []
+  if (resto.length > 0) {
+    const inserts = resto.map((it, i) => ({
+      id_item_original: novoItem.id,
+      id_alimento: it.id_alimento,
+      quantidade_g: it.quantidade_g,
+      ordem: i,
+    }))
+    const { data: novosSubs } = await supabase.from('substitutos_item').insert(inserts).select('*, tabela_alimentos(*)')
+    substitutos = novosSubs || []
+  }
+
+  return { ...novoItem, substitutos_item: substitutos }
+}
+
 // Busca de alimento com debounce + adiciona item a uma refeição/opção.
 // Componente isolado pra cada instância ter seu próprio estado de busca.
 function AdicionarItemForm({ refeicaoId, opcaoNumero, onItemAdicionado, onCancelar }) {
@@ -319,7 +362,7 @@ function AdicionarItemForm({ refeicaoId, opcaoNumero, onItemAdicionado, onCancel
                 onClick={() => { setSelecionado(r); setShowDropdown(false) }}
                 className="px-3 py-2 cursor-pointer hover:bg-primary-50 dark:hover:bg-primary-900/20 text-xs border-b border-gray-100 dark:border-slate-800 last:border-0"
               >
-                <span className="font-semibold">{r.nome}</span>
+                <span className="font-semibold">{r.id_receita ? '🍳 ' : ''}{r.nome}</span>
                 <span className="text-gray-400 dark:text-slate-500 ml-2">{r.energia_kcal ?? '-'} kcal/100g</span>
               </li>
             ))}
@@ -406,6 +449,90 @@ function AdicionarItemForm({ refeicaoId, opcaoNumero, onItemAdicionado, onCancel
         <p className="w-full text-[10px] text-gray-400 dark:text-slate-500">
           Sem peso definido — entra 0kcal no cálculo de macros e aparece pro paciente como "à vontade". Use pra folhas, verduras e legumes sem risco real de excesso.
         </p>
+      )}
+    </div>
+  )
+}
+
+// Lista os Grupos de Alimentos do avaliador (cadastrados em Modelos >
+// Grupos de Alimentos) e insere o escolhido de uma vez via
+// inserirGrupoAlimentos. Sem busca com debounce (lista curta e navegável,
+// diferente da busca em tabela_alimentos inteira).
+function AdicionarGrupoForm({ refeicaoId, opcaoNumero, onItemAdicionado, onCancelar }) {
+  const [grupos, setGrupos] = useState([])
+  const [carregando, setCarregando] = useState(true)
+  const [busca, setBusca] = useState('')
+  const [salvandoId, setSalvandoId] = useState(null)
+
+  useEffect(() => {
+    let ativo = true
+    supabase
+      .from('grupos_alimentos_modelo')
+      .select('*, grupos_alimentos_modelo_itens(*, tabela_alimentos(nome, energia_kcal))')
+      .order('titulo')
+      .then(({ data }) => {
+        if (ativo) { setGrupos(data || []); setCarregando(false) }
+      })
+    return () => { ativo = false }
+  }, [])
+
+  const gruposFiltrados = busca.trim()
+    ? grupos.filter((g) => g.titulo.toLowerCase().includes(busca.trim().toLowerCase()))
+    : grupos
+
+  const handleEscolher = async (grupo) => {
+    setSalvandoId(grupo.id)
+    const item = await inserirGrupoAlimentos(grupo, refeicaoId, opcaoNumero)
+    setSalvandoId(null)
+    if (item) onItemAdicionado(item)
+  }
+
+  return (
+    <div className="p-2 rounded-lg bg-gray-50 dark:bg-slate-800/50 border border-dashed border-gray-200 dark:border-slate-700">
+      <div className="flex items-center justify-between mb-2 gap-2">
+        <label className="text-[10px] font-bold text-gray-500 dark:text-slate-400 uppercase tracking-wider">
+          Grupo de alimentos
+        </label>
+        <button type="button" onClick={onCancelar} className="text-xs font-semibold text-gray-500 dark:text-slate-400 hover:text-gray-700 shrink-0">
+          Cancelar
+        </button>
+      </div>
+      <input
+        type="text"
+        value={busca}
+        onChange={(e) => setBusca(e.target.value)}
+        placeholder="Buscar grupo..."
+        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-primary-500 mb-2"
+      />
+      {carregando ? (
+        <p className="text-xs text-gray-400 dark:text-slate-500">Carregando...</p>
+      ) : gruposFiltrados.length === 0 ? (
+        <p className="text-xs text-gray-400 dark:text-slate-500">
+          {grupos.length === 0
+            ? 'Nenhum grupo cadastrado ainda — crie em Modelos > Grupos de Alimentos.'
+            : 'Nenhum grupo bate com essa busca.'}
+        </p>
+      ) : (
+        <ul className="max-h-52 overflow-y-auto space-y-1">
+          {gruposFiltrados.map((g) => {
+            const n = g.grupos_alimentos_modelo_itens?.length || 0
+            return (
+              <li key={g.id}>
+                <button
+                  type="button"
+                  onClick={() => handleEscolher(g)}
+                  disabled={n === 0 || salvandoId === g.id}
+                  className="w-full text-left px-3 py-2 rounded-lg hover:bg-primary-50 dark:hover:bg-primary-900/20 text-xs disabled:opacity-50 flex items-center justify-between gap-2"
+                >
+                  <span className="font-semibold">{g.titulo}</span>
+                  <span className="text-gray-400 dark:text-slate-500 shrink-0">
+                    {salvandoId === g.id ? '...' : `${n} opç${n === 1 ? 'ão' : 'ões'}${g.kcal_alvo ? ` · ~${fmt(g.kcal_alvo)}kcal` : ''}`}
+                  </span>
+                </button>
+              </li>
+            )
+          })}
+        </ul>
       )}
     </div>
   )
@@ -1032,6 +1159,7 @@ function ModalSalvarModelo({ tituloPadrao, aoConfirmar, aoFechar, saving }) {
 
 function OpcaoCard({ refeicaoId, opcaoNumero, itens, onItemExcluido, onItemAdicionado, onItemAtualizado, onAbrirSubstitutos, mostrarFormInicial, aoFecharForm, onDuplicar }) {
   const [mostrarForm, setMostrarForm] = useState(!!mostrarFormInicial)
+  const [mostrarFormGrupo, setMostrarFormGrupo] = useState(false)
   const macros = somarMacros(itens.map(calcularMacrosItem))
 
   const handleExcluirItem = async (itemId) => {
@@ -1093,13 +1221,28 @@ function OpcaoCard({ refeicaoId, opcaoNumero, itens, onItemExcluido, onItemAdici
           onItemAdicionado={(item) => { onItemAdicionado(item); }}
           onCancelar={() => { setMostrarForm(false); aoFecharForm?.() }}
         />
+      ) : mostrarFormGrupo ? (
+        <AdicionarGrupoForm
+          refeicaoId={refeicaoId}
+          opcaoNumero={opcaoNumero}
+          onItemAdicionado={(item) => { onItemAdicionado(item); setMostrarFormGrupo(false); aoFecharForm?.() }}
+          onCancelar={() => { setMostrarFormGrupo(false); aoFecharForm?.() }}
+        />
       ) : (
-        <button
-          onClick={() => setMostrarForm(true)}
-          className="text-xs font-semibold text-primary-600 hover:underline"
-        >
-          + Adicionar item
-        </button>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => setMostrarForm(true)}
+            className="text-xs font-semibold text-primary-600 hover:underline"
+          >
+            + Adicionar item
+          </button>
+          <button
+            onClick={() => setMostrarFormGrupo(true)}
+            className="text-xs font-semibold text-primary-600 hover:underline"
+          >
+            + Adicionar grupo
+          </button>
+        </div>
       )}
     </div>
   )
