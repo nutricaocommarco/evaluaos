@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { Document, Page, Text, View, StyleSheet, pdf, Image } from '@react-pdf/renderer'
+import { Document, Page, Text, View, StyleSheet, pdf, Image, Link } from '@react-pdf/renderer'
 import { supabase } from '../supabaseClient'
 import { ArrowUp, ArrowDown, FileDown } from 'lucide-react'
 
@@ -118,6 +118,14 @@ function renderInlinePdf(node, estilo, keyBase) {
     } else if (filho.nodeType === Node.ELEMENT_NODE) {
       const tag = filho.tagName
       if (tag === 'BR') { partes.push(<Text key={key}>{'\n'}</Text>); return }
+      if (tag === 'A') {
+        const href = filho.getAttribute('href')
+        const estiloLink = { ...estilo, color: '#2563eb', textDecoration: 'underline' }
+        const conteudoLink = renderInlinePdf(filho, estiloLink, key)
+        if (href) partes.push(<Link key={key} src={href} style={estiloLink}>{conteudoLink}</Link>)
+        else partes.push(...conteudoLink)
+        return
+      }
       let novoEstilo = estiloInline(tag, estilo)
       if (tag === 'SPAN') novoEstilo = corDoSpan(filho, novoEstilo)
       partes.push(...renderInlinePdf(filho, novoEstilo, key))

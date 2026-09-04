@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react'
-import { Bold, Italic, Underline, Strikethrough, Palette, Eraser, Undo2, Redo2, Wand2, Trash2, List, ListOrdered } from 'lucide-react'
+import { Bold, Italic, Underline, Strikethrough, Palette, Eraser, Undo2, Redo2, Wand2, Trash2, List, ListOrdered, Link2, Unlink2 } from 'lucide-react'
 
 // Editor de texto rico minimalista — contentEditable + execCommand, sem
 // depender de uma biblioteca de editor (TipTap/Quill/etc). Cobre só o que a
@@ -16,7 +16,7 @@ const CORES = ['#111827', '#dc2626', '#d97706', '#16a34a', '#2563eb', '#7c3aed']
 
 // Allowlist de tags/atributos — aplicado no save (nas telas que usam este
 // editor), não aqui; exportado pra reuso.
-const TAGS_PERMITIDAS = new Set(['B', 'STRONG', 'I', 'EM', 'U', 'S', 'STRIKE', 'SPAN', 'P', 'DIV', 'BR', 'UL', 'OL', 'LI'])
+const TAGS_PERMITIDAS = new Set(['B', 'STRONG', 'I', 'EM', 'U', 'S', 'STRIKE', 'SPAN', 'P', 'DIV', 'BR', 'UL', 'OL', 'LI', 'A'])
 
 export function sanitizarHtmlEditor(html) {
   if (!html) return ''
@@ -36,10 +36,24 @@ export function sanitizarHtmlEditor(html) {
             const corMatch = /color\s*:\s*[^;]+/i.exec(attr.value)
             if (corMatch) filho.setAttribute('style', corMatch[0])
             else filho.removeAttribute('style')
+          } else if (filho.tagName === 'A' && attr.name === 'href') {
+            // só http(s) — bloqueia javascript: e outros esquemas perigosos
+            if (/^https?:\/\//i.test(attr.value)) filho.setAttribute('href', attr.value)
+            else filho.removeAttribute('href')
           } else {
             filho.removeAttribute(attr.name)
           }
         })
+        if (filho.tagName === 'A') {
+          if (!filho.getAttribute('href')) {
+            // link sem destino válido não serve de nada — mantém só o texto
+            while (filho.firstChild) filho.parentNode.insertBefore(filho.firstChild, filho)
+            filho.parentNode.removeChild(filho)
+            return
+          }
+          filho.setAttribute('target', '_blank')
+          filho.setAttribute('rel', 'noopener noreferrer')
+        }
         limpar(filho)
       } else if (filho.nodeType !== Node.TEXT_NODE) {
         filho.remove()
@@ -92,6 +106,18 @@ export default function RichTextEditor({ initialHtml, onChange, modelos = [], on
     editorRef.current.focus()
     document.execCommand(comando, false, valor)
     dispararChange()
+  }
+
+  const inserirLink = () => {
+    const selecao = window.getSelection()
+    if (!selecao || selecao.isCollapsed) {
+      alert('Selecione o texto que vai virar o link antes de clicar aqui.')
+      return
+    }
+    const url = window.prompt('Cole o link (com https://):', 'https://')
+    if (!url) return
+    const urlComProtocolo = /^https?:\/\//i.test(url) ? url : `https://${url}`
+    exec('createLink', urlComProtocolo)
   }
 
   const aplicarModelo = (modelo) => {
@@ -158,6 +184,9 @@ export default function RichTextEditor({ initialHtml, onChange, modelos = [], on
           )}
         </div>
         <BotaoToolbar onClick={() => exec('removeFormat')} title="Limpar formatação"><Eraser size={14} /></BotaoToolbar>
+        <span className="w-px h-4 bg-gray-300 dark:bg-slate-700 mx-1" />
+        <BotaoToolbar onClick={inserirLink} title="Inserir link (selecione o texto antes)"><Link2 size={14} /></BotaoToolbar>
+        <BotaoToolbar onClick={() => exec('unlink')} title="Remover link"><Unlink2 size={14} /></BotaoToolbar>
         <span className="w-px h-4 bg-gray-300 dark:bg-slate-700 mx-1" />
         <BotaoToolbar onClick={() => exec('insertUnorderedList')} title="Tópicos (lista com marcadores)"><List size={14} /></BotaoToolbar>
         <BotaoToolbar onClick={() => exec('insertOrderedList')} title="Lista numerada"><ListOrdered size={14} /></BotaoToolbar>

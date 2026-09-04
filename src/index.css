@@ -60,3 +60,13 @@ html.dark textarea::placeholder {
 .rte-html li {
   margin: 0.15rem 0;
 }
+
+.rte-html a {
+  color: rgb(var(--color-primary-600));
+  text-decoration: underline;
+  word-break: break-word;
+}
+
+html.dark .rte-html a {
+  color: rgb(var(--color-primary-400));
+}
