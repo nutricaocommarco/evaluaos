@@ -3,11 +3,10 @@ import { sendText } from '../_lib/evolution.js'
 import { formatarNumeroWhatsapp } from '../_lib/telefone.js'
 
 // Job diário (vercel.json > crons, 11h UTC ≈ 8h BRT) — Trigger B: avisa
-// quem tem consulta nas próximas ~24h e já pede confirmação de presença
-// na mesma mensagem. Janela de 20h a 32h à frente cobre "amanhã" com
-// folga pro horário exato do cron não bater cravado. Chama a Evolution
-// API direto (não passa por api/whatsapp/send.js) porque já roda
-// server-side com a service role key — não precisa do round-trip extra.
+// quem tem consulta amanhã e já pede confirmação de presença na mesma
+// mensagem (ver inicioDoDiaBRT abaixo pra janela). Chama a Evolution API
+// direto (não passa por api/whatsapp/send.js) porque já roda server-side
+// com a service role key — não precisa do round-trip extra.
 // O servidor roda em UTC — sem passar timeZone explícito, toLocaleString
 // não converte pro fuso do agendamento sozinho.
 function formatarHora(dataIso, fusoHorario) {
@@ -18,6 +17,18 @@ function formatarHora(dataIso, fusoHorario) {
 
 function primeiroNome(nomeCompleto) {
   return (nomeCompleto || '').trim().split(' ')[0] || ''
+}
+
+// Janela do lembrete = o dia de amanhã INTEIRO em horário de Brasília
+// (meia-noite a meia-noite), não um deslocamento relativo ao instante em
+// que o cron roda. Antes disso a janela era "agora +20h a +32h" — como o
+// cron sempre roda no mesmo horário (8h BRT), isso virava sempre "amanhã
+// das 4h às 16h": qualquer consulta marcada depois das 16h nunca caía
+// dentro da janela, em nenhum dia, nunca. Brasil não tem mais horário de
+// verão desde 2019, então UTC-3 fixo é seguro o ano todo.
+function inicioDoDiaBRT(diasAFrente) {
+  const agoraBRT = new Date(Date.now() - 3 * 60 * 60 * 1000)
+  return new Date(Date.UTC(agoraBRT.getUTCFullYear(), agoraBRT.getUTCMonth(), agoraBRT.getUTCDate() + diasAFrente, 3, 0, 0))
 }
 
 const DOMINIO = 'https://evaluaos.nutricaocommarco.com.br'
@@ -218,9 +229,8 @@ export default async function handler(req, res) {
   const financeiroRecorrente = new Date().getUTCDate() === 1 ? await rodarRecorrenciasFinanceiras(admin) : null
   const indicacoes = await rodarNotificacaoIndicacoes(admin)
 
-  const agora = new Date()
-  const inicioJanela = new Date(agora.getTime() + 20 * 60 * 60 * 1000).toISOString()
-  const fimJanela = new Date(agora.getTime() + 32 * 60 * 60 * 1000).toISOString()
+  const inicioJanela = inicioDoDiaBRT(1).toISOString()
+  const fimJanela = inicioDoDiaBRT(2).toISOString()
 
   const { data: agendamentos, error } = await admin
     .from('agendamentos')
