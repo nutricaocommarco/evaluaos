@@ -1157,10 +1157,13 @@ function ModalSalvarModelo({ tituloPadrao, aoConfirmar, aoFechar, saving }) {
   )
 }
 
-function OpcaoCard({ refeicaoId, opcaoNumero, itens, onItemExcluido, onItemAdicionado, onItemAtualizado, onAbrirSubstitutos, mostrarFormInicial, aoFecharForm, onDuplicar, onExcluirOpcao }) {
+function OpcaoCard({ refeicaoId, opcaoNumero, itens, onItemExcluido, onItemAdicionado, onItemAtualizado, onAbrirSubstitutos, mostrarFormInicial, aoFecharForm, onDuplicar, onExcluirOpcao, onRenumerar }) {
   const [mostrarForm, setMostrarForm] = useState(!!mostrarFormInicial)
   const [mostrarFormGrupo, setMostrarFormGrupo] = useState(false)
+  const [numeroEditando, setNumeroEditando] = useState(String(opcaoNumero))
   const macros = somarMacros(itens.map(calcularMacrosItem))
+
+  useEffect(() => { setNumeroEditando(String(opcaoNumero)) }, [opcaoNumero])
 
   const handleExcluirItem = async (itemId) => {
     if (!window.confirm('Remover este item da refeição?')) return
@@ -1169,11 +1172,30 @@ function OpcaoCard({ refeicaoId, opcaoNumero, itens, onItemExcluido, onItemAdici
     onItemExcluido(itemId)
   }
 
+  const confirmarRenumeracao = () => {
+    const novo = parseInt(numeroEditando, 10)
+    if (!Number.isInteger(novo) || novo < 1) { setNumeroEditando(String(opcaoNumero)); return }
+    if (novo === opcaoNumero) return
+    onRenumerar?.(novo)
+  }
+
   return (
     <div className="rounded-lg border border-gray-100 dark:border-slate-800 p-3 flex-1 min-w-[240px]">
       <div className="flex items-center justify-between mb-2">
-        <span className="text-xs font-black text-gray-700 dark:text-slate-300 uppercase tracking-wider">
-          Opção {opcaoNumero}
+        <span className="text-xs font-black text-gray-700 dark:text-slate-300 uppercase tracking-wider flex items-center gap-1">
+          Opção
+          {onRenumerar ? (
+            <input
+              type="number"
+              min="1"
+              value={numeroEditando}
+              onChange={(e) => setNumeroEditando(e.target.value)}
+              onBlur={confirmarRenumeracao}
+              onKeyDown={(e) => { if (e.key === 'Enter') e.target.blur() }}
+              title="Trocar o número reposiciona esta opção (troca de lugar com a que já tiver esse número)"
+              className="w-11 px-1 py-0.5 border border-transparent hover:border-gray-200 dark:hover:border-slate-700 rounded text-xs font-black bg-transparent focus:border-primary-500 outline-none text-gray-700 dark:text-slate-300 text-center"
+            />
+          ) : opcaoNumero}
         </span>
         <div className="flex items-center gap-2">
           {itens.length > 0 && onDuplicar && (
@@ -1302,6 +1324,32 @@ function RefeicaoCard({ refeicao, onAtualizarCampo, onExcluir, onItensChange, on
     onItensChange(refeicao.itens_refeicao.filter((i) => i.opcao_numero !== opcaoNumero))
   }
 
+  // Reposiciona a opção mudando só o número — se o número de destino já
+  // estiver em uso por outra opção, troca os dois lugares (ninguém some,
+  // ninguém funde). Se o destino for um número livre (buraco ou além do
+  // máximo atual), só move mesmo.
+  const handleRenumerarOpcao = async (opcaoAtual, novoNumero) => {
+    const itensAtual = refeicao.itens_refeicao.filter((i) => i.opcao_numero === opcaoAtual)
+    const itensDestino = refeicao.itens_refeicao.filter((i) => i.opcao_numero === novoNumero)
+    if (itensAtual.length === 0) return
+
+    const { error: erro1 } = await supabase.from('itens_refeicao').update({ opcao_numero: novoNumero }).in('id', itensAtual.map((i) => i.id))
+    if (erro1) { alert('Erro ao renumerar opção: ' + erro1.message); return }
+
+    if (itensDestino.length > 0) {
+      const { error: erro2 } = await supabase.from('itens_refeicao').update({ opcao_numero: opcaoAtual }).in('id', itensDestino.map((i) => i.id))
+      if (erro2) { alert('Erro ao renumerar opção: ' + erro2.message); return }
+    }
+
+    onItensChange(
+      refeicao.itens_refeicao.map((i) => {
+        if (i.opcao_numero === opcaoAtual) return { ...i, opcao_numero: novoNumero }
+        if (i.opcao_numero === novoNumero) return { ...i, opcao_numero: opcaoAtual }
+        return i
+      })
+    )
+  }
+
   return (
     <div className="bg-white dark:bg-slate-900 rounded-xl border border-gray-100 dark:border-slate-800 shadow-sm p-4 space-y-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
@@ -1407,6 +1455,7 @@ function RefeicaoCard({ refeicao, onAtualizarCampo, onExcluir, onItensChange, on
             onAbrirSubstitutos={onAbrirSubstitutos}
             onDuplicar={() => handleDuplicarOpcao(n)}
             onExcluirOpcao={() => handleExcluirOpcao(n)}
+            onRenumerar={(novo) => handleRenumerarOpcao(n, novo)}
           />
         ))}
 
