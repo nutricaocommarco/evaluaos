@@ -1324,29 +1324,36 @@ function RefeicaoCard({ refeicao, onAtualizarCampo, onExcluir, onItensChange, on
     onItensChange(refeicao.itens_refeicao.filter((i) => i.opcao_numero !== opcaoNumero))
   }
 
-  // Reposiciona a opção mudando só o número — se o número de destino já
-  // estiver em uso por outra opção, troca os dois lugares (ninguém some,
-  // ninguém funde). Se o destino for um número livre (buraco ou além do
-  // máximo atual), só move mesmo.
+  // Reposiciona a opção mudando só o número — igual reordenar uma lista:
+  // tira a opção do lugar atual e insere na posição pedida, empurrando as
+  // outras (não é uma troca 2 a 2 — com 3+ opções isso não "reorganiza"
+  // de verdade, só troca a mexida com quem já tava no número de destino
+  // e ignora todo mundo no meio). Ex.: [1,2,3,4,5,6], mover 6 pra 1 vira
+  // [6,1,2,3,4,5] e depois renumera tudo em sequência (1..6) — de quebra
+  // também fecha qualquer buraco que sobrou de uma opção excluída.
   const handleRenumerarOpcao = async (opcaoAtual, novoNumero) => {
-    const itensAtual = refeicao.itens_refeicao.filter((i) => i.opcao_numero === opcaoAtual)
-    const itensDestino = refeicao.itens_refeicao.filter((i) => i.opcao_numero === novoNumero)
-    if (itensAtual.length === 0) return
+    const existentes = opcoesExistentes
+    if (!existentes.includes(opcaoAtual)) return
 
-    const { error: erro1 } = await supabase.from('itens_refeicao').update({ opcao_numero: novoNumero }).in('id', itensAtual.map((i) => i.id))
-    if (erro1) { alert('Erro ao renumerar opção: ' + erro1.message); return }
+    const semAtual = existentes.filter((n) => n !== opcaoAtual)
+    const posicao = Math.min(Math.max(novoNumero, 1), semAtual.length + 1) - 1
+    const novaOrdem = [...semAtual.slice(0, posicao), opcaoAtual, ...semAtual.slice(posicao)]
 
-    if (itensDestino.length > 0) {
-      const { error: erro2 } = await supabase.from('itens_refeicao').update({ opcao_numero: opcaoAtual }).in('id', itensDestino.map((i) => i.id))
-      if (erro2) { alert('Erro ao renumerar opção: ' + erro2.message); return }
+    const mapaNovoNumero = new Map(novaOrdem.map((numeroAntigo, idx) => [numeroAntigo, idx + 1]))
+    const mudancas = [...mapaNovoNumero.entries()].filter(([antigo, novo]) => antigo !== novo)
+    if (mudancas.length === 0) return
+
+    for (const [antigo, novo] of mudancas) {
+      const ids = refeicao.itens_refeicao.filter((i) => i.opcao_numero === antigo).map((i) => i.id)
+      if (ids.length === 0) continue
+      const { error } = await supabase.from('itens_refeicao').update({ opcao_numero: novo }).in('id', ids)
+      if (error) { alert('Erro ao renumerar opção: ' + error.message); return }
     }
 
     onItensChange(
-      refeicao.itens_refeicao.map((i) => {
-        if (i.opcao_numero === opcaoAtual) return { ...i, opcao_numero: novoNumero }
-        if (i.opcao_numero === novoNumero) return { ...i, opcao_numero: opcaoAtual }
-        return i
-      })
+      refeicao.itens_refeicao.map((i) =>
+        mapaNovoNumero.has(i.opcao_numero) ? { ...i, opcao_numero: mapaNovoNumero.get(i.opcao_numero) } : i
+      )
     )
   }
 
