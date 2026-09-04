@@ -1157,7 +1157,7 @@ function ModalSalvarModelo({ tituloPadrao, aoConfirmar, aoFechar, saving }) {
   )
 }
 
-function OpcaoCard({ refeicaoId, opcaoNumero, itens, onItemExcluido, onItemAdicionado, onItemAtualizado, onAbrirSubstitutos, mostrarFormInicial, aoFecharForm, onDuplicar }) {
+function OpcaoCard({ refeicaoId, opcaoNumero, itens, onItemExcluido, onItemAdicionado, onItemAtualizado, onAbrirSubstitutos, mostrarFormInicial, aoFecharForm, onDuplicar, onExcluirOpcao }) {
   const [mostrarForm, setMostrarForm] = useState(!!mostrarFormInicial)
   const [mostrarFormGrupo, setMostrarFormGrupo] = useState(false)
   const macros = somarMacros(itens.map(calcularMacrosItem))
@@ -1183,6 +1183,15 @@ function OpcaoCard({ refeicaoId, opcaoNumero, itens, onItemExcluido, onItemAdici
               title="Duplicar esta opção em uma nova opção"
             >
               duplicar
+            </button>
+          )}
+          {itens.length > 0 && onExcluirOpcao && (
+            <button
+              onClick={onExcluirOpcao}
+              className="text-[11px] font-semibold text-red-600 hover:underline"
+              title="Excluir esta opção inteira"
+            >
+              excluir
             </button>
           )}
           <span className="text-[11px] text-gray-400 dark:text-slate-500">
@@ -1278,6 +1287,19 @@ function RefeicaoCard({ refeicao, onAtualizarCampo, onExcluir, onItensChange, on
     const novosItens = await duplicarItensComSubstitutos(itensOrigem, refeicao.id, () => novaOpcao)
     if (novosItens.length === 0) { alert('Erro ao duplicar opção.'); return }
     onItensChange([...refeicao.itens_refeicao, ...novosItens])
+  }
+
+  // Exclui a opção inteira (todos os itens dela — os substitutos_item de
+  // cada item somem sozinhos via on delete cascade). Sem chamada extra
+  // por item: um delete só com "in" nos ids já resolve todos de uma vez.
+  const handleExcluirOpcao = async (opcaoNumero) => {
+    const itensDaOpcao = refeicao.itens_refeicao.filter((i) => i.opcao_numero === opcaoNumero)
+    if (itensDaOpcao.length === 0) return
+    if (!window.confirm(`Excluir a Opção ${opcaoNumero} inteira? Isso remove ${itensDaOpcao.length} ${itensDaOpcao.length === 1 ? 'item' : 'itens'} dela (e as substituições vinculadas). Essa ação não pode ser desfeita.`)) return
+
+    const { error } = await supabase.from('itens_refeicao').delete().in('id', itensDaOpcao.map((i) => i.id))
+    if (error) { alert('Erro ao excluir opção: ' + error.message); return }
+    onItensChange(refeicao.itens_refeicao.filter((i) => i.opcao_numero !== opcaoNumero))
   }
 
   return (
@@ -1384,6 +1406,7 @@ function RefeicaoCard({ refeicao, onAtualizarCampo, onExcluir, onItensChange, on
             onItemAtualizado={handleItemAtualizado}
             onAbrirSubstitutos={onAbrirSubstitutos}
             onDuplicar={() => handleDuplicarOpcao(n)}
+            onExcluirOpcao={() => handleExcluirOpcao(n)}
           />
         ))}
 
