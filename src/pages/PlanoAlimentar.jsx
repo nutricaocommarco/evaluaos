@@ -249,6 +249,79 @@ async function inserirGrupoAlimentos(grupo, idRefeicao, opcaoNumero) {
   return { ...novoItem, substitutos_item: substitutos }
 }
 
+// Popup de busca de alimento — em vez do dropdovnzinho embutido no form
+// (uns 200px de altura, ~15 resultados), abre um modal com espaço de
+// verdade: mais itens visíveis de uma vez, sem precisar rolar a página
+// inteira pra ver a lista. O texto digitado e os resultados moram no
+// componente pai (AdicionarItemForm), que já tem o debounce/fetch prontos
+// — aqui é só a apresentação.
+function ModalBuscarAlimento({ buscaInicial, resultados, onBuscar, onEscolher, onFechar }) {
+  const [valor, setValor] = useState(buscaInicial)
+  const inputRef = useRef(null)
+
+  useEffect(() => { inputRef.current?.focus() }, [])
+
+  useEffect(() => {
+    const handleTecla = (e) => { if (e.key === 'Escape') onFechar() }
+    document.addEventListener('keydown', handleTecla)
+    return () => document.removeEventListener('keydown', handleTecla)
+  }, [onFechar])
+
+  const handleDigitar = (e) => {
+    setValor(e.target.value)
+    onBuscar(e.target.value)
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/40 backdrop-blur-sm p-4 pt-[8vh]" onClick={onFechar}>
+      <div
+        className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl w-full max-w-lg max-h-[78vh] flex flex-col overflow-hidden"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="p-4 border-b border-gray-100 dark:border-slate-800 flex items-center gap-2 shrink-0">
+          <input
+            ref={inputRef}
+            type="text"
+            value={valor}
+            onChange={handleDigitar}
+            placeholder="Buscar alimento... (ex: arroz, frango, ovo)"
+            className="flex-1 px-4 py-2.5 border border-gray-300 dark:border-slate-700 rounded-lg text-base outline-none focus:ring-2 focus:ring-primary-500 bg-transparent text-gray-800 dark:text-slate-100"
+          />
+          <button
+            type="button"
+            onClick={onFechar}
+            className="text-gray-400 dark:text-slate-500 hover:text-gray-600 dark:hover:text-slate-300 p-2 rounded-lg shrink-0"
+          >
+            ✕
+          </button>
+        </div>
+        <ul className="flex-1 overflow-y-auto">
+          {resultados.length === 0 && valor.trim().length >= 2 && (
+            <li className="px-4 py-8 text-center text-sm text-gray-400 dark:text-slate-500">
+              Nada encontrado pra "{valor.trim()}".
+            </li>
+          )}
+          {resultados.length === 0 && valor.trim().length < 2 && (
+            <li className="px-4 py-8 text-center text-sm text-gray-400 dark:text-slate-500">
+              Digite pelo menos 2 letras pra buscar.
+            </li>
+          )}
+          {resultados.map((r) => (
+            <li
+              key={r.id}
+              onClick={() => onEscolher(r)}
+              className="px-4 py-2.5 cursor-pointer hover:bg-primary-50 dark:hover:bg-primary-900/20 text-sm border-b border-gray-100 dark:border-slate-800 last:border-0 flex items-center justify-between gap-3"
+            >
+              <span className="font-semibold truncate">{r.id_receita ? '🍳 ' : ''}{r.nome}</span>
+              <span className="text-gray-400 dark:text-slate-500 text-xs shrink-0">{r.energia_kcal ?? '-'} kcal/100g</span>
+            </li>
+          ))}
+        </ul>
+      </div>
+    </div>
+  )
+}
+
 // Busca de alimento com debounce + adiciona item a uma refeição/opção.
 // Componente isolado pra cada instância ter seu próprio estado de busca.
 function AdicionarItemForm({ refeicaoId, opcaoNumero, onItemAdicionado, onCancelar }) {
@@ -260,7 +333,6 @@ function AdicionarItemForm({ refeicaoId, opcaoNumero, onItemAdicionado, onCancel
   const [quantidadeMedida, setQuantidadeMedida] = useState('')
   const [quantidade, setQuantidade] = useState('')
   const [salvando, setSalvando] = useState(false)
-  const dropdownRef = useRef(null)
 
   // A medida caseira do alimento (Tabela de Alimentos > editar, ou medida
   // pessoal) vale especificamente pra UMA unidade do seletor — pode ser
@@ -294,18 +366,10 @@ function AdicionarItemForm({ refeicaoId, opcaoNumero, onItemAdicionado, onCancel
   useEffect(() => {
     if (busca.trim().length < 2) { setResultados([]); return }
     const delay = setTimeout(async () => {
-      setResultados(await buscarAlimentosComMedidaPessoal(busca.trim()))
+      setResultados(await buscarAlimentosComMedidaPessoal(busca.trim(), 40))
     }, 300)
     return () => clearTimeout(delay)
   }, [busca])
-
-  useEffect(() => {
-    const handleClickFora = (e) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(e.target)) setShowDropdown(false)
-    }
-    document.addEventListener('mousedown', handleClickFora)
-    return () => document.removeEventListener('mousedown', handleClickFora)
-  }, [])
 
   const ehAVontade = unidade === 'a_vontade'
 
@@ -342,31 +406,26 @@ function AdicionarItemForm({ refeicaoId, opcaoNumero, onItemAdicionado, onCancel
 
   return (
     <div className="flex flex-wrap items-end gap-2 p-2 rounded-lg bg-gray-50 dark:bg-slate-800/50 border border-dashed border-gray-200 dark:border-slate-700">
-      <div className="relative flex-1 min-w-[180px]" ref={dropdownRef}>
+      <div className="relative flex-1 min-w-[180px]">
         <label className="block text-[10px] font-bold text-gray-500 dark:text-slate-400 uppercase tracking-wider mb-1">
           Alimento
         </label>
-        <input
-          type="text"
-          value={selecionado ? selecionado.nome : busca}
-          onChange={(e) => { setBusca(e.target.value); setSelecionado(null); setShowDropdown(true) }}
-          onFocus={() => setShowDropdown(true)}
-          placeholder="Buscar alimento..."
-          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-primary-500"
-        />
-        {showDropdown && !selecionado && resultados.length > 0 && (
-          <ul className="absolute z-20 w-full mt-1 bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-700 rounded-lg shadow-xl max-h-52 overflow-y-auto">
-            {resultados.map((r) => (
-              <li
-                key={r.id}
-                onClick={() => { setSelecionado(r); setShowDropdown(false) }}
-                className="px-3 py-2 cursor-pointer hover:bg-primary-50 dark:hover:bg-primary-900/20 text-xs border-b border-gray-100 dark:border-slate-800 last:border-0"
-              >
-                <span className="font-semibold">{r.id_receita ? '🍳 ' : ''}{r.nome}</span>
-                <span className="text-gray-400 dark:text-slate-500 ml-2">{r.energia_kcal ?? '-'} kcal/100g</span>
-              </li>
-            ))}
-          </ul>
+        <button
+          type="button"
+          onClick={() => setShowDropdown(true)}
+          className={`w-full px-3 py-2 border border-gray-300 dark:border-slate-700 rounded-lg text-sm outline-none focus:ring-2 focus:ring-primary-500 text-left bg-white dark:bg-slate-900 ${selecionado ? 'text-gray-800 dark:text-slate-100' : 'text-gray-400 dark:text-slate-500'}`}
+        >
+          {selecionado ? `${selecionado.id_receita ? '🍳 ' : ''}${selecionado.nome}` : 'Buscar alimento...'}
+        </button>
+
+        {showDropdown && (
+          <ModalBuscarAlimento
+            buscaInicial={busca}
+            resultados={resultados}
+            onBuscar={(valor) => setBusca(valor)}
+            onEscolher={(r) => { setSelecionado(r); setBusca(''); setShowDropdown(false) }}
+            onFechar={() => setShowDropdown(false)}
+          />
         )}
       </div>
 
