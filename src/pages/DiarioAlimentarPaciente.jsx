@@ -5,7 +5,7 @@ import { useTheme } from '../contexts/ThemeContext'
 import CabecalhoPortalPaciente from '../components/CabecalhoPortalPaciente'
 import NavegacaoPortalPaciente from '../components/NavegacaoPortalPaciente'
 import { ChevronLeft, ChevronRight, Plus, Trash2, Repeat2, CalendarDays, X } from 'lucide-react'
-import { aplicarBuscaPorPalavras } from '../utils/buscaAlimentos'
+import { aplicarBuscaPorPalavras, ordenarPorRelevancia } from '../utils/buscaAlimentos'
 
 const MESES = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro']
 const DIAS_SEMANA_ABREV = ['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sáb']
@@ -81,8 +81,8 @@ function AdicionarItem({ onAdicionar }) {
         supabase.from('tabela_alimentos').select('id, nome, medida_caseira_desc, medida_caseira_g, medida_caseira_unidade'),
         'nome',
         busca
-      ).order('nome').limit(8)
-      if (!cancelado) setResultados(data || [])
+      ).order('nome').limit(50)
+      if (!cancelado) setResultados(ordenarPorRelevancia(data || [], busca).slice(0, 8))
     }
     const t = setTimeout(buscar, 250)
     return () => { cancelado = true; clearTimeout(t) }

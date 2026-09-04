@@ -7,7 +7,7 @@ import InterruptorVisibilidade from '../components/InterruptorVisibilidade'
 import RichTextEditor, { sanitizarHtmlEditor } from '../components/RichTextEditor'
 import { FileDown, Save, Pencil, Trash2, StickyNote, ImagePlus, ChevronDown, ChevronRight } from 'lucide-react'
 import SeletorImagem from '../components/imagens/SeletorImagem'
-import { aplicarBuscaPorPalavras } from '../utils/buscaAlimentos'
+import { aplicarBuscaPorPalavras, ordenarPorRelevancia } from '../utils/buscaAlimentos'
 import { MICRONUTRIENTES, calcularMacrosItem, somarMacros } from '../utils/calculoNutricional'
 
 const CAMPOS_PLANO_VAZIOS = {
@@ -82,8 +82,8 @@ async function buscarAlimentosComMedidaPessoal(termo, limite = 15) {
     termo
   )
     .order('nome')
-    .limit(limite)
-  let lista = data || []
+    .limit(Math.max(limite * 4, 60))
+  let lista = ordenarPorRelevancia(data || [], termo).slice(0, limite)
 
   const idsOficiais = lista.filter((a) => !a.id_avaliador).map((a) => a.id)
   if (idsOficiais.length > 0) {

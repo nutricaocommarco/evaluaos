@@ -3,7 +3,7 @@ import { supabase } from '../supabaseClient'
 import RichTextEditor, { sanitizarHtmlEditor } from '../components/RichTextEditor'
 import CampoImagem from '../components/imagens/CampoImagem'
 import ConfirmModal from '../components/ConfirmModal'
-import { aplicarBuscaPorPalavras } from '../utils/buscaAlimentos'
+import { aplicarBuscaPorPalavras, ordenarPorRelevancia } from '../utils/buscaAlimentos'
 import { ChefHat, Clock, Layers, Plus, X, Trash2, Search } from 'lucide-react'
 
 const CAMPOS_VAZIOS = {
@@ -96,8 +96,8 @@ function fmtNum(n) {
 }
 
 async function buscarAlimentos(termo) {
-  const { data } = await aplicarBuscaPorPalavras(supabase.from('tabela_alimentos').select('*'), 'nome', termo).order('nome').limit(15)
-  return data || []
+  const { data } = await aplicarBuscaPorPalavras(supabase.from('tabela_alimentos').select('*'), 'nome', termo).order('nome').limit(60)
+  return ordenarPorRelevancia(data || [], termo).slice(0, 15)
 }
 
 // Converte os nutrientes TOTAIS da receita (por peso_final_g) pra por

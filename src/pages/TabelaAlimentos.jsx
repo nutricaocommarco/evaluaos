@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { supabase } from '../supabaseClient'
-import { aplicarBuscaPorPalavras } from '../utils/buscaAlimentos'
+import { aplicarBuscaPorPalavras, ordenarPorRelevancia } from '../utils/buscaAlimentos'
 
 // A maioria das medidas caseiras já vem com a contagem embutida na
 // descrição ("1 colher de sopa cheia") — só antepõe "1 " se ainda não
@@ -147,9 +147,9 @@ export default function TabelaAlimentos({ userId }) {
         busca
       )
         .order('nome')
-        .limit(50)
+        .limit(150)
 
-      const lista = data || []
+      const lista = error ? [] : ordenarPorRelevancia(data || [], busca).slice(0, 50)
       if (!error) setAlimentos(lista)
 
       const idsOficiais = lista.filter((a) => !a.id_avaliador).map((a) => a.id)

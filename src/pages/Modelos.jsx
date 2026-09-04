@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { supabase } from '../supabaseClient'
 import { ChevronDown, ChevronRight, UtensilsCrossed, ClipboardList, FileText, Stethoscope, ListChecks, Layers, ArrowUp, ArrowDown, Trash2 } from 'lucide-react'
-import { aplicarBuscaPorPalavras } from '../utils/buscaAlimentos'
+import { aplicarBuscaPorPalavras, ordenarPorRelevancia } from '../utils/buscaAlimentos'
 import ConfirmModal from '../components/ConfirmModal'
 
 function formatarDataHora(dataStr) {
@@ -212,8 +212,8 @@ function AdicionarAlimentoGrupoForm({ grupo, ordemProxima, onItemAdicionado, onC
     const delay = setTimeout(async () => {
       const { data } = await aplicarBuscaPorPalavras(supabase.from('tabela_alimentos').select('*'), 'nome', busca.trim())
         .order('nome')
-        .limit(15)
-      setResultados(data || [])
+        .limit(60)
+      setResultados(ordenarPorRelevancia(data || [], busca.trim()).slice(0, 15))
     }, 300)
     return () => clearTimeout(delay)
   }, [busca])
