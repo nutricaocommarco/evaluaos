@@ -783,8 +783,8 @@ function ItemLinha({ item, onExcluir, onRenomear, onAbrirSubstitutos, onAtualiza
   }
 
   return (
-    <li className="flex items-center justify-between gap-2 text-xs text-gray-700 dark:text-slate-300">
-      <span className="truncate">
+    <li className="flex items-start justify-between gap-2 text-xs text-gray-700 dark:text-slate-300">
+      <span className="flex-1 min-w-0">
         {nomeExibido}
         {item.nome_customizado && (
           <span className="text-gray-400 dark:text-slate-500 italic" title={`Alimento original: ${nomeOriginal}`}> *</span>
@@ -1239,7 +1239,7 @@ function OpcaoCard({ refeicaoId, opcaoNumero, itens, onItemExcluido, onItemAdici
   }
 
   return (
-    <div className="rounded-lg border border-gray-100 dark:border-slate-800 p-3 flex-1 min-w-[240px]">
+    <div className="rounded-lg border border-gray-100 dark:border-slate-800 p-3 w-full">
       <div className="flex items-center justify-between mb-2">
         <span className="text-xs font-black text-gray-700 dark:text-slate-300 uppercase tracking-wider flex items-center gap-1">
           Opção
@@ -1508,7 +1508,7 @@ function RefeicaoCard({ refeicao, onAtualizarCampo, onExcluir, onItensChange, on
         />
       )}
 
-      <div className="flex flex-wrap gap-3">
+      <div className="flex flex-col gap-3">
         {opcoesParaExibir.map((n) => (
           <OpcaoCard
             key={n}
