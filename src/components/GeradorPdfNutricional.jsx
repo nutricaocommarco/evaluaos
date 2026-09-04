@@ -205,6 +205,9 @@ export const styles = StyleSheet.create({
   itemSubstitutos: { paddingHorizontal: 10, paddingBottom: 4, fontSize: 8, color: '#9CA3AF', fontStyle: 'italic' },
   refeicaoSubtotal: { flexDirection: 'row', justifyContent: 'flex-end', paddingHorizontal: 10, paddingVertical: 4, backgroundColor: '#FAFAFA' },
   refeicaoSubtotalTexto: { fontSize: 8, fontWeight: 'bold', color: '#4B5563' },
+  opcaoLabel: { fontSize: 8, fontWeight: 'bold', color: '#059669', textTransform: 'uppercase', paddingHorizontal: 10, paddingTop: 6, paddingBottom: 2 },
+  opcaoBloco: { borderTopWidth: 1, borderTopColor: '#F3F4F6' },
+  refeicaoNota: { fontSize: 8, color: '#92400E', backgroundColor: '#FFFBEB', borderTopWidth: 1, borderTopColor: '#FDE68A', paddingHorizontal: 10, paddingVertical: 6, lineHeight: 1.4 },
 
   docTitulo: { fontSize: 13, fontWeight: 'bold', color: '#1F2937', marginBottom: 8, marginTop: 10 },
   docCard: { backgroundColor: '#FFFFFF', padding: 12, borderRadius: 8, borderWidth: 1, borderColor: '#E5E7EB', marginBottom: 10 },
@@ -262,52 +265,71 @@ export function BlocoPlanoAlimentar({ plano, refeicoes, pesoAtual, incluirMacros
       )}
 
       {refeicoesOrdenadas.map((refeicao) => {
-        const itensRef = refeicao.itens_refeicao.filter((i) => i.opcao_numero === 1)
-        const macrosRef = somarMacros(itensRef.map(calcularMacrosItem))
+        // Todas as opções da refeição (não só a 1) — a Opção 1 segue sendo a
+        // única usada na meta vs. calculado do topo (mesmo critério do
+        // Portal do Paciente), mas quando o nutri cadastra mais de uma opção
+        // como alternativas de verdade (não só substituição pontual), o PDF
+        // precisa mostrar todas, senão a impressão sai incompleta.
+        const opcoes = [...new Set(refeicao.itens_refeicao.map((i) => i.opcao_numero))].sort((a, b) => a - b)
+        // Com só 1 opção o card inteiro é pequeno e cabe junto numa página
+        // (wrap={false}); com várias opções (5, no caso da Raquel) o card
+        // pode passar de uma página inteira — cada opção já tem seu próprio
+        // wrap={false} logo abaixo, então o card em si pode quebrar entre
+        // opções sem cortar uma opção ao meio.
         return (
-          <View key={refeicao.id} style={styles.refeicaoCard} wrap={false}>
+          <View key={refeicao.id} style={styles.refeicaoCard} wrap={opcoes.length > 1}>
             <View style={styles.refeicaoHeader}>
               <Text style={styles.refeicaoNome}>{refeicao.nome_refeicao}</Text>
               {refeicao.horario && <Text style={styles.refeicaoHorario}>{refeicao.horario.slice(0, 5)}</Text>}
             </View>
-            {itensRef.length === 0 ? (
+            {opcoes.length === 0 ? (
               <View style={styles.itemRow}><Text style={styles.itemNome}>Sem itens.</Text></View>
             ) : (
-              itensRef.map((item) => {
-                const m = calcularMacrosItem(item)
-                const nome = item.nome_customizado || item.tabela_alimentos?.nome || 'Alimento removido'
-                const partesItem = []
-                if (incluirMacros) partesItem.push(`${fmt(m.kcal)}kcal · P${fmt(m.proteina)} · C${fmt(m.carbo)} · L${fmt(m.lipidio)}`)
-                if (incluirFibra) partesItem.push(`Fb${fmt(m.fibra)}`)
-                const substitutos = [...(item.substitutos_item || [])].sort((a, b) => a.ordem - b.ordem)
-                const textoSubstitutos = substitutos
-                  .map((s) => `${s.tabela_alimentos?.nome || 'Alimento removido'} (${textoQuantidade(s)})`)
-                  .join(' · ')
+              opcoes.map((n) => {
+                const itensOpcao = refeicao.itens_refeicao.filter((i) => i.opcao_numero === n)
+                const macrosOpcao = somarMacros(itensOpcao.map(calcularMacrosItem))
                 return (
-                  <React.Fragment key={item.id}>
-                    <View style={styles.itemRow}>
-                      <Text style={styles.itemNome}>{nome}</Text>
-                      <Text style={styles.itemQtd}>{textoQuantidade(item)}</Text>
-                      {partesItem.length > 0 && <Text style={styles.itemMacro}>{partesItem.join(' · ')}</Text>}
-                    </View>
-                    {substitutos.length > 0 && (
-                      <Text style={styles.itemSubstitutos}>OU: {textoSubstitutos}</Text>
-                    )}
-                  </React.Fragment>
+                  <View key={n} style={opcoes.length > 1 ? styles.opcaoBloco : null} wrap={false}>
+                    {opcoes.length > 1 && <Text style={styles.opcaoLabel}>Opção {n}</Text>}
+                    {itensOpcao.map((item) => {
+                      const m = calcularMacrosItem(item)
+                      const nome = item.nome_customizado || item.tabela_alimentos?.nome || 'Alimento removido'
+                      const partesItem = []
+                      if (incluirMacros) partesItem.push(`${fmt(m.kcal)}kcal · P${fmt(m.proteina)} · C${fmt(m.carbo)} · L${fmt(m.lipidio)}`)
+                      if (incluirFibra) partesItem.push(`Fb${fmt(m.fibra)}`)
+                      const substitutos = [...(item.substitutos_item || [])].sort((a, b) => a.ordem - b.ordem)
+                      const textoSubstitutos = substitutos
+                        .map((s) => `${s.tabela_alimentos?.nome || 'Alimento removido'} (${textoQuantidade(s)})`)
+                        .join(' · ')
+                      return (
+                        <React.Fragment key={item.id}>
+                          <View style={styles.itemRow}>
+                            <Text style={styles.itemNome}>{nome}</Text>
+                            <Text style={styles.itemQtd}>{textoQuantidade(item)}</Text>
+                            {partesItem.length > 0 && <Text style={styles.itemMacro}>{partesItem.join(' · ')}</Text>}
+                          </View>
+                          {substitutos.length > 0 && (
+                            <Text style={styles.itemSubstitutos}>OU: {textoSubstitutos}</Text>
+                          )}
+                        </React.Fragment>
+                      )
+                    })}
+                    {(() => {
+                      const partesSub = []
+                      if (incluirMacros) partesSub.push(`${fmt(macrosOpcao.kcal)}kcal · P${fmt(macrosOpcao.proteina)}g · C${fmt(macrosOpcao.carbo)}g · L${fmt(macrosOpcao.lipidio)}g`)
+                      if (incluirFibra) partesSub.push(`Fibra${fmt(macrosOpcao.fibra)}g`)
+                      if (partesSub.length === 0) return null
+                      return (
+                        <View style={styles.refeicaoSubtotal}>
+                          <Text style={styles.refeicaoSubtotalTexto}>Subtotal: {partesSub.join(' · ')}</Text>
+                        </View>
+                      )
+                    })()}
+                  </View>
                 )
               })
             )}
-            {itensRef.length > 0 && (() => {
-              const partesSub = []
-              if (incluirMacros) partesSub.push(`${fmt(macrosRef.kcal)}kcal · P${fmt(macrosRef.proteina)}g · C${fmt(macrosRef.carbo)}g · L${fmt(macrosRef.lipidio)}g`)
-              if (incluirFibra) partesSub.push(`Fibra${fmt(macrosRef.fibra)}g`)
-              if (partesSub.length === 0) return null
-              return (
-                <View style={styles.refeicaoSubtotal}>
-                  <Text style={styles.refeicaoSubtotalTexto}>Subtotal: {partesSub.join(' · ')}</Text>
-                </View>
-              )
-            })()}
+            {refeicao.nota && <Text style={styles.refeicaoNota}>📝 {refeicao.nota}</Text>}
           </View>
         )
       })}
