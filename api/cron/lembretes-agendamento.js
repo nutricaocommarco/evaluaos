@@ -225,10 +225,14 @@ export default async function handler(req, res) {
 
   const admin = getSupabaseAdmin()
 
-  const checkinSemanal = new Date().getUTCDay() === 1 ? await rodarCheckinSemanal(admin) : null
-  const financeiroRecorrente = new Date().getUTCDate() === 1 ? await rodarRecorrenciasFinanceiras(admin) : null
-  const indicacoes = await rodarNotificacaoIndicacoes(admin)
-
+  // Lembretes primeiro, e nunca dentro de um try/catch de outra tarefa —
+  // é a única das 4 tarefas deste cron que é tempo-sensível de verdade
+  // (perder a janela de "amanhã" não tem como recuperar depois). Antes,
+  // checkin/financeiro/indicações rodavam ANTES e sem try/catch: uma
+  // exceção não tratada em qualquer uma delas (ex.: uma tabela renomeada,
+  // uma API fora do ar) derrubava a function inteira com 500 e os
+  // lembretes nunca chegavam a rodar, sem deixar rastro nenhum na tabela
+  // pra investigar depois.
   const inicioJanela = inicioDoDiaBRT(1).toISOString()
   const fimJanela = inicioDoDiaBRT(2).toISOString()
 
@@ -284,6 +288,27 @@ export default async function handler(req, res) {
       console.error(`cron lembretes: falha ao enviar pro agendamento ${ag.id}`, err)
       erros++
     }
+  }
+
+  // Tarefas sem relação com lembretes, cada uma isolada — uma falha aqui
+  // vira "null" no JSON de resposta em vez de derrubar a function.
+  let checkinSemanal = null
+  let financeiroRecorrente = null
+  let indicacoes = null
+  try {
+    if (new Date().getUTCDay() === 1) checkinSemanal = await rodarCheckinSemanal(admin)
+  } catch (err) {
+    console.error('cron checkin-semanal: exceção não tratada', err)
+  }
+  try {
+    if (new Date().getUTCDate() === 1) financeiroRecorrente = await rodarRecorrenciasFinanceiras(admin)
+  } catch (err) {
+    console.error('cron financeiro-recorrente: exceção não tratada', err)
+  }
+  try {
+    indicacoes = await rodarNotificacaoIndicacoes(admin)
+  } catch (err) {
+    console.error('cron indicações: exceção não tratada', err)
   }
 
   res.status(200).json({ enviados, pulados, erros, total: (agendamentos || []).length, checkinSemanal, financeiroRecorrente, indicacoes })
