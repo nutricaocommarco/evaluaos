@@ -194,7 +194,12 @@ export default function AreaPaciente() {
           <NavegacaoPortalPaciente tokenPaciente={tokenUrl} tokenLaudo={avaliacaoRecente?.token_publico} temAgendamentos={qtdAgendamentosFuturos > 0} ativo="inicio" />
         )}
 
-        {!sessaoAtiva && <BotaoInstalarPWA />}
+        {/* Desativado temporariamente: paciente relatou que, no iPhone, ao
+            terminar o passo a passo de instalação (ou depois de instalar e
+            reabrir pelo ícone), cai na home pública em vez de voltar pra
+            própria Área — investigando (ver App.jsx:135 e pwaAreaPaciente.js).
+            Reativar só depois de confirmar a causa. */}
+        {false && !sessaoAtiva && <BotaoInstalarPWA />}
 
         <div>
           <h2 className="text-xl font-black text-gray-800 dark:text-slate-100">Olá, {paciente.nome_completo?.split(' ')[0]}!</h2>
