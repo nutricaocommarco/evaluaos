@@ -5,7 +5,7 @@ function detectarMobile() {
   return /Android|iPhone|iPad|iPod/i.test(navigator.userAgent)
 }
 
-function detectarIOS() {
+export function detectarIOS() {
   return /iPhone|iPad|iPod/i.test(navigator.userAgent)
 }
 
