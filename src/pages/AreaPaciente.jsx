@@ -47,21 +47,15 @@ export default function AreaPaciente() {
   const [qtdQuestionariosPendentes, setQtdQuestionariosPendentes] = useState(0)
   const [sessaoAtiva, setSessaoAtiva] = useState(false)
 
-  // Roda ANTES de qualquer coisa async (não depende do auth.getUser() —
-  // tokenUrl já vem pronto do useParams) — precisa ser síncrono com a
-  // primeira pintura da página. No iPhone, "Adicionar à Tela de Início" lê
-  // o <link rel="manifest"> no instante em que o paciente abre o menu de
-  // compartilhar do Safari; se essa troca ficasse presa atrás de um
-  // round-trip de rede (auth.getUser()), um paciente que abre o link e já
-  // toca em Compartilhar rápido corria o risco de instalar com o manifest
-  // genérico ainda no ar (start_url: '/'), e o ícone ficava preso na home
-  // pública pra sempre — o iOS grava o manifest no momento da instalação,
-  // não relê depois.
+  // A troca do <link rel="manifest">/apple-touch-icon por token agora
+  // acontece num script síncrono no index.html (roda antes do React
+  // inteiro, cobre qualquer página de /area/:token — não só esta) — ver
+  // o comentário lá pro porquê. Aqui só guarda o último token visitado,
+  // pro fallback de App.jsx (ícone instalado abrindo em standalone sem
+  // sessão cai em '/' e redireciona sozinho pra essa Área).
   useEffect(() => {
     if (!tokenUrl) return
     localStorage.setItem(CHAVE_ULTIMA_AREA_PACIENTE, tokenUrl)
-    const link = document.querySelector('link[rel="manifest"]')
-    if (link) link.setAttribute('href', `/api/manifest?token=${tokenUrl}`)
   }, [tokenUrl])
 
   useEffect(() => {

@@ -49,6 +49,30 @@
     </script>
   </head>
   <body>
+    <!-- Troca o manifest e o ícone do iPhone pro do paciente/nutricionista
+         ANTES de qualquer coisa React — script síncrono, sem type="module"
+         nem defer, então o parser do HTML só segue depois dele rodar. A
+         troca antes vivia num useEffect (AreaPaciente.jsx): funcionava só
+         na tela de início do portal e só depois do bundle React carregar e
+         montar, o que deixava uma janela onde "Adicionar à Tela de Início"
+         podia ler o <link> ainda genérico (manifest.webmanifest do
+         vite-plugin-pwa, ícone do index.html) se o paciente tocasse rápido
+         — daí o ícone instalado abrir a home pública do EvaluaOS em vez da
+         Área do Paciente, e/ou usar o escudo genérico em vez da logomarca
+         do nutricionista. Cobre qualquer página dentro de /area/:token,
+         não só a tela de início. api/manifest.js e api/apple-touch-icon.js
+         resolvem a logomarca do avaliador correspondente pelo token. -->
+    <script>
+      (function () {
+        var m = location.pathname.match(/^\/area\/([^/]+)/)
+        if (!m) return
+        var token = encodeURIComponent(m[1])
+        var manifestLink = document.querySelector('link[rel="manifest"]')
+        if (manifestLink) manifestLink.setAttribute('href', '/api/manifest?token=' + token)
+        var appleIcon = document.querySelector('link[rel="apple-touch-icon"]')
+        if (appleIcon) appleIcon.setAttribute('href', '/api/apple-touch-icon?token=' + token)
+      })()
+    </script>
     <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>
   </body>

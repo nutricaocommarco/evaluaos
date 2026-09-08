@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { Download, Share, X } from 'lucide-react'
+import { Download, X } from 'lucide-react'
 
 function detectarMobile() {
   return /Android|iPhone|iPad|iPod/i.test(navigator.userAgent)
@@ -62,25 +62,38 @@ export default function BotaoInstalarPWA() {
 
       {mostrarInstrucoesIOS && (
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-          <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-xl w-full max-w-sm p-6 space-y-4">
+          <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-xl w-full max-w-sm p-6 space-y-4 max-h-[90vh] overflow-y-auto">
             <div className="flex justify-between items-center">
               <h3 className="text-base font-bold text-gray-800 dark:text-slate-100">Instalar no iPhone</h3>
               <button onClick={() => setMostrarInstrucoesIOS(false)} className="text-gray-400 dark:text-slate-400 hover:text-gray-600 p-1 rounded-lg">
                 <X size={18} />
               </button>
             </div>
+            <video
+              src="/Videos/instalar-ios.mp4"
+              className="w-full rounded-xl border border-gray-200 dark:border-slate-700"
+              autoPlay
+              muted
+              loop
+              playsInline
+              controls
+            />
             <ol className="space-y-3 text-sm text-gray-700 dark:text-slate-300">
               <li className="flex items-start gap-2">
                 <span className="font-black text-primary-600 shrink-0">1.</span>
-                <span>Toque no ícone de compartilhar <Share size={14} className="inline mx-0.5" /> na barra do Safari.</span>
+                <span>Toque nos <strong>••• (três pontinhos)</strong> na barra do Safari.</span>
               </li>
               <li className="flex items-start gap-2">
                 <span className="font-black text-primary-600 shrink-0">2.</span>
-                <span>Escolha <strong>"Adicionar à Tela de Início"</strong>.</span>
+                <span>Toque em <strong>Compartilhar</strong>.</span>
               </li>
               <li className="flex items-start gap-2">
                 <span className="font-black text-primary-600 shrink-0">3.</span>
-                <span>Toque em <strong>Adicionar</strong> — pronto, o app fica com ícone próprio, sem barra de endereço.</span>
+                <span>Toque em <strong>Ver Mais</strong>.</span>
+              </li>
+              <li className="flex items-start gap-2">
+                <span className="font-black text-primary-600 shrink-0">4.</span>
+                <span>Lá embaixo, toque em <strong>"Adicionar à Tela de Início"</strong> e depois em <strong>Adicionar</strong>.</span>
               </li>
             </ol>
             <button
