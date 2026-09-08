@@ -118,6 +118,21 @@ function MainApp() {
     { name: 'Configurações', path: '/configuracoes', icon: <Settings size={20} /> },
   ]
 
+  // O ícone da PWA instalada abre sempre o start_url do manifest — o Safari
+  // não segue de forma confiável o start_url por-token (/api/manifest.js)
+  // no "Adicionar à Tela de Início" clássico, então na prática o ícone
+  // sempre abre em '/'. Redireciona sozinho pro último link de Área do
+  // Paciente que esse aparelho visitou (salvo em AreaPaciente.jsx), ANTES
+  // de checar sessão/loading — se ficasse só dentro do "usuário não
+  // logado", um nutricionista testando o próprio link de paciente no
+  // mesmo Safari em que já está logado (sessão compartilhada com o app
+  // instalado) nunca caía aqui, e o ícone abria o painel do nutricionista
+  // em vez da Área do Paciente instalada.
+  if (currentPath === '/' && emModoStandalone()) {
+    const tokenSalvo = localStorage.getItem(CHAVE_ULTIMA_AREA_PACIENTE)
+    if (tokenSalvo) return <Navigate to={`/area/${tokenSalvo}`} replace />
+  }
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-slate-950">
@@ -128,14 +143,6 @@ function MainApp() {
 
   // 🔴 USUÁRIO NÃO LOGADO
   if (!session) {
-    // O ícone da PWA instalada abre sempre o start_url do manifest — se por
-    // algum motivo caiu no genérico ('/') em vez do manifest por-token (ver
-    // /api/manifest.js), redireciona sozinho pro último link de Área do
-    // Paciente que esse aparelho visitou, salvo em AreaPaciente.jsx.
-    if (currentPath === '/' && emModoStandalone()) {
-      const tokenSalvo = localStorage.getItem(CHAVE_ULTIMA_AREA_PACIENTE)
-      if (tokenSalvo) return <Navigate to={`/area/${tokenSalvo}`} replace />
-    }
 
     return (
       <>
