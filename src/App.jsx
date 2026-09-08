@@ -128,14 +128,26 @@ function MainApp() {
   // mesmo Safari em que já está logado (sessão compartilhada com o app
   // instalado) nunca caía aqui, e o ícone abria o painel do nutricionista
   // em vez da Área do Paciente instalada.
-  if (currentPath === '/' && emModoStandalone()) {
+  let debugPwaInfo = null
+  if (currentPath === '/') {
+    const standalone = emModoStandalone()
     const tokenSalvo = localStorage.getItem(CHAVE_ULTIMA_AREA_PACIENTE)
-    if (tokenSalvo) return <Navigate to={`/area/${tokenSalvo}`} replace />
+    if (standalone && tokenSalvo) return <Navigate to={`/area/${tokenSalvo}`} replace />
+    // DEBUG TEMPORÁRIO — tira depois de descobrir por que o ícone instalado
+    // não está redirecionando pra Área do Paciente. Mostra na tela (não dá
+    // pra ler console do Safari sem Mac) por que o redirecionamento acima
+    // não disparou: não está em standalone, ou não achou token salvo.
+    debugPwaInfo = (
+      <div style={{ position: 'fixed', top: 0, left: 0, right: 0, zIndex: 9999, background: '#000', color: '#0f0', fontSize: 11, fontFamily: 'monospace', padding: '6px 8px', wordBreak: 'break-all' }}>
+        DEBUG PWA — standalone: {String(standalone)} | navigator.standalone: {String(window.navigator.standalone)} | matchMedia: {String(window.matchMedia('(display-mode: standalone)').matches)} | tokenSalvo: {tokenSalvo || '(nenhum)'}
+      </div>
+    )
   }
 
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-slate-950">
+        {debugPwaInfo}
         <p className="text-primary-600 font-bold animate-pulse text-xl">Carregando EvaluaOS...</p>
       </div>
     )
@@ -146,6 +158,7 @@ function MainApp() {
 
     return (
       <>
+        {debugPwaInfo}
         <AnalyticsTracker />
         <Routes>
           <Route path="/" element={<HomePublica />} />
