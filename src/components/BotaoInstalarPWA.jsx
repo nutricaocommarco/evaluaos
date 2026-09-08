@@ -72,9 +72,6 @@ export default function BotaoInstalarPWA() {
             <video
               src="/Videos/instalar-ios.mp4"
               className="w-full rounded-xl border border-gray-200 dark:border-slate-700"
-              autoPlay
-              muted
-              loop
               playsInline
               controls
             />
