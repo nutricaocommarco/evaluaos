@@ -126,28 +126,17 @@ function MainApp() {
   // próprio link de paciente no mesmo Safari em que já está logado nunca
   // caía aqui.
   //
-  // Precisa ler de cookie, não só localStorage: confirmado em aparelho
-  // real (debug abaixo) que o app instalado na tela de início roda numa
-  // área de armazenamento separada da aba normal do Safari — o
-  // localStorage gravado numa visita normal não aparece no app instalado.
-  // lerUltimaAreaPaciente() tenta os dois.
-  let debugPwaInfo = null
-  if (currentPath === '/') {
-    const standalone = emModoStandalone()
+  // lerUltimaAreaPaciente() tenta cookie e localStorage (confirmado em
+  // aparelho real que o app instalado às vezes não enxerga o localStorage
+  // gravado numa visita normal do Safari — cookie cobre esse caso).
+  if (currentPath === '/' && emModoStandalone()) {
     const tokenSalvo = lerUltimaAreaPaciente()
-    if (standalone && tokenSalvo) return <Navigate to={`/area/${tokenSalvo}`} replace />
-    // DEBUG TEMPORÁRIO — tira depois de confirmar que o cookie resolveu.
-    debugPwaInfo = (
-      <div style={{ position: 'fixed', top: 0, left: 0, right: 0, zIndex: 9999, background: '#000', color: '#0f0', fontSize: 11, fontFamily: 'monospace', padding: '6px 8px', wordBreak: 'break-all' }}>
-        DEBUG PWA — standalone: {String(standalone)} | tokenSalvo: {tokenSalvo || '(nenhum)'} | cookie: {document.cookie || '(vazio)'}
-      </div>
-    )
+    if (tokenSalvo) return <Navigate to={`/area/${tokenSalvo}`} replace />
   }
 
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-slate-950">
-        {debugPwaInfo}
         <p className="text-primary-600 font-bold animate-pulse text-xl">Carregando EvaluaOS...</p>
       </div>
     )
@@ -158,7 +147,6 @@ function MainApp() {
 
     return (
       <>
-        {debugPwaInfo}
         <AnalyticsTracker />
         <Routes>
           <Route path="/" element={<HomePublica />} />
