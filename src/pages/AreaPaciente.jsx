@@ -6,7 +6,7 @@ import CabecalhoPortalPaciente from '../components/CabecalhoPortalPaciente'
 import NavegacaoPortalPaciente from '../components/NavegacaoPortalPaciente'
 import BotaoInstalarPWA, { detectarIOS } from '../components/BotaoInstalarPWA'
 import { TrendingUp, FileText, ClipboardList, MessageSquare, Utensils, NotebookPen, ListChecks, FlaskConical, Calendar, ChefHat } from 'lucide-react'
-import { CHAVE_ULTIMA_AREA_PACIENTE } from '../utils/pwaAreaPaciente'
+import { salvarUltimaAreaPaciente } from '../utils/pwaAreaPaciente'
 
 function CardAcao({ icone: Icone, cor, titulo, subtitulo, onClick, desabilitado }) {
   return (
@@ -55,7 +55,7 @@ export default function AreaPaciente() {
   // sessão cai em '/' e redireciona sozinho pra essa Área).
   useEffect(() => {
     if (!tokenUrl) return
-    localStorage.setItem(CHAVE_ULTIMA_AREA_PACIENTE, tokenUrl)
+    salvarUltimaAreaPaciente(tokenUrl)
   }, [tokenUrl])
 
   useEffect(() => {

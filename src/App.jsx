@@ -58,7 +58,7 @@ import QuestionariosPaciente from './pages/QuestionariosPaciente';
 import CheckinPaciente from './pages/CheckinPaciente';
 import EmConstrucao from './components/EmConstrucao';
 import LayoutComPaciente from './components/LayoutComPaciente';
-import { CHAVE_ULTIMA_AREA_PACIENTE, emModoStandalone } from './utils/pwaAreaPaciente';
+import { emModoStandalone, lerUltimaAreaPaciente } from './utils/pwaAreaPaciente';
 
 // RASTREADOR AUTOMÁTICO DE NAVEGAÇÃO DE ROTAS (PAGEVIEWS NO GA4)
 function AnalyticsTracker() {
@@ -118,28 +118,28 @@ function MainApp() {
     { name: 'Configurações', path: '/configuracoes', icon: <Settings size={20} /> },
   ]
 
-  // O ícone da PWA instalada abre sempre o start_url do manifest — o Safari
-  // não segue de forma confiável o start_url por-token (/api/manifest.js)
-  // no "Adicionar à Tela de Início" clássico, então na prática o ícone
-  // sempre abre em '/'. Redireciona sozinho pro último link de Área do
-  // Paciente que esse aparelho visitou (salvo em AreaPaciente.jsx), ANTES
-  // de checar sessão/loading — se ficasse só dentro do "usuário não
-  // logado", um nutricionista testando o próprio link de paciente no
-  // mesmo Safari em que já está logado (sessão compartilhada com o app
-  // instalado) nunca caía aqui, e o ícone abria o painel do nutricionista
-  // em vez da Área do Paciente instalada.
+  // O ícone da PWA instalada abre sempre em '/' — confirmado em aparelho
+  // real que o iOS ignora o start_url do manifest no "Adicionar à Tela de
+  // Início" clássico. Redireciona sozinho pro último /area/:token visitado
+  // (salvo em AreaPaciente.jsx), ANTES de checar sessão/loading — se
+  // ficasse só dentro do "usuário não logado", um nutricionista testando o
+  // próprio link de paciente no mesmo Safari em que já está logado nunca
+  // caía aqui.
+  //
+  // Precisa ler de cookie, não só localStorage: confirmado em aparelho
+  // real (debug abaixo) que o app instalado na tela de início roda numa
+  // área de armazenamento separada da aba normal do Safari — o
+  // localStorage gravado numa visita normal não aparece no app instalado.
+  // lerUltimaAreaPaciente() tenta os dois.
   let debugPwaInfo = null
   if (currentPath === '/') {
     const standalone = emModoStandalone()
-    const tokenSalvo = localStorage.getItem(CHAVE_ULTIMA_AREA_PACIENTE)
+    const tokenSalvo = lerUltimaAreaPaciente()
     if (standalone && tokenSalvo) return <Navigate to={`/area/${tokenSalvo}`} replace />
-    // DEBUG TEMPORÁRIO — tira depois de descobrir por que o ícone instalado
-    // não está redirecionando pra Área do Paciente. Mostra na tela (não dá
-    // pra ler console do Safari sem Mac) por que o redirecionamento acima
-    // não disparou: não está em standalone, ou não achou token salvo.
+    // DEBUG TEMPORÁRIO — tira depois de confirmar que o cookie resolveu.
     debugPwaInfo = (
       <div style={{ position: 'fixed', top: 0, left: 0, right: 0, zIndex: 9999, background: '#000', color: '#0f0', fontSize: 11, fontFamily: 'monospace', padding: '6px 8px', wordBreak: 'break-all' }}>
-        DEBUG PWA — standalone: {String(standalone)} | navigator.standalone: {String(window.navigator.standalone)} | matchMedia: {String(window.matchMedia('(display-mode: standalone)').matches)} | tokenSalvo: {tokenSalvo || '(nenhum)'}
+        DEBUG PWA — standalone: {String(standalone)} | tokenSalvo: {tokenSalvo || '(nenhum)'} | cookie: {document.cookie || '(vazio)'}
       </div>
     )
   }
