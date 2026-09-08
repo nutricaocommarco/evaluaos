@@ -4,7 +4,7 @@ import { supabase } from '../supabaseClient'
 import { useTheme } from '../contexts/ThemeContext'
 import CabecalhoPortalPaciente from '../components/CabecalhoPortalPaciente'
 import NavegacaoPortalPaciente from '../components/NavegacaoPortalPaciente'
-import BotaoInstalarPWA, { detectarIOS } from '../components/BotaoInstalarPWA'
+import BotaoInstalarPWA from '../components/BotaoInstalarPWA'
 import { TrendingUp, FileText, ClipboardList, MessageSquare, Utensils, NotebookPen, ListChecks, FlaskConical, Calendar, ChefHat } from 'lucide-react'
 import { salvarUltimaAreaPaciente } from '../utils/pwaAreaPaciente'
 
@@ -199,12 +199,12 @@ export default function AreaPaciente() {
           <NavegacaoPortalPaciente tokenPaciente={tokenUrl} tokenLaudo={avaliacaoRecente?.token_publico} temAgendamentos={qtdAgendamentosFuturos > 0} ativo="inicio" />
         )}
 
-        {/* No iPhone, paciente relatou que ao terminar o passo a passo de
-            instalação (ou depois de instalar e reabrir pelo ícone), cai na
-            home pública em vez de voltar pra própria Área — escondido só
-            nesse caso até confirmar e corrigir a causa (ver App.jsx:135 e
-            pwaAreaPaciente.js). No Android funciona normal, mantém. */}
-        {!sessaoAtiva && !detectarIOS() && <BotaoInstalarPWA />}
+        {/* Reativado pro iPhone: o bug de cair na home pública em vez de
+            voltar pra própria Área já foi corrigido (manifest/ícone por
+            token síncrono em index.html, redirecionamento via cookie
+            gravado pelo servidor em middleware.js — ver App.jsx e
+            pwaAreaPaciente.js). */}
+        {!sessaoAtiva && <BotaoInstalarPWA />}
 
         <div>
           <h2 className="text-xl font-black text-gray-800 dark:text-slate-100">Olá, {paciente.nome_completo?.split(' ')[0]}!</h2>
