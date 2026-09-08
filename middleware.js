@@ -19,7 +19,7 @@ export const config = {
 }
 
 const CHAVE = 'evaluaos_ultima_area_paciente'
-const UM_ANO_EM_SEGUNDOS = 60 * 60 * 24 * 365
+const TRES_ANOS_EM_SEGUNDOS = 60 * 60 * 24 * 365 * 3
 
 export default async function middleware(request) {
   const url = new URL(request.url)
@@ -31,7 +31,7 @@ export default async function middleware(request) {
   const novaResposta = new Response(response.body, response)
   novaResposta.headers.append(
     'Set-Cookie',
-    `${CHAVE}=${encodeURIComponent(token)}; Max-Age=${UM_ANO_EM_SEGUNDOS}; Path=/; SameSite=Lax`
+    `${CHAVE}=${encodeURIComponent(token)}; Max-Age=${TRES_ANOS_EM_SEGUNDOS}; Path=/; SameSite=Lax`
   )
   return novaResposta
 }
