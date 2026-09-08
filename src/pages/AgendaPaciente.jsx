@@ -12,16 +12,6 @@ function formatarDataHora(dataIso) {
   })
 }
 
-// Botão de confirmar só aparece depois que o lembrete do WhatsApp já foi
-// mandado, ou (se por algum motivo o lembrete ainda não saiu) no máximo
-// 48h antes da consulta — evita o paciente confirmar presença dias
-// antes, quando ainda pode mudar de ideia.
-function podeConfirmar(agendamento) {
-  if (agendamento.whatsapp_lembrete_enviado_em) return true
-  const horasAteConsulta = (new Date(agendamento.data_inicio) - new Date()) / 3600000
-  return horasAteConsulta <= 48
-}
-
 // Portal do paciente — lista somente-leitura dos próximos horários
 // (data/hora/local/link do Meet se houver). Sem cancelar/reagendar
 // nesta leva. Mesmo esqueleto de ExamesLaboratoriaisPaciente.jsx.
@@ -196,7 +186,7 @@ export default function AgendaPaciente() {
                     <p className="text-xs text-emerald-600 font-semibold flex items-center gap-1 mt-2">
                       <CheckCircle2 size={14} /> Presença confirmada
                     </p>
-                  ) : podeConfirmar(ag) ? (
+                  ) : (
                     <button
                       onClick={() => handleConfirmar(ag)}
                       disabled={confirmandoId === ag.id}
@@ -204,7 +194,7 @@ export default function AgendaPaciente() {
                     >
                       {confirmandoId === ag.id ? 'Confirmando...' : 'Confirmar presença'}
                     </button>
-                  ) : null}
+                  )}
                 </div>
               </div>
             ))}
