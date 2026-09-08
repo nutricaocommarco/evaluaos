@@ -48,7 +48,7 @@
       "destination": "/api/og-preview?token=:token&tipo=orcamento"
     },
     {
-      "source": "/(.*)",
+      "source": "/((?!api/).*)",
       "destination": "/index.html"
     }
   ],

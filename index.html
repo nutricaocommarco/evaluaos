@@ -60,8 +60,10 @@
          — daí o ícone instalado abrir a home pública do EvaluaOS em vez da
          Área do Paciente, e/ou usar o escudo genérico em vez da logomarca
          do nutricionista. Cobre qualquer página dentro de /area/:token,
-         não só a tela de início. api/manifest.js e api/apple-touch-icon.js
-         resolvem a logomarca do avaliador correspondente pelo token. -->
+         não só a tela de início. api/manifest.js resolve a logomarca do
+         avaliador correspondente pelo token (?icone=1 devolve só o ícone,
+         redirecionado, pro apple-touch-icon — mesma função, pra não
+         estourar o limite de Serverless Functions do plano Hobby). -->
     <script>
       (function () {
         var m = location.pathname.match(/^\/area\/([^/]+)/)
@@ -70,7 +72,7 @@
         var manifestLink = document.querySelector('link[rel="manifest"]')
         if (manifestLink) manifestLink.setAttribute('href', '/api/manifest?token=' + token)
         var appleIcon = document.querySelector('link[rel="apple-touch-icon"]')
-        if (appleIcon) appleIcon.setAttribute('href', '/api/apple-touch-icon?token=' + token)
+        if (appleIcon) appleIcon.setAttribute('href', '/api/manifest?icone=1&token=' + token)
       })()
     </script>
     <div id="root"></div>

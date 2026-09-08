@@ -5,6 +5,16 @@
 // uma cadastrada (nome do app continua "EvaluaOS" sempre).
 // src/pages/AreaPaciente.jsx troca o <link rel="manifest"> pra apontar
 // aqui assim que sabe o token.
+//
+// Também serve (?icone=1) o apple-touch-icon por token: o Safari não lê
+// o array `icons` do manifest.json pra "Adicionar à Tela de Início", só
+// <link rel="apple-touch-icon"> — precisa da mesma resolução de marca por
+// avaliador, só que devolvendo a imagem (302), não o JSON do manifest.
+// Vive nesta função em vez de um arquivo próprio (api/apple-touch-icon.js)
+// de propósito: o plano Hobby da Vercel limita 12 Serverless Functions por
+// deploy, e esse projeto já está no limite (ver api/cron/lembretes-
+// agendamento.js) — um arquivo novo aqui empurraria pra 13 e derrubava o
+// deploy inteiro (foi exatamente isso que aconteceu quando existiu).
 import { createClient } from '@supabase/supabase-js'
 
 const supabase = createClient(
@@ -17,6 +27,7 @@ const NOME_APP = 'EvaluaOS'
 
 export default async function handler(req, res) {
   const token = typeof req.query.token === 'string' ? req.query.token : ''
+  const pedirIcone = req.query.icone === '1'
 
   let icone = ICONE_PADRAO
 
@@ -40,6 +51,12 @@ export default async function handler(req, res) {
     } catch (err) {
       console.error('manifest: falha ao buscar marca do avaliador', err)
     }
+  }
+
+  if (pedirIcone) {
+    res.setHeader('Cache-Control', 'public, max-age=300, stale-while-revalidate=3600')
+    res.redirect(302, icone)
+    return
   }
 
   const startUrl = token ? `/area/${token}` : '/'
