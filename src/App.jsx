@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route, Navigate, useNavigate, useLocation } from
 import { supabase } from './supabaseClient'
 import { ThemeProvider } from './contexts/ThemeContext'
 import { PlanoProvider } from './contexts/PlanoContext'
+import AvisoNovaVersao from './components/AvisoNovaVersao'
 import { Users, Star, BookOpen, Settings, Map, Library, Kanban, ClipboardList, Calendar, Wallet } from 'lucide-react'
 
 // Importando suas telas 
@@ -370,6 +371,7 @@ export default function App() {
       <ThemeProvider>
         <PlanoProvider>
           <MainApp />
+          <AvisoNovaVersao />
         </PlanoProvider>
       </ThemeProvider>
     </BrowserRouter>

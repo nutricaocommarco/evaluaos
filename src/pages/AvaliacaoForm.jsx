@@ -325,6 +325,7 @@ export default function AvaliacaoForm() {
 
   const [loading, setLoading] = useState(false)
   const [isSingleMode, setIsSingleMode] = useState(false)
+  const [semLeiturasBrutas, setSemLeiturasBrutas] = useState(false)
   const [alturaBanco, setAlturaBanco] = useState(0)
 
   const [configAvaliador, setConfigAvaliador] = useState({
@@ -475,6 +476,7 @@ export default function AvaliacaoForm() {
           // digitado. Avaliações mais antigas não têm isso: cai no
           // comportamento antigo (só o valor final, como se fosse 1 medida).
           const brutas = avaliacaoData.medidas_brutas || {}
+          setSemLeiturasBrutas(Object.keys(brutas).length === 0)
           const preencherEstado = (keys) => {
             return keys.reduce((acc, key) => {
               const bruta = brutas[key]
@@ -774,6 +776,16 @@ export default function AvaliacaoForm() {
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-6">
+        {avaliacaoIdParaEditar && semLeiturasBrutas && (
+          <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200/80 rounded-xl p-4 text-xs text-amber-900 dark:text-amber-300 space-y-1">
+            <p className="font-bold">⚠️ Esta avaliação não guardou as 3 medidas originais.</p>
+            <p>
+              Só o valor final de cada medida (média ou mediana) foi salvo, por isso a tela abriu em modo único. Para registrar as 3 leituras,
+              desmarque “Habilitar Modo Único / Edição”, libere cada campo no 🔒 e digite a 1ª, 2ª e 3ª medida de novo.
+            </p>
+          </div>
+        )}
+
         <div className="bg-white dark:bg-slate-900 p-6 rounded-xl border border-gray-100 dark:border-slate-800 shadow-sm space-y-4">
           <div className="flex flex-col md:flex-row justify-between items-start md:items-center border-b pb-4 gap-3">
             <h3 className="text-sm font-bold text-gray-800 dark:text-slate-100 uppercase tracking-wider">1. Dados Gerais</h3>
